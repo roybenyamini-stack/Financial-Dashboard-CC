@@ -1645,6 +1645,35 @@ function cfParseWorkbook(wb) {
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
 
+      // v17.2: max-value heuristic — אמין יותר מזיהוי שם שורה
+      // total_income = הערך הגבוה ביותר (≥50) בשורות HEADER_ROW+1 עד +70 (קטע הכנסות)
+      // total_exp    = הערך הגבוה ביותר (>0)   בשורות HEADER_ROW+71 עד +130 (קטע הוצאות)
+      var hMaxInc = null, hMaxExp = null;
+      var hIncEnd = Math.min(HEADER_ROW + 70,  maxRow);
+      var hExpEnd = Math.min(HEADER_ROW + 130, maxRow);
+      for (var hri = HEADER_ROW + 1; hri <= hIncEnd; hri++) {
+        var hv = cellVal(ws, hri, col);
+        if (hv !== null && hv !== undefined) {
+          var hn = typeof hv === 'number' ? hv : parseFloat(String(hv).replace(/,/g, ''));
+          if (!isNaN(hn) && hn >= 50 && (hMaxInc === null || hn > hMaxInc)) hMaxInc = hn;
+        }
+      }
+      for (var hri2 = HEADER_ROW + 71; hri2 <= hExpEnd; hri2++) {
+        var hv2 = cellVal(ws, hri2, col);
+        if (hv2 !== null && hv2 !== undefined) {
+          var hn2 = typeof hv2 === 'number' ? hv2 : parseFloat(String(hv2).replace(/,/g, ''));
+          if (!isNaN(hn2) && hn2 > 0 && (hMaxExp === null || hn2 > hMaxExp)) hMaxExp = hn2;
+        }
+      }
+      if (hMaxInc !== null) {
+        mObj.rows.total_income = {val: Math.round(hMaxInc * 10) / 10, note: null};
+        console.log('[CF v17.2] total_income (max):', hMaxInc, '| חודש:', mObj.label);
+      }
+      if (hMaxExp !== null) {
+        mObj.rows.total_exp = {val: Math.round(hMaxExp * 10) / 10, note: null};
+        console.log('[CF v17.2] total_exp (max):', hMaxExp, '| חודש:', mObj.label);
+      }
+
       sheetResult.push(mObj);
     }
     return sheetResult;
@@ -1708,7 +1737,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.1');
+          localStorage.setItem('dashboard_cf_version', '17.2');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2830,9 +2859,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.1') {
+    if (savedVer !== '17.2') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.1');
+      localStorage.setItem('dashboard_cf_version', '17.2');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
@@ -3353,19 +3382,23 @@ function cfShowNoData() {
 function cfRenderSummary() {
   var container = document.getElementById('cf-summary-row');
   if (!container) return;
+  // v17.2: נטו מצטבר = inc - exp (מחושב), לא net_cashflow
   var currentYear = new Date().getFullYear();
-  var totalInc = 0, totalExp = 0, totalNet = 0, months = 0;
+  var totalInc = 0, totalExp = 0, months = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== currentYear) return;
-    totalInc += (m.rows.total_income  && m.rows.total_income.val  !== null) ? m.rows.total_income.val  : 0;
-    totalExp += (m.rows.total_exp     && m.rows.total_exp.val     !== null) ? m.rows.total_exp.val     : 0;
-    totalNet += (m.rows.net_cashflow  && m.rows.net_cashflow.val  !== null) ? m.rows.net_cashflow.val  : 0;
+    var mInc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val
+             : (m.rows.salary       && m.rows.salary.val       != null) ? m.rows.salary.val : 0;
+    var mExp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
+    totalInc += mInc;
+    totalExp += mExp;
     months++;
   });
+  var totalNet = totalInc - totalExp;
   var items = [
     {label:'הכנסות מצטברות ' + currentYear, val: totalInc, color:'#4ade80', sub: months + ' חודשים · אלפי ש״ח'},
     {label:'הוצאות מצטברות ' + currentYear, val: totalExp, color:'#f87171', sub: months + ' חודשים · אלפי ש״ח'},
-    {label:'נטו מצטבר 2026',                val: totalNet, color: totalNet >= 0 ? '#4ade80' : '#f87171', sub: 'חודשי 2026'},
+    {label:'נטו מצטבר ' + currentYear,      val: totalNet, color: totalNet >= 0 ? '#4ade80' : '#f87171', sub: months + ' חודשים · אלפי ש״ח'},
   ];
   var html = '';
   items.forEach(function(item) {
