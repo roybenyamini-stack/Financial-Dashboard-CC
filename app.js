@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V33.0 - LOANS FIX & SLIM BAR SPLIT !!!');
-          console.log('[Dashboard v33.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '33.0');
+          console.log('!!! V34.0 - PERFECT ALIGNMENT & ACCURACY !!!');
+          console.log('[Dashboard v34.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '34.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '33.0') {
+    if (savedVer !== '34.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '33.0');
+      localStorage.setItem('dashboard_cf_version', '34.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3497,7 +3497,7 @@ function cfRenderChart() {
 
 function cfRenderTable() {
   var COL_W   = 80;   // matches chart COL_W
-  var LABEL_W = 170;  // sticky label column width
+  var LABEL_W = 130;  // sticky label column width — v34: reduced for tighter layout
   var YAXIS_W = 50;   // matches chart Y axis width — spacer column on left
 
   var months = cfGetDisplayMonths();
@@ -3663,7 +3663,8 @@ function cfRenderSummary() {
   var totUsd = dr.total_usd&&dr.total_usd.val!=null?dr.total_usd.val:0;
   var totUsdCol = totUsd >= 0 ? '#a5b4fc' : '#fca5a5';
 
-  function fmt(v) { return '\u20aa' + Math.round(v).toLocaleString(); }
+  // v34: הוצאות/הכנסות — תמיד חיובי; נטו שלילי → '-₪X,XXX'
+  function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + '\u20aa' + a.toLocaleString(); }
 
   function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
@@ -3687,7 +3688,7 @@ function cfRenderSummary() {
   html += '<div style="font-size:15px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:11px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
   html += cellBig('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
-  html += cellBig('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', ytdExp, '#f87171');
+  html += cellBig('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', Math.abs(ytdExp), '#f87171');
   html += cellBig('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
 
   html += BDIV;
@@ -3696,7 +3697,7 @@ function cfRenderSummary() {
   html += '<div style="font-size:11px;font-weight:600;color:#3d5069;white-space:nowrap;line-height:1.5;flex-shrink:0;">$<br>' + (selM ? selM.label : '') + '</div>';
   html += DIV;
   html += cellSmall('\u05de\u05e9\u05db\u05f3', salUsd, '#818cf8');
-  html += cellSmall('\u05d4\u05d5\u05e6\u05f3', expUsd, '#fca5a5');
+  html += cellSmall('\u05d4\u05d5\u05e6\u05f3', Math.abs(expUsd), '#fca5a5');
   html += cellSmall('\u05e1\u05da', totUsd, totUsdCol);
 
   html += '</div>';
