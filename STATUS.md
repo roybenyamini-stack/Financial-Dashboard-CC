@@ -1,7 +1,24 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v17.0 — ניקוי רעלים: הסרת כל fallback ל-mock/profit_loss, נטו מחושב בקוד, localStorage אכוף לגרסה 17.0.
+גרסה v17.1 — Robust parsing, פולבאק חכם total_income∥salary, ציר זמן שנה-אגנוסטי, צבעים קבועים בגרף.
+
+## שינויים אחרונים (21/03/2026)
+
+### v17.1 – Robust Parsing and Flexible UI Scaling
+
+**app.js:**
+- `normalizeForCompare`: **ניקוי מלא** — הוספת הסרת תווים בלתי-נראים (non-breaking space, BOM, zero-width) לפני השוואה; קיפול רווחים כפולים לרווח יחיד; `.trim()` בסוף
+- `cfRenderKPI`: **פולבאק חכם** — הכנסות = `total_income` אם קיים (סה"כ הכנסות מהאקסל), אחרת `salary` (הכנסה ממשכורת) כגיבוי. נטו = inc-exp (מחושב, ללא שינוי)
+- `cfRenderChart` monthly: **אותו פולבאק** בגרף. צבע ירוק לעמודת הכנסות — קבוע, לא מותנה בנטו
+- `cfGetDisplayMonths`: שינוי שם `'ytd2026'` → `'ytd'` — שנה-אגנוסטי. הציר תמיד דינמי לפי השנה הגבוהה ב-CF_DATA
+- `cfSetDateRange`: עדכון מזהה כפתור `cf-range-ytd2026` → `cf-range-ytd`
+- `cfScrollToLatest`: עדכון תנאי `ytd2026` → `ytd`
+- localStorage: גרסה עודכנה `17.0` → `17.1`
+
+**index.html:**
+- עדכון גרסה: v17.0 → v17.1
+- כפתור טווח: id/onclick שונו מ-`ytd2026` ל-`ytd`; תווית שונתה מ-`2026` ל-`שנה שלמה`
 
 ## שינויים אחרונים (21/03/2026)
 
