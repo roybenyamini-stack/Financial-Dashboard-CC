@@ -1457,7 +1457,7 @@ function cfParseWorkbook(wb) {
       return {y: d.getUTCFullYear(), m: d.getUTCMonth() + 1};
     }
     if (v instanceof Date) {
-      return {y: v.getFullYear(), m: v.getMonth() + 1};
+      return {y: v.getUTCFullYear(), m: v.getUTCMonth() + 1}; // v19.2: UTC למניעת timezone off-by-one
     }
     // נרמל: החלף כל סוגי רווחים (כולל non-breaking space U+00A0, BOM U+FEFF) ברווח רגיל
     var s = String(v).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
@@ -1569,8 +1569,7 @@ function cfParseWorkbook(wb) {
       }
     }
 
-    // First Match Only — מפתחות שנמצאו בסריקה הדינמית (לא מה-static ROW_MAP!)
-    // כך הסריקה הדינמית תמיד יכולה לדרוס ערכי static שגויים
+    // מעבר 1: כל שאר המפתחות — First Match Only
     var mappedKeys = {};
 
     colsToScan.forEach(function(lc) {
@@ -1581,16 +1580,13 @@ function cfParseWorkbook(wb) {
         var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
         if (!lblTrimmed) continue;
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
-
-        // v19.1: שורות ברזל — חייבות התאמה מדויקת (exact), לא contains
-        // מונע "סה"כ הכנסות ממשכורות" מלהיות ממופה בטעות כ-total_income
-        var IRON_EXACT = { total_income: 1, total_exp: 1, profit_loss: 1 };
         for (var lkey in KEY_LABELS) {
           if (mappedKeys[lkey]) continue;
           if (KEY_LABELS[lkey].length === 0) continue;
+          // שורות ברזל מטופלות במעבר 2 — דלג כאן
+          if (lkey === 'total_income' || lkey === 'total_exp' || lkey === 'profit_loss') continue;
           if (KEY_LABELS[lkey].some(function(kw){
             var nkw = normalizeForCompare(kw.toLowerCase());
-            if (IRON_EXACT[lkey]) return ls === nkw;  // exact match לשורות ברזל
             if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
             return ls.indexOf(nkw) >= 0;
           })) {
@@ -1600,6 +1596,34 @@ function cfParseWorkbook(wb) {
             break;
           }
         }
+      }
+    });
+
+    // v19.2: מעבר 2 — שורות ברזל בלבד: EXACT MATCH + LAST ROW (הסכום האמיתי תמיד אחרי תת-הסכומים)
+    var IRON_KEYS = ['total_income', 'total_exp', 'profit_loss'];
+    IRON_KEYS.forEach(function(ikey) {
+      var lastMatchRow = null;
+      colsToScan.forEach(function(lc) {
+        for (var nri = 0; nri < nonEmptyRows.length; nri++) {
+          var sr = nonEmptyRows[nri];
+          var lbl = cellVal(ws, sr, lc);
+          if (!lbl) continue;
+          var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
+          if (!lblTrimmed) continue;
+          var ls = normalizeForCompare(lblTrimmed.toLowerCase());
+          var matched = KEY_LABELS[ikey].some(function(kw) {
+            return ls === normalizeForCompare(kw.toLowerCase()); // חייב === בלבד
+          });
+          if (matched) {
+            lastMatchRow = sr; // תמיד עדכן — ה-LAST row מנצח
+            console.log('[v19.2] iron candidate:', ikey, '→ row', sr, '| label:', lblTrimmed);
+          }
+        }
+      });
+      if (lastMatchRow !== null) {
+        Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === ikey) delete ROW_MAP[k]; });
+        ROW_MAP[lastMatchRow] = ikey;
+        console.log('[v19.2] FINAL iron row:', ikey, '→ row', lastMatchRow);
       }
     });
 
@@ -1618,6 +1642,7 @@ function cfParseWorkbook(wb) {
       if (!pd || pd.y < 2025) continue;
       var _mLabel = HEB_MONTHS[pd.m - 1] + ' ' + pd.y;
       var _mMonthId = pd.y + '-' + (pd.m < 10 ? '0' + pd.m : '' + pd.m);
+      console.log('Target Column Index:', col, '→', _mLabel, '| header raw:', JSON.stringify(colHeaderRaw));
       var mObj = {
         label: _mLabel,
         monthId: _mMonthId,
@@ -1674,9 +1699,9 @@ function smartUploadRouter(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      // נקה נתונים ישנים מיד — לפני הפארסינג — כדי שלא יוצג mock אם הפארסינג ייכשל
+      // v19.2: ניקוי זיכרון אגרסיבי — דף נקי בכל טעינת אקסל
+      localStorage.clear();
       CF_DATA = [];
-      localStorage.removeItem('dashboard_cf_data');
       var data = new Uint8Array(e.target.result);
       var wb = XLSX.read(data, {type:'array', cellDates:true});
       var cfKey = 'שוטף חדשי'.normalize('NFC');
@@ -1690,10 +1715,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V19.1 - MARCH IS 123 - TEST NOW !!!');
-          console.log('[Dashboard v19.1] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '19.1');
+          console.log('!!! V19.2 - LAST IRON ROW + UTC FIX - TEST NOW !!!');
+          console.log('[Dashboard v19.2] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '19.2');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2816,9 +2840,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.1') {
+    if (savedVer !== '19.2') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.1');
+      localStorage.setItem('dashboard_cf_version', '19.2');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
