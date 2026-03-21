@@ -1537,42 +1537,30 @@ function cfParseWorkbook(wb) {
 
     // 3. זיהוי דינמי (case-insensitive) — סרוק עמודות לפני firstMonthCol
     //    מטרה: לאפשר מיפוי אוטומטי גם לאקסלים עם מבנה שונה
-    // v16.98: KEY_LABELS מדויק לפי מבנה האקסל שסופק
+    // v17.5: KEY_LABELS — עברית בלבד. total_income מטופל בנפרד דרך total_income_candidates.
+    // הוסרו כל מילות מפתח אנגליות מ-salary, total_exp, delta — גרמו לזיהוי שורות שגויות.
     var KEY_LABELS = {
-      // salary: 'הכנסה ממשכורת' — זוהי שורת ההכנסה הראשית שמציגים ב-KPI
-      salary:       ['הכנסה ממשכורת', 'salary income', 'income from salary'],
-      rent_income:  ['rent income', 'rental', 'שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
-      other_income: ['other income', 'misc income', 'הכנסות שונות', 'הכנסה אחרת'],
-      buffer:       ['buffer', 'reserve', 'פריטה מ buffer', 'פריטה'],
-      // v17.3: 'סה"כ' לבד מוחזר לרשימה — אך נבדק כ-EXACT MATCH בלבד (ראה לוגיקת ההשוואה למטה)
-      // כך 'סה"כ' ≠ 'סה"כ התחייבויות שיקלי', אבל כן = תא שמכיל רק 'סה"כ' (השורה הצהובה)
-      total_income: ['סה"כ', 'סה״כ', 'סהכ',
-                     'total income', 'total revenues', 'total inflow', 'income total', 'sum income',
-                     'סה"כ הכנסות', 'סה״כ הכנסות', 'סהכ הכנסות',
-                     'הכנסות סהכ', 'סך הכנסות', 'סך הכל הכנסות',
-                     'סה"כ תזרים חיובי', 'סה״כ תזרים חיובי'],
-      visa:         ['visa', 'credit card', 'חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
-      cash_exp:     ['cash expenses', 'cash exp', 'הוצאות מזומן'],
-      loans:        ['loans', 'loan repayment', 'mortgage', 'הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
-      yotam:        ['yotam', 'יותם'],
-      other_exp:    ['other expenses', 'misc exp', 'הוצאות שונות', 'הוצאות חריגות'],
-      // total_exp: 'התחייבויות' מבטיח שלא נבלבל עם 'סה"כ' של הכנסות (שמופיע לפניו בסריקה)
-      total_exp:    ['total expenses', 'total expenditures', 'expenses total', 'sum expenses',
-                     'סה"כ הוצאות', 'סה״כ הוצאות', 'סהכ הוצאות', 'הוצאות סהכ', 'סך הוצאות',
-                     'סך הכל הוצאות',
-                     'סה"כ תזרים שלילי', 'סה״כ תזרים שלילי',
+      salary:       ['הכנסה ממשכורת'],
+      rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
+      other_income: ['הכנסות שונות', 'הכנסה אחרת'],
+      buffer:       ['פריטה מ buffer', 'פריטה'],
+      // total_income: מוסר מכאן — מטופל ע"י total_income_candidates (ריבוי מועמדים + ולידציה)
+      visa:         ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
+      cash_exp:     ['הוצאות מזומן'],
+      loans:        ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
+      yotam:        ['יותם'],
+      other_exp:    ['הוצאות שונות', 'הוצאות חריגות'],
+      // total_exp: חיפוש ייחודי — "התחייבות שיקלי" לא ייתכן בשורת הכנסות
+      total_exp:    ['סה"כ התחייבות שיקלי', 'סה"כ התחייבויות שיקלי',
                      'סה"כ התחייבויות', 'סה״כ התחייבויות',
-                     'התחייבויות שיקלי', 'התחייבויות'],
-      renovation:   ['renovation', 'הוצאות שיפוץ', 'שיפוץ'],
-      net_cashflow: ['net cashflow', 'net cash flow', 'net flow', 'cashflow net',
-                     'תזרים שקלי נטו', 'נטו שוטף', 'תזרים נטו'],
-      salary_usd:   ['salary usd', 'salary $', 'משכורת $ (בשקלים)', 'משכורת $', 'משכורת דולר'],
-      exp_usd:      ['expenses usd', 'expenses $', 'הוצאות $ (בשקלים)', 'הוצאות $', 'הוצאות דולר'],
-      total_usd:    ['total usd', 'total $', 'total dollar', 'סך הכל $', 'סה"כ דולר', 'סה״כ דולר'],
-      delta:        ['∆ תזרים שוטף', 'delta תזרים', '\u0394 תזרים', '∆ cashflow'],
-      // profit_loss: 'רווח / הפסד' בלבד. הסרנו 'רווח'/'הפסד' לבד שגרמו לזיהוי שגוי
-      profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד',
-                     'profit / loss', 'profit/loss', 'p&l', 'p & l']
+                     'סה"כ הוצאות', 'סה״כ הוצאות'],
+      renovation:   ['הוצאות שיפוץ', 'שיפוץ'],
+      net_cashflow: ['תזרים שקלי נטו', 'נטו שוטף', 'תזרים נטו'],
+      salary_usd:   ['משכורת $ (בשקלים)', 'משכורת $', 'משכורת דולר'],
+      exp_usd:      ['הוצאות $ (בשקלים)', 'הוצאות $', 'הוצאות דולר'],
+      total_usd:    ['סך הכל $', 'סה"כ דולר', 'סה״כ דולר'],
+      delta:        ['∆ תזרים שוטף', '\u0394 תזרים'],
+      profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד']
     };
 
     // עמודות לסריקה: col 0 + כל העמודות לפני firstMonthCol
@@ -1600,6 +1588,15 @@ function cfParseWorkbook(wb) {
     // First Match Only — מפתחות שנמצאו בסריקה הדינמית (לא מה-static ROW_MAP!)
     // כך הסריקה הדינמית תמיד יכולה לדרוס ערכי static שגויים
     var mappedKeys = {};
+    // v17.5: total_income מטופל בנפרד — נאספים כל המועמדים (כל שורות "סה"כ" exact)
+    // בעת קריאת הערכים, נבחר הראשון שהערך שלו ≥ 100
+    var total_income_candidates = [];
+    // נורמליזציה של מילות "סה"כ" לבדיקת מועמדים
+    var _tiKeywords = [
+      normalizeForCompare('\u05E1\u05D4"\u05DB'),   // סה"כ
+      normalizeForCompare('\u05E1\u05D4\u05F4\u05DB'), // סה״כ
+      normalizeForCompare('\u05E1\u05D4\u05DB')       // סהכ
+    ];
 
     colsToScan.forEach(function(lc) {
       for (var nri = 0; nri < nonEmptyRows.length; nri++) {
@@ -1608,14 +1605,20 @@ function cfParseWorkbook(wb) {
         if (!lbl) continue;
         var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
         if (!lblTrimmed) continue;
-        // v16.97: normalizeForCompare מנרמל גרשיים עבריים + מרכאות חכמות + סלש לפני השוואה
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
+
+        // v17.5: total_income — אסוף כל שורות "סה"כ" exact (ריבוי מועמדים, ללא First Match Only)
+        if (_tiKeywords.indexOf(ls) >= 0 && total_income_candidates.indexOf(sr) < 0) {
+          total_income_candidates.push(sr);
+          console.log('[CF v17.5] total_income candidate: שורה', sr, '(HEADER_ROW+' + (sr - HEADER_ROW) + '):', lblTrimmed);
+        }
+
+        // סריקת KEY_LABELS — First Match Only לכל השאר
         for (var lkey in KEY_LABELS) {
           if (mappedKeys[lkey]) continue; // כבר מופה — דלג
           if (KEY_LABELS[lkey].some(function(kw){
             var nkw = normalizeForCompare(kw.toLowerCase());
-            // v17.3: 'סה"כ' לבד = Exact Match — מונע 'סה"כ התחייבויות' להיספג כ-total_income
-            // כלל: אם מילת המפתח קצרה (≤4 תווים ללא רווח), השווה exact. אחרת — contains.
+            // אם מילת המפתח קצרה (≤4 תווים ללא רווח), השווה exact. אחרת — contains.
             if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
             return ls.indexOf(nkw) >= 0;
           })) {
@@ -1624,26 +1627,18 @@ function cfParseWorkbook(wb) {
             ROW_MAP[sr] = lkey;
             mappedKeys[lkey] = true; // First Match Only
             console.log('[CF Parser] זוהה label דינמי:', lblTrimmed, '→', lkey, '| שורה:', sr);
-            break; // v16.95: מפתח אחד בלבד לכל שורה — מונע מיפוי כפול
+            break; // מפתח אחד בלבד לכל שורה
           }
         }
       }
     });
-    // v17.4: Hard Mapping Fallback — מופעל רק אם הסריקה הדינמית לא מצאה את השורה
-    // HEADER_ROW+6  = שורת "סה"כ" הצהובה (הכנסות), לפי מבנה האקסל מהתמונה
-    // HEADER_ROW+16 = שורת "סה"כ התחייבויות שיקלי" הכתומה (הוצאות)
-    // אם ה-console.log למעלה מראה offsets שונים — שנה כאן בהתאם
-    if (!mappedKeys.total_income) {
-      var _hIncRow = HEADER_ROW + 6;
-      Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === 'total_income') delete ROW_MAP[k]; });
-      ROW_MAP[_hIncRow] = 'total_income';
-      console.log('[CF v17.4] ⚡ Hard fallback: total_income → שורה', _hIncRow, '(HEADER_ROW+6)');
-    }
+    console.log('[CF v17.5] total_income candidates:', total_income_candidates);
+    // v17.5: Hard Fallback ל-total_exp בלבד (total_income מטופל ע"י candidates)
     if (!mappedKeys.total_exp) {
       var _hExpRow = HEADER_ROW + 16;
       Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === 'total_exp') delete ROW_MAP[k]; });
       ROW_MAP[_hExpRow] = 'total_exp';
-      console.log('[CF v17.4] ⚡ Hard fallback: total_exp → שורה', _hExpRow, '(HEADER_ROW+16)');
+      console.log('[CF v17.5] ⚡ Hard fallback: total_exp → שורה', _hExpRow, '(HEADER_ROW+16)');
     }
     console.log('[CF Parser] ROW_MAP סופי:', JSON.stringify(ROW_MAP));
 
@@ -1678,6 +1673,40 @@ function cfParseWorkbook(wb) {
         var noteStr = (note != null && String(note).trim() !== '') ? String(note).trim() : null;
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
+
+      // v17.5: total_income — עבור על כל המועמדים, בחר הראשון עם ערך ≥ 100
+      // אם אף אחד לא עומד בתנאי, קח את הראשון שיש לו ערך כלשהו
+      var _tiVal = null, _tiNote = null, _tiFound = false;
+      for (var _tii = 0; _tii < total_income_candidates.length; _tii++) {
+        var _tiRow = total_income_candidates[_tii];
+        var _tiRaw = cellVal(ws, _tiRow, col);
+        var _tiNum = null;
+        if (_tiRaw !== null && _tiRaw !== undefined) {
+          var _tiP = typeof _tiRaw === 'number' ? _tiRaw : parseFloat(String(_tiRaw).replace(/,/g, ''));
+          if (!isNaN(_tiP)) _tiNum = Math.round(_tiP * 10) / 10;
+        }
+        console.log('[CF v17.5] total_income candidate שורה', _tiRow, '| col', col, '=', _tiNum);
+        if (_tiNum !== null && _tiNum >= 100) {
+          _tiVal = _tiNum;
+          var _tiNoteRaw = cellVal(ws, _tiRow, col + 1);
+          _tiNote = (_tiNoteRaw != null && String(_tiNoteRaw).trim() !== '') ? String(_tiNoteRaw).trim() : null;
+          console.log('[CF v17.5] ✅ total_income נבחר שורה', _tiRow, '=', _tiVal);
+          _tiFound = true;
+          break;
+        }
+      }
+      // fallback: אם אף מועמד לא עבר 100 — קח ערך ראשון שאינו null
+      if (!_tiFound) {
+        for (var _tij = 0; _tij < total_income_candidates.length; _tij++) {
+          var _tiRow2 = total_income_candidates[_tij];
+          var _tiRaw2 = cellVal(ws, _tiRow2, col);
+          if (_tiRaw2 !== null && _tiRaw2 !== undefined) {
+            var _tiP2 = typeof _tiRaw2 === 'number' ? _tiRaw2 : parseFloat(String(_tiRaw2).replace(/,/g, ''));
+            if (!isNaN(_tiP2)) { _tiVal = Math.round(_tiP2 * 10) / 10; break; }
+          }
+        }
+      }
+      mObj.rows.total_income = {val: _tiVal, note: _tiNote};
 
       sheetResult.push(mObj);
     }
@@ -1742,7 +1771,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.4');
+          localStorage.setItem('dashboard_cf_version', '17.5');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2864,9 +2893,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.4') {
+    if (savedVer !== '17.5') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.4');
+      localStorage.setItem('dashboard_cf_version', '17.5');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
