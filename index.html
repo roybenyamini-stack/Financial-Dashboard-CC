@@ -25,26 +25,33 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v21.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v22.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
       <div class="stat-item">
-        <div class="stat-label">תזרים נטו חודש נוכחי</div>
-        <div class="stat-value green" id="cf-hdr-current">—</div>
-        <div class="stat-change" id="cf-hdr-current-sub">אלפי ש״ח</div>
+        <div class="stat-label" id="cf-hdr-net-label">נטו</div>
+        <div class="stat-value green" id="cf-hdr-net">—</div>
+        <div class="stat-change" id="cf-hdr-net-sub">אלפי ש״ח</div>
       </div>
       <div class="divider"></div>
       <div class="stat-item">
-        <div class="stat-label">תזרים מצטבר YTD</div>
-        <div class="stat-value green" id="cf-hdr-ytd">—</div>
+        <div class="stat-label">הכנסות</div>
+        <div class="stat-value green" id="cf-hdr-income">—</div>
         <div class="stat-change">אלפי ש״ח</div>
       </div>
       <div class="divider"></div>
       <div class="stat-item">
-        <div class="stat-label">ממוצע חודשי</div>
-        <div class="stat-value" id="cf-hdr-avg">—</div>
+        <div class="stat-label">הוצאות</div>
+        <div class="stat-value red" id="cf-hdr-exp">—</div>
         <div class="stat-change">אלפי ש״ח</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item" style="justify-content:center;">
+        <select id="cf-year-select" onchange="cfSelectYear(parseInt(this.value))" style="padding:5px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.1);color:white;font-size:13px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;outline:none;">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
       </div>
     </div>
   </div>
@@ -721,14 +728,11 @@
 <div class="tab-panel" id="tab-cashflow">
 <div style="padding:16px 20px 40px 20px; font-family:Heebo,sans-serif; direction:rtl;">
 
-  <!-- Month Selector — v19.2 בורר חודשים -->
+  <!-- Month Selector — v22.0: Dropdown חודשים בלבד (שנה ב-header) -->
   <div id="cf-month-nav"></div>
 
-  <!-- KPI Cards — v21.0: 3 כרטיסיות ראשיות -->
-  <div id="cf-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:10px;"></div>
-
-  <!-- Detail Cards — v21.0: פירוט שקלים/דולרים -->
-  <div id="cf-detail-row" style="margin-bottom:12px;"></div>
+  <!-- KPI placeholder (used as guard in cfInit) -->
+  <div id="cf-kpi-row" style="display:none;"></div>
 
   <!-- Summary Row — סיכומים שנתיים/מצטברים -->
   <div id="cf-summary-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
@@ -777,6 +781,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Detail Cards — v22.0: פירוט קומפקטי מתחת לטבלה -->
+  <div id="cf-detail-row" style="margin-top:16px;margin-bottom:12px;"></div>
 
 </div>
 

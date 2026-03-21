@@ -1,7 +1,28 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v21.0 — THE FACE LIFT: עיצוב מחדש מלא של ממשק המשתמש — Dropdown חודשים, 3 כרטיסיות KPI רחבות, כרטיסיות פירוט שקלים/דולרים, Stacked Bar Chart עם YTD Tooltip.
+גרסה v22.0 — CLEAN DESIGN: Header קומפקטי עם KPIs ו-Dropdown שנה, כרטיסיות פירוט מתחת לטבלה, לחיצה על גרף מעדכנת נתוני חודש, Tooltip עם YTD מצטבר.
+
+## שינויים אחרונים (21/03/2026)
+
+### v22.0 – Clean Design (השקעות סגנון)
+
+**index.html:**
+- `#cf-header-stats`: הוחלף ל-3 KPIs קומפקטיים (נטו/הכנסות/הוצאות) + Dropdown שנה (2026/2025) בסגנון טאב השקעות
+- `cf-kpi-row`: הוסתר (display:none) — KPIs ראשיים עברו ל-header
+- `cf-detail-row`: הועבר מתחת לקונטיינר הגרף+טבלה (לא מעל)
+- גרסה עודכנה: v21.0 → v22.0
+
+**app.js:**
+- `CF_SELECTED_YEAR`: משתנה גלובלי חדש לבחירת שנת תצוגה
+- `CF_CHART_MONTHS`: מטמון חודשי גרף לשימוש ב-onClick
+- `cfGetDisplayMonths()`: פשוט ואחיד — תמיד 12 חודשים של שנה נבחרת (CF_SELECTED_YEAR || auto-max)
+- `cfSelectYear(year)`: פונקציה חדשה — מחליפה שנה ומרנדרת הכל מחדש
+- `cfUpdateHeader()`: מציג נטו/הכנסות/הוצאות של החודש הנבחר (IDs: cf-hdr-net/income/exp)
+- `cfRenderMonthSelector()`: מסנן לפי שנה נבחרת
+- `cfRenderKPI()`: קומפקטי — chip קטנות בלבד (9px label, 12px ערך), ללא כרטיסיות גדולות
+- `cfRenderChart()`: onClick = לחיצה על עמודה מעדכנת CF_SELECTED_MONTH_ID; onHover = cursor:pointer; Tooltip = כולל label נכון + YTD afterBody
+- גרסת localStorage עודכנה: `'21.0'` → `'22.0'`
 
 ## שינויים אחרונים (21/03/2026)
 
