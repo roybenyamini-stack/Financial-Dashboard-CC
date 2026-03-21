@@ -1,7 +1,24 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v22.0 — CLEAN DESIGN: Header קומפקטי עם KPIs ו-Dropdown שנה, כרטיסיות פירוט מתחת לטבלה, לחיצה על גרף מעדכנת נתוני חודש, Tooltip עם YTD מצטבר.
+גרסה v23.0 — VISUAL PERFECTION: תאום מדויק לסגנון טאב השקעות — סדר Header הכנסות|הוצאות|נטו, Year select בשורת הטאבים, Controls ללא כפתורי טווח, Legend למעלה, YTD bar width אחיד, Tooltip offset.
+
+## שינויים אחרונים (21/03/2026)
+
+### v23.0 – Visual Perfection
+
+**index.html:**
+- `#tabs-nav`: נוסף `#cf-year-nav` (Dropdown שנה 2026/2025) בקצה השמאלי, מוצג רק בטאב תזרים (cf-only-btn)
+- `#cf-header-stats`: סדר עודכן ל-הכנסות | הוצאות | נטו (מימין לשמאל), הוסר year select מהheader
+- `cf-month-nav` div: הוסר (בחירת חודש דרך גרף בלבד)
+- `cf-controls-box`: הוסרו כפתורי "טווח" (12 חד׳ / שנה שלמה), Legend עלה לראש, min-height:0
+- גרסה עודכנה: v22.0 → v23.0
+
+**app.js:**
+- `cfRenderMonthSelector()`: no-op — אין יותר dropdown חודשים
+- YTD dataset: נוסף `maxBarThickness: 34` — רוחב עמודות זהה לגרף חודשי
+- Tooltip: נוסף `xAlign:'left', yAlign:'bottom'` — Tooltip לא חוסם לחיצה על עמודות
+- גרסת localStorage עודכנה: `'22.0'` → `'23.0'`
 
 ## שינויים אחרונים (21/03/2026)
 
