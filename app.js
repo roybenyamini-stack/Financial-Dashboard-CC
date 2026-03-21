@@ -1717,7 +1717,7 @@ function smartUploadRouter(input) {
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
           console.log('!!! V19.2 - LAST IRON ROW + UTC FIX - TEST NOW !!!');
           console.log('[Dashboard v19.2] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '19.2');
+          localStorage.setItem('dashboard_cf_version', '19.3');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2840,9 +2840,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.2') {
+    if (savedVer !== '19.3') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.2');
+      localStorage.setItem('dashboard_cf_version', '19.3');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3056,32 +3056,39 @@ function cfGetNetVal(m) {
   return null;
 }
 
-// v18.3: מחזיר monthId של החודש המלא האחרון = שני-מהסוף (לפני ההשערות העתידיות)
-// v19.0: THE CLOCK RULE — ברירת מחדל = החודש הנוכחי לפי שעון המחשב בלבד
+// v19.3: MAX YEAR RULE — השתמש בשנה הגבוהה ביותר בנתונים, לא בשנת שעון המחשב
 function cfGetDefaultMonthId(data) {
   if (!data || data.length === 0) return null;
   var now = new Date();
-  var currentYM = now.getFullYear() * 100 + (now.getMonth() + 1); // מרץ 2026 → 202603
+  var currentMonth = now.getMonth() + 1; // חודש לפי שעון המחשב בלבד (מרץ = 3)
 
-  // שלב 1: חפש התאמה מדויקת — החודש הנוכחי עם נתוני total_income
+  // v19.3: מוצא את השנה הגבוהה ביותר בנתונים (2026) — לא תלוי בשנת המחשב (2025)
+  var maxYear = 0;
   for (var i = 0; i < data.length; i++) {
-    if (data[i].year * 100 + data[i].month === currentYM &&
+    if (data[i].year > maxYear) maxYear = data[i].year;
+  }
+  var targetYM = maxYear * 100 + currentMonth; // 2026*100+3 = 202603
+
+  // שלב 1: חפש התאמה מדויקת — חודש זה בשנת maxYear עם נתוני total_income
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].year * 100 + data[i].month === targetYM &&
         data[i].rows && data[i].rows.total_income && data[i].rows.total_income.val !== null) {
+      console.log('!!! FOUND', data[i].label, 'AT monthId:', data[i].monthId, '— val:', data[i].rows.total_income.val, '!!!');
       return data[i].monthId;
     }
   }
-  // שלב 2: אין נתון מדויק — החודש האחרון שעבר (לפני היום) עם total_income
+  // שלב 2: החודש האחרון ב-maxYear עם total_income
   for (var j = data.length - 1; j >= 0; j--) {
-    if (data[j].year * 100 + data[j].month <= currentYM &&
+    if (data[j].year === maxYear &&
         data[j].rows && data[j].rows.total_income && data[j].rows.total_income.val !== null) {
       return data[j].monthId;
     }
   }
-  // שלב 3: אחרון <= היום, גם בלי total_income
+  // שלב 3: אחרון ב-maxYear, גם בלי total_income
   for (var k = data.length - 1; k >= 0; k--) {
-    if (data[k].year * 100 + data[k].month <= currentYM) return data[k].monthId;
+    if (data[k].year === maxYear) return data[k].monthId;
   }
-  // שלב 4: כל הנתונים עתידיים — קח הראשון עם total_income
+  // שלב 4: כל הנתונים — קח הראשון עם total_income
   for (var l = 0; l < data.length; l++) {
     if (data[l].rows && data[l].rows.total_income && data[l].rows.total_income.val !== null) return data[l].monthId;
   }
