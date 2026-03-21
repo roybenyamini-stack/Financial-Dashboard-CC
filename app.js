@@ -1681,15 +1681,14 @@ function smartUploadRouter(input) {
         var newData = cfParseWorkbook(wb);
         if (newData.length > 0) {
           CF_DATA = newData;
-          // v18.3: ברירת מחדל = שני-מהסוף (ללא ניחוש תאריכים)
-          CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(newData);
+          CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(newData); // v19.0: THE CLOCK RULE
           CF_SELECTED_MONTH_ID = null; // איפוס בחירה ידנית בטעינת קובץ חדש
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('[Dashboard v18.3] Data Loaded | חודשים:', newData.length, '| חודש נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp, '| נטו:', Math.round(_logInc - _logExp));
+          console.log('[Dashboard v19.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '18.3');
+          localStorage.setItem('dashboard_cf_version', '19.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2812,9 +2811,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '18.3') {
+    if (savedVer !== '19.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '18.3');
+      localStorage.setItem('dashboard_cf_version', '19.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -2827,7 +2826,6 @@ function loadCFFromLocalStorage() {
       return false;
     }
     CF_DATA = data;
-    // v18.3: ברירת מחדל = שני-מהסוף (החודש המלא האחרון — לפני ההשערות העתידיות באקסל)
     CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(CF_DATA);
     return true;
   } catch(e) { return false; }
@@ -3024,42 +3022,51 @@ function cfGetNetVal(m) {
 }
 
 // v18.3: מחזיר monthId של החודש המלא האחרון = שני-מהסוף (לפני ההשערות העתידיות)
-// v18.3: ברירת מחדל = החודש הנוכחי לפי שעון המחשב (כולל החודש השוטף)
-// השעון קובע — נתוני עתיד באקסל לא משפיעים
+// v19.0: THE CLOCK RULE — ברירת מחדל = החודש הנוכחי לפי שעון המחשב בלבד
 function cfGetDefaultMonthId(data) {
   if (!data || data.length === 0) return null;
-  var today = new Date();
-  // cutoff כולל את החודש הנוכחי עצמו: מרץ 2026 → 202603
-  var cutoff = today.getFullYear() * 100 + (today.getMonth() + 1);
-  // חפש מהסוף לתחילה: אחרון <= cutoff עם total_income
-  for (var i = data.length - 1; i >= 0; i--) {
-    var m = data[i];
-    if (m.year * 100 + m.month <= cutoff && m.rows && m.rows.total_income && m.rows.total_income.val !== null) {
-      return m.monthId;
+  var now = new Date();
+  var currentYM = now.getFullYear() * 100 + (now.getMonth() + 1); // מרץ 2026 → 202603
+
+  // שלב 1: חפש התאמה מדויקת — החודש הנוכחי עם נתוני total_income
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].year * 100 + data[i].month === currentYM &&
+        data[i].rows && data[i].rows.total_income && data[i].rows.total_income.val !== null) {
+      return data[i].monthId;
     }
   }
-  // fallback 1: אחרון <= cutoff גם בלי total_income
+  // שלב 2: אין נתון מדויק — החודש האחרון שעבר (לפני היום) עם total_income
   for (var j = data.length - 1; j >= 0; j--) {
-    if (data[j].year * 100 + data[j].month <= cutoff) return data[j].monthId;
+    if (data[j].year * 100 + data[j].month <= currentYM &&
+        data[j].rows && data[j].rows.total_income && data[j].rows.total_income.val !== null) {
+      return data[j].monthId;
+    }
   }
-  // fallback 2: כל הנתונים עתידיים — קח את הראשון עם total_income
-  for (var k = 0; k < data.length; k++) {
-    if (data[k].rows && data[k].rows.total_income && data[k].rows.total_income.val !== null) return data[k].monthId;
+  // שלב 3: אחרון <= היום, גם בלי total_income
+  for (var k = data.length - 1; k >= 0; k--) {
+    if (data[k].year * 100 + data[k].month <= currentYM) return data[k].monthId;
+  }
+  // שלב 4: כל הנתונים עתידיים — קח הראשון עם total_income
+  for (var l = 0; l < data.length; l++) {
+    if (data[l].rows && data[l].rows.total_income && data[l].rows.total_income.val !== null) return data[l].monthId;
   }
   return data[0].monthId;
 }
 
 // v18.3: מקור אחד ויחיד של האמת — תמיד עקבי
+// v19.0: מקור אחד ויחיד — CF_SELECTED_MONTH_ID → CF_CURRENT_MONTH_ID → אחרון עם נתונים
 function cfGetLastRealMonth() {
-  // עדיפות 1: חודש שנבחר ידנית
   var targetId = CF_SELECTED_MONTH_ID || CF_CURRENT_MONTH_ID;
   if (targetId) {
     for (var k = 0; k < CF_DATA.length; k++) {
       if (CF_DATA[k].monthId === targetId) return k;
     }
   }
-  // fallback: שני-מהסוף
-  return Math.max(0, CF_DATA.length - 2);
+  // fallback: האחרון עם total_income (לא שני-מהסוף)
+  for (var i = CF_DATA.length - 1; i >= 0; i--) {
+    if (CF_DATA[i].rows && CF_DATA[i].rows.total_income && CF_DATA[i].rows.total_income.val !== null) return i;
+  }
+  return CF_DATA.length > 0 ? CF_DATA.length - 1 : 0;
 }
 
 // v18.3: בורר חודשים — מציג כפתורים לכל חודש זמין בנתונים
@@ -3148,11 +3155,10 @@ function cfUpdateCFCards() {
 function cfRenderKPI() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
-  // v17.6: חיווט ישיר — הכנסות = total_income בלבד (ללא salary fallback כדי לחשוף בעיות)
-  // נטו = הכנסות פחות הוצאות — תמיד מחושב בקוד
+  // v19.0: ברזל — קרא אך ורק מהשורות הייחודיות, ללא ניחושים
   var inc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
-  var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
-  var net = inc - exp;
+  var exp = (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
+  var net = (m.rows.profit_loss  && m.rows.profit_loss.val  != null) ? m.rows.profit_loss.val  : (inc - exp);
   var netColor = net >= 0 ? '#4ade80' : '#f87171';
   var cards = [
     {label:'הכנסות', value:inc, color:'#4ade80', icon:'💰'},
