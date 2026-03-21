@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V35.0 - FINAL ACCURACY & SYNC !!!');
-          console.log('[Dashboard v35.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '35.0');
+          console.log('!!! V36.0 - MASTER SYNC & CLEANUP !!!');
+          console.log('[Dashboard v36.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '36.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '35.0') {
+    if (savedVer !== '36.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '35.0');
+      localStorage.setItem('dashboard_cf_version', '36.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3016,6 +3016,7 @@ function cfGoToday() {
   var yearSel = document.getElementById('cf-year-select');
   if(yearSel) yearSel.value = String(autoYear);
   cfUpdateHeader();
+  cfUpdateCFCards();  // v36: sync cards
   cfRenderKPI();
   cfRenderSummary();
   cfRenderChart();
@@ -3033,6 +3034,7 @@ function cfSelectYear(year) {
   CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(CF_DATA);
   cfRenderMonthSelector();
   cfUpdateHeader();
+  cfUpdateCFCards();  // v36: sync cards
   cfRenderKPI();
   cfRenderSummary();
   cfRenderChart();
@@ -3355,10 +3357,11 @@ function cfRenderKPI() {
   h += chip('יותם',gv('yotam'),EO);
   h += chip('חריג',gv('other_exp'),EY);
   h += SEP;
-  h += chip('משכ$ ',gv('salary_usd'),EP);
-  h += chip('הוצ$',gv('exp_usd'),EP);
-  h += chip('יותם$',gv('yotam_usd'),EP);
-  h += chip('סך$',gv('total_usd'),EP);
+  var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
+  h += chip('משכ$ ', gv('salary_usd'), EP);
+  h += chip('הוצ$',  _eusd  !== null ? Math.abs(_eusd)  : null, EP);  // v36: abs
+  h += chip('יותם$', _yusd  !== null ? Math.abs(_yusd)  : null, EP);  // v36: abs
+  // סך$ הוסר בv36
   h += '</div></div>';
   detailEl.innerHTML = h;
 }
@@ -3632,7 +3635,7 @@ function cfShowNoData() {
   });
 }
 
-// v33.0: Slim Summary Bar — 3 שקליים ימין (YTD גדול) + 3 דולריים שמאל (קטן ועמום)
+// v36.0: Slim Summary Bar — ימין=שנתי (מסונכרן לגרף) | שמאל=YTD ממשי
 function cfRenderSummary() {
   var container = document.getElementById('cf-summary-row');
   if (!container) return;
@@ -3645,30 +3648,42 @@ function cfRenderSummary() {
 
   var lastIdx = cfGetLastRealMonth();
   var selM = CF_DATA[lastIdx];
+  // upToMonth: אם החודש הנבחר הוא בשנת displayYear — הגבל עד אליו; אחרת כל השנה
   var upToMonth = (selM && selM.year === displayYear) ? selM.month : 12;
 
-  // YTD שקלי — v35: ytdNet מסונכרן לגרף מצטבר (cfGetNetVal = אותו חישוב בגרף)
+  // ══ שמאל: YTD ממשי ══
   var ytdInc = 0, ytdExp = 0, ytdNet = 0, ytdMonths = 0;
+  var ytdSalUsd = 0, ytdExpUsd = 0, ytdTotUsd = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear || m.month > upToMonth) return;
-    ytdInc += cfCalcIncome(m.rows);
-    ytdExp += cfCalcExp(m.rows);
-    ytdNet += (cfGetNetVal(m) || 0);  // זהה לחישוב הגרף המצטבר
+    ytdInc     += cfCalcIncome(m.rows);
+    ytdExp     += cfCalcExp(m.rows);
+    ytdNet     += (cfGetNetVal(m) || 0);
+    ytdSalUsd  += m.rows.salary_usd && m.rows.salary_usd.val != null ? m.rows.salary_usd.val : 0;
+    ytdExpUsd  += m.rows.exp_usd    && m.rows.exp_usd.val    != null ? m.rows.exp_usd.val    : 0;
+    ytdTotUsd  += m.rows.total_usd  && m.rows.total_usd.val  != null ? m.rows.total_usd.val  : 0;
     ytdMonths++;
   });
-  var ytdNetCol = ytdNet >= 0 ? '#4ade80' : '#f87171';
-  var ytdLabel = selM ? (selM.month > 1 ? '\u05d9\u05e0\u05d5\u02b9\u2013' + selM.label : selM.label) : 'YTD';
+  var ytdNetCol    = ytdNet    >= 0 ? '#4ade80' : '#f87171';
+  var ytdTotUsdCol = ytdTotUsd >= 0 ? '#a5b4fc' : '#fca5a5';
+  var ytdRange = (selM && ytdMonths > 1) ? '\u05d9\u05e0\u05d5\u02b9\u2013' + selM.label : (selM ? selM.label : String(displayYear));
 
-  // דולרי — נתוני החודש הנבחר (כבר בשקלים)
-  var dr = selM ? selM.rows : {};
-  var salUsd = dr.salary_usd&&dr.salary_usd.val!=null?dr.salary_usd.val:0;
-  var expUsd = dr.exp_usd&&dr.exp_usd.val!=null?dr.exp_usd.val:0;
-  var totUsd = dr.total_usd&&dr.total_usd.val!=null?dr.total_usd.val:0;
-  var totUsdCol = totUsd >= 0 ? '#a5b4fc' : '#fca5a5';
+  // ══ ימין: שנתי — אותם חודשים כמו הגרף המצטבר (December bar = annNet) ══
+  var annInc = 0, annExp = 0, annNet = 0;
+  var annSalUsd = 0, annExpUsd = 0, annTotUsd = 0;
+  cfGetDisplayMonths().forEach(function(m) {
+    annInc    += cfCalcIncome(m.rows);
+    annExp    += cfCalcExp(m.rows);
+    annNet    += (cfGetNetVal(m) || 0);  // = Tooltip בדצמבר בגרף המצטבר
+    annSalUsd += m.rows.salary_usd && m.rows.salary_usd.val != null ? m.rows.salary_usd.val : 0;
+    annExpUsd += m.rows.exp_usd    && m.rows.exp_usd.val    != null ? m.rows.exp_usd.val    : 0;
+    annTotUsd += m.rows.total_usd  && m.rows.total_usd.val  != null ? m.rows.total_usd.val  : 0;
+  });
+  var annNetCol    = annNet    >= 0 ? '#4ade80' : '#f87171';
+  var annTotUsdCol = annTotUsd >= 0 ? '#a5b4fc' : '#fca5a5';
 
-  // v35: ללא ₪; נטו שלילי → '-X,XXX' ; הוצאות מועברות עם Math.abs מהצד הקורא
+  // ללא ₪; מינוס רק לנטו שלילי; הוצאות מועברות כ-Math.abs
   function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + a.toLocaleString(); }
-
   function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
       '<span style="font-size:13px;color:rgba(255,255,255,0.42);font-weight:600;">' + lbl + '</span>' +
@@ -3683,25 +3698,33 @@ function cfRenderSummary() {
   }
 
   var DIV  = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 6px;flex-shrink:0;"></div>';
-  var BDIV = '<div style="width:2px;background:rgba(255,255,255,0.15);align-self:stretch;margin:0 10px;flex-shrink:0;border-radius:1px;"></div>';
+  var BDIV = '<div style="width:3px;background:rgba(255,255,255,0.18);align-self:stretch;margin:0 12px;flex-shrink:0;border-radius:2px;"></div>';
 
-  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:13px 18px;display:flex;align-items:center;gap:10px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
+  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:8px;direction:rtl;border:1px solid rgba(99,102,241,0.15);overflow-x:auto;">';
 
-  // ימין — YTD שקלי (בולט)
-  html += '<div style="font-size:15px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:11px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  // ── ימין: שנתי ──
+  html += '<div style="font-size:13px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.6;flex-shrink:0;">\u05e9\u05e0\u05ea\u05d9<br><span style="font-size:11px;color:rgba(255,255,255,0.3);">' + displayYear + '</span></div>';
+  html += DIV;
+  html += cellBig('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', annInc, '#4ade80');
+  html += cellBig('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', Math.abs(annExp), '#f87171');
+  html += cellBig('\u05e0\u05d8\u05d5', annNet, annNetCol);
+  html += DIV;
+  html += cellSmall('\u05de\u05e9\u05db\u05f3$', annSalUsd, '#818cf8');
+  html += cellSmall('\u05d4\u05d5\u05e6\u05f3$', Math.abs(annExpUsd), '#fca5a5');
+  html += cellSmall('\u05e1\u05da$', annTotUsd, annTotUsdCol);
+
+  html += BDIV;
+
+  // ── שמאל: YTD ──
+  html += '<div style="font-size:13px;font-weight:700;color:#22d3ee;white-space:nowrap;line-height:1.6;flex-shrink:0;">YTD<br><span style="font-size:11px;color:rgba(255,255,255,0.3);">' + ytdRange + '</span></div>';
   html += DIV;
   html += cellBig('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
   html += cellBig('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', Math.abs(ytdExp), '#f87171');
   html += cellBig('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
-
-  html += BDIV;
-
-  // שמאל — דולרי (עמום וקטן)
-  html += '<div style="font-size:11px;font-weight:600;color:#3d5069;white-space:nowrap;line-height:1.5;flex-shrink:0;">$<br>' + (selM ? selM.label : '') + '</div>';
   html += DIV;
-  html += cellSmall('\u05de\u05e9\u05db\u05f3', salUsd, '#818cf8');
-  html += cellSmall('\u05d4\u05d5\u05e6\u05f3', Math.abs(expUsd), '#fca5a5');
-  html += cellSmall('\u05e1\u05da', totUsd, totUsdCol);
+  html += cellSmall('\u05de\u05e9\u05db\u05f3$', ytdSalUsd, '#818cf8');
+  html += cellSmall('\u05d4\u05d5\u05e6\u05f3$', Math.abs(ytdExpUsd), '#fca5a5');
+  html += cellSmall('\u05e1\u05da$', ytdTotUsd, ytdTotUsdCol);
 
   html += '</div>';
   container.innerHTML = html;
