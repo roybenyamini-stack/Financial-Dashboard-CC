@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V30.0 - MATHEMATICAL ACCURACY !!!');
-          console.log('[Dashboard v30.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '30.0');
+          console.log('!!! V31.0 - ZERO NOISE & DATA ACCURACY !!!');
+          console.log('[Dashboard v31.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '31.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '30.0') {
+    if (savedVer !== '31.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '30.0');
+      localStorage.setItem('dashboard_cf_version', '31.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3286,14 +3286,14 @@ function cfUpdateCFCards() {
   // פירוט הוצאות — v30.0: הלוואות מוסתרות אם 0
   var expCards = [
     {label:'הוצאות שוטפות', val:(r.visa&&r.visa.val||0)+(r.cash_exp&&r.cash_exp.val||0), color:'#dc2626', icon:'💳'},
-    {label:'החזר הלוואה',   val:(r.loans&&r.loans.val!=null?r.loans.val:0), color:'#b45309', icon:'🏦', hideIfZero:true},
+    {label:'החזר הלוואה',   val:(r.loans&&r.loans.val!=null?r.loans.val:0), color:'#b45309', icon:'🏦'},
     {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val!=null?r.total_usd.val:0, color:'#7c3aed', icon:'$'},
   ];
   var container = document.getElementById('cf-cards-row');
   if(!container) return;
   var html = '';
   incCards.concat(expCards).forEach(function(card){
-    if (card.hideIfZero && card.val === 0) return;
+    if (card.val === 0) return; // v31: הסתר כרטיסיות עם ערך 0
     html += '<div style="background:white;border-radius:9px;padding:6px 10px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
     html += '<div style="font-size:9px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
     html += '<div style="font-size:14px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
@@ -3312,10 +3312,10 @@ function cfRenderKPI() {
 
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
   function chip(lbl, val, col) {
-    var d = val !== null ? '₪' + Math.round(val).toLocaleString() : '—';
+    if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
     return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:9px 14px;border-top:3px solid '+col+';flex-shrink:0;">' +
       '<span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:15px;font-weight:700;color:'+col+';margin-top:2px;white-space:nowrap;">'+d+'</span></div>';
+      '<span style="font-size:15px;font-weight:700;color:'+col+';margin-top:2px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>';
 
@@ -3659,13 +3659,13 @@ function cfRenderSummary() {
   var DIV = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 4px;flex-shrink:0;"></div>';
 
   var html = '<div style="background:#0d1b2e;border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:10px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
-  html += '<div style="font-size:10px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.4;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="color:rgba(255,255,255,0.22);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
   html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
   html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', ytdExp, '#f87171');
   html += cell('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
   html += '<div style="width:2px;background:rgba(255,255,255,0.12);align-self:stretch;margin:0 6px;flex-shrink:0;border-radius:1px;"></div>';
-  html += '<div style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;line-height:1.4;flex-shrink:0;">\u05ea\u05d7\u05d6\u05d9\u05ea<br>' + displayYear + '<br><span style="color:rgba(255,255,255,0.18);font-weight:400;">' + annualMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;line-height:1.5;flex-shrink:0;">\u05ea\u05d7\u05d6\u05d9\u05ea<br>' + displayYear + '<br><span style="font-size:10px;color:rgba(255,255,255,0.2);font-weight:400;">' + annualMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
   html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', annualInc, '#6a9e7a');
   html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', annualExp, '#9e6a6a');
