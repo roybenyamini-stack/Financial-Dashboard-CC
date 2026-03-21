@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V34.0 - PERFECT ALIGNMENT & ACCURACY !!!');
-          console.log('[Dashboard v34.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '34.0');
+          console.log('!!! V35.0 - FINAL ACCURACY & SYNC !!!');
+          console.log('[Dashboard v35.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '35.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '34.0') {
+    if (savedVer !== '35.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '34.0');
+      localStorage.setItem('dashboard_cf_version', '35.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3311,12 +3311,15 @@ function cfUpdateCFCards() {
   var html = '';
   incCards.concat(expCards).forEach(function(card){
     if (card.val === 0) return; // v31: הסתר כרטיסיות עם ערך 0
+    var dispVal = Math.abs(Math.round(card.val)).toLocaleString(); // v35: ללא ₪, ללא מינוס בהוצאות
     html += '<div style="background:white;border-radius:9px;padding:9px 13px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
     html += '<div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
-    html += '<div style="font-size:18px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
+    html += '<div style="font-size:18px;font-weight:800;color:'+card.color+';">'+dispVal+'</div>';
     html += '<div style="font-size:11px;color:#9ca3af;">'+m.label+'</div>';
     html += '</div>';
   });
+  // v35: הצג container כשיש תוכן
+  container.style.display = html.trim() ? 'grid' : 'none';
   container.innerHTML = html;
 }
 
@@ -3332,7 +3335,7 @@ function cfRenderKPI() {
     if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
     return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:12px 18px;border-top:3px solid '+col+';flex-shrink:0;">' +
       '<span style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:19px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
+      '<span style="font-size:19px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>';
 
@@ -3644,15 +3647,15 @@ function cfRenderSummary() {
   var selM = CF_DATA[lastIdx];
   var upToMonth = (selM && selM.year === displayYear) ? selM.month : 12;
 
-  // YTD שקלי — הכנסות + הוצאות (כולל הלוואות) + נטו
-  var ytdInc = 0, ytdExp = 0, ytdMonths = 0;
+  // YTD שקלי — v35: ytdNet מסונכרן לגרף מצטבר (cfGetNetVal = אותו חישוב בגרף)
+  var ytdInc = 0, ytdExp = 0, ytdNet = 0, ytdMonths = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear || m.month > upToMonth) return;
     ytdInc += cfCalcIncome(m.rows);
     ytdExp += cfCalcExp(m.rows);
+    ytdNet += (cfGetNetVal(m) || 0);  // זהה לחישוב הגרף המצטבר
     ytdMonths++;
   });
-  var ytdNet = ytdInc - ytdExp;
   var ytdNetCol = ytdNet >= 0 ? '#4ade80' : '#f87171';
   var ytdLabel = selM ? (selM.month > 1 ? '\u05d9\u05e0\u05d5\u02b9\u2013' + selM.label : selM.label) : 'YTD';
 
@@ -3663,8 +3666,8 @@ function cfRenderSummary() {
   var totUsd = dr.total_usd&&dr.total_usd.val!=null?dr.total_usd.val:0;
   var totUsdCol = totUsd >= 0 ? '#a5b4fc' : '#fca5a5';
 
-  // v34: הוצאות/הכנסות — תמיד חיובי; נטו שלילי → '-₪X,XXX'
-  function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + '\u20aa' + a.toLocaleString(); }
+  // v35: ללא ₪; נטו שלילי → '-X,XXX' ; הוצאות מועברות עם Math.abs מהצד הקורא
+  function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + a.toLocaleString(); }
 
   function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
