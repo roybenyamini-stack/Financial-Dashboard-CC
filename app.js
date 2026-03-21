@@ -1526,7 +1526,7 @@ function cfParseWorkbook(wb) {
 
     // 3. זיהוי דינמי (case-insensitive) — סרוק עמודות לפני firstMonthCol
     //    מטרה: לאפשר מיפוי אוטומטי גם לאקסלים עם מבנה שונה
-    // v17.9: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
+    // v18.0: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
     var KEY_LABELS = {
       total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
       total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות'],
@@ -1534,7 +1534,7 @@ function cfParseWorkbook(wb) {
       salary:       ['הכנסה ממשכורת'],
       rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
       other_income: ['הכנסות שונות', 'הכנסה אחרת'],
-      buffer:       ['פריטה מ buffer', 'פריטה'],
+      buffer:       ['פריטה מ-buffer', 'פריטה מ buffer', 'פריטה'],
       visa:         ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
       cash_exp:     ['הוצאות מזומן'],
       loans:        ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
@@ -1690,9 +1690,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('[Dashboard v17.9] Data Loaded | חודשים:', newData.length, '| חודש נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp, '| נטו:', Math.round(_logInc - _logExp));
+          console.log('[Dashboard v18.0] Data Loaded | חודשים:', newData.length, '| חודש נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp, '| נטו:', Math.round(_logInc - _logExp));
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.9');
+          localStorage.setItem('dashboard_cf_version', '18.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2814,9 +2814,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.9') {
+    if (savedVer !== '18.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.9');
+      localStorage.setItem('dashboard_cf_version', '18.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3072,18 +3072,23 @@ function cfUpdateCFCards() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
   var r = m.rows;
-  var cards = [
-    {label:'משכורות', val:r.salary&&r.salary.val||0, color:'#16a34a', icon:'💼'},
-    {label:'שכ"ד + הכנסות שונות', val:(r.rent_income&&r.rent_income.val||0)+(r.other_income&&r.other_income.val||0), color:'#0891b2', icon:'🏠'},
+  // v18.0: פירוט הכנסות — כל הסעיפים המרכיבים, ללא "סה"כ הכנסות" (מוצג ב-KPI בנפרד)
+  var incCards = [
+    {label:'הכנסה ממשכורת', val:r.salary&&r.salary.val!=null?r.salary.val:0,         color:'#16a34a', icon:'💼'},
+    {label:'שכר דירה',       val:r.rent_income&&r.rent_income.val!=null?r.rent_income.val:0, color:'#0891b2', icon:'🏠'},
+    {label:'הכנסות שונות',   val:r.other_income&&r.other_income.val!=null?r.other_income.val:0, color:'#0891b2', icon:'📦'},
+    {label:'פריטה מ-Buffer', val:r.buffer&&r.buffer.val!=null?r.buffer.val:0,         color:'#0891b2', icon:'🔄'},
+  ];
+  // פירוט הוצאות
+  var expCards = [
     {label:'הוצאות שוטפות', val:(r.visa&&r.visa.val||0)+(r.cash_exp&&r.cash_exp.val||0), color:'#dc2626', icon:'💳'},
     {label:'הוצאות חריגות', val:(r.loans&&r.loans.val||0)+(r.renovation&&r.renovation.val||0)+(r.yotam&&r.yotam.val||0)+(r.other_exp&&r.other_exp.val||0), color:'#b45309', icon:'🔧'},
-    {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val||0, color:'#7c3aed', icon:'$'},
+    {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val!=null?r.total_usd.val:0, color:'#7c3aed', icon:'$'},
   ];
   var container = document.getElementById('cf-cards-row');
   if(!container) return;
   var html = '';
-  cards.forEach(function(card){
-    var isExp = card.label==='הוצאות שוטפות'||card.label==='הוצאות חריגות';
+  incCards.concat(expCards).forEach(function(card){
     html += '<div style="background:white;border-radius:12px;padding:12px 14px;border-right:4px solid '+card.color+';box-shadow:0 2px 8px rgba(0,0,0,0.06);">';
     html += '<div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px;">'+card.icon+' '+card.label+'</div>';
     html += '<div style="font-size:20px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
@@ -3341,8 +3346,7 @@ function cfRenderSummary() {
   var totalInc = 0, totalExp = 0, months = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== currentYear) return;
-    var mInc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val
-             : (m.rows.salary       && m.rows.salary.val       != null) ? m.rows.salary.val : 0;
+    var mInc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
     var mExp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
     totalInc += mInc;
     totalExp += mExp;
