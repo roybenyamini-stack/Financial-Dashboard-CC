@@ -1500,6 +1500,16 @@ function cfParseWorkbook(wb) {
     console.log('[CF Parser] parseSheet | HEADER_ROW:', HEADER_ROW, '| firstMonthCol:', firstMonthCol);
     if (HEADER_ROW < 0) { console.log('[CF Parser] לא נמצאה שורת כותרות חודש — הגיליון מדולג'); return []; }
 
+    // v17.4: DEBUG — הדפס את כל שמות השורות הנמצאות, לפני כל מיפוי
+    // פתח Developer Tools → Console כדי לראות את השורות
+    console.log('[CF v17.4 DEBUG] ── רשימת שורות ל-' + (firstMonthCol) + ' עמודות ──');
+    for (var _dbgR = HEADER_ROW; _dbgR <= Math.min(HEADER_ROW + 55, maxRow); _dbgR++) {
+      var _dbgLbl = cellVal(ws, _dbgR, 0);
+      if (_dbgLbl !== null && _dbgLbl !== undefined && String(_dbgLbl).replace(/[\s\u00A0]+/g,'') !== '') {
+        console.log('[CF DEBUG] שורה', _dbgR, '(HEADER_ROW+' + (_dbgR - HEADER_ROW) + '):', JSON.stringify(String(_dbgLbl).trim().substring(0,40)));
+      }
+    }
+
     // 2. ROW_MAP סטטי — v16.97: הוסרו total_income/total_exp/net_cashflow/profit_loss
     // שורות אלו חייבות להימצא דינמית בלבד (מנגנון הסריקה). אם לא נמצאו — val=null → מוצג 0.
     // המספרים 42/30/12 הגיעו מכך שהמפתח הסטטי הצביע לשורה שגויה — הסרתם מבטלת זאת לחלוטין.
@@ -1619,6 +1629,22 @@ function cfParseWorkbook(wb) {
         }
       }
     });
+    // v17.4: Hard Mapping Fallback — מופעל רק אם הסריקה הדינמית לא מצאה את השורה
+    // HEADER_ROW+6  = שורת "סה"כ" הצהובה (הכנסות), לפי מבנה האקסל מהתמונה
+    // HEADER_ROW+16 = שורת "סה"כ התחייבויות שיקלי" הכתומה (הוצאות)
+    // אם ה-console.log למעלה מראה offsets שונים — שנה כאן בהתאם
+    if (!mappedKeys.total_income) {
+      var _hIncRow = HEADER_ROW + 6;
+      Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === 'total_income') delete ROW_MAP[k]; });
+      ROW_MAP[_hIncRow] = 'total_income';
+      console.log('[CF v17.4] ⚡ Hard fallback: total_income → שורה', _hIncRow, '(HEADER_ROW+6)');
+    }
+    if (!mappedKeys.total_exp) {
+      var _hExpRow = HEADER_ROW + 16;
+      Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === 'total_exp') delete ROW_MAP[k]; });
+      ROW_MAP[_hExpRow] = 'total_exp';
+      console.log('[CF v17.4] ⚡ Hard fallback: total_exp → שורה', _hExpRow, '(HEADER_ROW+16)');
+    }
     console.log('[CF Parser] ROW_MAP סופי:', JSON.stringify(ROW_MAP));
 
     // 4. קרא נתוני חודשים
@@ -1716,7 +1742,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.3');
+          localStorage.setItem('dashboard_cf_version', '17.4');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2838,9 +2864,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.3') {
+    if (savedVer !== '17.4') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.3');
+      localStorage.setItem('dashboard_cf_version', '17.4');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
