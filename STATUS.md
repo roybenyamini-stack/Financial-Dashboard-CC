@@ -1,7 +1,21 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v17.2 — Max-value heuristic לזיהוי הכנסות/הוצאות, נטו מצטבר מחושב, localStorage 17.2.
+גרסה v17.3 — Exact Match ל-"סה"כ", ביטול Max-Value, דצמבר מובטח ב-rolling12.
+
+## שינויים אחרונים (21/03/2026)
+
+### v17.3 – Exact-Match for "סה"כ", December Guarantee
+
+**app.js:**
+- `parseSheet KEY_LABELS`: **הוחזרה 'סה"כ' לרשימת total_income** — אך ורק כ-Exact Match (ראה למטה)
+- `parseSheet matching logic`: **Exact Match לכינויים קצרים (≤4 תווים ללא רווחים)** — 'סה"כ' (4 תווים) מוצא רק שורות שהתוכן שלהן הוא בדיוק 'סה"כ'. כך 'סה"כ התחייבויות שיקלי' אינה נספגת בטעות כ-total_income. שאר המפתחות (ארוכים) ממשיכים ב-contains match כרגיל
+- `parseSheet`: **הסרת Max-Value Heuristic** (v17.2) — גרם לקריאת ערכים מעמודת סיכומים שנתיים (מיליוני שקלים במקום מאות)
+- `cfGetDisplayMonths` rolling12: **דצמבר מובטח** — אם דצמ׳ של שנת הנתונים חסר ממערך rolling12, נוסף כ-placeholder עם ערכים null (מוצג כ-0 בגרף)
+- localStorage: גרסה עודכנה `17.2` → `17.3`
+
+**index.html:**
+- עדכון גרסה: v17.2 → v17.3
 
 ## שינויים אחרונים (21/03/2026)
 

@@ -1534,8 +1534,10 @@ function cfParseWorkbook(wb) {
       rent_income:  ['rent income', 'rental', 'שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
       other_income: ['other income', 'misc income', 'הכנסות שונות', 'הכנסה אחרת'],
       buffer:       ['buffer', 'reserve', 'פריטה מ buffer', 'פריטה'],
-      // v16.98: הוסרו 'סה"כ' ו-'סה״כ' לבד — הם מילים חלקיות שמתאימות גם ל-'סה"כ התחייבויות שיקלי' ומבלבלות הכנסות עם הוצאות
-      total_income: ['total income', 'total revenues', 'total inflow', 'income total', 'sum income',
+      // v17.3: 'סה"כ' לבד מוחזר לרשימה — אך נבדק כ-EXACT MATCH בלבד (ראה לוגיקת ההשוואה למטה)
+      // כך 'סה"כ' ≠ 'סה"כ התחייבויות שיקלי', אבל כן = תא שמכיל רק 'סה"כ' (השורה הצהובה)
+      total_income: ['סה"כ', 'סה״כ', 'סהכ',
+                     'total income', 'total revenues', 'total inflow', 'income total', 'sum income',
                      'סה"כ הכנסות', 'סה״כ הכנסות', 'סהכ הכנסות',
                      'הכנסות סהכ', 'סך הכנסות', 'סך הכל הכנסות',
                      'סה"כ תזרים חיובי', 'סה״כ תזרים חיובי'],
@@ -1600,7 +1602,13 @@ function cfParseWorkbook(wb) {
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
         for (var lkey in KEY_LABELS) {
           if (mappedKeys[lkey]) continue; // כבר מופה — דלג
-          if (KEY_LABELS[lkey].some(function(kw){ return ls.indexOf(normalizeForCompare(kw.toLowerCase())) >= 0; })) {
+          if (KEY_LABELS[lkey].some(function(kw){
+            var nkw = normalizeForCompare(kw.toLowerCase());
+            // v17.3: 'סה"כ' לבד = Exact Match — מונע 'סה"כ התחייבויות' להיספג כ-total_income
+            // כלל: אם מילת המפתח קצרה (≤4 תווים ללא רווח), השווה exact. אחרת — contains.
+            if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
+            return ls.indexOf(nkw) >= 0;
+          })) {
             // הסר מיפוי סטטי ישן לאותו מפתח (אם קיים)
             Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === lkey) delete ROW_MAP[k]; });
             ROW_MAP[sr] = lkey;
@@ -1644,35 +1652,6 @@ function cfParseWorkbook(wb) {
         var noteStr = (note != null && String(note).trim() !== '') ? String(note).trim() : null;
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
-
-      // v17.2: max-value heuristic — אמין יותר מזיהוי שם שורה
-      // total_income = הערך הגבוה ביותר (≥50) בשורות HEADER_ROW+1 עד +70 (קטע הכנסות)
-      // total_exp    = הערך הגבוה ביותר (>0)   בשורות HEADER_ROW+71 עד +130 (קטע הוצאות)
-      var hMaxInc = null, hMaxExp = null;
-      var hIncEnd = Math.min(HEADER_ROW + 70,  maxRow);
-      var hExpEnd = Math.min(HEADER_ROW + 130, maxRow);
-      for (var hri = HEADER_ROW + 1; hri <= hIncEnd; hri++) {
-        var hv = cellVal(ws, hri, col);
-        if (hv !== null && hv !== undefined) {
-          var hn = typeof hv === 'number' ? hv : parseFloat(String(hv).replace(/,/g, ''));
-          if (!isNaN(hn) && hn >= 50 && (hMaxInc === null || hn > hMaxInc)) hMaxInc = hn;
-        }
-      }
-      for (var hri2 = HEADER_ROW + 71; hri2 <= hExpEnd; hri2++) {
-        var hv2 = cellVal(ws, hri2, col);
-        if (hv2 !== null && hv2 !== undefined) {
-          var hn2 = typeof hv2 === 'number' ? hv2 : parseFloat(String(hv2).replace(/,/g, ''));
-          if (!isNaN(hn2) && hn2 > 0 && (hMaxExp === null || hn2 > hMaxExp)) hMaxExp = hn2;
-        }
-      }
-      if (hMaxInc !== null) {
-        mObj.rows.total_income = {val: Math.round(hMaxInc * 10) / 10, note: null};
-        console.log('[CF v17.2] total_income (max):', hMaxInc, '| חודש:', mObj.label);
-      }
-      if (hMaxExp !== null) {
-        mObj.rows.total_exp = {val: Math.round(hMaxExp * 10) / 10, note: null};
-        console.log('[CF v17.2] total_exp (max):', hMaxExp, '| חודש:', mObj.label);
-      }
 
       sheetResult.push(mObj);
     }
@@ -1737,7 +1716,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.2');
+          localStorage.setItem('dashboard_cf_version', '17.3');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2859,9 +2838,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.2') {
+    if (savedVer !== '17.3') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.2');
+      localStorage.setItem('dashboard_cf_version', '17.3');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
@@ -2929,7 +2908,16 @@ function cfGetDisplayMonths() {
     }
     return full;
   }
-  return CF_DATA.slice(Math.max(0, lastIdx - 11), lastIdx + 1);
+  // v17.3: rolling12 — תמיד כלול דצמבר של שנת הנתונים הנוכחית (גם אם ריק)
+  var r12 = CF_DATA.slice(Math.max(0, lastIdx - 11), lastIdx + 1);
+  var r12Year = r12.length > 0 ? Math.max.apply(null, r12.map(function(m){ return m.year; })) : new Date().getFullYear();
+  var decId12 = r12Year + '-12';
+  if (!r12.some(function(m){ return m.monthId === decId12; })) {
+    var emptyRowsDec = {};
+    CF_EMPTY_ROWS.forEach(function(k){ emptyRowsDec[k] = {val: null, note: null}; });
+    r12 = r12.concat([{ label: 'דצמבר ' + r12Year, monthId: decId12, year: r12Year, month: 12, rows: emptyRowsDec }]);
+  }
+  return r12;
 }
 
 function cfSetDateRange(range) {
