@@ -1,7 +1,24 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v17.3 — Exact Match ל-"סה"כ", ביטול Max-Value, דצמבר מובטח ב-rolling12.
+גרסה v17.4 — Hard Mapping Fallback, Debug Logging, שמות קבצים באנגלית.
+
+## שינויים אחרונים (21/03/2026)
+
+### v17.4 – Hard Mapping Fallback + Row Debug Logging
+
+**app.js:**
+- `parseSheet` (אחרי סריקה דינמית): **Debug Logging** — לוג של 55 שורות מ-HEADER_ROW עם תוויות וסידרן, לאבחון מיקום total_income/total_exp בפועל
+- `parseSheet` (Hard Mapping Fallback): אם `total_income` לא נמצא דינמית — ממפה `HEADER_ROW+6` ל-`total_income`; אם `total_exp` לא נמצא — ממפה `HEADER_ROW+16` ל-`total_exp`. מבוסס על מבנה האקסל שנאמת: +6 = "סה"כ" (123), +16 = "סה"כ התחייבויות שיקלי" (32)
+- localStorage: גרסה עודכנה `17.3` → `17.4`
+
+**index.html:**
+- עדכון גרסה: v17.3 → v17.4
+
+**ניהול קבצים:**
+- `git mv "כללי_עדכון_דשבורד.md" "guidelines.md"` — שם חדש באנגלית
+- `git mv "תיעוד_טכני_דשבורד.md" "tech_doc.md"` — שם חדש באנגלית
+- `CLAUDE.md`: עדכון הפניות לשמות החדשים
 
 ## שינויים אחרונים (21/03/2026)
 
@@ -252,5 +269,5 @@
 | `index.html` | מבנה HTML (דף בית ב-GitHub Pages) |
 | `style.css` | כל ה-CSS |
 | `app.js` | כל קוד ה-JavaScript |
-| `כללי_עדכון_דשבורד.md` | הוראות עדכון (שונה שם מ-v16 ב-v17.3) |
-| `תיעוד_טכני_דשבורד.md` | תיעוד טכני (שונה שם מ-v16 ב-v17.3) |
+| `guidelines.md` | הוראות עדכון (שונה שם ל-v17.4) |
+| `tech_doc.md` | תיעוד טכני (שונה שם ל-v17.4) |

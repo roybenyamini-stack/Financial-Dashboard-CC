@@ -360,14 +360,14 @@ var THEMES = [
 
 | קובץ | תיאור |
 |---|---|
-| `dashboard_v16.html` | מבנה HTML של הדשבורד (ללא CSS/JS inline) |
+| `index.html` | מבנה HTML של הדשבורד (דף בית ב-GitHub Pages) |
 | `style.css` | כל ה-CSS של הדשבורד |
 | `app.js` | כל קוד ה-JavaScript של הדשבורד |
 | `asset_data.xlsx` | נתוני השקעות |
 | `תזרים_חדשי_2022.xlsx` | נתוני תזרים שוטף |
-| `כללי_עדכון_דשבורד.md` | הוראות עדכון |
-| `תיעוד_טכני_דשבורד.md` | מסמך זה |
-| `deploy.sh` | סקריפט העלאה (ב-~/Downloads/Financial-Dashboard/) |
+| `guidelines.md` | הוראות עדכון |
+| `tech_doc.md` | מסמך זה |
+| `deploy.sh` | סקריפט העלאה |
 
 ---
 
