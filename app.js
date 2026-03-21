@@ -1719,9 +1719,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V21.0 - THE FACE LIFT - STACKED BAR + DROPDOWN + KPI REDESIGN !!!');
-          console.log('[Dashboard v21.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '21.0');
+          console.log('!!! V22.0 - CLEAN DESIGN: HEADER KPIs + YEAR SELECT + CHART ONCLICK !!!');
+          console.log('[Dashboard v22.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '22.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2844,9 +2844,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '21.0') {
+    if (savedVer !== '22.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '21.0');
+      localStorage.setItem('dashboard_cf_version', '22.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -2871,6 +2871,8 @@ var cfPrivacyOn = false;
 var cfChartInstance = null;
 var cfCurrentView = 'monthly';
 var cfDateRange = 'rolling12'; // 'rolling12' | 'ytd'
+var CF_SELECTED_YEAR = null;   // v22.0: שנת תצוגה נבחרת (null = auto = שנה מקסימלית)
+var CF_CHART_MONTHS = [];      // v22.0: מטמון חודשי הגרף לשימוש ב-onClick
 
 // מחזיר את החודשים לתצוגה לפי cfDateRange
 var CF_EMPTY_ROWS = ['salary','rent_income','other_income','buffer','total_income','visa','cash_exp','loans','yotam','other_exp','total_exp','renovation','net_cashflow','salary_usd','exp_usd','yotam_usd','total_usd','delta','profit_loss'];
@@ -2878,65 +2880,30 @@ var CF_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי',
 var CF_HEB_MONTHS_ABBR = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
 
 function cfGetDisplayMonths() {
-  var lastIdx = cfGetLastRealMonth();
-  if (cfDateRange === 'ytd') {
-    // v17.1: ציר קשיח 1-12 לשנת displayYear (שנה-אגנוסטי)
-    // displayYear = השנה הגבוהה ביותר ב-CF_DATA; fallback לשנה הנוכחית
-    var displayYear = new Date().getFullYear();
+  // v22.0: תמיד מציג שנה שלמה (12 חודשים). שנה = CF_SELECTED_YEAR || auto-max
+  var displayYear = CF_SELECTED_YEAR;
+  if (!displayYear) {
+    displayYear = 2025;
     for (var di = 0; di < CF_DATA.length; di++) {
       if (CF_DATA[di].year > displayYear) displayYear = CF_DATA[di].year;
     }
-    var full = [];
-    // לולאה קשיחה מ-1 עד 12 — ציר X תמיד ינואר עד דצמבר של displayYear
-    for (var mo = 1; mo <= 12; mo++) {
-      var mId = displayYear + '-' + (mo < 10 ? '0' + mo : '' + mo);
-      // חפש ב-CF_DATA לפי monthId בלבד (מדויק יותר)
-      var found = null;
-      for (var i = 0; i < CF_DATA.length; i++) {
-        if (CF_DATA[i].monthId === mId) { found = CF_DATA[i]; break; }
-      }
-      if (found) {
-        full.push(found);
-      } else {
-        var emptyRows = {};
-        CF_EMPTY_ROWS.forEach(function(k){ emptyRows[k] = {val: null, note: null}; });
-        full.push({ label: CF_HEB_MONTHS[mo-1] + ' ' + displayYear, monthId: mId, year: displayYear, month: mo, rows: emptyRows });
-      }
-    }
-    return full;
   }
-  // v19.1: rolling12 = כל 12 חודשי השנה + דצמבר מובטח תמיד
-  var dataYear = CF_DATA[lastIdx] ? CF_DATA[lastIdx].year : new Date().getFullYear();
-  var fullYear = [];
-  for (var ym = 1; ym <= 12; ym++) {
-    var ymId = dataYear + '-' + (ym < 10 ? '0' + ym : '' + ym);
-    var ymFound = null;
-    for (var yi = 0; yi < CF_DATA.length; yi++) {
-      if (CF_DATA[yi].monthId === ymId) { ymFound = CF_DATA[yi]; break; }
+  var result = [];
+  for (var mo = 1; mo <= 12; mo++) {
+    var mId = displayYear + '-' + (mo < 10 ? '0' + mo : '' + mo);
+    var found = null;
+    for (var i = 0; i < CF_DATA.length; i++) {
+      if (CF_DATA[i].monthId === mId) { found = CF_DATA[i]; break; }
     }
-    if (ymFound) {
-      fullYear.push(ymFound);
+    if (found) {
+      result.push(found);
     } else {
-      var emptyYM = {};
-      CF_EMPTY_ROWS.forEach(function(k){ emptyYM[k] = {val: null, note: null}; });
-      fullYear.push({ label: CF_HEB_MONTHS[ym-1] + ' ' + dataYear, monthId: ymId, year: dataYear, month: ym, rows: emptyYM });
+      var emptyRows = {};
+      CF_EMPTY_ROWS.forEach(function(k){ emptyRows[k] = {val: null, note: null}; });
+      result.push({ label: CF_HEB_MONTHS[mo-1] + ' ' + displayYear, monthId: mId, year: displayYear, month: mo, rows: emptyRows });
     }
   }
-  // v19.1: ודא שדצמבר תמיד נמצא בסוף (גם אם כבר נכלל, זה idem-potent)
-  var decId = dataYear + '-12';
-  if (!fullYear.some(function(m){ return m.monthId === decId; })) {
-    var decEmpty = {};
-    CF_EMPTY_ROWS.forEach(function(k){ decEmpty[k] = {val: null, note: null}; });
-    fullYear.push({ label: 'דצמבר ' + dataYear, monthId: decId, year: dataYear, month: 12, rows: decEmpty });
-  }
-  // v19.5: FORCE December 2026 — תמיד בסוף, ללא תלות בנתוני האקסל
-  var dec2026Id = '2026-12';
-  if (!fullYear.some(function(m){ return m.monthId === dec2026Id; })) {
-    var dec2026Empty = {};
-    CF_EMPTY_ROWS.forEach(function(k){ dec2026Empty[k] = {val: null, note: null}; });
-    fullYear.push({ label: 'דצמבר 2026', monthId: dec2026Id, year: 2026, month: 12, rows: dec2026Empty });
-  }
-  return fullYear;
+  return result;
 }
 
 function cfSetDateRange(range) {
@@ -2948,6 +2915,23 @@ function cfSetDateRange(range) {
   cfRenderChart();
   cfRenderTable();
   // תמיד חזור לתחילת הגרף כך שציר Y גלוי
+  setTimeout(function(){
+    var sc = document.getElementById('cf-scroll-container');
+    if (sc) sc.scrollLeft = 0;
+  }, 100);
+}
+
+// v22.0: בחירת שנת תצוגה
+function cfSelectYear(year) {
+  CF_SELECTED_YEAR = year;
+  CF_SELECTED_MONTH_ID = null; // איפוס בחירת חודש ידנית בעת החלפת שנה
+  CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(CF_DATA);
+  cfRenderMonthSelector();
+  cfUpdateHeader();
+  cfRenderKPI();
+  cfRenderSummary();
+  cfRenderChart();
+  cfRenderTable();
   setTimeout(function(){
     var sc = document.getElementById('cf-scroll-container');
     if (sc) sc.scrollLeft = 0;
@@ -3122,17 +3106,18 @@ function cfGetLastRealMonth() {
   return CF_DATA.length > 0 ? CF_DATA.length - 1 : 0;
 }
 
-// v18.3: בורר חודשים — מציג כפתורים לכל חודש זמין בנתונים
+// v22.0: בורר חודשים — Dropdown מסונן לפי שנה נבחרת
 function cfRenderMonthSelector() {
   var container = document.getElementById('cf-month-nav');
   if (!container || CF_DATA.length === 0) return;
   var currentIdx = cfGetLastRealMonth();
   var currentId = CF_DATA[currentIdx] ? CF_DATA[currentIdx].monthId : null;
-  // v21.0: Dropdown במקום שורת כפתורים
+  var filterYear = CF_SELECTED_YEAR || (CF_DATA[currentIdx] ? CF_DATA[currentIdx].year : 2026);
+  var filtered = CF_DATA.filter(function(m) { return m.year === filterYear; });
   var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;direction:rtl;">';
-  html += '<label style="font-size:11px;font-weight:700;color:#64748b;white-space:nowrap;">בחר חודש:</label>';
-  html += '<select onchange="cfSelectMonth(this.value)" style="padding:7px 14px;border-radius:9px;border:1.5px solid #334155;background:#1e293b;color:white;font-size:13px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;outline:none;min-width:160px;">';
-  CF_DATA.forEach(function(m) {
+  html += '<label style="font-size:11px;font-weight:700;color:#64748b;white-space:nowrap;">חודש:</label>';
+  html += '<select onchange="cfSelectMonth(this.value)" style="padding:6px 12px;border-radius:9px;border:1.5px solid #334155;background:#1e293b;color:white;font-size:13px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;outline:none;min-width:140px;">';
+  filtered.forEach(function(m) {
     var sel = m.monthId === currentId ? ' selected' : '';
     html += '<option value="'+m.monthId+'"'+sel+'>'+m.label+'</option>';
   });
@@ -3151,28 +3136,27 @@ function cfSelectMonth(monthId) {
 }
 
 function cfUpdateHeader() {
-  var today = new Date();
-  var currentYear = today.getFullYear();
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
-  var currentNet = m.rows.net_cashflow ? m.rows.net_cashflow.val : null;
-  var el0 = document.getElementById('cf-hdr-current');
-  var el0s = document.getElementById('cf-hdr-current-sub');
-  if(el0 && currentNet!==null){ el0.textContent=currentNet; el0.className='stat-value '+(currentNet>=0?'green':'red'); }
-  if(el0s) el0s.textContent = m.label;
+  var inc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
+  var exp = (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
+  var net = (m.rows.profit_loss  && m.rows.profit_loss.val  != null) ? m.rows.profit_loss.val  : (inc - exp);
 
-  var ytd=0, count=0;
-  for(var i=0;i<=lastIdx;i++){
-    var mm=CF_DATA[i];
-    if(mm.year===currentYear && mm.rows.net_cashflow && mm.rows.net_cashflow.val!==null){
-      ytd+=mm.rows.net_cashflow.val; count++;
-    }
-  }
-  var avg = count>0 ? Math.round(ytd/count) : 0;
-  var el1=document.getElementById('cf-hdr-ytd');
-  if(el1){ el1.textContent=ytd; el1.className='stat-value '+(ytd>=0?'green':'red'); }
-  var el2=document.getElementById('cf-hdr-avg');
-  if(el2){ el2.textContent=avg; el2.className='stat-value '+(avg>=0?'green':'red'); }
+  var elNet = document.getElementById('cf-hdr-net');
+  var elNetSub = document.getElementById('cf-hdr-net-sub');
+  var elNetLabel = document.getElementById('cf-hdr-net-label');
+  var elInc = document.getElementById('cf-hdr-income');
+  var elExp = document.getElementById('cf-hdr-exp');
+
+  if(elNet){ elNet.textContent = Math.round(net).toLocaleString(); elNet.className = 'stat-value ' + (net >= 0 ? 'green' : 'red'); }
+  if(elNetSub) elNetSub.textContent = m.label;
+  if(elNetLabel) elNetLabel.textContent = 'נטו — ' + m.label;
+  if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
+  if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
+
+  // עדכן Dropdown שנה לשנה הנוכחית
+  var yearSel = document.getElementById('cf-year-select');
+  if(yearSel) yearSel.value = String(CF_SELECTED_YEAR || (m.year || 2026));
 }
 
 function cfUpdateCFCards() {
@@ -3205,57 +3189,43 @@ function cfUpdateCFCards() {
   container.innerHTML = html;
 }
 
+// v22.0: cfRenderKPI — רק כרטיסיות פירוט קומפקטיות (הKPIs הראשיים עברו ל-header)
 function cfRenderKPI() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
-  var inc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
-  var exp = (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
-  var net = (m.rows.profit_loss  && m.rows.profit_loss.val  != null) ? m.rows.profit_loss.val  : (inc - exp);
-  var netColor = net >= 0 ? '#4ade80' : '#f87171';
-
-  // v21.0: 3 כרטיסיות ראשיות — נטו | הכנסות | הוצאות
-  var mainCards = [
-    { label:'נטו',    value:net, color:netColor,  sub:'רווח / הפסד' },
-    { label:'הכנסות', value:inc, color:'#4ade80', sub:'סה"כ' },
-    { label:'הוצאות', value:exp, color:'#f87171', sub:'סה"כ' },
-  ];
-  var kpiHtml = '';
-  mainCards.forEach(function(card) {
-    kpiHtml += '<div style="background:#1e293b;border-radius:14px;padding:16px 20px;border-right:4px solid '+card.color+';">';
-    kpiHtml += '<div style="font-size:11px;color:rgba(255,255,255,0.45);font-weight:600;letter-spacing:0.5px;margin-bottom:4px;">'+card.label+' — '+m.label+'</div>';
-    kpiHtml += '<div style="font-size:26px;font-weight:800;color:'+card.color+';letter-spacing:-1px;">₪'+Math.round(card.value).toLocaleString()+'</div>';
-    kpiHtml += '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:3px;">'+card.sub+' • אלפי ש"ח</div>';
-    kpiHtml += '</div>';
-  });
-  document.getElementById('cf-kpi-row').innerHTML = kpiHtml;
-
-  // v21.0: כרטיסיות פירוט
   var detailEl = document.getElementById('cf-detail-row');
   if (!detailEl) return;
+
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
-  function mini(lbl, val, col, bg) {
-    var d = val !== null ? '₪'+Math.round(val).toLocaleString() : '—';
-    return '<div style="background:'+bg+';border-radius:10px;padding:9px 13px;border-right:3px solid '+col+';">'+
-      '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:2px;">'+lbl+'</div>'+
-      '<div style="font-size:14px;font-weight:700;color:'+col+';">'+d+'</div></div>';
+  function chip(lbl, val, col) {
+    var d = val !== null ? '₪' + Math.round(val).toLocaleString() : '—';
+    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:7px 10px;border-top:2px solid '+col+';min-width:80px;">' +
+      '<span style="font-size:9px;color:rgba(255,255,255,0.38);font-weight:600;letter-spacing:0.4px;white-space:nowrap;">'+lbl+'</span>' +
+      '<span style="font-size:12px;font-weight:700;color:'+col+';margin-top:2px;">'+d+'</span></div>';
   }
-  var IB='#1e293b', UB='#0d1825';
+
   var IG='#4ade80', ER='#f87171', EO='#fb923c', EY='#fbbf24', EP='#818cf8';
-  var G='display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:7px;margin-bottom:10px;';
-  var LB='font-size:10px;font-weight:700;color:#475569;letter-spacing:0.7px;margin-bottom:6px;';
-  var h='<div style="background:#131e2e;border-radius:14px;padding:14px 16px;">';
-  h += '<div style="'+LB+'">הכנסות — ₪</div><div style="'+G+'">';
-  h += mini('משכורת',gv('salary'),IG,IB)+mini('שכ"ד',gv('rent_income'),IG,IB)+mini('הכנסות אחרות',gv('other_income'),IG,IB)+mini('פריטה',gv('buffer'),IG,IB);
+  var ROW = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;';
+  var SEC = 'font-size:9px;font-weight:700;color:#475569;letter-spacing:0.6px;margin-bottom:4px;margin-top:4px;';
+  var h = '<div style="background:#0f172a;border-radius:12px;padding:12px 14px;direction:rtl;">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+  h += '<span style="font-size:11px;font-weight:700;color:#94a3b8;">פירוט חודשי — '+m.label+'</span></div>';
+
+  h += '<div style="'+SEC+'">הכנסות ₪</div><div style="'+ROW+'">';
+  h += chip('משכורת',gv('salary'),IG)+chip('שכ"ד',gv('rent_income'),IG)+chip('אחרות',gv('other_income'),IG)+chip('פריטה',gv('buffer'),IG);
   h += '</div>';
-  h += '<div style="'+LB+'">הוצאות שוטפות — ₪</div><div style="'+G+'">';
-  h += mini('ויזה',gv('visa'),ER,IB)+mini('מזומן',gv('cash_exp'),ER,IB)+mini('הלוואות',gv('loans'),ER,IB)+mini('שיפוץ',gv('renovation'),ER,IB);
+
+  h += '<div style="'+SEC+'">הוצאות שוטפות ₪</div><div style="'+ROW+'">';
+  h += chip('ויזה',gv('visa'),ER)+chip('מזומן',gv('cash_exp'),ER)+chip('הלוואות',gv('loans'),ER)+chip('שיפוץ',gv('renovation'),ER);
   h += '</div>';
-  h += '<div style="'+G+'margin-bottom:8px;">';
-  h += mini('יותם',gv('yotam'),EO,IB)+mini('חריגות',gv('other_exp'),EY,IB);
+
+  h += '<div style="'+SEC+'">חריגות</div><div style="'+ROW+'">';
+  h += chip('יותם',gv('yotam'),EO)+chip('חריג',gv('other_exp'),EY);
   h += '</div>';
-  h += '<div style="border-top:1px solid rgba(255,255,255,0.06);margin:6px 0 10px;"></div>';
-  h += '<div style="'+LB+'">דולרים (בשקלים)</div><div style="'+G+'">';
-  h += mini('משכורת $',gv('salary_usd'),EP,UB)+mini('הוצאות $',gv('exp_usd'),EP,UB)+mini('יותם $',gv('yotam_usd'),EP,UB)+mini('סך $',gv('total_usd'),EP,UB);
+
+  h += '<div style="border-top:1px solid rgba(255,255,255,0.05);margin:8px 0 6px;"></div>';
+  h += '<div style="'+SEC+'">דולרים (₪)</div><div style="'+ROW+'">';
+  h += chip('משכורת $',gv('salary_usd'),EP)+chip('הוצאות $',gv('exp_usd'),EP)+chip('יותם $',gv('yotam_usd'),EP)+chip('סך $',gv('total_usd'),EP);
   h += '</div></div>';
   detailEl.innerHTML = h;
 }
@@ -3265,6 +3235,7 @@ function cfRenderChart() {
   var YAXIS_W = 50;  // רוחב ציר Y — חייב להתאים ל-YAXIS_W ב-cfRenderTable
   var months = cfGetDisplayMonths();
   // תוויות מקוצרות רק לגרף — ינו׳ 25, פבר׳ 26 וכו׳
+  CF_CHART_MONTHS = months; // v22.0: שמור לשימוש ב-onClick
   var labels = months.map(function(m){ return CF_HEB_MONTHS_ABBR[m.month-1] + ' ' + String(m.year).slice(2); });
   var chartW = months.length * COL_W + YAXIS_W;
 
@@ -3323,11 +3294,34 @@ function cfRenderChart() {
       maintainAspectRatio: false,
       animation: false,
       layout: { padding:{ top:8, bottom:0, left:0, right:0 } },
+      onClick: function(_evt, elements) {
+        // v22.0: לחיצה על עמודה — עדכון חודש נבחר
+        if (elements && elements.length > 0) {
+          var idx = elements[0].index;
+          var clicked = CF_CHART_MONTHS[idx];
+          if (clicked && clicked.monthId) {
+            cfSelectMonth(clicked.monthId);
+          }
+        }
+      },
+      onHover: function(evt, elements) {
+        if (evt.native) evt.native.target.style.cursor = elements && elements.length ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { display:false },
         tooltip: {
           rtl:true, textDirection:'rtl',
           callbacks: {
+            title: function(items) {
+              if (!items.length) return '';
+              var idx = items[0].dataIndex;
+              return CF_CHART_MONTHS[idx] ? CF_CHART_MONTHS[idx].label : labels[idx];
+            },
+            label: function(item) {
+              var datasetLabel = item.dataset.label || '';
+              var val = item.raw;
+              return datasetLabel + ': ₪' + Math.round(val).toLocaleString();
+            },
             afterBody: function(items) {
               if (!isMonthly || !items.length) return [];
               var idx = items[0].dataIndex;
