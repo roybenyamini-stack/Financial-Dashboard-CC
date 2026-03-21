@@ -22,9 +22,31 @@
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
 </div>
 <div class="header">
-  <div class="header-title">
-    <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v16.59</span></h1>
-    <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
+  <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
+  <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
+    <div class="header-title">
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v17.0</span></h1>
+      <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
+    </div>
+    <div id="cf-header-stats" class="header-stats" style="display:none;">
+      <div class="stat-item">
+        <div class="stat-label">תזרים נטו חודש נוכחי</div>
+        <div class="stat-value green" id="cf-hdr-current">—</div>
+        <div class="stat-change" id="cf-hdr-current-sub">אלפי ש״ח</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">תזרים מצטבר YTD</div>
+        <div class="stat-value green" id="cf-hdr-ytd">—</div>
+        <div class="stat-change">אלפי ש״ח</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">ממוצע חודשי</div>
+        <div class="stat-value" id="cf-hdr-avg">—</div>
+        <div class="stat-change">אלפי ש״ח</div>
+      </div>
+    </div>
   </div>
   <div class="header-stats">
     <div class="stat-item">
@@ -47,37 +69,17 @@
       <div class="stat-change" id="hdr-ret-range">ינו׳ 2025 – פבר׳ 26</div>
     </div>
   </div>
-  <!-- CASHFLOW HEADER STATS (shown only in cashflow tab) -->
-  <div id="cf-header-stats" class="header-stats" style="display:none;">
-    <div class="stat-item">
-      <div class="stat-label">תזרים נטו חודש נוכחי</div>
-      <div class="stat-value green" id="cf-hdr-current">—</div>
-      <div class="stat-change" id="cf-hdr-current-sub">אלפי ש״ח</div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">תזרים מצטבר YTD</div>
-      <div class="stat-value green" id="cf-hdr-ytd">—</div>
-      <div class="stat-change">אלפי ש״ח</div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">ממוצע חודשי</div>
-      <div class="stat-value" id="cf-hdr-avg">—</div>
-      <div class="stat-change">אלפי ש״ח</div>
-    </div>
-  </div>
-  <div style="margin-top:12px; text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+  <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
     <div style="display:flex; align-items:center; gap:8px;">
-      <label id="excel-upload-btn" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif; display:inline-block;">
-        📂 עדכן נתונים מאקסל
-        <input type="file" id="excel-file-input" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;" onchange="smartUploadRouter(this)">
-      </label>
-      <button id="theme-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
-      <button onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
-      <button onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
-      <button onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
-      <span onclick="toggleChat()" style="cursor:pointer; color:white; font-size:22px; opacity:0.85;" title="צ׳אט">💬</span>
+      <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
+      <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+      <button id="cf-privacy-btn" class="cf-only-btn" onclick="cfTogglePrivacy()" style="display:none; cursor:pointer; align-items:center; gap:6px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;"><span id="cf-privacy-icon">🔒</span><span id="cf-privacy-text">הצג הערות</span></button>
+      <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
+      <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
+      <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
+      <button class="inv-only-btn" onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
+      <span class="inv-only-btn" onclick="toggleChat()" style="cursor:pointer; color:white; font-size:22px; opacity:0.85;" title="צ׳אט">💬</span>
     </div>
     <span id="excel-status" style="color:rgba(255,255,255,0.85); font-size:11px; min-height:16px; display:block;"></span>
   </div>
@@ -719,54 +721,49 @@
 <div class="tab-panel" id="tab-cashflow">
 <div style="padding:16px 20px 40px 20px; font-family:Heebo,sans-serif; direction:rtl;">
 
-  <!-- Top bar: title + privacy toggle + cf upload -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <h2 style="margin:0;font-size:18px;font-weight:700;color:#1a1a2e;">תזרים שוטף חודשי</h2>
-      <span style="font-size:11px;color:#9ca3af;background:#f3f4f6;padding:2px 8px;border-radius:10px;">אלפי ש״ח</span>
+  <!-- KPI Cards — סיכום חודשי -->
+  <div id="cf-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
+
+  <!-- Summary Row — סיכומים שנתיים/מצטברים -->
+  <div id="cf-summary-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
+
+  <!-- Notes Panel — full width, smooth open/close with max-height transition -->
+  <div id="cf-notes-panel" style="max-height:0;overflow:hidden;background:#1e293b;border-radius:14px;margin-bottom:0;margin-left:auto;margin-right:auto;max-width:80%;direction:rtl;transition:max-height 0.35s ease,padding 0.25s ease,margin-bottom 0.25s ease;padding:0 18px;"></div>
+
+  <!-- Chart + Table: unified scroll. Controls float absolute RIGHT. LTR chronological. -->
+  <div style="background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);margin-bottom:20px;position:relative;">
+
+    <!-- Controls panel: floating absolute top-right, dark theme -->
+    <div id="cf-controls-box" style="position:absolute;top:0;right:0;width:110px;height:200px;z-index:10;background:rgba(15,23,42,0.97);border-right:1px solid rgba(255,255,255,0.08);padding:8px 10px;display:flex;flex-direction:column;gap:4px;direction:rtl;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.3px;margin-bottom:1px;">סוג תרשים</div>
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <button id="cf-view-monthly" onclick="cfSetView('monthly')" style="padding:3px 6px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">חודשי</button>
+        <button id="cf-view-ytd" onclick="cfSetView('ytd')" style="padding:3px 6px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">YTD</button>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.3px;margin-bottom:1px;">טווח</div>
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <button id="cf-range-rolling12" onclick="cfSetDateRange('rolling12')" style="padding:3px 6px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">12 חד׳</button>
+        <button id="cf-range-ytd2026" onclick="cfSetDateRange('ytd2026')" style="padding:3px 6px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">2026</button>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
+      <div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:rgba(255,255,255,0.45);">
+        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#22c55e;display:inline-block;"></span>הכנסות</span>
+        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#ef4444;display:inline-block;"></span>הוצאות</span>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button id="cf-privacy-btn" onclick="cfTogglePrivacy()" style="display:flex;align-items:center;gap:6px;background:#1a1a2e;color:white;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">
-        <span id="cf-privacy-icon">🔒</span><span id="cf-privacy-text">הצג הערות</span>
-      </button>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#f1f5f9;color:#374151;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid #e2e8f0;font-family:Heebo,sans-serif;">
-        <input type="file" accept=".xlsx" style="display:none;" onchange="cfLoadExcel(this)">
-        📂 עדכן תזרים
-      </label>
-    </div>
-  </div>
 
-  <!-- KPI Cards -->
-  <div id="cf-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;"></div>
+    <div id="cf-scroll-container" style="overflow-x:auto;direction:ltr;padding-right:115px;">
+      <div id="cf-inner-wrap" style="position:relative;display:inline-block;">
 
-  <!-- Chart + Table: unified scroll. Controls + label col sticky RIGHT. LTR chronological. -->
-  <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:20px;">
-    <div id="cf-scroll-container" style="overflow-x:auto;direction:ltr;">
-      <div id="cf-inner-wrap" style="position:relative;display:inline-flex;flex-direction:column;min-width:100%;">
-
-        <!-- CHART ROW: [scrolling chart] + [sticky controls panel RIGHT] -->
-        <div style="display:flex;flex-direction:row;align-items:stretch;">
-          <!-- Chart canvas — grows to fill available width -->
-          <div id="cf-chart-wrap" style="flex:1;height:200px;overflow:hidden;" dir="ltr">
-            <canvas id="cf-chart" style="display:block;height:100%;"></canvas>
-          </div>
-          <!-- Sticky controls panel — 190px, glued to RIGHT -->
-          <div id="cf-controls-box" style="flex:0 0 140px;width:140px;min-width:140px;position:sticky;right:0;background:#fff;z-index:4;border-right:1px solid #ebebeb;padding:8px 10px 8px;display:flex;flex-direction:column;gap:5px;direction:rtl;">
-            <span style="font-size:10px;font-weight:700;color:#1a1a2e;line-height:1.4;">הכנסות / הוצאות<br>ומצטבר YTD</span>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <button id="cf-view-monthly" onclick="cfSetView('monthly')" style="padding:3px 8px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">חודשי</button>
-              <button id="cf-view-ytd" onclick="cfSetView('ytd')" style="padding:3px 8px;border-radius:20px;border:1.5px solid #e2e8f0;background:white;color:#6b7280;font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">מצטבר YTD</button>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:#6b7280;">
-              <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#22c55e;display:inline-block;"></span>הכנסות</span>
-              <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#ef4444;display:inline-block;"></span>הוצאות</span>
-            </div>
-          </div>
+        <!-- Chart canvas — width set precisely by JS (includes Y axis width) -->
+        <div id="cf-chart-wrap" style="height:200px;overflow:hidden;" dir="ltr">
+          <canvas id="cf-chart" style="display:block;height:100%;"></canvas>
         </div>
 
-        <!-- TABLE ROW: own vertical scroll container so thead sticky:top works independently -->
+        <!-- TABLE: own vertical scroll so thead sticky:top works independently -->
         <div id="cf-table-scroll" style="overflow-y:auto;max-height:520px;overflow-x:visible;">
-          <table id="cf-table" style="border-collapse:collapse;font-size:12px;width:100%;direction:ltr;"></table>
+          <table id="cf-table" style="border-collapse:collapse;font-size:12px;direction:ltr;"></table>
         </div>
 
       </div>
