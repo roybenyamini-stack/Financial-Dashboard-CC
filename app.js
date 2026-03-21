@@ -1537,20 +1537,20 @@ function cfParseWorkbook(wb) {
 
     // 3. זיהוי דינמי (case-insensitive) — סרוק עמודות לפני firstMonthCol
     //    מטרה: לאפשר מיפוי אוטומטי גם לאקסלים עם מבנה שונה
-    // v17.5: KEY_LABELS — עברית בלבד. total_income מטופל בנפרד דרך total_income_candidates.
-    // הוסרו כל מילות מפתח אנגליות מ-salary, total_exp, delta — גרמו לזיהוי שורות שגויות.
+    // v17.8: KEY_LABELS — שמות ייחודיים בלבד. אין יותר "סה"כ" — הוא מטעה.
+    // total_income = "הכנסה ממשכורת" (שם ייחודי, לא מופיע בשום שורת הוצאות)
+    // total_exp    = "סה"כ התחייבות שיקלי" (שם ייחודי, לא מופיע בשום שורת הכנסות)
     var KEY_LABELS = {
-      salary:       ['הכנסה ממשכורת'],
+      total_income: ['הכנסה ממשכורת'],           // ← שורה ייחודית בחלק ההכנסות
+      salary:       [],                           // salary יגיע מ-static ROW_MAP בלבד
       rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
       other_income: ['הכנסות שונות', 'הכנסה אחרת'],
       buffer:       ['פריטה מ buffer', 'פריטה'],
-      // total_income: מוסר מכאן — מטופל ע"י total_income_candidates (ריבוי מועמדים + ולידציה)
       visa:         ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
       cash_exp:     ['הוצאות מזומן'],
       loans:        ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
       yotam:        ['יותם'],
       other_exp:    ['הוצאות שונות', 'הוצאות חריגות'],
-      // total_exp: "סה"כ התחייבות שיקלי" — שורה ייחודית שלא תתבלבל עם הכנסות
       total_exp:    ['סה"כ התחייבות שיקלי', 'סה"כ התחייבויות שיקלי',
                      'סה״כ התחייבות שיקלי', 'סה״כ התחייבויות שיקלי'],
       renovation:   ['הוצאות שיפוץ', 'שיפוץ'],
@@ -1587,34 +1587,19 @@ function cfParseWorkbook(wb) {
     // First Match Only — מפתחות שנמצאו בסריקה הדינמית (לא מה-static ROW_MAP!)
     // כך הסריקה הדינמית תמיד יכולה לדרוס ערכי static שגויים
     var mappedKeys = {};
-    // v17.7: total_income — אסוף כל שורות "סה"כ" exact בתוך 50 השורות הראשונות.
-    // קח את האחרונה — תמיד סיכום הכנסות הסופי, לא סיכומי ביניים.
-    var total_income_candidates = [];
-    var _tiKeywords = [
-      normalizeForCompare('סה"כ'),
-      normalizeForCompare('סה״כ'),
-      normalizeForCompare('סהכ')
-    ];
 
     colsToScan.forEach(function(lc) {
       for (var nri = 0; nri < nonEmptyRows.length; nri++) {
         var sr = nonEmptyRows[nri];
-        if (sr > HEADER_ROW + 50) continue; // רק 50 שורות ראשונות
         var lbl = cellVal(ws, sr, lc);
         if (!lbl) continue;
         var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
         if (!lblTrimmed) continue;
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
 
-        // total_income: אסוף מועמדים (כל "סה"כ" exact, עד שורה HEADER_ROW+50)
-        if (_tiKeywords.indexOf(ls) >= 0 && total_income_candidates.indexOf(sr) < 0) {
-          total_income_candidates.push(sr);
-          console.log('[CF v17.7] total_income candidate: שורה', sr, '(+' + (sr - HEADER_ROW) + '):', lblTrimmed);
-        }
-
-        // KEY_LABELS — First Match Only
         for (var lkey in KEY_LABELS) {
           if (mappedKeys[lkey]) continue;
+          if (KEY_LABELS[lkey].length === 0) continue; // דלג על מפתחות ריקים
           if (KEY_LABELS[lkey].some(function(kw){
             var nkw = normalizeForCompare(kw.toLowerCase());
             if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
@@ -1623,14 +1608,13 @@ function cfParseWorkbook(wb) {
             Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === lkey) delete ROW_MAP[k]; });
             ROW_MAP[sr] = lkey;
             mappedKeys[lkey] = true;
-            console.log('[CF Parser] label:', lblTrimmed, '→', lkey, 'שורה', sr);
+            console.log('[CF v17.8]', lkey, '← שורה', sr, '(HEADER_ROW+' + (sr - HEADER_ROW) + '):', lblTrimmed);
             break;
           }
         }
       }
     });
-    console.log('[CF v17.7] total_income candidates (אחרון ייבחר):', total_income_candidates);
-    console.log('[CF Parser] ROW_MAP:', JSON.stringify(ROW_MAP));
+    console.log('[CF v17.8] ROW_MAP סופי:', JSON.stringify(ROW_MAP));
 
     // 4. קרא נתוני חודשים
     var sheetResult = [];
@@ -1666,21 +1650,6 @@ function cfParseWorkbook(wb) {
         var noteStr = (note != null && String(note).trim() !== '') ? String(note).trim() : null;
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
-
-      // v17.7: total_income = הcandidateהאחרון (הסה"כ הכי נמוך בגיליון = סיכום סופי)
-      var _tiVal = null, _tiNote = null;
-      if (total_income_candidates.length > 0) {
-        var _tiRow = total_income_candidates[total_income_candidates.length - 1];
-        var _tiRaw = cellVal(ws, _tiRow, col);
-        if (_tiRaw !== null && _tiRaw !== undefined) {
-          var _tiP = typeof _tiRaw === 'number' ? _tiRaw : parseFloat(String(_tiRaw).replace(/,/g, ''));
-          if (!isNaN(_tiP)) _tiVal = Math.round(_tiP * 10) / 10;
-        }
-        var _tiNoteRaw = cellVal(ws, _tiRow, col + 1);
-        _tiNote = (_tiNoteRaw != null && String(_tiNoteRaw).trim() !== '') ? String(_tiNoteRaw).trim() : null;
-        console.log('[CF v17.7] total_income ← שורה', _tiRow, '(+' + (_tiRow - HEADER_ROW) + ') | חודש=' + _mMonthId + ' | val=' + _tiVal);
-      }
-      mObj.rows.total_income = {val: _tiVal, note: _tiNote};
 
       sheetResult.push(mObj);
     }
@@ -1736,7 +1705,7 @@ function smartUploadRouter(input) {
         console.log('[Upload] Parsed Data:', newData);
         if (newData.length > 0) {
           CF_DATA = newData;
-          console.log('[CF v17.7] CF_DATA:', newData.map(function(mm){ return mm.monthId + ' inc=' + (mm.rows.total_income ? mm.rows.total_income.val : '-') + ' exp=' + (mm.rows.total_exp ? mm.rows.total_exp.val : '-'); }));
+          console.log('[CF v17.8] CF_DATA:', newData.map(function(mm){ return mm.monthId + ' inc=' + (mm.rows.total_income ? mm.rows.total_income.val : '-') + ' exp=' + (mm.rows.total_exp ? mm.rows.total_exp.val : '-'); }));
           // v16.94: קבע את החודש הנוכחי = monthId הגבוה ביותר שאינו עתידי
           var todayCutoff2 = new Date().getFullYear() * 100 + (new Date().getMonth() + 1);
           var validMonths2 = newData.filter(function(m){ return m.year * 100 + m.month <= todayCutoff2; });
@@ -1746,7 +1715,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.7');
+          localStorage.setItem('dashboard_cf_version', '17.8');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2868,9 +2837,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.7') {
+    if (savedVer !== '17.8') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.7');
+      localStorage.setItem('dashboard_cf_version', '17.8');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
@@ -3159,12 +3128,7 @@ function cfRenderKPI() {
   var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
   var net = inc - exp;
   var netColor = net >= 0 ? '#4ade80' : '#f87171';
-  // v17.6: Debug מפורט — השווה את ה-console ל-מה שמוצג
-  console.log('[CF v17.6] ══ cfRenderKPI ══');
-  console.log('[CF v17.6] lastIdx:', lastIdx, '| חודש:', m.monthId, '|', m.label);
-  console.log('[CF v17.6] total_income raw:', JSON.stringify(m.rows.total_income));
-  console.log('[CF v17.6] total_exp raw:', JSON.stringify(m.rows.total_exp));
-  console.log('[CF v17.6] → מציג: הכנסות=' + inc + ' | הוצאות=' + exp + ' | נטו=' + net);
+  console.log('[CF v17.8] KPI | חודש:', m.monthId, '| הכנסות (הכנסה ממשכורת):', inc, '| הוצאות:', exp, '| נטו:', net);
   var cards = [
     {label:'הכנסות', value:inc, color:'#4ade80', icon:'💰'},
     {label:'הוצאות', value:exp, color:'#f87171', icon:'💸'},
