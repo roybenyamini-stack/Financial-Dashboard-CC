@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V32.0 - CLEAN VIEW & MATH ACCURACY !!!');
-          console.log('[Dashboard v32.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '32.0');
+          console.log('!!! V33.0 - LOANS FIX & SLIM BAR SPLIT !!!');
+          console.log('[Dashboard v33.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '33.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '32.0') {
+    if (savedVer !== '33.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '32.0');
+      localStorage.setItem('dashboard_cf_version', '33.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3155,11 +3155,21 @@ function cfCalcIncome(r) {
        + (r.buffer&&r.buffer.val!=null?r.buffer.val:0);
 }
 
-// v17.0: חישוב נטו — v32.0: income מחושב מרכיבים, לא total_income
+// v33.0: חישוב הוצאות מסכום מרכיבים — כולל הלוואות במפורש
+function cfCalcExp(r) {
+  return (r.visa&&r.visa.val!=null?r.visa.val:0)
+       + (r.cash_exp&&r.cash_exp.val!=null?r.cash_exp.val:0)
+       + (r.loans&&r.loans.val!=null?r.loans.val:0)
+       + (r.yotam&&r.yotam.val!=null?r.yotam.val:0)
+       + (r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)
+       + (r.renovation&&r.renovation.val!=null?r.renovation.val:0);
+}
+
+// חישוב נטו — income ו-exp שניהם מחושבים מרכיבים
 function cfGetNetVal(m) {
   var inc = cfCalcIncome(m.rows);
-  var exp = (m.rows.total_exp && m.rows.total_exp.val !== null) ? m.rows.total_exp.val : null;
-  if (exp !== null) return Math.round((inc - exp) * 10) / 10;
+  var exp = cfCalcExp(m.rows);
+  if (inc > 0 || exp > 0) return Math.round((inc - exp) * 10) / 10;
   return null;
 }
 
@@ -3301,10 +3311,10 @@ function cfUpdateCFCards() {
   var html = '';
   incCards.concat(expCards).forEach(function(card){
     if (card.val === 0) return; // v31: הסתר כרטיסיות עם ערך 0
-    html += '<div style="background:white;border-radius:9px;padding:8px 12px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
-    html += '<div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
-    html += '<div style="font-size:16px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
-    html += '<div style="font-size:10px;color:#9ca3af;">'+m.label+'</div>';
+    html += '<div style="background:white;border-radius:9px;padding:9px 13px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
+    html += '<div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
+    html += '<div style="font-size:18px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
+    html += '<div style="font-size:11px;color:#9ca3af;">'+m.label+'</div>';
     html += '</div>';
   });
   container.innerHTML = html;
@@ -3320,9 +3330,9 @@ function cfRenderKPI() {
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
   function chip(lbl, val, col) {
     if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
-    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:11px 16px;border-top:3px solid '+col+';flex-shrink:0;">' +
-      '<span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:17px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
+    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:12px 18px;border-top:3px solid '+col+';flex-shrink:0;">' +
+      '<span style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
+      '<span style="font-size:19px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>';
 
@@ -3378,10 +3388,11 @@ function cfRenderChart() {
     // v21.0: Stacked Bar — הכנסות ירוק | שוטף אדום | יותם כתום | חריג צהוב
     var expShoter = [], expYotam = [], expCharig = [];
     months.forEach(function(m) {
-      var totalExp = (m.rows.total_exp  && m.rows.total_exp.val  != null) ? m.rows.total_exp.val  : 0;
-      var yotamV   = (m.rows.yotam     && m.rows.yotam.val      != null) ? m.rows.yotam.val      : 0;
-      var charigV  = (m.rows.other_exp  && m.rows.other_exp.val  != null) ? m.rows.other_exp.val  : 0;
-      expShoter.push(Math.max(0, totalExp - yotamV - charigV));
+      // v33.0: totalExpCalc מחושב מרכיבים (כולל הלוואות)
+      var totalExpCalc = cfCalcExp(m.rows);
+      var yotamV  = (m.rows.yotam    && m.rows.yotam.val    != null) ? m.rows.yotam.val    : 0;
+      var charigV = (m.rows.other_exp && m.rows.other_exp.val != null) ? m.rows.other_exp.val : 0;
+      expShoter.push(Math.max(0, totalExpCalc - yotamV - charigV));
       expYotam.push(yotamV);
       expCharig.push(charigV);
     });
@@ -3450,7 +3461,7 @@ function cfRenderChart() {
               var ytdInc = 0, ytdExp = 0;
               for (var i = 0; i <= idx; i++) {
                 ytdInc += cfCalcIncome(months[i].rows);
-                ytdExp += (months[i].rows.total_exp && months[i].rows.total_exp.val != null) ? months[i].rows.total_exp.val : 0;
+                ytdExp += cfCalcExp(months[i].rows);
               }
               return ['──────────────', 'YTD הכנסות: ₪'+Math.round(ytdInc).toLocaleString(), 'YTD הוצאות: ₪'+Math.round(ytdExp).toLocaleString(), 'YTD נטו: ₪'+Math.round(ytdInc-ytdExp).toLocaleString()];
             }
@@ -3618,7 +3629,7 @@ function cfShowNoData() {
   });
 }
 
-// v28.0: Slim Summary Bar — שורה אחת עם 6 מספרים (YTD + תחזית)
+// v33.0: Slim Summary Bar — 3 שקליים ימין (YTD גדול) + 3 דולריים שמאל (קטן ועמום)
 function cfRenderSummary() {
   var container = document.getElementById('cf-summary-row');
   if (!container) return;
@@ -3629,56 +3640,66 @@ function cfRenderSummary() {
     return maxY;
   })();
 
-  // YTD — מתחילת השנה עד החודש הנבחר
   var lastIdx = cfGetLastRealMonth();
   var selM = CF_DATA[lastIdx];
   var upToMonth = (selM && selM.year === displayYear) ? selM.month : 12;
+
+  // YTD שקלי — הכנסות + הוצאות (כולל הלוואות) + נטו
   var ytdInc = 0, ytdExp = 0, ytdMonths = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear || m.month > upToMonth) return;
     ytdInc += cfCalcIncome(m.rows);
-    ytdExp += (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
+    ytdExp += cfCalcExp(m.rows);
     ytdMonths++;
   });
   var ytdNet = ytdInc - ytdExp;
   var ytdNetCol = ytdNet >= 0 ? '#4ade80' : '#f87171';
-
-  // תחזית שנתית — כל החודשים עם נתונים
-  var annualInc = 0, annualExp = 0, annualMonths = 0;
-  CF_DATA.forEach(function(m) {
-    if (m.year !== displayYear) return;
-    var mInc = cfCalcIncome(m.rows);
-    var mExp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
-    if (mInc > 0 || mExp > 0) { annualInc += mInc; annualExp += mExp; annualMonths++; }
-  });
-  var annualNet = annualInc - annualExp;
-  var annualNetCol = annualNet >= 0 ? '#6ee7b7' : '#fca5a5';
-
   var ytdLabel = selM ? (selM.month > 1 ? '\u05d9\u05e0\u05d5\u02b9\u2013' + selM.label : selM.label) : 'YTD';
 
+  // דולרי — נתוני החודש הנבחר (כבר בשקלים)
+  var dr = selM ? selM.rows : {};
+  var salUsd = dr.salary_usd&&dr.salary_usd.val!=null?dr.salary_usd.val:0;
+  var expUsd = dr.exp_usd&&dr.exp_usd.val!=null?dr.exp_usd.val:0;
+  var totUsd = dr.total_usd&&dr.total_usd.val!=null?dr.total_usd.val:0;
+  var totUsdCol = totUsd >= 0 ? '#a5b4fc' : '#fca5a5';
+
   function fmt(v) { return '\u20aa' + Math.round(v).toLocaleString(); }
-  function cell(lbl, val, col) {
+
+  function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
-      '<span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;">' + lbl + '</span>' +
-      '<span style="font-size:18px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '<span style="font-size:13px;color:rgba(255,255,255,0.42);font-weight:600;">' + lbl + '</span>' +
+      '<span style="font-size:20px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
       '</div>';
   }
-  var DIV = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 6px;flex-shrink:0;"></div>';
+  function cellSmall(lbl, val, col) {
+    return '<div style="display:flex;flex-direction:column;gap:1px;">' +
+      '<span style="font-size:10px;color:rgba(255,255,255,0.22);font-weight:500;">' + lbl + '</span>' +
+      '<span style="font-size:13px;font-weight:700;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '</div>';
+  }
 
-  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
-  html += '<div style="font-size:14px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:11px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  var DIV  = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 6px;flex-shrink:0;"></div>';
+  var BDIV = '<div style="width:2px;background:rgba(255,255,255,0.15);align-self:stretch;margin:0 10px;flex-shrink:0;border-radius:1px;"></div>';
+
+  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:13px 18px;display:flex;align-items:center;gap:10px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
+
+  // ימין — YTD שקלי (בולט)
+  html += '<div style="font-size:15px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:11px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
-  html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
-  html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', ytdExp, '#f87171');
-  html += cell('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
-  html += '<div style="width:2px;background:rgba(255,255,255,0.12);align-self:stretch;margin:0 6px;flex-shrink:0;border-radius:1px;"></div>';
-  html += '<div style="font-size:14px;font-weight:700;color:#64748b;white-space:nowrap;line-height:1.5;flex-shrink:0;">\u05ea\u05d7\u05d6\u05d9\u05ea<br>' + displayYear + '<br><span style="font-size:11px;color:rgba(255,255,255,0.2);font-weight:400;">' + annualMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  html += cellBig('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
+  html += cellBig('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', ytdExp, '#f87171');
+  html += cellBig('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
+
+  html += BDIV;
+
+  // שמאל — דולרי (עמום וקטן)
+  html += '<div style="font-size:11px;font-weight:600;color:#3d5069;white-space:nowrap;line-height:1.5;flex-shrink:0;">$<br>' + (selM ? selM.label : '') + '</div>';
   html += DIV;
-  html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', annualInc, '#6a9e7a');
-  html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', annualExp, '#9e6a6a');
-  html += cell('\u05e0\u05d8\u05d5', annualNet, annualNetCol);
+  html += cellSmall('\u05de\u05e9\u05db\u05f3', salUsd, '#818cf8');
+  html += cellSmall('\u05d4\u05d5\u05e6\u05f3', expUsd, '#fca5a5');
+  html += cellSmall('\u05e1\u05da', totUsd, totUsdCol);
+
   html += '</div>';
-
   container.innerHTML = html;
 }
 
