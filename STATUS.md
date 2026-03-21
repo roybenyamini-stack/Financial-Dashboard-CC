@@ -1,9 +1,24 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v25.0 — Final UI Consolidation: כותרת חכמה (לבן/צהוב), 2 כרטיסיות Summary רחבות, שורת Chips אחת.
+גרסה v26.0 — Emergency Fix + CF AI Chat: תיקון קריסת layout, Chips עם wrap, צ'אט AI מובנה לתזרים.
 
 ## שינויים אחרונים (21/03/2026)
+
+### v26.0 – Emergency Fix & AI Integration
+
+**index.html:**
+- `cf-cp`: נוסף פאנל צ'אט ייעודי לטאב תזרים שוטף (סגנון דומה ל-`#cp` של השקעות)
+- כפתור 💬 נוסף לשורת הכפתורים של תזרים שוטף (cf-only-btn)
+- גרסה: `v25.0` → `v26.0`
+
+**app.js:**
+- `cfRenderKPI()`: תוקן — `flex-wrap:wrap` במקום `nowrap` (מונע קריסת layout)
+- `buildCFContext()`: פונקציה חדשה — בונה קונטקסט מ-CF_DATA לכל החודשים (2025+2026) עם הכנסות/הוצאות/נטו/פירוט
+- `toggleCFChat()`: פתיחה/סגירה של פאנל הצ'אט
+- `addCFMsg()`: הוספת הודעה לצ'אט
+- `sendCFChat()`: שולח שאלה ל-API עם קונטקסט התזרים המלא
+- גרסת localStorage: `'25.0'` → `'26.0'`
 
 ### v25.0 – Final UI Consolidation
 
