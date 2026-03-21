@@ -1719,9 +1719,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V24.0 - UX POLISH: DYNAMIC TITLE + TODAY BTN + FORECAST VS YTD CARDS !!!');
-          console.log('[Dashboard v24.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '24.0');
+          console.log('!!! V25.0 - FINAL UI CONSOLIDATION: SMART TITLE COLOR + 2-CARD SUMMARY + SINGLE-ROW CHIPS !!!');
+          console.log('[Dashboard v25.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '25.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2844,9 +2844,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '24.0') {
+    if (savedVer !== '25.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '24.0');
+      localStorage.setItem('dashboard_cf_version', '25.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3159,9 +3159,13 @@ function cfUpdateHeader() {
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
 
-  // v24.0: כותרת דינמית — 'מציג: [חודש]'
+  // v25.0: כותרת דינמית — לבן כשמוצג החודש הנוכחי, צהוב כשנבחר חודש אחר
   var subtitle = document.getElementById('hdr-subtitle');
-  if(subtitle) subtitle.textContent = 'מציג: ' + m.label;
+  if(subtitle) {
+    var isCustomMonth = CF_SELECTED_MONTH_ID !== null && CF_SELECTED_MONTH_ID !== CF_CURRENT_MONTH_ID;
+    subtitle.style.color = isCustomMonth ? '#fbbf24' : 'white';
+    subtitle.textContent = 'מציג: ' + m.label;
+  }
 
   // עדכן Dropdown שנה לשנה הנוכחית
   var yearSel = document.getElementById('cf-year-select');
@@ -3198,7 +3202,7 @@ function cfUpdateCFCards() {
   container.innerHTML = html;
 }
 
-// v22.0: cfRenderKPI — רק כרטיסיות פירוט קומפקטיות (הKPIs הראשיים עברו ל-header)
+// v25.0: cfRenderKPI — שורה אחת קומפקטית, ללא כותרות מקטעים
 function cfRenderKPI() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
@@ -3208,33 +3212,21 @@ function cfRenderKPI() {
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
   function chip(lbl, val, col) {
     var d = val !== null ? '₪' + Math.round(val).toLocaleString() : '—';
-    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:7px 10px;border-top:2px solid '+col+';min-width:80px;">' +
-      '<span style="font-size:9px;color:rgba(255,255,255,0.38);font-weight:600;letter-spacing:0.4px;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:12px;font-weight:700;color:'+col+';margin-top:2px;">'+d+'</span></div>';
+    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:6px;padding:5px 8px;border-top:2px solid '+col+';flex-shrink:0;">' +
+      '<span style="font-size:10px;color:rgba(255,255,255,0.38);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
+      '<span style="font-size:12px;font-weight:700;color:'+col+';margin-top:1px;white-space:nowrap;">'+d+'</span></div>';
   }
 
   var IG='#4ade80', ER='#f87171', EO='#fb923c', EY='#fbbf24', EP='#818cf8';
-  var ROW = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;';
-  var SEC = 'font-size:9px;font-weight:700;color:#475569;letter-spacing:0.6px;margin-bottom:4px;margin-top:4px;';
-  var h = '<div style="background:#0f172a;border-radius:12px;padding:12px 14px;direction:rtl;">';
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
-  h += '<span style="font-size:11px;font-weight:700;color:#94a3b8;">פירוט חודשי — '+m.label+'</span></div>';
-
-  h += '<div style="'+SEC+'">הכנסות ₪</div><div style="'+ROW+'">';
-  h += chip('משכורת',gv('salary'),IG)+chip('שכ"ד',gv('rent_income'),IG)+chip('אחרות',gv('other_income'),IG)+chip('פריטה',gv('buffer'),IG);
-  h += '</div>';
-
-  h += '<div style="'+SEC+'">הוצאות שוטפות ₪</div><div style="'+ROW+'">';
+  var h = '<div style="background:#0f172a;border-radius:10px;padding:8px 12px;direction:rtl;">';
+  h += '<div style="display:flex;flex-wrap:nowrap;gap:5px;align-items:flex-start;overflow-x:auto;">';
+  h += chip('משכורת',gv('salary'),IG)+chip('שכ"ד',gv('rent_income'),IG)+chip('הכנסות אחרות',gv('other_income'),IG)+chip('פריטה',gv('buffer'),IG);
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
   h += chip('ויזה',gv('visa'),ER)+chip('מזומן',gv('cash_exp'),ER)+chip('הלוואות',gv('loans'),ER)+chip('שיפוץ',gv('renovation'),ER);
-  h += '</div>';
-
-  h += '<div style="'+SEC+'">חריגות</div><div style="'+ROW+'">';
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
   h += chip('יותם',gv('yotam'),EO)+chip('חריג',gv('other_exp'),EY);
-  h += '</div>';
-
-  h += '<div style="border-top:1px solid rgba(255,255,255,0.05);margin:8px 0 6px;"></div>';
-  h += '<div style="'+SEC+'">דולרים (₪)</div><div style="'+ROW+'">';
-  h += chip('משכורת $',gv('salary_usd'),EP)+chip('הוצאות $',gv('exp_usd'),EP)+chip('יותם $',gv('yotam_usd'),EP)+chip('סך $',gv('total_usd'),EP);
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
+  h += chip('משכורת $',gv('salary_usd'),EP)+chip('הוצ׳ $',gv('exp_usd'),EP)+chip('יותם $',gv('yotam_usd'),EP)+chip('סך $',gv('total_usd'),EP);
   h += '</div></div>';
   detailEl.innerHTML = h;
 }
@@ -3518,7 +3510,7 @@ function cfRenderSummary() {
     return maxY;
   })();
 
-  // צפי שנתי — סה"כ כל החודשים עם נתונים בשנה הנבחרת
+  // תחזית לסוף שנה — סה"כ כל החודשים עם נתונים בשנה הנבחרת
   var annualInc = 0, annualExp = 0, annualMonths = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear) return;
@@ -3541,34 +3533,31 @@ function cfRenderSummary() {
   });
   var ytdNet = ytdInc - ytdExp;
   var ytdNetColor = ytdNet >= 0 ? '#4ade80' : '#f87171';
+  var annualNetColor = annualNet >= 0 ? '#4a7a5a' : '#7a4a4a';
 
-  // 3 כרטיסיות אפורות — צפי שנתי
-  var forecastItems = [
-    { label:'הכנסות', val: annualInc },
-    { label:'הוצאות', val: annualExp },
-    { label:'נטו',    val: annualNet },
-  ];
+  // v25.0: 2 כרטיסיות רחבות — סדר RTL: תחזית (ימין) | YTD (שמאל)
   var html = '';
-  forecastItems.forEach(function(item) {
-    html += '<div style="background:#1a2235;border-radius:10px;padding:9px 13px;border:1px solid rgba(255,255,255,0.05);">';
-    html += '<div style="font-size:9px;font-weight:700;color:#3d5069;letter-spacing:0.5px;margin-bottom:3px;">צפי שנתי ' + displayYear + '</div>';
-    html += '<div style="font-size:9px;color:#4a5e7a;margin-bottom:3px;">' + item.label + '</div>';
-    html += '<div style="font-size:16px;font-weight:700;color:#64748b;">' + Math.round(item.val).toLocaleString() + '</div>';
-    html += '<div style="font-size:9px;color:#2d3f54;margin-top:2px;">' + annualMonths + ' חד׳ · אלפי ש״ח</div>';
-    html += '</div>';
-  });
 
-  // כרטיסייה צבעונית — YTD בפועל
+  // כרטיסייה ימינית — תחזית לסוף שנה (מוטמעת, 3 ערכים inline)
+  html += '<div style="background:#151f2e;border-radius:10px;padding:11px 16px;border:1px solid rgba(255,255,255,0.06);">';
+  html += '<div style="font-size:9px;font-weight:700;color:#3d5069;letter-spacing:0.5px;margin-bottom:8px;">תחזית לסוף שנה ' + displayYear + ' · ' + annualMonths + ' חד׳</div>';
+  html += '<div style="display:flex;gap:16px;align-items:flex-end;">';
+  html += '<div><div style="font-size:9px;color:#3a5270;margin-bottom:2px;">הכנסות</div><div style="font-size:18px;font-weight:700;color:#4a7a5a;line-height:1;">' + Math.round(annualInc).toLocaleString() + '</div></div>';
+  html += '<div><div style="font-size:9px;color:#3a5270;margin-bottom:2px;">הוצאות</div><div style="font-size:18px;font-weight:700;color:#7a4a4a;line-height:1;">' + Math.round(annualExp).toLocaleString() + '</div></div>';
+  html += '<div style="border-right:1px solid rgba(255,255,255,0.06);height:32px;align-self:flex-end;margin:0 4px;"></div>';
+  html += '<div><div style="font-size:9px;color:#3a5270;margin-bottom:2px;">נטו</div><div style="font-size:18px;font-weight:700;color:' + annualNetColor + ';line-height:1;">' + Math.round(annualNet).toLocaleString() + '</div></div>';
+  html += '</div></div>';
+
+  // כרטיסייה שמאלית — ביצוע בפועל YTD (צבעונית)
   var ytdTitle = selM ? 'ינו׳–' + selM.label : 'YTD';
-  html += '<div style="background:linear-gradient(135deg,#0e1f3a 0%,#111c2f 100%);border-radius:10px;padding:10px 14px;border:1px solid rgba(99,102,241,0.35);">';
-  html += '<div style="font-size:9px;font-weight:700;color:#6366f1;letter-spacing:0.5px;margin-bottom:6px;">מצטבר בפועל YTD · ' + ytdTitle + '</div>';
-  html += '<div style="display:flex;gap:12px;align-items:flex-end;">';
-  html += '<div><div style="font-size:8px;color:rgba(255,255,255,0.35);margin-bottom:1px;">הכנסות</div><div style="font-size:17px;font-weight:800;color:#4ade80;line-height:1;">' + Math.round(ytdInc).toLocaleString() + '</div></div>';
-  html += '<div><div style="font-size:8px;color:rgba(255,255,255,0.35);margin-bottom:1px;">הוצאות</div><div style="font-size:17px;font-weight:800;color:#f87171;line-height:1;">' + Math.round(ytdExp).toLocaleString() + '</div></div>';
-  html += '<div><div style="font-size:8px;color:rgba(255,255,255,0.35);margin-bottom:1px;">נטו</div><div style="font-size:17px;font-weight:800;color:' + ytdNetColor + ';line-height:1;">' + Math.round(ytdNet).toLocaleString() + '</div></div>';
-  html += '</div>';
-  html += '<div style="font-size:9px;color:#2d4a7a;margin-top:5px;">' + ytdMonths + ' חד׳ · אלפי ש״ח</div>';
-  html += '</div>';
+  html += '<div style="background:linear-gradient(135deg,#0e1f3a 0%,#111c2f 100%);border-radius:10px;padding:11px 16px;border:1px solid rgba(99,102,241,0.35);">';
+  html += '<div style="font-size:9px;font-weight:700;color:#6366f1;letter-spacing:0.5px;margin-bottom:8px;">ביצוע בפועל YTD · ' + ytdTitle + ' · ' + ytdMonths + ' חד׳</div>';
+  html += '<div style="display:flex;gap:16px;align-items:flex-end;">';
+  html += '<div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:2px;">הכנסות</div><div style="font-size:18px;font-weight:800;color:#4ade80;line-height:1;">' + Math.round(ytdInc).toLocaleString() + '</div></div>';
+  html += '<div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:2px;">הוצאות</div><div style="font-size:18px;font-weight:800;color:#f87171;line-height:1;">' + Math.round(ytdExp).toLocaleString() + '</div></div>';
+  html += '<div style="border-right:1px solid rgba(255,255,255,0.08);height:32px;align-self:flex-end;margin:0 4px;"></div>';
+  html += '<div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:2px;">נטו</div><div style="font-size:18px;font-weight:800;color:' + ytdNetColor + ';line-height:1;">' + Math.round(ytdNet).toLocaleString() + '</div></div>';
+  html += '</div></div>';
 
   container.innerHTML = html;
 }
