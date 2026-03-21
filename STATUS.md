@@ -1,7 +1,22 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v17.1 — Robust parsing, פולבאק חכם total_income∥salary, ציר זמן שנה-אגנוסטי, צבעים קבועים בגרף.
+גרסה v17.2 — Max-value heuristic לזיהוי הכנסות/הוצאות, נטו מצטבר מחושב, localStorage 17.2.
+
+## שינויים אחרונים (21/03/2026)
+
+### v17.2 – Max-Value Heuristic and Reliable Rendering
+
+**app.js:**
+- `parseSheet` (בלולאת col): **Max-value heuristic** — לאחר קריאת ROW_MAP הסטטי, מחשב:
+  - `total_income` = הערך הגבוה ביותר (≥50) בשורות HEADER_ROW+1 עד +70 (קטע הכנסות). דורס כל ערך קודם.
+  - `total_exp` = הערך הגבוה ביותר (>0) בשורות HEADER_ROW+71 עד +130 (קטע הוצאות). דורס כל ערך קודם.
+  - פותר את בעיית ה-39 (שהגיעה מ-static ROW_MAP row 3/39 שהצביע לשורה שגויה)
+- `cfRenderSummary`: **נטו מצטבר מחושב** — totalNet = totalInc - totalExp (לא net_cashflow שאף פעם לא מאוכלס). גם שנה בתווית דינמית (currentYear במקום 2026 קשיח)
+- localStorage: גרסה עודכנה `17.1` → `17.2`
+
+**index.html:**
+- עדכון גרסה: v17.1 → v17.2
 
 ## שינויים אחרונים (21/03/2026)
 
