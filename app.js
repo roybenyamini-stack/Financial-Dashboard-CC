@@ -1350,6 +1350,110 @@ function buildContext() {
   }
   return ctx;
 }
+// =====================================================================
+// v26.0: CF CHAT — עוזר AI לטאב תזרים שוטף
+// =====================================================================
+var cfChatOpen = false;
+var cfChatHistory = [];
+
+function buildCFContext() {
+  if (!CF_DATA || CF_DATA.length === 0) return 'אין נתוני תזרים טעונים.';
+  var ctx = 'נתוני תזרים שוטף — אלפי ש"ח\n';
+  ctx += 'פורמט: חודש | שנה | הכנסות | הוצאות | נטו | פירוט\n\n';
+  CF_DATA.forEach(function(m) {
+    var r = m.rows;
+    var inc  = (r.total_income && r.total_income.val != null) ? Math.round(r.total_income.val) : 0;
+    var exp  = (r.total_exp    && r.total_exp.val    != null) ? Math.round(r.total_exp.val)    : 0;
+    var net  = (r.profit_loss  && r.profit_loss.val  != null) ? Math.round(r.profit_loss.val)  : (inc - exp);
+    var sal  = (r.salary       && r.salary.val       != null) ? Math.round(r.salary.val)       : 0;
+    var rent = (r.rent_income  && r.rent_income.val  != null) ? Math.round(r.rent_income.val)  : 0;
+    var visa = (r.visa         && r.visa.val         != null) ? Math.round(r.visa.val)         : 0;
+    var cash = (r.cash_exp     && r.cash_exp.val     != null) ? Math.round(r.cash_exp.val)     : 0;
+    var loan = (r.loans        && r.loans.val        != null) ? Math.round(r.loans.val)        : 0;
+    var yotam= (r.yotam        && r.yotam.val        != null) ? Math.round(r.yotam.val)        : 0;
+    var usd  = (r.total_usd    && r.total_usd.val    != null) ? Math.round(r.total_usd.val)    : 0;
+    ctx += m.label + ' ' + m.year + ': הכנסות=' + inc + ' הוצאות=' + exp + ' נטו=' + net;
+    if (sal)  ctx += ' | משכורת=' + sal;
+    if (rent) ctx += ' | שכ"ד=' + rent;
+    if (visa) ctx += ' | ויזה=' + visa;
+    if (cash) ctx += ' | מזומן=' + cash;
+    if (loan) ctx += ' | הלוואות=' + loan;
+    if (yotam) ctx += ' | יותם=' + yotam;
+    if (usd)  ctx += ' | $נטו=' + usd;
+    ctx += '\n';
+  });
+  return ctx;
+}
+
+function toggleCFChat() {
+  cfChatOpen = !cfChatOpen;
+  var cp = document.getElementById('cf-cp');
+  cp.style.display = cfChatOpen ? 'flex' : 'none';
+  if (cfChatOpen) {
+    var cm = document.getElementById('cf-cm');
+    if (cm.children.length === 0) addCFMsg('שלום! אני יכול לענות על שאלות על התזרים השוטף שלך.\nלמשל: "השווה הכנסות 2025 מול 2026" או "מה היה הנטו החודש?" 😊', false);
+    setTimeout(function(){ document.getElementById('cf-ci').focus(); }, 100);
+  }
+}
+
+function addCFMsg(txt, isUser) {
+  var cm = document.getElementById('cf-cm');
+  var d = document.createElement('div');
+  d.style.cssText = 'padding:9px 12px;border-radius:10px;font-family:Heebo,sans-serif;font-size:15px;line-height:1.7;direction:rtl;max-width:85%;white-space:pre-wrap;';
+  if (isUser) {
+    d.style.cssText += 'background:#2d2d4e;color:white;align-self:flex-end;margin-right:auto;';
+  } else {
+    d.style.cssText += 'background:#0f3460;color:#e2e8f0;align-self:flex-start;margin-left:auto;';
+  }
+  d.textContent = txt;
+  cm.appendChild(d);
+  cm.scrollTop = cm.scrollHeight;
+  return d;
+}
+
+async function sendCFChat() {
+  var ci = document.getElementById('cf-ci');
+  var q = ci.value.trim();
+  if (!q) return;
+  ci.value = '';
+  addCFMsg(q, true);
+  cfChatHistory.push({role: 'user', content: q});
+  var thinking = addCFMsg('חושב...', false);
+  try {
+    var cfCtx = buildCFContext();
+    var systemPrompt = 'אתה עוזר פיננסי שמנתח נתוני תזרים שוטף. ענה בעברית בתמציתיות.\n' +
+      'הנתונים הם סכומים חודשיים של הכנסות, הוצאות ורכיביהם, באלפי ש"ח.\n' +
+      'לחישוב השוואה חצי שנתית: סכום ינו׳–יוני מול יולי–דצמבר, או 2025 מול 2026.\n\n' +
+      cfCtx;
+    var res = await fetch('https://holy-poetry-claude-proxy.roy-benyamini.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        system: systemPrompt,
+        messages: cfChatHistory.slice(-10)
+      })
+    });
+    var data = await res.json();
+    thinking.remove();
+    var answer;
+    if (data.content && data.content.length > 0) {
+      answer = data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n');
+      if (!answer) answer = 'קיבלתי תגובה אך ללא טקסט. נסה שוב.';
+    } else if (data.error) {
+      answer = 'שגיאה: ' + (data.error.message || data.error.type);
+    } else {
+      answer = 'תגובה לא צפויה, נסה שוב.';
+    }
+    cfChatHistory.push({role: 'assistant', content: answer});
+    addCFMsg(answer, false);
+  } catch(e) {
+    thinking.remove();
+    addCFMsg('שגיאה: ' + e.message, false);
+  }
+}
+
 function answerQ(q) {
   var months = {'ינו':0,'ינואר':0,'פבר':1,'פברואר':1,'מרץ':2,'מרס':2,'אפר':3,'אפריל':3,'מאי':4,'יוני':5,'יולי':6,'אוג':7,'אוגוסט':7,'ספט':8,'ספטמבר':8,'אוק':9,'אוקטובר':9,'נוב':10,'נובמבר':10,'דצמ':11,'דצמבר':11};
   function getMonths(str) {
@@ -1719,9 +1823,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V25.0 - FINAL UI CONSOLIDATION: SMART TITLE COLOR + 2-CARD SUMMARY + SINGLE-ROW CHIPS !!!');
-          console.log('[Dashboard v25.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '25.0');
+          console.log('!!! V26.0 - EMERGENCY FIX + CF AI CHAT: LAYOUT RESTORE + WRAP CHIPS + CF CHATBOT !!!');
+          console.log('[Dashboard v26.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '26.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2844,9 +2948,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '25.0') {
+    if (savedVer !== '26.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '25.0');
+      localStorage.setItem('dashboard_cf_version', '26.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3202,7 +3306,7 @@ function cfUpdateCFCards() {
   container.innerHTML = html;
 }
 
-// v25.0: cfRenderKPI — שורה אחת קומפקטית, ללא כותרות מקטעים
+// v26.0: cfRenderKPI — שורה אחת גמישה (wrap מאפשר גלישה בלי שבירת layout)
 function cfRenderKPI() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
@@ -3219,13 +3323,13 @@ function cfRenderKPI() {
 
   var IG='#4ade80', ER='#f87171', EO='#fb923c', EY='#fbbf24', EP='#818cf8';
   var h = '<div style="background:#0f172a;border-radius:10px;padding:8px 12px;direction:rtl;">';
-  h += '<div style="display:flex;flex-wrap:nowrap;gap:5px;align-items:flex-start;overflow-x:auto;">';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start;">';
   h += chip('משכורת',gv('salary'),IG)+chip('שכ"ד',gv('rent_income'),IG)+chip('הכנסות אחרות',gv('other_income'),IG)+chip('פריטה',gv('buffer'),IG);
-  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 1px;"></div>';
   h += chip('ויזה',gv('visa'),ER)+chip('מזומן',gv('cash_exp'),ER)+chip('הלוואות',gv('loans'),ER)+chip('שיפוץ',gv('renovation'),ER);
-  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 1px;"></div>';
   h += chip('יותם',gv('yotam'),EO)+chip('חריג',gv('other_exp'),EY);
-  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 2px;"></div>';
+  h += '<div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;flex-shrink:0;margin:0 1px;"></div>';
   h += chip('משכורת $',gv('salary_usd'),EP)+chip('הוצ׳ $',gv('exp_usd'),EP)+chip('יותם $',gv('yotam_usd'),EP)+chip('סך $',gv('total_usd'),EP);
   h += '</div></div>';
   detailEl.innerHTML = h;
