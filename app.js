@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V31.0 - ZERO NOISE & DATA ACCURACY !!!');
-          console.log('[Dashboard v31.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '31.0');
+          console.log('!!! V32.0 - CLEAN VIEW & MATH ACCURACY !!!');
+          console.log('[Dashboard v32.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '32.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '31.0') {
+    if (savedVer !== '32.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '31.0');
+      localStorage.setItem('dashboard_cf_version', '32.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3147,12 +3147,19 @@ function cfSetView(view) {
   cfRenderChart();
 }
 
-// v17.0: חישוב נטו = total_income פחות total_exp בלבד (אין fallback לאקסל)
-// אם חסר אחד מהם — מחזיר null (מוצג 0 בגרף)
+// v32.0: חישוב הכנסות מסכום מרכיבים — מונע קריאת שורה שגויה מהאקסל
+function cfCalcIncome(r) {
+  return (r.salary&&r.salary.val!=null?r.salary.val:0)
+       + (r.rent_income&&r.rent_income.val!=null?r.rent_income.val:0)
+       + (r.other_income&&r.other_income.val!=null?r.other_income.val:0)
+       + (r.buffer&&r.buffer.val!=null?r.buffer.val:0);
+}
+
+// v17.0: חישוב נטו — v32.0: income מחושב מרכיבים, לא total_income
 function cfGetNetVal(m) {
-  var inc = (m.rows.total_income && m.rows.total_income.val !== null) ? m.rows.total_income.val : null;
-  var exp = (m.rows.total_exp    && m.rows.total_exp.val    !== null) ? m.rows.total_exp.val    : null;
-  if (inc !== null && exp !== null) return Math.round((inc - exp) * 10) / 10;
+  var inc = cfCalcIncome(m.rows);
+  var exp = (m.rows.total_exp && m.rows.total_exp.val !== null) ? m.rows.total_exp.val : null;
+  if (exp !== null) return Math.round((inc - exp) * 10) / 10;
   return null;
 }
 
@@ -3294,10 +3301,10 @@ function cfUpdateCFCards() {
   var html = '';
   incCards.concat(expCards).forEach(function(card){
     if (card.val === 0) return; // v31: הסתר כרטיסיות עם ערך 0
-    html += '<div style="background:white;border-radius:9px;padding:6px 10px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
-    html += '<div style="font-size:9px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
-    html += '<div style="font-size:14px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
-    html += '<div style="font-size:9px;color:#9ca3af;">'+m.label+'</div>';
+    html += '<div style="background:white;border-radius:9px;padding:8px 12px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
+    html += '<div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:'+card.color+';">'+card.val.toLocaleString()+'</div>';
+    html += '<div style="font-size:10px;color:#9ca3af;">'+m.label+'</div>';
     html += '</div>';
   });
   container.innerHTML = html;
@@ -3313,9 +3320,9 @@ function cfRenderKPI() {
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
   function chip(lbl, val, col) {
     if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
-    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:9px 14px;border-top:3px solid '+col+';flex-shrink:0;">' +
-      '<span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:15px;font-weight:700;color:'+col+';margin-top:2px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
+    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:11px 16px;border-top:3px solid '+col+';flex-shrink:0;">' +
+      '<span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
+      '<span style="font-size:17px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">₪'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>';
 
@@ -3379,7 +3386,7 @@ function cfRenderChart() {
       expCharig.push(charigV);
     });
     datasets = [
-      { label:'הכנסות', data:months.map(function(m){ return (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0; }), backgroundColor:'rgba(34,197,94,0.85)',  borderRadius:4, stack:'income' },
+      { label:'הכנסות', data:months.map(function(m){ return cfCalcIncome(m.rows); }), backgroundColor:'rgba(34,197,94,0.85)',  borderRadius:4, stack:'income' },
       { label:'שוטף',  data:expShoter, backgroundColor:'rgba(239,68,68,0.85)',  borderRadius:0, stack:'exp' },
       { label:'יותם',  data:expYotam,  backgroundColor:'rgba(249,115,22,0.85)', borderRadius:0, stack:'exp' },
       { label:'חריג',  data:expCharig, backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
@@ -3442,8 +3449,8 @@ function cfRenderChart() {
               var idx = items[0].dataIndex;
               var ytdInc = 0, ytdExp = 0;
               for (var i = 0; i <= idx; i++) {
-                ytdInc += (months[i].rows.total_income && months[i].rows.total_income.val != null) ? months[i].rows.total_income.val : 0;
-                ytdExp += (months[i].rows.total_exp    && months[i].rows.total_exp.val    != null) ? months[i].rows.total_exp.val    : 0;
+                ytdInc += cfCalcIncome(months[i].rows);
+                ytdExp += (months[i].rows.total_exp && months[i].rows.total_exp.val != null) ? months[i].rows.total_exp.val : 0;
               }
               return ['──────────────', 'YTD הכנסות: ₪'+Math.round(ytdInc).toLocaleString(), 'YTD הוצאות: ₪'+Math.round(ytdExp).toLocaleString(), 'YTD נטו: ₪'+Math.round(ytdInc-ytdExp).toLocaleString()];
             }
@@ -3629,8 +3636,8 @@ function cfRenderSummary() {
   var ytdInc = 0, ytdExp = 0, ytdMonths = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear || m.month > upToMonth) return;
-    ytdInc += (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
-    ytdExp += (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
+    ytdInc += cfCalcIncome(m.rows);
+    ytdExp += (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
     ytdMonths++;
   });
   var ytdNet = ytdInc - ytdExp;
@@ -3640,8 +3647,8 @@ function cfRenderSummary() {
   var annualInc = 0, annualExp = 0, annualMonths = 0;
   CF_DATA.forEach(function(m) {
     if (m.year !== displayYear) return;
-    var mInc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
-    var mExp = (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
+    var mInc = cfCalcIncome(m.rows);
+    var mExp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
     if (mInc > 0 || mExp > 0) { annualInc += mInc; annualExp += mExp; annualMonths++; }
   });
   var annualNet = annualInc - annualExp;
@@ -3652,20 +3659,20 @@ function cfRenderSummary() {
   function fmt(v) { return '\u20aa' + Math.round(v).toLocaleString(); }
   function cell(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
-      '<span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:600;">' + lbl + '</span>' +
-      '<span style="font-size:17px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '<span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;">' + lbl + '</span>' +
+      '<span style="font-size:18px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
       '</div>';
   }
-  var DIV = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 4px;flex-shrink:0;"></div>';
+  var DIV = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 6px;flex-shrink:0;"></div>';
 
-  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:10px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
-  html += '<div style="font-size:12px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  var html = '<div style="background:#0d1b2e;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;direction:rtl;border:1px solid rgba(99,102,241,0.15);">';
+  html += '<div style="font-size:14px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.5;flex-shrink:0;">YTD<br>' + ytdLabel + '<br><span style="font-size:11px;color:rgba(255,255,255,0.25);font-weight:400;">' + ytdMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
   html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', ytdInc, '#4ade80');
   html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', ytdExp, '#f87171');
   html += cell('\u05e0\u05d8\u05d5', ytdNet, ytdNetCol);
   html += '<div style="width:2px;background:rgba(255,255,255,0.12);align-self:stretch;margin:0 6px;flex-shrink:0;border-radius:1px;"></div>';
-  html += '<div style="font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;line-height:1.5;flex-shrink:0;">\u05ea\u05d7\u05d6\u05d9\u05ea<br>' + displayYear + '<br><span style="font-size:10px;color:rgba(255,255,255,0.2);font-weight:400;">' + annualMonths + ' \u05d7\u05d3\u05f4</span></div>';
+  html += '<div style="font-size:14px;font-weight:700;color:#64748b;white-space:nowrap;line-height:1.5;flex-shrink:0;">\u05ea\u05d7\u05d6\u05d9\u05ea<br>' + displayYear + '<br><span style="font-size:11px;color:rgba(255,255,255,0.2);font-weight:400;">' + annualMonths + ' \u05d7\u05d3\u05f4</span></div>';
   html += DIV;
   html += cell('\u05d4\u05db\u05e0\u05e1\u05d5\u05ea', annualInc, '#6a9e7a');
   html += cell('\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea', annualExp, '#9e6a6a');
@@ -3685,11 +3692,28 @@ function cfInit() {
   cfRenderSummary();
   cfRenderChart();
   cfRenderTable();
+  // v32.0: הסתר טבלה בברירת מחדל
+  cfTableVisible = false;
+  var _ts = document.getElementById('cf-table-scroll');
+  if (_ts) _ts.style.display = 'none';
+  var _tb = document.getElementById('cf-table-toggle-btn');
+  if (_tb) { _tb.textContent = '📋 הצג טבלה'; }
+
   // Start left-aligned so Y-axis is always visible on load
   setTimeout(function(){
     var sc = document.getElementById('cf-scroll-container');
     if (sc) sc.scrollLeft = 0;
   }, 150);
+}
+
+// v32.0: Toggle הצגת טבלה
+var cfTableVisible = false;
+function cfToggleTable() {
+  cfTableVisible = !cfTableVisible;
+  var ts = document.getElementById('cf-table-scroll');
+  if (ts) ts.style.display = cfTableVisible ? '' : 'none';
+  var btn = document.getElementById('cf-table-toggle-btn');
+  if (btn) btn.textContent = cfTableVisible ? '🙈 הסתר טבלה' : '📋 הצג טבלה';
 }
 
 
