@@ -1628,7 +1628,9 @@ function cfParseWorkbook(wb) {
     });
 
     // 4. קרא נתוני חודשים
+    // v19.4: COLUMN HUNTER — כל חודש נקרא פעם אחת בלבד מהעמודה שבה הוא מופיע לראשונה
     var sheetResult = [];
+    var seenMonths = {}; // מניעת כפולות — מרץ 2026 בעמודה 22 לא יידרס על ידי עמודה 24
     for (var col = 0; col <= maxCol; col++) {
       // v16.97: דלג על עמודת 'סיכומים' / 'Summary' במפורש
       var colHeaderRaw = cellVal(ws, HEADER_ROW, col);
@@ -1642,7 +1644,18 @@ function cfParseWorkbook(wb) {
       if (!pd || pd.y < 2025) continue;
       var _mLabel = HEB_MONTHS[pd.m - 1] + ' ' + pd.y;
       var _mMonthId = pd.y + '-' + (pd.m < 10 ? '0' + pd.m : '' + pd.m);
+      // v19.4: FIRST WINS — אם החודש כבר נמצא, דלג על עמודה כפולה
+      var monthKey = pd.y * 100 + pd.m;
+      if (seenMonths[monthKey]) {
+        console.log('[v19.4] DUPLICATE skipped:', _mLabel, 'at col', col, '(first was kept)');
+        continue;
+      }
+      seenMonths[monthKey] = true;
       console.log('Target Column Index:', col, '→', _mLabel, '| header raw:', JSON.stringify(colHeaderRaw));
+      // v19.4: [Final Test] — וידוא ערך מרץ 2026 ישירות מהעמודה שנמצאה
+      if (pd.y === 2026 && pd.m === 3) {
+        console.log('[Final Test] Column for March is', col, ', Value at Row 7 is', cellVal(ws, 7, col));
+      }
       var mObj = {
         label: _mLabel,
         monthId: _mMonthId,
@@ -1651,6 +1664,7 @@ function cfParseWorkbook(wb) {
 
       Object.keys(ROW_MAP).forEach(function(ri) {
         var rowIdx = parseInt(ri);
+        // v19.4: val נלקח מהעמודה המדויקת (col) — ללא תוספת או חיסור
         var val  = cellVal(ws, rowIdx, col);
         var note = cellVal(ws, rowIdx, col + 1);
         var num  = null;
@@ -1715,9 +1729,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V19.2 - LAST IRON ROW + UTC FIX - TEST NOW !!!');
-          console.log('[Dashboard v19.2] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '19.3');
+          console.log('!!! V19.4 - COLUMN DEDUP + FIRST WINS - TEST NOW !!!');
+          console.log('[Dashboard v19.4] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '19.4');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2840,9 +2854,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.3') {
+    if (savedVer !== '19.4') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.3');
+      localStorage.setItem('dashboard_cf_version', '19.4');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');

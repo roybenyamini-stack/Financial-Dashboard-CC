@@ -1,9 +1,21 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v19.3 — MAX YEAR RULE: תיקון סופי לבחירת מרץ 2026 (ולא מרץ 2025).
+גרסה v19.4 — COLUMN DEDUP: מניעת קריאת נתונים מעמודה כפולה (אפריל במקום מרץ).
 
 ## שינויים אחרונים (21/03/2026)
+
+### v19.4 – COLUMN DEDUP: First Wins
+
+**app.js:**
+- `parseSheet` (לולאת עמודות): **FIRST WINS** — נוסף `seenMonths{}` שמונע כפולות. אם 'מרץ 2026' נמצא בעמודה 22, עמודה 24 (שנפרסה גם היא כ-'מרץ 2026') מדולגת. קודם `allMonths[202603]` היה נדרס על ידי עמודה 24 (נתוני אפריל)
+- לוג דיאגנוסטי: `[v19.4] DUPLICATE skipped: מרץ 2026 at col 24 (first was kept)`
+- **[Final Test]** לוג: `[Final Test] Column for March is 22, Value at Row 7 is 123`
+- `localStorage.clear()` — רץ בשורה הראשונה של `reader.onload` (כבר קיים מ-v19.2)
+- גרסת localStorage עודכנה: `'19.3'` → `'19.4'`
+
+**index.html:**
+- עדכון גרסה: v19.3 → v19.4
 
 ### v19.3 – MAX YEAR RULE: תיקון שורש הבעיה
 
