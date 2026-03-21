@@ -1526,7 +1526,7 @@ function cfParseWorkbook(wb) {
 
     // 3. זיהוי דינמי (case-insensitive) — סרוק עמודות לפני firstMonthCol
     //    מטרה: לאפשר מיפוי אוטומטי גם לאקסלים עם מבנה שונה
-    // v18.1: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
+    // v18.2: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
     var KEY_LABELS = {
       total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
       total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות'],
@@ -1681,26 +1681,15 @@ function smartUploadRouter(input) {
         var newData = cfParseWorkbook(wb);
         if (newData.length > 0) {
           CF_DATA = newData;
-          // v18.1: בחר את החודש המלא האחרון = לפני החודש הנוכחי (cutoff קפדני)
-          var todayCutoff2 = new Date().getFullYear() * 100 + new Date().getMonth(); // getMonth() 0-indexed
-          var validMonths2 = newData.filter(function(m){ return m.year * 100 + m.month <= todayCutoff2; });
-          if (validMonths2.length > 0) {
-            validMonths2.sort(function(a,b){ return (b.year*100+b.month)-(a.year*100+a.month); });
-            CF_CURRENT_MONTH_ID = validMonths2[0].monthId;
-          } else {
-            // כל הנתונים "עתידיים" — בחר שני-מהסוף כברירת מחדל
-            var withIncome2 = newData.filter(function(m){ return m.rows && m.rows.total_income && m.rows.total_income.val !== null; });
-            if (withIncome2.length >= 2) CF_CURRENT_MONTH_ID = withIncome2[withIncome2.length - 2].monthId;
-            else if (newData.length >= 2) CF_CURRENT_MONTH_ID = newData[newData.length - 2].monthId;
-            else if (newData.length === 1) CF_CURRENT_MONTH_ID = newData[0].monthId;
-          }
+          // v18.2: ברירת מחדל = שני-מהסוף (ללא ניחוש תאריכים)
+          CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(newData);
           CF_SELECTED_MONTH_ID = null; // איפוס בחירה ידנית בטעינת קובץ חדש
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('[Dashboard v18.1] Data Loaded | חודשים:', newData.length, '| חודש נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp, '| נטו:', Math.round(_logInc - _logExp));
+          console.log('[Dashboard v18.2] Data Loaded | חודשים:', newData.length, '| חודש נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp, '| נטו:', Math.round(_logInc - _logExp));
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '18.1');
+          localStorage.setItem('dashboard_cf_version', '18.2');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2811,7 +2800,7 @@ function buildTableView() {
 
 var CF_DATA = [];
 var CF_CURRENT_MONTH_ID = null; // monthId ברירת מחדל — החודש המלא האחרון (לפני החודש הנוכחי)
-var CF_SELECTED_MONTH_ID = null; // v18.1: חודש שנבחר ידנית ע"י המשתמש
+var CF_SELECTED_MONTH_ID = null; // v18.2: חודש שנבחר ידנית ע"י המשתמש
 
 function saveCFToLocalStorage() {
   try {
@@ -2823,9 +2812,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '18.1') {
+    if (savedVer !== '18.2') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '18.1');
+      localStorage.setItem('dashboard_cf_version', '18.2');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -2838,19 +2827,8 @@ function loadCFFromLocalStorage() {
       return false;
     }
     CF_DATA = data;
-    // v18.1: CF_CURRENT_MONTH_ID = החודש המלא האחרון = החודש שלפני החודש הנוכחי (לא כולל חודש שוטף)
-    var todayCutoff = new Date().getFullYear() * 100 + new Date().getMonth(); // getMonth() = 0-indexed → April=3 → cutoff=202603 = עד מרץ
-    var validMonths = CF_DATA.filter(function(m){ return m.year * 100 + m.month <= todayCutoff; });
-    if (validMonths.length > 0) {
-      validMonths.sort(function(a,b){ return (b.year*100+b.month)-(a.year*100+a.month); });
-      CF_CURRENT_MONTH_ID = validMonths[0].monthId;
-    } else {
-      // כל הנתונים "עתידיים" (למשל שעון מערכת ב-2025 ואקסל ב-2026) — בחר שני-מהסוף
-      var withIncome = CF_DATA.filter(function(m){ return m.rows && m.rows.total_income && m.rows.total_income.val !== null; });
-      if (withIncome.length >= 2) CF_CURRENT_MONTH_ID = withIncome[withIncome.length - 2].monthId;
-      else if (CF_DATA.length >= 2) CF_CURRENT_MONTH_ID = CF_DATA[CF_DATA.length - 2].monthId;
-      else if (CF_DATA.length === 1) CF_CURRENT_MONTH_ID = CF_DATA[0].monthId;
-    }
+    // v18.2: ברירת מחדל = שני-מהסוף (החודש המלא האחרון — לפני ההשערות העתידיות באקסל)
+    CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(CF_DATA);
     return true;
   } catch(e) { return false; }
 }
@@ -2896,9 +2874,9 @@ function cfGetDisplayMonths() {
     }
     return full;
   }
-  // v17.3: rolling12 — תמיד כלול דצמבר של שנת הנתונים הנוכחית (גם אם ריק)
+  // v18.2: rolling12 — תמיד כלול דצמבר. השנה = max מכל CF_DATA (לא רק החלון)
   var r12 = CF_DATA.slice(Math.max(0, lastIdx - 11), lastIdx + 1);
-  var r12Year = r12.length > 0 ? Math.max.apply(null, r12.map(function(m){ return m.year; })) : new Date().getFullYear();
+  var r12Year = CF_DATA.length > 0 ? Math.max.apply(null, CF_DATA.map(function(m){ return m.year; })) : new Date().getFullYear();
   var decId12 = r12Year + '-12';
   if (!r12.some(function(m){ return m.monthId === decId12; })) {
     var emptyRowsDec = {};
@@ -3036,37 +3014,33 @@ function cfGetNetVal(m) {
   return null;
 }
 
+// v18.2: מחזיר monthId של החודש המלא האחרון = שני-מהסוף (לפני ההשערות העתידיות)
+function cfGetDefaultMonthId(data) {
+  if (!data || data.length === 0) return null;
+  // חפש שני-מהסוף עם total_income מלא
+  for (var i = data.length - 2; i >= 0; i--) {
+    if (data[i].rows && data[i].rows.total_income && data[i].rows.total_income.val !== null) {
+      return data[i].monthId;
+    }
+  }
+  // fallback: אם רק חודש אחד קיים, קח אותו
+  return data[data.length - 1].monthId;
+}
+
+// v18.2: מקור אחד ויחיד של האמת — תמיד עקבי
 function cfGetLastRealMonth() {
-  // v18.1: שלב 0 — חודש שנבחר ידנית ע"י המשתמש (בורר חודשים)
-  if (CF_SELECTED_MONTH_ID) {
+  // עדיפות 1: חודש שנבחר ידנית
+  var targetId = CF_SELECTED_MONTH_ID || CF_CURRENT_MONTH_ID;
+  if (targetId) {
     for (var k = 0; k < CF_DATA.length; k++) {
-      if (CF_DATA[k].monthId === CF_SELECTED_MONTH_ID) return k;
+      if (CF_DATA[k].monthId === targetId) return k;
     }
   }
-  // שלב 1 — CF_CURRENT_MONTH_ID (ברירת מחדל: החודש המלא האחרון)
-  if (CF_CURRENT_MONTH_ID) {
-    for (var k2 = CF_DATA.length - 1; k2 >= 0; k2--) {
-      if (CF_DATA[k2].monthId === CF_CURRENT_MONTH_ID) return k2;
-    }
-  }
-  // שלב 2 — cutoff קפדני: חודשים לפני החודש הנוכחי (לא כולל חודש שוטף = בתהליך)
-  var today = new Date();
-  var cutoff = today.getFullYear() * 100 + today.getMonth(); // 0-indexed: April=3 → 202603 = עד מרץ
-  for (var i = CF_DATA.length - 1; i >= 0; i--) {
-    var m = CF_DATA[i];
-    if (m.year * 100 + m.month <= cutoff && m.rows.total_income && m.rows.total_income.val !== null) return i;
-  }
-  for (var j = CF_DATA.length - 1; j >= 0; j--) {
-    if (CF_DATA[j].year * 100 + CF_DATA[j].month <= cutoff) return j;
-  }
-  // שלב 3 — כל הנתונים "עתידיים" (שעון 2025, אקסל 2026): בחר שני-מהסוף
-  for (var n = CF_DATA.length - 2; n >= 0; n--) {
-    if (CF_DATA[n].rows.total_income && CF_DATA[n].rows.total_income.val !== null) return n;
-  }
+  // fallback: שני-מהסוף
   return Math.max(0, CF_DATA.length - 2);
 }
 
-// v18.1: בורר חודשים — מציג כפתורים לכל חודש זמין בנתונים
+// v18.2: בורר חודשים — מציג כפתורים לכל חודש זמין בנתונים
 function cfRenderMonthSelector() {
   var container = document.getElementById('cf-month-nav');
   if (!container || CF_DATA.length === 0) return;
@@ -3085,12 +3059,13 @@ function cfRenderMonthSelector() {
   container.innerHTML = html;
 }
 
-// v18.1: בחירת חודש ידנית
+// v18.2: בחירת חודש ידנית — מעדכן את כל אלמנטי הממשק
 function cfSelectMonth(monthId) {
   CF_SELECTED_MONTH_ID = monthId;
-  cfRenderMonthSelector();
-  cfRenderKPI();
-  cfUpdateCFCards();
+  cfRenderMonthSelector(); // עדכן הדגשת כפתור
+  cfUpdateHeader();        // עדכן כותרת ונטו
+  cfRenderKPI();           // עדכן KPI: הכנסות/הוצאות/נטו
+  cfUpdateCFCards();       // עדכן כרטיסיות פירוט
 }
 
 function cfUpdateHeader() {
@@ -3122,7 +3097,7 @@ function cfUpdateCFCards() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
   var r = m.rows;
-  // v18.1: פירוט הכנסות — כל הסעיפים המרכיבים, ללא "סה"כ הכנסות" (מוצג ב-KPI בנפרד)
+  // v18.2: פירוט הכנסות — כל הסעיפים המרכיבים, ללא "סה"כ הכנסות" (מוצג ב-KPI בנפרד)
   var incCards = [
     {label:'הכנסה ממשכורת', val:r.salary&&r.salary.val!=null?r.salary.val:0,         color:'#16a34a', icon:'💼'},
     {label:'שכר דירה',       val:r.rent_income&&r.rent_income.val!=null?r.rent_income.val:0, color:'#0891b2', icon:'🏠'},
@@ -3423,7 +3398,7 @@ function cfInit() {
   if (!document.getElementById('cf-kpi-row')) return;
   if (!CF_DATA || CF_DATA.length === 0) { cfShowNoData(); return; }
   cfUpdateHeader();
-  cfRenderMonthSelector(); // v18.1: בורר חודשים
+  cfRenderMonthSelector(); // v18.2: בורר חודשים
   cfUpdateCFCards();
   cfRenderKPI();
   cfRenderSummary();
