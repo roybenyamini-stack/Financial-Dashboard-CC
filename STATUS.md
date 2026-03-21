@@ -1,7 +1,23 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v20.1 — TIMEZONE FIX: תיקון שורש הבעיה — Date objects מ-SheetJS נקראו ב-UTC במקום שעון מקומי (גרם לאפריל להיפרס כמרץ ב-UTC+3).
+גרסה v21.0 — THE FACE LIFT: עיצוב מחדש מלא של ממשק המשתמש — Dropdown חודשים, 3 כרטיסיות KPI רחבות, כרטיסיות פירוט שקלים/דולרים, Stacked Bar Chart עם YTD Tooltip.
+
+## שינויים אחרונים (21/03/2026)
+
+### v21.0 – The Face Lift
+
+**app.js:**
+- `cfRenderMonthSelector`: הוחלף פס 24 כפתורים ב-`<select>` Dropdown נקי עם כל 13 החודשים
+- `cfRenderKPI`: עיצוב מחדש מלא — 3 כרטיסיות ראשיות רחבות (נטו/הכנסות/הוצאות) + רשת פירוט (שכר, שכ"ד, ויזה, מזומן, הלוואות, שיפוץ, יותם, חריגות) + מקטע דולרים (רקע כהה, צבע סגול)
+- `cfRenderChart`: Stacked Bar Chart — 4 מערכי נתונים: הכנסות (ירוק, stack:'income'), שוטף (אדום, stack:'exp'), יותם (כתום, stack:'exp'), חריג (צהוב, stack:'exp'). Tooltip מציג YTD מצטבר (הכנסות/הוצאות/נטו) דרך `afterBody` callback. `stacked: isMonthly` בשני הצירים.
+- גרסת localStorage עודכנה: `'20.1'` → `'21.0'`
+
+**index.html:**
+- עדכון גרסה: v20.1 → v21.0
+- נוסף `<div id="cf-detail-row">` בין cf-kpi-row ל-cf-summary-row
+- אגדת גרף עודכנה ל-4 צבעים: הכנסות (ירוק) / שוטף (אדום) / יותם (כתום) / חריג (צהוב)
+- גובה controls-box שונה ל-`height:auto;min-height:200px`
 
 ## שינויים אחרונים (21/03/2026)
 

@@ -25,7 +25,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v20.1</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v21.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -724,8 +724,11 @@
   <!-- Month Selector — v19.2 בורר חודשים -->
   <div id="cf-month-nav"></div>
 
-  <!-- KPI Cards — סיכום חודשי -->
-  <div id="cf-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
+  <!-- KPI Cards — v21.0: 3 כרטיסיות ראשיות -->
+  <div id="cf-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:10px;"></div>
+
+  <!-- Detail Cards — v21.0: פירוט שקלים/דולרים -->
+  <div id="cf-detail-row" style="margin-bottom:12px;"></div>
 
   <!-- Summary Row — סיכומים שנתיים/מצטברים -->
   <div id="cf-summary-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
@@ -737,7 +740,7 @@
   <div style="background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);margin-bottom:20px;position:relative;">
 
     <!-- Controls panel: floating absolute top-right, dark theme -->
-    <div id="cf-controls-box" style="position:absolute;top:0;right:0;width:110px;height:200px;z-index:10;background:rgba(15,23,42,0.97);border-right:1px solid rgba(255,255,255,0.08);padding:8px 10px;display:flex;flex-direction:column;gap:4px;direction:rtl;">
+    <div id="cf-controls-box" style="position:absolute;top:0;right:0;width:110px;height:auto;min-height:200px;z-index:10;background:rgba(15,23,42,0.97);border-right:1px solid rgba(255,255,255,0.08);padding:8px 10px;display:flex;flex-direction:column;gap:4px;direction:rtl;">
       <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.3px;margin-bottom:1px;">סוג תרשים</div>
       <div style="display:flex;flex-direction:column;gap:3px;">
         <button id="cf-view-monthly" onclick="cfSetView('monthly')" style="padding:3px 6px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:10px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">חודשי</button>
@@ -752,7 +755,9 @@
       <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
       <div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:rgba(255,255,255,0.45);">
         <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#22c55e;display:inline-block;"></span>הכנסות</span>
-        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#ef4444;display:inline-block;"></span>הוצאות</span>
+        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#ef4444;display:inline-block;"></span>שוטף</span>
+        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#f97316;display:inline-block;"></span>יותם</span>
+        <span style="display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:1px;background:#eab308;display:inline-block;"></span>חריג</span>
       </div>
     </div>
 
