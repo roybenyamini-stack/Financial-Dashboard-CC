@@ -1355,23 +1355,24 @@ var cfChatOpen = false;
 var cfChatHistory = [];
 
 function buildCFContext() {
-  if (!CF_DATA || CF_DATA.length === 0) return 'אין נתוני תזרים טעונים.';
-  var ctx = 'נתוני תזרים שוטף (אלפי ש"כ):\n';
+  if (!CF_DATA || CF_DATA.length === 0) return 'no data';
+  var lines = [];
   CF_DATA.forEach(function(m) {
     var r = m.rows;
     function rv(k) { return (r[k] && r[k].val != null) ? Math.round(r[k].val) : 0; }
-    ctx += m.label + ' ' + m.year + ': הכנסות=' + rv('total_income') + ' הוצאות=' + rv('total_exp') + ' נטו=' + (rv('total_income') - rv('total_exp'));
+    var inc = rv('total_income'), exp = rv('total_exp');
+    var line = m.label + ' ' + m.year + ': income=' + inc + ' exp=' + exp + ' net=' + (inc - exp);
     var sal=rv('salary'), rent=rv('rent_income'), visa=rv('visa'), cash=rv('cash_exp'), loan=rv('loans'), yotam=rv('yotam'), usd=rv('total_usd');
-    if(sal)  ctx += ' | משכורת=' + sal;
-    if(rent) ctx += ' | שכד=' + rent;
-    if(visa) ctx += ' | ויזה=' + visa;
-    if(cash) ctx += ' | מזומן=' + cash;
-    if(loan) ctx += ' | הלוואות=' + loan;
-    if(yotam) ctx += ' | יותם=' + yotam;
-    if(usd)  ctx += ' | נטו$=' + usd;
-    ctx += '\n';
+    if(sal)   line += ' salary=' + sal;
+    if(rent)  line += ' rent=' + rent;
+    if(visa)  line += ' visa=' + visa;
+    if(cash)  line += ' cash=' + cash;
+    if(loan)  line += ' loans=' + loan;
+    if(yotam) line += ' yotam=' + yotam;
+    if(usd)   line += ' usd_net=' + usd;
+    lines.push(line);
   });
-  return ctx;
+  return 'Monthly cashflow (thousands ILS):\n' + lines.join('\n');
 }
 
 function toggleCFChat() {
@@ -1381,17 +1382,20 @@ function toggleCFChat() {
   cp.style.display = cfChatOpen ? 'flex' : 'none';
   if (cfChatOpen) {
     var cm = document.getElementById('cf-cm');
-    if (cm && cm.children.length === 0) addCFMsg('שלום! שאל אותי על התזרים.\nלמשל: "השווה הכנסות 2025 מול 2026"', false);
+    if (cm && cm.children.length === 0) {
+      addCFMsg('\u05e9\u05dc\u05d5\u05dd! \u05e9\u05d0\u05dc \u05d0\u05d5\u05ea\u05d9 \u05e2\u05dc \u05d4\u05ea\u05d6\u05e8\u05d9\u05dd.\n\u05dc\u05de\u05e9\u05dc: "\u05d4\u05e9\u05d5\u05d5\u05d4 \u05d4\u05db\u05e0\u05e1\u05d5\u05ea 2025 \u05de\u05d5\u05dc 2026"', false);
+    }
     setTimeout(function() { var i = document.getElementById('cf-ci'); if(i) i.focus(); }, 100);
   }
 }
 
 function addCFMsg(txt, isUser) {
   var cm = document.getElementById('cf-cm');
-  if (!cm) return;
+  if (!cm) return null;
   var d = document.createElement('div');
-  d.style.cssText = 'padding:8px 12px;border-radius:10px;font-family:Heebo,sans-serif;font-size:14px;line-height:1.6;direction:rtl;max-width:85%;white-space:pre-wrap;margin-bottom:4px;';
-  d.style.cssText += isUser ? 'background:#2d2d4e;color:white;align-self:flex-end;margin-right:auto;' : 'background:#0f3460;color:#e2e8f0;align-self:flex-start;margin-left:auto;';
+  var base = 'padding:8px 12px;border-radius:10px;font-family:Heebo,sans-serif;font-size:14px;line-height:1.6;direction:rtl;max-width:85%;white-space:pre-wrap;margin-bottom:4px;';
+  var clr = isUser ? 'background:#2d2d4e;color:white;align-self:flex-end;margin-right:auto;' : 'background:#0f3460;color:#e2e8f0;align-self:flex-start;margin-left:auto;';
+  d.style.cssText = base + clr;
   d.textContent = txt;
   cm.appendChild(d);
   cm.scrollTop = cm.scrollHeight;
@@ -1406,31 +1410,28 @@ async function sendCFChat() {
   ci.value = '';
   addCFMsg(q, true);
   cfChatHistory.push({role: 'user', content: q});
-  var thinking = addCFMsg('חושב...', false);
+  var thinking = addCFMsg('\u05d7\u05d5\u05e9\u05d1...', false);
   try {
-    var sysPrompt = 'אתה עוזר פיננסי שמנתח תזרים שוטף. ענה בעברית בתמציתיות.\n' +
-      'הנתונים באלפי שקלים. חצי שנה ראשונה = ינו-יוני, שניה = יולי-דצמ.\n\n' + buildCFContext();
+    var sys = '\u05d0\u05ea\u05d4 \u05e2\u05d5\u05d6\u05e8 \u05e4\u05d9\u05e0\u05e0\u05e1\u05d9 \u05e9\u05de\u05e0\u05ea\u05d7 \u05ea\u05d6\u05e8\u05d9\u05dd \u05e9\u05d5\u05d8\u05e3. \u05e2\u05e0\u05d4 \u05d1\u05e2\u05d1\u05e8\u05d9\u05ea \u05d1\u05ea\u05de\u05e6\u05d9\u05ea\u05d9\u05d5\u05ea.\n' + buildCFContext();
     var res = await fetch('https://holy-poetry-claude-proxy.roy-benyamini.workers.dev', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1200,
-        system: sysPrompt,
-        messages: cfChatHistory.slice(-10)
-      })
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1200, system:sys, messages:cfChatHistory.slice(-10)})
     });
     var data = await res.json();
     thinking.remove();
-    var answer = (data.content && data.content.length > 0)
-      ? data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n')
-      : (data.error ? 'שגיאה: ' + (data.error.message || '') : 'תגובה לא צפויה');
-    if (!answer) answer = 'קיבלתי תגובה ריקה. נסה שוב.';
-    cfChatHistory.push({role: 'assistant', content: answer});
+    var answer = '';
+    if (data.content && data.content.length > 0) {
+      answer = data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n');
+    } else if (data.error) {
+      answer = '\u05e9\u05d2\u05d9\u05d0\u05d4: ' + (data.error.message || '');
+    }
+    if (!answer) answer = '\u05ea\u05d2\u05d5\u05d1\u05d4 \u05e8\u05d9\u05e7\u05d4. \u05e0\u05e1\u05d4 \u05e9\u05d5\u05d1.';
+    cfChatHistory.push({role:'assistant', content:answer});
     addCFMsg(answer, false);
   } catch(e) {
     thinking.remove();
-    addCFMsg('שגיאה: ' + e.message, false);
+    addCFMsg('\u05e9\u05d2\u05d9\u05d0\u05d4: ' + e.message, false);
   }
 }
 
@@ -1803,7 +1804,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V26.0 - STABLE REBUILD: 2-CARD SUMMARY + SMART TITLE + CF CHAT !!!');
+          console.log('!!! V26.0 - STABLE REBUILD: DYNAMIC TITLE + TODAY BTN + FORECAST VS YTD CARDS !!!');
           console.log('[Dashboard v26.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           localStorage.setItem('dashboard_cf_version', '26.0');
           saveCFToLocalStorage();
@@ -3243,7 +3244,7 @@ function cfUpdateHeader() {
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
 
-  // v26.0: כותרת דינמית — לבן = חודש נוכחי, צהוב = חודש שנבחר ידנית
+  // v26.0: כותרת חכמה — לבן=נוכחי, צהוב=נבחר ידנית
   var subtitle = document.getElementById('hdr-subtitle');
   if(subtitle) {
     subtitle.style.color = (CF_SELECTED_MONTH_ID && CF_SELECTED_MONTH_ID !== CF_CURRENT_MONTH_ID) ? '#fbbf24' : 'white';
@@ -3629,9 +3630,9 @@ function cfRenderSummary() {
   var ytdNet = ytdInc - ytdExp;
   var ytdNetColor = ytdNet >= 0 ? '#4ade80' : '#f87171';
 
-  // v26.0: 2 כרטיסיות רחבות — תחזית לסוף שנה (ימין) | ביצוע בפועל YTD (שמאל)
+  // v26.0: 2 כרטיסיות רחבות — תחזית (ימין) | YTD (שמאל)
   var annualNetColor = annualNet >= 0 ? '#4a7a5a' : '#7a4a4a';
-  var ytdTitle = selM ? 'ינו׳–' + selM.label : 'YTD';
+  var ytdTitle = selM ? 'ינו' + String.fromCharCode(8217) + String.fromCharCode(8211) + selM.label : 'YTD';
   var html = '';
 
   // ימין: תחזית לסוף שנה
