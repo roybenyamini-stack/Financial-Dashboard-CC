@@ -1663,16 +1663,38 @@ function cfParseWorkbook(wb) {
       seenMonths[monthKey] = true;
       console.log('Target Column Index:', col, '→', _mLabel, '| header raw:', JSON.stringify(colHeaderRaw));
 
-      // v19.5: SANITY CHECK — אם מרץ 2026 ושורה 7 = 42, זו עמודה שגויה → נסה שמאלה
-      var dataCol = col; // עמודת הנתונים — ברירת מחדל = עמודת הכותרת
+      // v19.6: HORIZONTAL SCAN — מצא את שורת total_income וסרוק עמודות 15-40 לאיתור הנתון האמיתי
+      var dataCol = col; // ברירת מחדל: עמודת הכותרת
       if (pd.y === 2026 && pd.m === 3) {
-        var marchTest = cellVal(ws, 7, col);
-        console.log('[Final Test] Column for March is', col, ', Value at Row 7 is', marchTest);
-        if ((marchTest === 42 || marchTest === 42.0) && col > 0) {
-          console.log('[SANITY CHECK] Row 7 = 42 → wrong column! Trying col', col - 1);
-          dataCol = col - 1;
-          console.log('[SANITY CHECK] Value at col', dataCol, 'row 7 =', cellVal(ws, 7, dataCol));
+        // מצא את שורת total_income ב-ROW_MAP
+        var tiRow = null;
+        Object.keys(ROW_MAP).forEach(function(ri) {
+          if (ROW_MAP[ri] === 'total_income') tiRow = parseInt(ri);
+        });
+        console.log('[v19.6] March 2026 header at col', col, '| total_income row:', tiRow);
+        // סרוק עמודות 15-40 בשורת total_income לאיתור הערך האמיתי
+        var anchorCol = null;
+        for (var sc = 15; sc <= 40; sc++) {
+          var sv = cellVal(ws, tiRow !== null ? tiRow : 7, sc);
+          var sn = (typeof sv === 'number') ? Math.round(sv * 10) / 10 :
+                   (sv !== null && sv !== undefined ? parseFloat(String(sv).replace(/,/g,'')) : null);
+          if (sn === null || isNaN(sn) || sn === 0) continue;
+          if (Math.round(sn) === 42) {
+            console.log('!!! ERROR: FOUND 42 at col', sc, ', STILL SEARCHING FOR 123... !!!');
+          } else if (Math.round(sn) === 123) {
+            anchorCol = sc;
+            console.log('[v19.6] !!! FOUND 123 at col', sc, '— ANCHOR SET! dataCol =', sc, '!!!');
+            break;
+          } else {
+            console.log('[v19.6] col', sc, '=', sn, '(not 123, continuing scan)');
+          }
         }
+        if (anchorCol !== null) {
+          dataCol = anchorCol;
+        } else {
+          console.log('[v19.6] WARNING: 123 not found in cols 15-40, falling back to header col', col);
+        }
+        console.log('[Final Test] Column for March is', col, '| dataCol (anchor) =', dataCol, '| Value =', cellVal(ws, tiRow !== null ? tiRow : 7, dataCol));
       }
 
       var mObj = {
@@ -1748,9 +1770,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V19.5 - DIRECT HIT + SANITY CHECK - TEST NOW !!!');
-          console.log('[Dashboard v19.5] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '19.5');
+          console.log('!!! V19.6 - HORIZONTAL SCAN + 123 ANCHOR - TEST NOW !!!');
+          console.log('[Dashboard v19.6] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '19.6');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2873,9 +2895,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.5') {
+    if (savedVer !== '19.6') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.5');
+      localStorage.setItem('dashboard_cf_version', '19.6');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
