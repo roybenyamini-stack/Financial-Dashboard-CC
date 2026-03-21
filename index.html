@@ -1,3 +1,4 @@
+<!-- v29.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -25,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v28.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v29.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -731,14 +732,17 @@
   <!-- Slim Summary Bar — v28.0: שורה אחת עם 6 מספרים -->
   <div id="cf-summary-row" style="margin-bottom:10px;direction:rtl;"></div>
 
-  <!-- Detail Chips — v28.0: מעל הגרף -->
+  <!-- Detail Chips — v29.0: שורה 2 -->
   <div id="cf-detail-row" style="margin-bottom:12px;"></div>
+
+  <!-- White Cards — v29.0: שורה 3, לפני הגרף -->
+  <div id="cf-cards-row" style="display:none;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px;" class="cards-row"></div>
 
   <!-- Notes Panel — full width, smooth open/close with max-height transition -->
   <div id="cf-notes-panel" style="max-height:0;overflow:hidden;background:#1e293b;border-radius:14px;margin-bottom:0;margin-left:auto;margin-right:auto;max-width:80%;direction:rtl;transition:max-height 0.35s ease,padding 0.25s ease,margin-bottom 0.25s ease;padding:0 18px;"></div>
 
-  <!-- Chart + Table: unified scroll. Controls float absolute RIGHT. LTR chronological. -->
-  <div style="background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);margin-bottom:20px;position:relative;">
+  <!-- Chart + Table: unified scroll. שורה 4+5, הגרף מעל הטבלה, הטבלה אחרון בדף -->
+  <div style="background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);margin-bottom:0;position:relative;">
 
     <!-- Controls panel: floating absolute top-right — v23.0: legend on top, no range buttons -->
     <div id="cf-controls-box" style="position:absolute;top:0;right:0;width:100px;height:auto;min-height:0;z-index:10;background:rgba(15,23,42,0.97);border-right:1px solid rgba(255,255,255,0.08);padding:8px 10px;display:flex;flex-direction:column;gap:4px;direction:rtl;">
@@ -773,8 +777,6 @@
     </div>
   </div>
 
-  <!-- Cashflow Cards — v28.0: שורה קומפקטית מתחת לגרף -->
-  <div id="cf-cards-row" style="display:none;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px;margin-bottom:8px;" class="cards-row"></div>
 
 </div>
 
@@ -784,7 +786,7 @@
 <div class="tab-panel" id="tab-market"><div class="tab-coming-soon"><div class="tcs-icon">📈</div><div class="tcs-text">ניתוח שוק ומסחר</div><div class="tcs-sub">בבנייה...</div></div></div>
 <div class="tab-panel" id="tab-simulator"><div class="tab-coming-soon"><div class="tcs-icon">🧮</div><div class="tcs-text">סימולטור פיננסי</div><div class="tcs-sub">בבנייה...</div></div></div>
 
-<!-- CF CHAT PANEL v27.0 — identical size/style to investments #cp -->
+<!-- CF CHAT PANEL v29.0 — CSS identical to investments #cp -->
 <div id="cf-cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
   <div style="padding:12px 16px;background:#0f0f23;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
     <span style="color:white;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;">📊 שאל על התזרים</span>
@@ -792,8 +794,8 @@
   </div>
   <div id="cf-cm" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:240px;max-height:420px;"></div>
   <div style="padding:10px;display:flex;gap:8px;border-top:1px solid rgba(255,255,255,0.1);">
-    <input id="cf-ci" type="text" placeholder="למשל: השווה הכנסות 2025 מול 2026..." onkeydown="if(event.key==='Enter')sendCFChat()" style="flex:1;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:white;font-family:Heebo,sans-serif;font-size:17px;direction:rtl;outline:none;">
-    <button onclick="sendCFChat()" style="background:#818cf8;color:white;border:none;border-radius:8px;padding:8px 12px;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;cursor:pointer;">שלח</button>
+    <input id="cf-ci" type="text" placeholder="למשל: השווה הכנסות 2025 מול 2026..." onkeydown="if(event.key==='Enter')sendCFChat()" style="flex:1;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:white;font-family:Heebo,sans-serif;font-size:17px;direction:rtl;outline:none;"/>
+    <button onclick="sendCFChat()" style="background:#818cf8;color:#0f0f23;border:none;border-radius:8px;padding:8px 12px;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;cursor:pointer;">שלח</button>
   </div>
 </div>
 
