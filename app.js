@@ -1582,11 +1582,15 @@ function cfParseWorkbook(wb) {
         if (!lblTrimmed) continue;
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
 
+        // v19.1: שורות ברזל — חייבות התאמה מדויקת (exact), לא contains
+        // מונע "סה"כ הכנסות ממשכורות" מלהיות ממופה בטעות כ-total_income
+        var IRON_EXACT = { total_income: 1, total_exp: 1, profit_loss: 1 };
         for (var lkey in KEY_LABELS) {
           if (mappedKeys[lkey]) continue;
-          if (KEY_LABELS[lkey].length === 0) continue; // דלג על מפתחות ריקים
+          if (KEY_LABELS[lkey].length === 0) continue;
           if (KEY_LABELS[lkey].some(function(kw){
             var nkw = normalizeForCompare(kw.toLowerCase());
+            if (IRON_EXACT[lkey]) return ls === nkw;  // exact match לשורות ברזל
             if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
             return ls.indexOf(nkw) >= 0;
           })) {
@@ -1686,9 +1690,10 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('[Dashboard v19.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          console.log('!!! V19.1 - MARCH IS 123 - TEST NOW !!!');
+          console.log('[Dashboard v19.1] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '19.0');
+          localStorage.setItem('dashboard_cf_version', '19.1');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2811,9 +2816,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.0') {
+    if (savedVer !== '19.1') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.0');
+      localStorage.setItem('dashboard_cf_version', '19.1');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -2872,8 +2877,7 @@ function cfGetDisplayMonths() {
     }
     return full;
   }
-  // v18.3: rolling12 = כל 12 חודשי השנה של החודש הנבחר (ינואר–דצמבר)
-  // מונע חיתוך בדצמבר וחלונות מוזרים
+  // v19.1: rolling12 = כל 12 חודשי השנה + דצמבר מובטח תמיד
   var dataYear = CF_DATA[lastIdx] ? CF_DATA[lastIdx].year : new Date().getFullYear();
   var fullYear = [];
   for (var ym = 1; ym <= 12; ym++) {
@@ -2889,6 +2893,13 @@ function cfGetDisplayMonths() {
       CF_EMPTY_ROWS.forEach(function(k){ emptyYM[k] = {val: null, note: null}; });
       fullYear.push({ label: CF_HEB_MONTHS[ym-1] + ' ' + dataYear, monthId: ymId, year: dataYear, month: ym, rows: emptyYM });
     }
+  }
+  // v19.1: ודא שדצמבר תמיד נמצא בסוף (גם אם כבר נכלל, זה idem-potent)
+  var decId = dataYear + '-12';
+  if (!fullYear.some(function(m){ return m.monthId === decId; })) {
+    var decEmpty = {};
+    CF_EMPTY_ROWS.forEach(function(k){ decEmpty[k] = {val: null, note: null}; });
+    fullYear.push({ label: 'דצמבר ' + dataYear, monthId: decId, year: dataYear, month: 12, rows: decEmpty });
   }
   return fullYear;
 }
