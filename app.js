@@ -1457,7 +1457,10 @@ function cfParseWorkbook(wb) {
       return {y: d.getUTCFullYear(), m: d.getUTCMonth() + 1};
     }
     if (v instanceof Date) {
-      return {y: v.getUTCFullYear(), m: v.getUTCMonth() + 1}; // v19.2: UTC למניעת timezone off-by-one
+      // v20.1: SheetJS מחזיר Date בשעון מקומי. getUTCMonth() גורם ל-off-by-one ב-UTC+3
+      // (אפריל 1 מקומי = 31 מרץ UTC → נספר כמרץ). נוסיף 12 שעות להבטחת חודש נכון.
+      var shifted = new Date(v.getTime() + 12 * 3600 * 1000);
+      return {y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1};
     }
     // נרמל: החלף כל סוגי רווחים (כולל non-breaking space U+00A0, BOM U+FEFF) ברווח רגיל
     var s = String(v).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
@@ -1647,9 +1650,9 @@ function cfParseWorkbook(wb) {
       var monthKey = pd.y * 100 + pd.m;
       if (seenMonths[monthKey]) continue;
       seenMonths[monthKey] = true;
-      // v20.0: targetCol = בדיוק col. לא מוסיפים ולא מחסירים דבר.
+      // v20.1: targetCol = בדיוק col — First Match, עוצרים כאן.
       var targetCol = col;
-      console.log('[v20.0] targetCol =', targetCol, '→', _mLabel);
+      console.log('[v20.1] Locking on FIRST match for', _mLabel, 'at column', targetCol);
       var mObj = { label: _mLabel, monthId: _mMonthId, year: pd.y, month: pd.m, rows: {} };
       Object.keys(ROW_MAP).forEach(function(ri) {
         var rowIdx = parseInt(ri);
@@ -1716,9 +1719,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V20.0 - CLEAN targetCol — NO HACKS - TEST NOW !!!');
-          console.log('[Dashboard v20.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '20.0');
+          console.log('!!! V20.1 - TIMEZONE FIX + FIRST MATCH - TEST NOW !!!');
+          console.log('[Dashboard v20.1] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '20.1');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2841,9 +2844,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '20.0') {
+    if (savedVer !== '20.1') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '20.0');
+      localStorage.setItem('dashboard_cf_version', '20.1');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
