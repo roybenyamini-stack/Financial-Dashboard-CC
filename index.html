@@ -20,19 +20,12 @@
   <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
   <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
-  <!-- v23.0: Year select — מוצמד לשמאל תפריט הטאבים, מוצג רק בתזרים -->
-  <div id="cf-year-nav" class="cf-only-btn" style="display:none;align-items:center;margin-right:auto;padding-right:8px;">
-    <select id="cf-year-select" onchange="cfSelectYear(parseInt(this.value))" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.12);color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;outline:none;height:28px;">
-      <option value="2026">2026</option>
-      <option value="2025">2025</option>
-    </select>
-  </div>
 </div>
 <div class="header">
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v23.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v24.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -82,6 +75,12 @@
       <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
       <button id="cf-privacy-btn" class="cf-only-btn" onclick="cfTogglePrivacy()" style="display:none; cursor:pointer; align-items:center; gap:6px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;"><span id="cf-privacy-icon">🔒</span><span id="cf-privacy-text">הצג הערות</span></button>
+      <!-- v24.0: year select + today button — same row as other header buttons -->
+      <select id="cf-year-select" class="cf-only-btn" onchange="cfSelectYear(parseInt(this.value))" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;outline:none;height:34px;">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+      <button id="cf-today-btn" class="cf-only-btn" onclick="cfGoToday()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📅 היום</button>
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
       <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
@@ -731,8 +730,8 @@
   <!-- KPI placeholder (used as guard in cfInit) -->
   <div id="cf-kpi-row" style="display:none;"></div>
 
-  <!-- Summary Row — סיכומים שנתיים/מצטברים -->
-  <div id="cf-summary-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
+  <!-- Summary Row — v24.0: 3 צפי שנתי (אפור) + YTD בפועל (צבעוני) -->
+  <div id="cf-summary-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:10px;margin-bottom:12px;direction:rtl;"></div>
 
   <!-- Notes Panel — full width, smooth open/close with max-height transition -->
   <div id="cf-notes-panel" style="max-height:0;overflow:hidden;background:#1e293b;border-radius:14px;margin-bottom:0;margin-left:auto;margin-right:auto;max-width:80%;direction:rtl;transition:max-height 0.35s ease,padding 0.25s ease,margin-bottom 0.25s ease;padding:0 18px;"></div>
