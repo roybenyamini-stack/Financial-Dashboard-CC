@@ -1656,11 +1656,26 @@ function cfParseWorkbook(wb) {
       }
       var pd = parseMonthHeader(colHeaderRaw, sheetYear);
       if (!pd || pd.y < 2025) continue;
+      var _mLabel = HEB_MONTHS[pd.m - 1] + ' ' + pd.y;
+      var _mMonthId = pd.y + '-' + (pd.m < 10 ? '0' + pd.m : '' + pd.m);
       var mObj = {
-        label: HEB_MONTHS[pd.m - 1] + ' ' + pd.y,
-        monthId: pd.y + '-' + (pd.m < 10 ? '0' + pd.m : '' + pd.m),
+        label: _mLabel,
+        monthId: _mMonthId,
         year: pd.y, month: pd.m, rows: {}
       };
+
+      // v17.6: DEBUG DUMP — צלם את 50 השורות הראשונות של העמודה הנוכחית
+      console.log('[CF v17.6] ══ עמודה col=' + col + ' | חודש=' + _mMonthId + ' ══');
+      for (var _d6r = HEADER_ROW; _d6r <= Math.min(HEADER_ROW + 50, maxRow); _d6r++) {
+        var _d6v = cellVal(ws, _d6r, col);
+        if (_d6v !== null && _d6v !== undefined && String(_d6v).replace(/[\s\u00A0]+/g,'') !== '') {
+          var _d6lbl = cellVal(ws, _d6r, 0);
+          console.log('[CF v17.6] שורה', _d6r, '(+' + (_d6r - HEADER_ROW) + ')',
+            'label:', JSON.stringify(_d6lbl ? String(_d6lbl).trim().substring(0,30) : ''),
+            'val:', JSON.stringify(_d6v));
+        }
+      }
+
       Object.keys(ROW_MAP).forEach(function(ri) {
         var rowIdx = parseInt(ri);
         var val  = cellVal(ws, rowIdx, col);
@@ -1674,8 +1689,8 @@ function cfParseWorkbook(wb) {
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
 
-      // v17.5: total_income — עבור על כל המועמדים, בחר הראשון עם ערך ≥ 100
-      // אם אף אחד לא עומד בתנאי, קח את הראשון שיש לו ערך כלשהו
+      // v17.5/v17.6: total_income — עבור על כל המועמדים עם "סה"כ" exact match
+      // בחר הראשון שהערך שלו ≥ 100 (מדלג על סיכומי ביניים)
       var _tiVal = null, _tiNote = null, _tiFound = false;
       for (var _tii = 0; _tii < total_income_candidates.length; _tii++) {
         var _tiRow = total_income_candidates[_tii];
@@ -1685,18 +1700,20 @@ function cfParseWorkbook(wb) {
           var _tiP = typeof _tiRaw === 'number' ? _tiRaw : parseFloat(String(_tiRaw).replace(/,/g, ''));
           if (!isNaN(_tiP)) _tiNum = Math.round(_tiP * 10) / 10;
         }
-        console.log('[CF v17.5] total_income candidate שורה', _tiRow, '| col', col, '=', _tiNum);
+        console.log('[CF v17.6] total_income candidate שורה', _tiRow,
+          '(HEADER_ROW+' + (_tiRow - HEADER_ROW) + ') | חודש=' + _mMonthId + ' | val=', _tiNum);
         if (_tiNum !== null && _tiNum >= 100) {
           _tiVal = _tiNum;
           var _tiNoteRaw = cellVal(ws, _tiRow, col + 1);
           _tiNote = (_tiNoteRaw != null && String(_tiNoteRaw).trim() !== '') ? String(_tiNoteRaw).trim() : null;
-          console.log('[CF v17.5] ✅ total_income נבחר שורה', _tiRow, '=', _tiVal);
+          console.log('[CF v17.6] ✅ total_income נבחר שורה', _tiRow, 'לחודש', _mMonthId, '=', _tiVal);
           _tiFound = true;
           break;
         }
       }
       // fallback: אם אף מועמד לא עבר 100 — קח ערך ראשון שאינו null
       if (!_tiFound) {
+        console.log('[CF v17.6] ⚠️ אף candidate לא עבר 100 לחודש', _mMonthId, '— fallback לערך ראשון');
         for (var _tij = 0; _tij < total_income_candidates.length; _tij++) {
           var _tiRow2 = total_income_candidates[_tij];
           var _tiRaw2 = cellVal(ws, _tiRow2, col);
@@ -1762,6 +1779,14 @@ function smartUploadRouter(input) {
         console.log('[Upload] Parsed Data:', newData);
         if (newData.length > 0) {
           CF_DATA = newData;
+          // v17.6: Debug — לוג של כל החודשים ב-CF_DATA אחרי הפארסינג
+          console.log('[CF v17.6] ══════ CF_DATA לאחר פארסינג (' + newData.length + ' חודשים) ══════');
+          newData.forEach(function(mm) {
+            console.log('[CF v17.6]', mm.monthId,
+              '| total_income:', mm.rows.total_income ? mm.rows.total_income.val : 'N/A',
+              '| total_exp:', mm.rows.total_exp ? mm.rows.total_exp.val : 'N/A',
+              '| salary:', mm.rows.salary ? mm.rows.salary.val : 'N/A');
+          });
           // v16.94: קבע את החודש הנוכחי = monthId הגבוה ביותר שאינו עתידי
           var todayCutoff2 = new Date().getFullYear() * 100 + (new Date().getMonth() + 1);
           var validMonths2 = newData.filter(function(m){ return m.year * 100 + m.month <= todayCutoff2; });
@@ -1771,7 +1796,7 @@ function smartUploadRouter(input) {
             console.log('[CF] חודש נוכחי נבחר:', CF_CURRENT_MONTH_ID);
           }
           localStorage.removeItem('dashboard_cf_data');
-          localStorage.setItem('dashboard_cf_version', '17.5');
+          localStorage.setItem('dashboard_cf_version', '17.6');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2893,9 +2918,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '17.5') {
+    if (savedVer !== '17.6') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '17.5');
+      localStorage.setItem('dashboard_cf_version', '17.6');
       console.log('[CF] localStorage לפני v17.0 — נוקה, מחכה לקובץ חדש');
       return false;
     }
@@ -3178,16 +3203,18 @@ function cfUpdateCFCards() {
 function cfRenderKPI() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
-  // v17.1: הכנסות = total_income אם קיים (סה"כ הכנסות מהאקסל), אחרת salary (הכנסה ממשכורת) כפולבאק
-  // נטו = הכנסות פחות הוצאות — תמיד מחושב בקוד, לא נשלף מהאקסל
-  var inc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val
-          : (m.rows.salary       && m.rows.salary.val       != null) ? m.rows.salary.val : 0;
+  // v17.6: חיווט ישיר — הכנסות = total_income בלבד (ללא salary fallback כדי לחשוף בעיות)
+  // נטו = הכנסות פחות הוצאות — תמיד מחושב בקוד
+  var inc = (m.rows.total_income && m.rows.total_income.val != null) ? m.rows.total_income.val : 0;
   var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : 0;
   var net = inc - exp;
   var netColor = net >= 0 ? '#4ade80' : '#f87171';
-  console.log('[CF v17.1] חודש:', m.label, '| monthId:', m.monthId,
-              '| הכנסות:', inc, '(total_income:', (m.rows.total_income && m.rows.total_income.val), ', salary:', (m.rows.salary && m.rows.salary.val), ')',
-              '| הוצאות:', exp, '| נטו (מחושב):', net);
+  // v17.6: Debug מפורט — השווה את ה-console ל-מה שמוצג
+  console.log('[CF v17.6] ══ cfRenderKPI ══');
+  console.log('[CF v17.6] lastIdx:', lastIdx, '| חודש:', m.monthId, '|', m.label);
+  console.log('[CF v17.6] total_income raw:', JSON.stringify(m.rows.total_income));
+  console.log('[CF v17.6] total_exp raw:', JSON.stringify(m.rows.total_exp));
+  console.log('[CF v17.6] → מציג: הכנסות=' + inc + ' | הוצאות=' + exp + ' | נטו=' + net);
   var cards = [
     {label:'הכנסות', value:inc, color:'#4ade80', icon:'💰'},
     {label:'הוצאות', value:exp, color:'#f87171', icon:'💸'},
