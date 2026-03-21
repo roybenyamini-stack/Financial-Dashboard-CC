@@ -1499,16 +1499,6 @@ function cfParseWorkbook(wb) {
     }
     if (HEADER_ROW < 0) return [];
 
-    // v19.5: THE DIRECT HIT — הדפס את כל עמודות ה-header כדי לאתר את הבוגד
-    console.log('[v19.5] === HEADER ROW', HEADER_ROW, '(sheet year:', sheetYear, ') ===');
-    for (var hc = 0; hc <= maxCol; hc++) {
-      var hv = cellVal(ws, HEADER_ROW, hc);
-      if (hv !== null && hv !== undefined && hv !== '') {
-        console.log('[Header] col', hc, '=', JSON.stringify(hv));
-      }
-    }
-    console.log('[v19.5] === END HEADERS ===');
-
     // 2. ROW_MAP סטטי — v16.97: הוסרו total_income/total_exp/net_cashflow/profit_loss
     // שורות אלו חייבות להימצא דינמית בלבד (מנגנון הסריקה). אם לא נמצאו — val=null → מוצג 0.
     // המספרים 42/30/12 הגיעו מכך שהמפתח הסטטי הצביע לשורה שגויה — הסרתם מבטלת זאת לחלוטין.
@@ -1638,11 +1628,10 @@ function cfParseWorkbook(wb) {
     });
 
     // 4. קרא נתוני חודשים
-    // v19.4: COLUMN HUNTER — כל חודש נקרא פעם אחת בלבד מהעמודה שבה הוא מופיע לראשונה
+    // v20.0: targetCol = בדיוק העמודה שבה נמצאה הכותרת. ללא חישובים, ללא הזזות.
     var sheetResult = [];
-    var seenMonths = {}; // מניעת כפולות — מרץ 2026 בעמודה 22 לא יידרס על ידי עמודה 24
+    var seenMonths = {};
     for (var col = 0; col <= maxCol; col++) {
-      // v16.97: דלג על עמודת 'סיכומים' / 'Summary' במפורש
       var colHeaderRaw = cellVal(ws, HEADER_ROW, col);
       if (colHeaderRaw && typeof colHeaderRaw === 'string') {
         var colHeaderLower = colHeaderRaw.trim().toLowerCase();
@@ -1654,60 +1643,18 @@ function cfParseWorkbook(wb) {
       if (!pd || pd.y < 2025) continue;
       var _mLabel = HEB_MONTHS[pd.m - 1] + ' ' + pd.y;
       var _mMonthId = pd.y + '-' + (pd.m < 10 ? '0' + pd.m : '' + pd.m);
-      // v19.4: FIRST WINS — אם החודש כבר נמצא, דלג על עמודה כפולה
+      // כל חודש נלקח פעם אחת — מהעמודה הראשונה שבה הכותרת שלו מופיעה
       var monthKey = pd.y * 100 + pd.m;
-      if (seenMonths[monthKey]) {
-        console.log('[v19.4] DUPLICATE skipped:', _mLabel, 'at col', col, '(first was kept)');
-        continue;
-      }
+      if (seenMonths[monthKey]) continue;
       seenMonths[monthKey] = true;
-      console.log('Target Column Index:', col, '→', _mLabel, '| header raw:', JSON.stringify(colHeaderRaw));
-
-      // v19.6: HORIZONTAL SCAN — מצא את שורת total_income וסרוק עמודות 15-40 לאיתור הנתון האמיתי
-      var dataCol = col; // ברירת מחדל: עמודת הכותרת
-      if (pd.y === 2026 && pd.m === 3) {
-        // מצא את שורת total_income ב-ROW_MAP
-        var tiRow = null;
-        Object.keys(ROW_MAP).forEach(function(ri) {
-          if (ROW_MAP[ri] === 'total_income') tiRow = parseInt(ri);
-        });
-        console.log('[v19.6] March 2026 header at col', col, '| total_income row:', tiRow);
-        // סרוק עמודות 15-40 בשורת total_income לאיתור הערך האמיתי
-        var anchorCol = null;
-        for (var sc = 15; sc <= 40; sc++) {
-          var sv = cellVal(ws, tiRow !== null ? tiRow : 7, sc);
-          var sn = (typeof sv === 'number') ? Math.round(sv * 10) / 10 :
-                   (sv !== null && sv !== undefined ? parseFloat(String(sv).replace(/,/g,'')) : null);
-          if (sn === null || isNaN(sn) || sn === 0) continue;
-          if (Math.round(sn) === 42) {
-            console.log('!!! ERROR: FOUND 42 at col', sc, ', STILL SEARCHING FOR 123... !!!');
-          } else if (Math.round(sn) === 123) {
-            anchorCol = sc;
-            console.log('[v19.6] !!! FOUND 123 at col', sc, '— ANCHOR SET! dataCol =', sc, '!!!');
-            break;
-          } else {
-            console.log('[v19.6] col', sc, '=', sn, '(not 123, continuing scan)');
-          }
-        }
-        if (anchorCol !== null) {
-          dataCol = anchorCol;
-        } else {
-          console.log('[v19.6] WARNING: 123 not found in cols 15-40, falling back to header col', col);
-        }
-        console.log('[Final Test] Column for March is', col, '| dataCol (anchor) =', dataCol, '| Value =', cellVal(ws, tiRow !== null ? tiRow : 7, dataCol));
-      }
-
-      var mObj = {
-        label: _mLabel,
-        monthId: _mMonthId,
-        year: pd.y, month: pd.m, rows: {}
-      };
-
+      // v20.0: targetCol = בדיוק col. לא מוסיפים ולא מחסירים דבר.
+      var targetCol = col;
+      console.log('[v20.0] targetCol =', targetCol, '→', _mLabel);
+      var mObj = { label: _mLabel, monthId: _mMonthId, year: pd.y, month: pd.m, rows: {} };
       Object.keys(ROW_MAP).forEach(function(ri) {
         var rowIdx = parseInt(ri);
-        // v19.5: dataCol = עמודת הנתונים הנכונה (לאחר Sanity Check)
-        var val  = cellVal(ws, rowIdx, dataCol);
-        var note = cellVal(ws, rowIdx, dataCol + 1);
+        var val  = cellVal(ws, rowIdx, targetCol);
+        var note = cellVal(ws, rowIdx, targetCol + 1);
         var num  = null;
         if (val !== null && val !== undefined) {
           var p = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, ''));
@@ -1716,7 +1663,6 @@ function cfParseWorkbook(wb) {
         var noteStr = (note != null && String(note).trim() !== '') ? String(note).trim() : null;
         mObj.rows[ROW_MAP[ri]] = {val: num, note: noteStr};
       });
-
       sheetResult.push(mObj);
     }
     return sheetResult;
@@ -1770,9 +1716,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V19.6 - HORIZONTAL SCAN + 123 ANCHOR - TEST NOW !!!');
-          console.log('[Dashboard v19.6] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '19.6');
+          console.log('!!! V20.0 - CLEAN targetCol — NO HACKS - TEST NOW !!!');
+          console.log('[Dashboard v20.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '20.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2895,9 +2841,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '19.6') {
+    if (savedVer !== '20.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '19.6');
+      localStorage.setItem('dashboard_cf_version', '20.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
