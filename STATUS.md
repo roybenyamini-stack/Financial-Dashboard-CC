@@ -1,7 +1,22 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v45.0 — Logical Layout & Header Fix: סידור מחדש של הדף + נטו כחול + תחזית.
+גרסה v46.0 — Forecast Panel & UI Polish.
+
+## שינויים אחרונים (22/03/2026)
+
+### v46.0 – Forecast Panel & UI Polish
+**app.js:**
+- **CF_FORECAST**: גלובל חדש — שומר נתוני עמודת סיכומים
+- **parseSheet**: עמודת 'סיכומים' נקראת כעת (במקום להידלג) → שומרת ב-CF_FORECAST: salary, rent_income, visa, cash_exp, loans, yotam, other_exp, other_exp_2, profit_loss
+- **cfRenderNotesPanel**: הצגת הערות לחודש הנבחר בלבד (לא כל ההיסטוריה)
+- **cfRenderSummary**: כפתור '🔮 תחזית' נוסף לצד שמאל של שורת הסיכומים
+- **cfToggleForecast()**: toggle חדש — פותח/סוגר את cf-detailed-forecast
+- **cfRenderForecast()**: בונה פאנל עם 3 קבוצות: הכנסות / הוצאות / נטו חזוי
+
+**index.html:**
+- כפתור סטטי הוסר — נמצא עכשיו בתוך JS בשורת הסיכומים
+- cf-detailed-forecast: נוקה מתוכן זמני, עוצב מחדש
 
 ## שינויים אחרונים (22/03/2026)
 
