@@ -1791,16 +1791,18 @@ function cfParseWorkbook(wb) {
         var colHeaderLower = colHeaderRaw.trim().toLowerCase();
         if (colHeaderLower.indexOf('סיכומים') >= 0 || colHeaderLower.indexOf('summary') >= 0 || colHeaderLower.indexOf('סיכום') >= 0) {
           // v47.0: סריקת תוויות ישירה לעמודת סיכומים — לא תלויה ב-ROW_MAP
+          // v48.0: Data Locking — משיכה ישירה מעמודת סיכומים לפי תוויות מדויקות
           var FC_LABELS = {
-            salary:       ['משכורת שקלית', 'משכורת שקל', 'הכנסה ממשכורת'],
-            rent_income:  ['שכר דירה', 'שכירות'],
-            visa:         ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
-            cash_exp:     ['הוצאות מזומן', 'מזומן'],
-            loans:        ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
-            yotam:        ['יותם'],
-            other_exp:    ['הוצאות שונות 1', 'הוצאות שונות', 'הוצאות חריגות'],
-            net_cashflow: ['תזרים שקלי נטו', 'נטו שוטף', 'תזרים נטו'],
-            profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
+            salary:            ['משכורת שקלית', 'משכורת שקל', 'הכנסה ממשכורת'],
+            rent_income:       ['שכר דירה', 'שכירות'],
+            visa:              ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
+            cash_exp:          ['הוצאות מזומן', 'מזומן'],
+            loans:             ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
+            yotam:             ['יותם', 'הוצאות יותם'],
+            other_exp:         ['הוצאות שונות 1', 'הוצאות שונות', 'הוצאות חריגות'],
+            net_cashflow:      ['תזרים שקלי נטו', 'תזרים נטו'],
+            cashflow_total:    ['תזרים שוטף', 'נטו שוטף', '∆ תזרים שוטף', 'Δ תזרים שוטף'],
+            profit_loss:       ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
           };
           var fcData = {};
           colsToScan.forEach(function(lc) {
@@ -1907,7 +1909,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V47.0 - UI Harmony & Forecast Data Fix !!!');
+          console.log('!!! V48.0 - Data Locking & Forecast Fix !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1918,7 +1920,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '47.0');
+          localStorage.setItem('dashboard_cf_version', '48.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3480,16 +3482,24 @@ function cfRenderKPI() {
   if (!detailEl) return;
 
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
-  // v47.0: כרטיסיות לבנות/בהירות — אזור פירוט החודש מוגבה מרקע כהה
-  function chip(lbl, val, col) {
-    if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
-    return '<div style="display:flex;flex-direction:column;background:white;border-radius:8px;padding:10px 16px;border-right:3px solid '+col+';flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">' +
+  // v48.0: כרטיסיות לבנות עם Tooltip
+  function chip(lbl, val, col, tip) {
+    if (val === null || val === 0) return '';
+    var titleAttr = tip ? ' title="' + tip + '"' : '';
+    return '<div' + titleAttr + ' style="display:flex;flex-direction:column;background:white;border-radius:8px;padding:10px 16px;border-right:3px solid '+col+';flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:default;">' +
       '<span style="font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
       '<span style="font-size:19px;font-weight:800;color:'+col+';margin-top:2px;white-space:nowrap;">'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(0,0,0,0.08);flex-shrink:0;align-self:stretch;margin:0 3px;"></div>';
 
   var IG='#16a34a', ER='#dc2626', EO='#ea580c', EY='#ca8a04', EP='#7c3aed';
+  // v48.0: איחוד יותם + שונות לכרטיסייה אחת עם Tooltip
+  var _yotam   = gv('yotam')      || 0;
+  var _other1  = gv('other_exp')  || 0;
+  var _other2  = gv('other_exp_2')|| 0;
+  var _miscSum = _yotam + _other1 + _other2;
+  var _miscTip = 'יותם: ' + Math.round(_yotam).toLocaleString() + ' | שונות: ' + Math.round(_other1 + _other2).toLocaleString();
+
   var h = '<div style="background:#f8fafc;border-radius:12px;padding:10px 14px;direction:rtl;border:1px solid rgba(0,0,0,0.06);margin-bottom:2px;">';
   h += '<div style="display:flex;align-items:flex-start;gap:6px;overflow-x:auto;padding-bottom:2px;">';
   h += chip('שקלית',gv('salary'),IG);
@@ -3502,9 +3512,8 @@ function cfRenderKPI() {
   h += chip('הלוואות',gv('loans'),ER);
   h += chip('שיפוץ',gv('renovation'),ER);
   h += SEP;
-  h += chip('יותם',gv('yotam'),EO);
-  h += chip('חריג 1',gv('other_exp'),EY);
-  h += chip('חריג 2',gv('other_exp_2'),EY);   // v39: הוצאות שונות 2
+  // v48.0: יותם + שונות — כרטיסייה מאוחדת עם tooltip
+  h += chip('יותם + שונות', _miscSum > 0 ? _miscSum : null, EY, _miscTip);
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);
@@ -3928,31 +3937,42 @@ function cfRenderForecast() {
       '</div>';
   }
 
-  var netVal = f.profit_loss;
-  var netColor = (netVal != null && netVal >= 0) ? '#16a34a' : '#dc2626';
-  var otherExpTotal = (f.other_exp != null ? Math.abs(f.other_exp) : 0) + (f.other_exp_2 != null ? Math.abs(f.other_exp_2) : 0);
+  // v48.0: יותם ושונות — כרטיסיות נפרדות במגירה (כדי לראות 62 ו-11 בנפרד)
+  var netVal     = f.profit_loss;
+  var netCash    = f.net_cashflow;
+  var cashTotal  = f.cashflow_total;
+  var netColor   = (netVal != null && netVal >= 0) ? '#16a34a' : '#dc2626';
+
+  function bottomCard(label, val, color) {
+    if (val == null || val === 0) return '';
+    return '<div style="background:white;border-radius:9px;padding:9px 16px;border-right:3px solid ' + color + ';border:1px solid rgba(139,92,246,0.18);border-right:3px solid ' + color + ';box-shadow:0 1px 4px rgba(0,0,0,0.06);flex-shrink:0;">' +
+      '<div style="font-size:10px;color:#9ca3af;font-weight:600;margin-bottom:2px;white-space:nowrap;">' + label + '</div>' +
+      '<div style="font-size:18px;font-weight:800;color:' + color + ';white-space:nowrap;">' + Math.round(val).toLocaleString() + '</div>' +
+      '</div>';
+  }
 
   var html = '<div style="direction:rtl;">';
   html += '<div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
 
-  // כל הכרטיסיות בשורה אופקית אחת (flex-wrap)
+  // כרטיסיות הכנסות + הוצאות בשורה אחת (flex-wrap)
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
-  // הכנסות
   html += card('משכורת שנתית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
-  // הוצאות
-  html += card('ויזה', f.visa ? -Math.abs(f.visa) : null, '#dc2626');
-  html += card('מזומן', f.cash_exp ? -Math.abs(f.cash_exp) : null, '#dc2626');
-  html += card('הלוואות', f.loans ? -Math.abs(f.loans) : null, '#b45309');
-  html += card('יותם', f.yotam ? -Math.abs(f.yotam) : null, '#ea580c');
-  html += card('שונות', otherExpTotal > 0 ? -otherExpTotal : null, '#ca8a04');
+  html += card('ויזה', f.visa ? Math.abs(f.visa) : null, '#dc2626');
+  html += card('מזומן', f.cash_exp ? Math.abs(f.cash_exp) : null, '#dc2626');
+  html += card('הלוואות', f.loans ? Math.abs(f.loans) : null, '#b45309');
+  // v48.0: יותם ושונות — נפרדים
+  html += card('יותם', f.yotam ? Math.abs(f.yotam) : null, '#ea580c');
+  html += card('שונות', f.other_exp ? Math.abs(f.other_exp) : null, '#ca8a04');
   html += '</div>';
 
-  // שורה תחתונה — רווח/הפסד חזוי בולט
-  if (netVal != null && netVal !== 0) {
-    html += '<div style="background:white;border-radius:10px;padding:10px 18px;border:1.5px solid rgba(139,92,246,0.35);display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.08);">';
-    html += '<span style="font-size:12px;font-weight:700;color:#6b7280;">רווח / הפסד חזוי</span>';
-    html += '<span style="font-size:20px;font-weight:800;color:' + netColor + ';">' + Math.round(netVal).toLocaleString() + '</span>';
+  // שורה תחתונה — נטו חזוי: תזרים שקלי נטו + תזרים שוטף + רווח/הפסד
+  var hasBottom = (netCash != null && netCash !== 0) || (cashTotal != null && cashTotal !== 0) || (netVal != null && netVal !== 0);
+  if (hasBottom) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+    html += bottomCard('תזרים שקלי נטו', netCash, '#3b82f6');
+    html += bottomCard('תזרים שוטף', cashTotal, '#6366f1');
+    html += bottomCard('רווח / הפסד', netVal, netColor);
     html += '</div>';
   }
 

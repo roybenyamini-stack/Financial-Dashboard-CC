@@ -1,7 +1,21 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v47.0 — UI Harmony & Forecast Data Fix.
+גרסה v48.0 — Data Locking & Forecast Fix.
+
+## שינויים אחרונים (22/03/2026)
+
+### v48.0 – Data Locking & Forecast Fix
+**app.js:**
+- **FC_LABELS**: נוסף `cashflow_total` ('תזרים שוטף'), נוסף 'הוצאות יותם' כ-alias ל-yotam
+- **cfRenderKPI**: chip עם פרמטר tooltip; 'יותם + שונות' — כרטיסייה מאוחדת עם tooltip פירוט (יותם: X | שונות: Y); כרטיסיות נפרדות הוסרו
+- **cfRenderForecast**: יותם ושונות כרטיסיות נפרדות (62 + 11 בנפרד); שורה תחתונה: תזרים שקלי נטו + תזרים שוטף + רווח/הפסד ביחד
+- **Data Locking**: כל הנתונים ממשיכים להגיע מעמודת 'סיכומים' בלבד דרך FC_LABELS
+
+**לאימות בConsole:**
+- `[v47 FORECAST] yotam → row X | val: 62`
+- `[v47 FORECAST] other_exp → row X | val: 11`
+- `[v47 FORECAST] loans → row X | val: 30`
 
 ## שינויים אחרונים (22/03/2026)
 
