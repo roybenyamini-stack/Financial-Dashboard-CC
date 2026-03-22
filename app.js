@@ -1665,35 +1665,44 @@ function cfParseWorkbook(wb) {
       salary_usd:  ['משכורת דולרית'],
       rent_income: ['שכר דירה'],
     };
+    // v42.0: aggressive label cleaner — מסיר כל תו שאינו ASCII מודפס / עברית
+    function aggressiveClean(raw) {
+      return String(raw)
+        .replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ')
+        .replace(/[^\x20-\x7E\u0590-\u05FF]/g, '')  // הסר כל תו לא-ASCII לא-עברי
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     var mappedKeys = {};
     colsToScan.forEach(function(lc) {
       for (var nri = 0; nri < nonEmptyRows.length; nri++) {
         var sr = nonEmptyRows[nri];
         var lbl = cellVal(ws, sr, lc);
         if (!lbl) continue;
-        var lblN = normalizeForCompare(String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim().toLowerCase());
+        var lblN = normalizeForCompare(aggressiveClean(lbl).toLowerCase());
         for (var pkey in PRIORITY_LABELS) {
           if (mappedKeys[pkey]) continue;
           if (PRIORITY_LABELS[pkey].some(function(kw) {
-            return lblN === normalizeForCompare(kw.toLowerCase());  // EXACT match בלבד
+            return lblN === normalizeForCompare(aggressiveClean(kw).toLowerCase());  // EXACT match
           })) {
             Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === pkey) delete ROW_MAP[k]; });
             ROW_MAP[sr] = pkey;
             mappedKeys[pkey] = true;
-            console.log('[v41 PRIORITY] mapped:', pkey, '→ row', sr, '| label:', String(lbl).trim());
+            console.log('[v42 PRIORITY] mapped:', pkey, '→ row', sr, '| label:', aggressiveClean(lbl));
             break;
           }
         }
       }
     });
 
-    // מעבר 1: שאר המפתחות — First Match Only (Substring)
+    // מעבר 1: שאר המפתחות — First Match Only (Substring + aggressive clean)
     colsToScan.forEach(function(lc) {
       for (var nri = 0; nri < nonEmptyRows.length; nri++) {
         var sr = nonEmptyRows[nri];
         var lbl = cellVal(ws, sr, lc);
         if (!lbl) continue;
-        var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
+        var lblTrimmed = aggressiveClean(lbl);  // v42: aggressive clean
         if (!lblTrimmed) continue;
         var ls = normalizeForCompare(lblTrimmed.toLowerCase());
         for (var lkey in KEY_LABELS) {
@@ -1724,11 +1733,11 @@ function cfParseWorkbook(wb) {
           var sr = nonEmptyRows[nri];
           var lbl = cellVal(ws, sr, lc);
           if (!lbl) continue;
-          var lblTrimmed = String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim();
+          var lblTrimmed = aggressiveClean(lbl);  // v42.0: aggressiveClean כמו Pass 1
           if (!lblTrimmed) continue;
           var ls = normalizeForCompare(lblTrimmed.toLowerCase());
           var matched = KEY_LABELS[ikey].some(function(kw) {
-            return ls === normalizeForCompare(kw.toLowerCase()); // חייב === בלבד
+            return ls === normalizeForCompare(aggressiveClean(kw).toLowerCase()); // חייב === בלבד
           });
           if (matched) {
             lastMatchRow = sr; // תמיד עדכן — ה-LAST row מנצח
@@ -1744,10 +1753,32 @@ function cfParseWorkbook(wb) {
     });
 
     // v41.0: לוג סיכום מיפוי — הדפסה של כל ROW_MAP לדיאגנוסטיקה
-    console.log('[v41 ROW_MAP FINAL]', JSON.stringify(ROW_MAP));
+    console.log('[v42 ROW_MAP FINAL]', JSON.stringify(ROW_MAP));
     ['salary','rent_income','salary_usd','total_exp','total_income'].forEach(function(k) {
       var found = Object.keys(ROW_MAP).some(function(r){ return ROW_MAP[r] === k; });
-      if (!found) console.warn('[v41 MISSING KEY]', k, '— לא נמצא בגיליון! מפתח חסר.');
+      if (!found) console.warn('[v42 MISSING KEY]', k, '— לא נמצא בגיליון! מפתח חסר.');
+    });
+
+    // v42.0: INDEX FALLBACK — אם המיפוי הדינמי נכשל, השתמש בשורות קבועות יחסית ל-HEADER_ROW
+    // salary=HEADER_ROW+1, rent_income=HEADER_ROW+2, total_exp=HEADER_ROW+7
+    var INDEX_FALLBACKS = {
+      salary:      HEADER_ROW + 1,
+      rent_income: HEADER_ROW + 2,
+      total_exp:   HEADER_ROW + 7
+    };
+    Object.keys(INDEX_FALLBACKS).forEach(function(fbKey) {
+      var alreadyMapped = Object.keys(ROW_MAP).some(function(r){ return ROW_MAP[r] === fbKey; });
+      if (!alreadyMapped) {
+        var fbRow = INDEX_FALLBACKS[fbKey];
+        // וודא שהשורה לא תפוסה ע"י מפתח אחר
+        if (ROW_MAP[fbRow] && ROW_MAP[fbRow] !== fbKey) {
+          console.warn('[v42 INDEX FALLBACK] שורה', fbRow, 'תפוסה ע"י', ROW_MAP[fbRow], '— לא ממפה', fbKey);
+        } else {
+          ROW_MAP[fbRow] = fbKey;
+          var fbLabel = cellVal(ws, fbRow, colsToScan[0]);
+          console.log('[v42 INDEX FALLBACK] ממפה', fbKey, '→ שורה', fbRow, '| תווית:', fbLabel ? aggressiveClean(String(fbLabel)) : '(ריק)');
+        }
+      }
     });
 
     // 4. קרא נתוני חודשים
@@ -1839,9 +1870,18 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V41.0 - Data Wiring Fix !!!');
-          console.log('[Dashboard v39.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '41.0');
+          console.log('!!! V42.0 - Atomic Data & Month Fix !!!');
+          console.log('[Dashboard v42.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
+          var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
+          var _diagM = CF_DATA[_diagIdx];
+          if (_diagM && _diagM.rows) {
+            console.log('[v42 DIAG] חודש:', _diagM.label);
+            var _tableRows = {};
+            Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
+            console.table(_tableRows);
+          }
+          localStorage.setItem('dashboard_cf_version', '42.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3250,9 +3290,18 @@ function cfGetDefaultMonthId(data) {
       return data[j].monthId;
     }
   }
-  // שלב 3: אחרון ב-maxYear, גם בלי total_income
+  // שלב 3: אחרון ב-maxYear עם salary > 0 או total_exp > 0 — v42.0: לא חוזר לדצמבר ריק
   for (var k = data.length - 1; k >= 0; k--) {
-    if (data[k].year === maxYear) return data[k].monthId;
+    if (data[k].year === maxYear &&
+        data[k].rows &&
+        ((data[k].rows.salary    && data[k].rows.salary.val    > 0) ||
+         (data[k].rows.total_exp && data[k].rows.total_exp.val > 0))) {
+      return data[k].monthId;
+    }
+  }
+  // שלב 3b: אחרון ב-maxYear, כולל ריק — רק כגיבוי אחרון
+  for (var k2 = data.length - 1; k2 >= 0; k2--) {
+    if (data[k2].year === maxYear) return data[k2].monthId;
   }
   // שלב 4: כל הנתונים — קח הראשון עם total_income
   for (var l = 0; l < data.length; l++) {
@@ -3270,12 +3319,13 @@ function cfGetLastRealMonth() {
       if (CF_DATA[k].monthId === targetId) return k;
     }
   }
-  // v40.0: fallback רב-שלבי — total_income → salary → total_exp → last
+  // v42.0: fallback רב-שלבי — total_income → salary → total_exp → last
+  // שינוי: !== null → > 0 כדי למנוע זיהוי חודש ריק (0) כ"אחרון עם נתונים"
   for (var i = CF_DATA.length - 1; i >= 0; i--) {
     var row = CF_DATA[i].rows;
-    if (row && ((row.total_income && row.total_income.val !== null) ||
-                (row.salary       && row.salary.val       !== null) ||
-                (row.total_exp    && row.total_exp.val    !== null))) return i;
+    if (row && ((row.total_income && row.total_income.val > 0) ||
+                (row.salary       && row.salary.val       > 0) ||
+                (row.total_exp    && row.total_exp.val    > 0))) return i;
   }
   return CF_DATA.length > 0 ? CF_DATA.length - 1 : 0;
 }

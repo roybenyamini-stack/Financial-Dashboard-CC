@@ -1,9 +1,30 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v41.0 — Data Wiring Fix: תיקון שורשי של פרסור האקסל.
+גרסה v42.0 — Atomic Data & Month Fix: תיקון Index Fallback + תיקון קפיצת חודש.
 
 ## שינויים אחרונים (22/03/2026)
+
+### v42.0 – Atomic Data & Month Fix
+**app.js — תיקונים:**
+- **Iron Keys pass**: עדכון להשתמש ב-`aggressiveClean()` (כמו Pass 1) — מסיר תווים נסתרים לפני השוואה
+- **INDEX FALLBACK**: אם המיפוי הדינמי נכשל, ממפה לפי שורות קבועות יחסית ל-HEADER_ROW:
+  - salary → HEADER_ROW + 1
+  - rent_income → HEADER_ROW + 2
+  - total_exp → HEADER_ROW + 7
+- **cfGetDefaultMonthId Step 3**: תוקן — כעת בודק `salary.val > 0 || total_exp.val > 0` לפני החזרה; לא חוזר לדצמבר ריק
+- **cfGetLastRealMonth fallback**: תוקן — `!== null` → `> 0`; מונע זיהוי חודש עם val=0 כחודש נוכחי
+- **console.table**: הוספת לוג טבלאי של שורות החודש הנוכחי בטעינת אקסל (לדיאגנוסטיקה)
+- `localStorage version`: '41.0' → '42.0'
+
+**לאחר העלאה — לאבחן בדפדפן:**
+1. פתח DevTools (F12) → Console
+2. טען את קובץ התזרים
+3. חפש `[v42 PRIORITY]` — salary, salary_usd, rent_income
+4. חפש `[v42 INDEX FALLBACK]` — האם הופעל?
+5. ראה `console.table` עם שורות החודש הנוכחי — בדוק שהמספרים נכונים
+
+## שינויים קודמים (22/03/2026)
 
 ### v41.0 – Data Wiring Fix
 **app.js — תיקון פרסור אקסל:**
