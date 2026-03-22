@@ -1360,7 +1360,7 @@ function buildCFContext() {
   CF_DATA.forEach(function(m) {
     var r = m.rows;
     function rv(k) { return (r[k] && r[k].val != null) ? Math.round(r[k].val) : 0; }
-    var inc = rv('total_income'), exp = rv('total_exp');
+    var inc = rv('salary') + rv('rent_income'), exp = rv('total_exp'); // v43: חישוב דינמי
     var line = m.label + ' ' + m.year + ': income=' + inc + ' exp=' + exp + ' net=' + (inc - exp);
     var sal=rv('salary'), rent=rv('rent_income'), visa=rv('visa'), cash=rv('cash_exp'), loan=rv('loans'), yotam=rv('yotam'), usd=rv('total_usd');
     if(sal)   line += ' salary=' + sal;
@@ -1616,7 +1616,7 @@ function cfParseWorkbook(wb) {
     //    מטרה: לאפשר מיפוי אוטומטי גם לאקסלים עם מבנה שונה
     // v18.3: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
     var KEY_LABELS = {
-      total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
+      // v43.0: total_income הוסר — מחושב דינמית מ-salary + rent_income (לא קיים באקסל)
       total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות', 'סה"כ הוצאות שקלי', 'סה״כ הוצאות שקלי'],
       profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
       salary:       ['משכורת שקלית', 'משכורת שקל', 'הכנסה ממשכורת'],  // v41: שמות חדשים קודם
@@ -1709,7 +1709,7 @@ function cfParseWorkbook(wb) {
           if (mappedKeys[lkey]) continue;
           if (KEY_LABELS[lkey].length === 0) continue;
           // שורות ברזל מטופלות במעבר 2 — דלג כאן
-          if (lkey === 'total_income' || lkey === 'total_exp' || lkey === 'profit_loss') continue;
+          if (lkey === 'total_exp' || lkey === 'profit_loss') continue; // v43: total_income הוסר מ-IRON
           if (KEY_LABELS[lkey].some(function(kw){
             var nkw = normalizeForCompare(kw.toLowerCase());
             if (nkw.replace(/\s+/g, '').length <= 4) return ls === nkw;
@@ -1725,7 +1725,7 @@ function cfParseWorkbook(wb) {
     });
 
     // v19.2: מעבר 2 — שורות ברזל בלבד: EXACT MATCH + LAST ROW (הסכום האמיתי תמיד אחרי תת-הסכומים)
-    var IRON_KEYS = ['total_income', 'total_exp', 'profit_loss'];
+    var IRON_KEYS = ['total_exp', 'profit_loss']; // v43.0: total_income הוסר — מחושב דינמית
     IRON_KEYS.forEach(function(ikey) {
       var lastMatchRow = null;
       colsToScan.forEach(function(lc) {
@@ -1754,9 +1754,9 @@ function cfParseWorkbook(wb) {
 
     // v41.0: לוג סיכום מיפוי — הדפסה של כל ROW_MAP לדיאגנוסטיקה
     console.log('[v42 ROW_MAP FINAL]', JSON.stringify(ROW_MAP));
-    ['salary','rent_income','salary_usd','total_exp','total_income'].forEach(function(k) {
+    ['salary','rent_income','salary_usd','total_exp'].forEach(function(k) { // v43: total_income הוסר
       var found = Object.keys(ROW_MAP).some(function(r){ return ROW_MAP[r] === k; });
-      if (!found) console.warn('[v42 MISSING KEY]', k, '— לא נמצא בגיליון! מפתח חסר.');
+      if (!found) console.warn('[v43 MISSING KEY]', k, '— לא נמצא בגיליון! מפתח חסר.');
     });
 
     // v42.0: INDEX FALLBACK — אם המיפוי הדינמי נכשל, השתמש בשורות קבועות יחסית ל-HEADER_ROW
@@ -1868,10 +1868,10 @@ function smartUploadRouter(input) {
           CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(newData); // v19.0: THE CLOCK RULE
           CF_SELECTED_MONTH_ID = null; // איפוס בחירה ידנית בטעינת קובץ חדש
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
-          var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
-          var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V42.0 - Atomic Data & Month Fix !!!');
-          console.log('[Dashboard v42.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
+          var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
+          console.log('!!! V43.0 - Missing Key Fix: total_income computed dynamically !!!');
+          console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
           var _diagM = CF_DATA[_diagIdx];
@@ -1881,7 +1881,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '42.0');
+          localStorage.setItem('dashboard_cf_version', '43.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -1892,8 +1892,8 @@ function smartUploadRouter(input) {
           }
           if(status) {
             var lastM = newData[newData.length - 1];
-            var inc = lastM.rows.total_income ? (lastM.rows.total_income.val || 0) : 0;
-            var exp = lastM.rows.total_exp    ? (lastM.rows.total_exp.val    || 0) : 0;
+            var inc = Math.round(cfCalcIncome(lastM.rows)); // v43: חישוב דינמי
+            var exp = lastM.rows.total_exp ? (lastM.rows.total_exp.val || 0) : 0;
             status.textContent = '✅ עודכנו נתוני תזרים – ' + newData.length + ' חודשים | ' + lastM.label + ': הכנסות ' + Math.round(inc) + ', הוצאות ' + Math.round(exp);
             setTimeout(function(){status.textContent='';}, 6000);
           }
@@ -3275,18 +3275,21 @@ function cfGetDefaultMonthId(data) {
   }
   var targetYM = maxYear * 100 + currentMonth; // 2026*100+3 = 202603
 
-  // שלב 1: חפש התאמה מדויקת — חודש זה בשנת maxYear עם נתוני total_income
+  // שלב 1: חפש התאמה מדויקת — חודש זה בשנת maxYear עם salary>0 או total_exp>0
+  // v43.0: total_income הוסר — בודקים salary ו-total_exp במקומו
   for (var i = 0; i < data.length; i++) {
-    if (data[i].year * 100 + data[i].month === targetYM &&
-        data[i].rows && data[i].rows.total_income && data[i].rows.total_income.val !== null) {
-      console.log('!!! FOUND', data[i].label, 'AT monthId:', data[i].monthId, '— val:', data[i].rows.total_income.val, '!!!');
+    if (data[i].year * 100 + data[i].month === targetYM && data[i].rows &&
+        ((data[i].rows.salary    && data[i].rows.salary.val    > 0) ||
+         (data[i].rows.total_exp && data[i].rows.total_exp.val > 0))) {
+      console.log('!!! FOUND', data[i].label, 'AT monthId:', data[i].monthId, '— salary:', (data[i].rows.salary&&data[i].rows.salary.val)||0, '!!!');
       return data[i].monthId;
     }
   }
-  // שלב 2: החודש האחרון ב-maxYear עם total_income
+  // שלב 2: החודש האחרון ב-maxYear עם salary>0 או total_exp>0
   for (var j = data.length - 1; j >= 0; j--) {
-    if (data[j].year === maxYear &&
-        data[j].rows && data[j].rows.total_income && data[j].rows.total_income.val !== null) {
+    if (data[j].year === maxYear && data[j].rows &&
+        ((data[j].rows.salary    && data[j].rows.salary.val    > 0) ||
+         (data[j].rows.total_exp && data[j].rows.total_exp.val > 0))) {
       return data[j].monthId;
     }
   }
@@ -3303,9 +3306,10 @@ function cfGetDefaultMonthId(data) {
   for (var k2 = data.length - 1; k2 >= 0; k2--) {
     if (data[k2].year === maxYear) return data[k2].monthId;
   }
-  // שלב 4: כל הנתונים — קח הראשון עם total_income
+  // שלב 4: כל הנתונים — קח הראשון עם salary>0 או total_exp>0
   for (var l = 0; l < data.length; l++) {
-    if (data[l].rows && data[l].rows.total_income && data[l].rows.total_income.val !== null) return data[l].monthId;
+    if (data[l].rows && ((data[l].rows.salary && data[l].rows.salary.val > 0) ||
+                         (data[l].rows.total_exp && data[l].rows.total_exp.val > 0))) return data[l].monthId;
   }
   return data[0].monthId;
 }
@@ -3319,13 +3323,11 @@ function cfGetLastRealMonth() {
       if (CF_DATA[k].monthId === targetId) return k;
     }
   }
-  // v42.0: fallback רב-שלבי — total_income → salary → total_exp → last
-  // שינוי: !== null → > 0 כדי למנוע זיהוי חודש ריק (0) כ"אחרון עם נתונים"
+  // v43.0: fallback — salary > 0 או total_exp > 0 (total_income הוסר — מחושב דינמית)
   for (var i = CF_DATA.length - 1; i >= 0; i--) {
     var row = CF_DATA[i].rows;
-    if (row && ((row.total_income && row.total_income.val > 0) ||
-                (row.salary       && row.salary.val       > 0) ||
-                (row.total_exp    && row.total_exp.val    > 0))) return i;
+    if (row && ((row.salary    && row.salary.val    > 0) ||
+                (row.total_exp && row.total_exp.val > 0))) return i;
   }
   return CF_DATA.length > 0 ? CF_DATA.length - 1 : 0;
 }
@@ -3701,7 +3703,10 @@ function cfRenderTable() {
 
     // data cells (scrollable, left side)
     months.forEach(function(m){
-      var cell = m.rows[row.key] || {val:null, note:null};
+      // v43.0: total_income — חישוב דינמי (לא נשמר באקסל)
+      var cell = (row.key === 'total_income')
+        ? {val: Math.round(cfCalcIncome(m.rows)), note: null}
+        : (m.rows[row.key] || {val:null, note:null});
       var val  = cell.val, note = cell.note;
       var vc   = 'rgba(255,255,255,0.75)';
       if (isTot) {
