@@ -1617,7 +1617,7 @@ function cfParseWorkbook(wb) {
     // v18.3: KEY_LABELS — כותרות ייחודיות מהאקסל המעודכן
     var KEY_LABELS = {
       total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
-      total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות'],
+      total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות', 'סה"כ הוצאות שקלי', 'סה״כ הוצאות שקלי'],
       profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
       salary:       ['הכנסה ממשכורת', 'משכורת שקלית', 'משכורת שקל'],
       rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
@@ -1805,9 +1805,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V39.0 - Accurate Salaries & Flexible Expenses !!!');
+          console.log('!!! V39.1 - Accurate Salaries & Naming Fix !!!');
           console.log('[Dashboard v39.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '39.0');
+          localStorage.setItem('dashboard_cf_version', '39.1');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2930,9 +2930,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '39.0') {
+    if (savedVer !== '39.1') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '39.0');
+      localStorage.setItem('dashboard_cf_version', '39.1');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
