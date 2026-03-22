@@ -1,7 +1,20 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v49.0 — Layout Perfection & Forecast Fix.
+גרסה v50.0 — Golden Jubilee & Clean Data.
+
+## שינויים אחרונים (22/03/2026)
+
+### v50.0 – Golden Jubilee & Clean Data
+**app.js:**
+- **cfRenderKPI (Row 2)**: 'הוצ. שונות' = other_exp + other_exp_2 מחוברים (במקום OR) — מוצגים ביחד כשניהם קיימים
+- **cfRenderForecast**: הסרת spacer; הוספת FDIV (קו אנכי עדין) לפני קבוצת כרטיסיות תזרים; כל כרטיסיות בשורה רציפה אחת
+- **CRITICAL DATA FIX**: כרטיסיות תזרים בתחזית — ערכים גולמיים בלבד מ-CF_FORECAST, ללא שום sum/reduce
+- **גרסה**: v49.0 → v50.0
+
+**index.html:**
+- `cf-summary-row`: margin-bottom שונה מ-0 ל-20px (ריווח קבוע לפני גרף)
+- גרסה בכותרת: v49.0 → v50.0
 
 ## שינויים אחרונים (22/03/2026)
 
