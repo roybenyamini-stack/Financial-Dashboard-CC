@@ -1922,7 +1922,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V50.0 - Golden Jubilee & Clean Data !!!');
+          console.log('!!! V51.0 - Dynamic Labels, Smart Tooltips & Modal Notes !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1933,7 +1933,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '50.0');
+          localStorage.setItem('dashboard_cf_version', '51.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3200,26 +3200,93 @@ function cfScrollToLatest() {
   }, 100);
 }
 
+// v51.0: Notes Modal — חלון קופץ במקום inline panel
 function cfTogglePrivacy() {
-  cfPrivacyOn = !cfPrivacyOn;
-  document.getElementById('cf-privacy-icon').textContent = cfPrivacyOn ? '👁️' : '🔒';
-  document.getElementById('cf-privacy-text').textContent = cfPrivacyOn ? 'הסתר הערות' : 'הצג הערות';
-  var panel = document.getElementById('cf-notes-panel');
-  if (!panel) return;
-  if (cfPrivacyOn) {
-    cfRenderNotesPanel();
-    // פתיחה חלקה — max-height transition
-    panel.style.padding = '16px 18px';
-    panel.style.marginBottom = '12px';
-    panel.style.maxHeight = '200px';
-    panel.style.overflowY = 'auto';
-  } else {
-    // סגירה חלקה
-    panel.style.maxHeight = '0';
-    panel.style.padding = '0 18px';
-    panel.style.marginBottom = '0';
-    setTimeout(function(){ panel.style.overflowY = 'hidden'; }, 350);
+  var modal = document.getElementById('cf-notes-modal');
+  if (modal) { cfCloseNotesModal(); return; }
+  cfOpenNotesModal();
+}
+
+function cfOpenNotesModal() {
+  // בנה תוכן הערות
+  var lastIdx = cfGetLastRealMonth();
+  var ROW_LABELS = {
+    salary:'משכורת שקלית', rent_income:'שכר דירה', other_income:'הכנסות שונות',
+    buffer:'פריטה מ-Buffer', visa:'חיוב ויזה',
+    cash_exp:'הוצאות מזומן', loans:'החזר הלוואות', yotam:'הוצאות יותם',
+    other_exp:'הוצאות שונות 1', other_exp_2:'הוצאות שונות 2', total_exp:'סה״כ הוצאות', renovation:'שיפוץ',
+    net_cashflow:'תזרים שקלי נטו', salary_usd:'משכורת $', exp_usd:'הוצאות $',
+    yotam_usd:'הוצאות יותם $', total_usd:'סך הכל $',
+    delta:'Δ תזרים שוטף', profit_loss:'רווח / הפסד'
+  };
+  var FULL_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  var selM = CF_DATA[lastIdx];
+  var html = '<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;margin-bottom:16px;">📋 הערות — ' + (selM ? selM.label : '') + '</div>';
+  var hasAny = false;
+  if (selM) {
+    var noteItems = [];
+    Object.keys(selM.rows).forEach(function(k) {
+      if (selM.rows[k] && selM.rows[k].note && selM.rows[k].note !== 'חושב') {
+        // שם דינמי: אם ה-note הוא string לא-מספרי, הוא השם; אחרת השתמש ב-ROW_LABELS
+        var dynLbl = ROW_LABELS[k] || k;
+        noteItems.push({label: dynLbl, note: selM.rows[k].note, val: selM.rows[k].val});
+      }
+    });
+    var netRow = selM.rows.net_cashflow;
+    var netVal2 = netRow ? netRow.val : null;
+    var fullMonthLabel = FULL_HEB_MONTHS[selM.month - 1] + ' ' + selM.year;
+    if (noteItems.length > 0 || netVal2 !== null) {
+      hasAny = true;
+      html += '<div style="margin-bottom:8px;">';
+      html += '<div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.1);">📅 ' + fullMonthLabel + '</div>';
+      if (netVal2 !== null) {
+        var nc = netVal2 >= 0 ? 'rgba(74,222,128,0.9)' : 'rgba(248,113,113,0.9)';
+        html += '<div style="font-size:14px;color:rgba(255,255,255,0.78);padding:5px 12px 5px 0;border-right:2px solid '+nc+';margin-right:2px;margin-bottom:6px;">';
+        html += '<span style="color:rgba(255,255,255,0.4);font-size:11px;">תזרים שקלי נטו</span><br>';
+        html += '<span style="color:'+nc+';font-weight:700;font-size:16px;">'+netVal2.toLocaleString()+'</span>';
+        html += '</div>';
+      }
+      noteItems.forEach(function(item) {
+        var amtStr = (item.val !== null && item.val !== undefined) ? ' — <span style="color:rgba(99,179,237,0.9);font-weight:700;">'+item.val.toLocaleString()+'</span>' : '';
+        var displayNote = (item.note.trim().toLowerCase() === item.label.trim().toLowerCase()) ? '' : item.note;
+        html += '<div style="font-size:13px;color:rgba(255,255,255,0.75);padding:5px 12px 5px 0;border-right:2px solid rgba(99,179,237,0.4);margin-right:2px;margin-bottom:4px;">';
+        html += '<span style="color:rgba(255,255,255,0.38);font-size:11px;">'+item.label+'</span>';
+        if (displayNote) html += '<br><span>' + displayNote + '</span>';
+        html += amtStr;
+        html += '</div>';
+      });
+      html += '</div>';
+    }
   }
+  if (!hasAny) html += '<div style="color:rgba(255,255,255,0.35);font-size:12px;text-align:center;padding:20px;">אין הערות בנתונים</div>';
+
+  // צור Modal
+  var backdrop = document.createElement('div');
+  backdrop.id = 'cf-notes-modal';
+  backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);';
+  backdrop.onclick = function(e) { if (e.target === backdrop) cfCloseNotesModal(); };
+
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:#1e293b;border-radius:16px;padding:28px 28px 24px;max-width:460px;width:90%;max-height:75vh;overflow-y:auto;direction:rtl;position:relative;box-shadow:0 24px 60px rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.08);';
+  var closeBtn = '<button onclick="cfCloseNotesModal()" style="position:absolute;top:12px;left:14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.65);border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer;line-height:28px;text-align:center;font-family:Heebo,sans-serif;flex-shrink:0;">✕</button>';
+  inner.innerHTML = closeBtn + html;
+
+  backdrop.appendChild(inner);
+  document.body.appendChild(backdrop);
+
+  var privIcon = document.getElementById('cf-privacy-icon');
+  var privText = document.getElementById('cf-privacy-text');
+  if (privIcon) privIcon.textContent = '👁️';
+  if (privText) privText.textContent = 'הסתר הערות';
+}
+
+function cfCloseNotesModal() {
+  var modal = document.getElementById('cf-notes-modal');
+  if (modal) document.body.removeChild(modal);
+  var privIcon = document.getElementById('cf-privacy-icon');
+  var privText = document.getElementById('cf-privacy-text');
+  if (privIcon) privIcon.textContent = '🔒';
+  if (privText) privText.textContent = 'הצג הערות';
 }
 
 function cfRenderNotesPanel() {
@@ -3463,12 +3530,21 @@ function cfUpdateCFCards() {
     {label:'פריטה',         val:r.buffer&&r.buffer.val!=null?r.buffer.val:0, color:'#0891b2', icon:'🔄'},
   ];
   // פירוט הוצאות — v30.0: הלוואות מוסתרות אם 0; v39.0: other_exp_2 דינמי
+  // v51.0: Tooltip חכם עם שמות דינמיים + Zero Noise — מחושב לפני הArray
+  function _dn(key, fb) {
+    var n = r[key] && r[key].note;
+    return (n && isNaN(parseFloat(String(n).replace(/,/g,'').trim()))) ? String(n) : fb;
+  }
+  var _tipParts = [];
+  if (r.yotam && r.yotam.val > 0)       _tipParts.push('יותם: ' + Math.round(r.yotam.val).toLocaleString());
+  if (r.other_exp && r.other_exp.val > 0)   _tipParts.push(_dn('other_exp','שונות') + ': ' + Math.round(r.other_exp.val).toLocaleString());
+  if (r.other_exp_2 && r.other_exp_2.val > 0) _tipParts.push(_dn('other_exp_2','שונות 2') + ': ' + Math.round(r.other_exp_2.val).toLocaleString());
+  var _miscTip = _tipParts.join(', ');
+  var _miscVal = (r.yotam&&r.yotam.val!=null?r.yotam.val:0)+(r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0);
   var expCards = [
     {label:'הוצאות שוטפות', val:(r.visa&&r.visa.val||0)+(r.cash_exp&&r.cash_exp.val||0), color:'#dc2626', icon:'💳'},
     {label:'החזר הלוואה',   val:(r.loans&&r.loans.val!=null?r.loans.val:0), color:'#b45309', icon:'🏦'},
-    // v49.0: כרטיסייה מאוחדת יותם+שונות עם tooltip
-    {label:'הוצאות שונות', val:(r.yotam&&r.yotam.val!=null?r.yotam.val:0)+(r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0), color:'#eab308', icon:'📌',
-     tip:'יותם: '+(r.yotam&&r.yotam.val!=null?Math.round(r.yotam.val).toLocaleString():'0')+' | שונות: '+Math.round((r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0)).toLocaleString()},
+    {label:'הוצאות שונות',  val:_miscVal, color:'#eab308', icon:'📌', tip:_miscTip},
     {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val!=null?r.total_usd.val:0, color:'#7c3aed', icon:'$'},
   ];
   var container = document.getElementById('cf-cards-row');
@@ -3520,11 +3596,15 @@ function cfRenderKPI() {
   h += chip('הלוואות',gv('loans'),ER);
   h += chip('שיפוץ',gv('renovation'),ER);
   h += SEP;
-  // v50.0: יותם נפרד; הוצ. שונות = other_exp + other_exp_2 מחוברים (לא OR)
+  // v51.0: שמות דינמיים מעמודת הערות — other_exp ו-other_exp_2 כרטיסיות נפרדות
+  function gn(key) { return (m.rows[key] && m.rows[key].note) ? m.rows[key].note : null; }
+  function dynLabel(key, fallback) {
+    var n = gn(key);
+    return (n && isNaN(parseFloat(String(n).replace(/,/g,'').trim()))) ? String(n) : fallback;
+  }
   h += chip('יותם', gv('yotam'), EO);
-  var _oe1 = gv('other_exp') !== null ? gv('other_exp') : 0;
-  var _oe2 = gv('other_exp_2') !== null ? gv('other_exp_2') : 0;
-  h += chip('הוצ. שונות', (_oe1 + _oe2) || null, EY);
+  h += chip(dynLabel('other_exp', 'הוצ. שונות'), gv('other_exp'), EY);
+  h += chip(dynLabel('other_exp_2', 'הוצ. שונות'), gv('other_exp_2'), EY);
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);

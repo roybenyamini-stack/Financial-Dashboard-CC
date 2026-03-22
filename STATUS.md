@@ -1,7 +1,16 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v50.0 — Golden Jubilee & Clean Data.
+גרסה v51.0 — Dynamic Labels, Smart Tooltips & Modal Notes.
+
+## שינויים אחרונים (22/03/2026)
+
+### v51.0 – Dynamic Labels, Smart Tooltips & Modal Notes
+**app.js:**
+- **cfRenderKPI (Row 2)**: other_exp ו-other_exp_2 — כרטיסיות נפרדות; שם דינמי מעמודת הערות (אם note הוא string לא-מספרי → כותרת הכרטיסייה, אחרת 'הוצ. שונות')
+- **cfUpdateCFCards (Row 3)**: Tooltip חכם עם שמות דינמיים; מציג רק סעיפים עם val>0 (Zero Noise); פורמט: "יותם: 62, יעל: 5, MacBook: 6"
+- **cfTogglePrivacy → cfOpenNotesModal + cfCloseNotesModal**: הערות כעת מוצגות בחלון קופץ (Modal) — position:fixed, z-index:1000, backdrop כהה, כפתור X, סגירה בלחיצה מחוץ
+- **גרסה**: v50.0 → v51.0
 
 ## שינויים אחרונים (22/03/2026)
 
