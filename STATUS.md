@@ -1,9 +1,27 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v42.0 — Atomic Data & Month Fix: תיקון Index Fallback + תיקון קפיצת חודש.
+גרסה v43.0 — Missing Key Fix: הסרת תלות ב-total_income (לא קיים באקסל).
 
 ## שינויים אחרונים (22/03/2026)
+
+### v43.0 – Missing Key Fix
+**app.js:**
+- **הסרת total_income מ-KEY_LABELS ומ-IRON_KEYS**: הפונקציה לא מחפשת יותר שורה שלא קיימת
+- **הסרת total_income מאזהרות MISSING KEY**: לא עוד `[v43 MISSING KEY] total_income`
+- **cfGetDefaultMonthId שלבים 1,2,4**: בודק salary>0 || total_exp>0 במקום total_income
+- **cfGetLastRealMonth fallback**: בודק salary>0 || total_exp>0 בלבד
+- **buildCFContext**: inc = salary + rent_income (חישוב דינמי)
+- **טבלה — שורת total_income**: מוצגת ערך מחושב מ-cfCalcIncome() (salary+rent+other+buffer)
+- **smartUploadRouter logs**: הכנסות מחושבות מ-cfCalcIncome
+- `localStorage version`: '42.0' → '43.0'
+
+**לאחר העלאה — לאבחן בדפדפן:**
+1. טען אקסל → בדוק Console: אין `[v43 MISSING KEY]` כלל
+2. ראה `console.table` — salary ו-total_exp אמורים להציג מספרים אמיתיים
+3. בדוק Header: הכנסות = salary + שכר דירה, הוצאות = total_exp
+
+## שינויים קודמים (22/03/2026)
 
 ### v42.0 – Atomic Data & Month Fix
 **app.js — תיקונים:**
