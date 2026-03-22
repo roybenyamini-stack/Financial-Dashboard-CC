@@ -1926,7 +1926,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V54.0 - Dynamic Year Sync, Visa & Visual Separation !!!');
+          console.log('!!! V55.0 - Persistent Forecast State !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1937,7 +1937,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '54.0');
+          localStorage.setItem('dashboard_cf_version', '55.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -4004,6 +4004,16 @@ function cfRenderSummary() {
 
   html += '</div>';
   container.innerHTML = html;
+  // v55.0: סנכרן טקסט כפתור למצב הפאנל הנוכחי — מונע איפוס בעת החלפת שנה
+  cfSyncForecastBtn();
+}
+
+// v55.0: מסנכרן טקסט כפתור תחזית למצב הפאנל (פתוח/סגור)
+function cfSyncForecastBtn() {
+  var panel = document.getElementById('cf-detailed-forecast');
+  var btn   = document.getElementById('cf-forecast-btn');
+  if (!btn || !panel) return;
+  btn.textContent = (panel.style.display !== 'none') ? '🔮 הסתר תחזית' : '🔮 הצג תחזית';
 }
 
 // v46.0: Toggle + Render forecast panel

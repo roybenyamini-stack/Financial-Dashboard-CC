@@ -1,7 +1,15 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v54.0 — Dynamic Year Sync, Visa & Visual Separation.
+גרסה v55.0 — Persistent Forecast State.
+
+## שינויים אחרונים (22/03/2026)
+
+### v55.0 – Persistent Forecast State
+**app.js:**
+- **cfSyncForecastBtn()**: פונקציה חדשה — בודקת `panel.style.display` ומעדכנת טקסט כפתור לְ-'הסתר/הצג' בהתאם
+- **cfRenderSummary**: קריאה ל-`cfSyncForecastBtn()` בסוף הרינדור — מונע איפוס טקסט הכפתור ל-'הצג' גם אם המגירה פתוחה
+- תוצאה: ניתן להשאיר מגירה פתוחה, לזפזפ בין 2025/2026, ולראות מספרים מתחלפים עם כפתור נכון
 
 ## שינויים אחרונים (22/03/2026)
 
