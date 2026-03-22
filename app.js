@@ -1841,7 +1841,9 @@ function cfParseWorkbook(wb) {
           FC_LAST_KEYS.forEach(function(k) {
             if (fcLastMatch[k]) fcData[k] = fcLastMatch[k].val;
           });
-          CF_FORECAST = fcData;
+          // v52.0: שמור תחזית לפי שנת הגיליון — לא מדרסה בין שנים
+          CF_FORECAST_BY_YEAR[sheetYear] = fcData;
+          console.log('[v52 FORECAST] שמור לשנה', sheetYear, '| מפתחות:', Object.keys(fcData).join(', '));
           continue;
         }
       }
@@ -1922,7 +1924,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V51.0 - Dynamic Labels, Smart Tooltips & Modal Notes !!!');
+          console.log('!!! V52.0 - Year-Sync Bug & Final Polish !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1933,7 +1935,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '51.0');
+          localStorage.setItem('dashboard_cf_version', '52.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3084,7 +3086,7 @@ var cfChartInstance = null;
 var cfCurrentView = 'monthly';
 var cfDateRange = 'rolling12'; // 'rolling12' | 'ytd'
 var CF_SELECTED_YEAR = null;   // v22.0: שנת תצוגה נבחרת (null = auto = שנה מקסימלית)
-var CF_FORECAST = null;        // v46.0: נתוני עמודת 'סיכומים' — תחזית שנתית
+var CF_FORECAST_BY_YEAR = {};  // v52.0: תחזית לפי שנה — {2025: {...}, 2026: {...}}
 var CF_CHART_MONTHS = [];      // v22.0: מטמון חודשי הגרף לשימוש ב-onClick
 
 // מחזיר את החודשים לתצוגה לפי cfDateRange
@@ -3945,8 +3947,8 @@ function cfRenderSummary() {
   function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + a.toLocaleString(); }
   function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
-      '<span style="font-size:14px;color:rgba(255,255,255,0.42);font-weight:600;">' + lbl + '</span>' +
-      '<span style="font-size:22px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '<span style="font-size:12px;color:rgba(255,255,255,0.38);font-weight:500;">' + lbl + '</span>' +
+      '<span style="font-size:18px;font-weight:600;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
       '</div>';
   }
   function cellSmall(lbl, val, col) {
@@ -4011,11 +4013,17 @@ function cfToggleForecast() {
 function cfRenderForecast() {
   var panel = document.getElementById('cf-detailed-forecast');
   if (!panel) return;
-  if (!CF_FORECAST) {
-    panel.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:20px;font-size:13px;">לא נמצאה עמודת \'סיכומים\' באקסל</div>';
+  // v52.0: קרא תחזית לפי שנה נבחרת בלבד
+  var _fcDisplayYear = CF_SELECTED_YEAR || (function() {
+    var maxY = 2025;
+    for (var di = 0; di < CF_DATA.length; di++) { if (CF_DATA[di].year > maxY) maxY = CF_DATA[di].year; }
+    return maxY;
+  })();
+  var f = CF_FORECAST_BY_YEAR[_fcDisplayYear] || null;
+  if (!f) {
+    panel.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:20px;font-size:13px;">לא נמצאה עמודת \'סיכומים\' לשנת ' + _fcDisplayYear + ' באקסל</div>';
     return;
   }
-  var f = CF_FORECAST;
 
   // v47.0: Zero Noise — הצג כרטיסייה רק אם val != 0 && val != null
   // כרטיסיות לבנות עם גבול סגול עדין — שורה אופקית אחת (flex-wrap)
@@ -4050,7 +4058,7 @@ function cfRenderForecast() {
   var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">';
   // הכנסות
-  html += card('משכורת שנתית', f.salary, '#16a34a');
+  html += card('משכורת שקלית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
   // הוצאות (ערכים גולמיים ישירות מסיכומים — ללא sum/reduce)
   html += card('ויזה', f.visa != null ? Math.abs(f.visa) : null, '#dc2626');
