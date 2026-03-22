@@ -1790,6 +1790,20 @@ function cfParseWorkbook(wb) {
       if (colHeaderRaw && typeof colHeaderRaw === 'string') {
         var colHeaderLower = colHeaderRaw.trim().toLowerCase();
         if (colHeaderLower.indexOf('סיכומים') >= 0 || colHeaderLower.indexOf('summary') >= 0 || colHeaderLower.indexOf('סיכום') >= 0) {
+          // v46.0: לכוד עמודת סיכומים לתחזית במקום לדלג עליה
+          var fcData = {};
+          Object.keys(ROW_MAP).forEach(function(ri) {
+            var rowIdx = parseInt(ri);
+            var fval = cellVal(ws, rowIdx, col);
+            var fnum = null;
+            if (fval !== null && fval !== undefined) {
+              var fp = typeof fval === 'number' ? fval : parseFloat(String(fval).replace(/,/g, ''));
+              if (!isNaN(fp)) fnum = Math.round(fp * 10) / 10;
+            }
+            fcData[ROW_MAP[ri]] = fnum;
+          });
+          CF_FORECAST = fcData;
+          console.log('[v46] Forecast col', col, '| salary:', fcData.salary, '| total_exp:', fcData.total_exp, '| profit_loss:', fcData.profit_loss);
           continue;
         }
       }
@@ -1870,7 +1884,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V45.0 - Logical Layout & Header Fix !!!');
+          console.log('!!! V46.0 - Forecast Panel & UI Polish !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1881,7 +1895,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '45.0');
+          localStorage.setItem('dashboard_cf_version', '46.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3032,6 +3046,7 @@ var cfChartInstance = null;
 var cfCurrentView = 'monthly';
 var cfDateRange = 'rolling12'; // 'rolling12' | 'ytd'
 var CF_SELECTED_YEAR = null;   // v22.0: שנת תצוגה נבחרת (null = auto = שנה מקסימלית)
+var CF_FORECAST = null;        // v46.0: נתוני עמודת 'סיכומים' — תחזית שנתית
 var CF_CHART_MONTHS = [];      // v22.0: מטמון חודשי הגרף לשימוש ב-onClick
 
 // מחזיר את החודשים לתצוגה לפי cfDateRange
@@ -3183,9 +3198,11 @@ function cfRenderNotesPanel() {
     delta:'Δ תזרים שוטף', profit_loss:'רווח / הפסד'
   };
   var FULL_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-  var html = '<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:0.5px;margin-bottom:14px;">הערות לפי חודש (מהחדש לישן)</div>';
+  // v46.0: הצג הערות רק לחודש הנבחר הנוכחי (לא כל ההיסטוריה)
+  var selM = CF_DATA[lastIdx];
+  var html = '<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:0.5px;margin-bottom:14px;">הערות — ' + (selM ? selM.label : '') + '</div>';
   var hasAny = false;
-  for (var i = lastIdx; i >= 0; i--) {
+  for (var i = lastIdx; i === lastIdx; i--) {
     var m = CF_DATA[i];
     var noteItems = [];
     Object.keys(m.rows).forEach(function(k) {
@@ -3845,8 +3862,74 @@ function cfRenderSummary() {
   html += cellSmall('\u05d4\u05d5\u05e6\u05f3$', Math.abs(ytdExpUsd), '#fca5a5');
   html += cellSmall('\u05e1\u05da$', ytdTotUsd, ytdTotUsdCol);
 
+  // v46.0: כפתור תחזית שנתית — בצד שמאל של שורת הסיכומים
+  html += BDIV;
+  html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="background:transparent;border:1px solid rgba(139,92,246,0.35);color:#a5b4fc;border-radius:8px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;flex-shrink:0;">🔮 תחזית</button>';
+
   html += '</div>';
   container.innerHTML = html;
+}
+
+// v46.0: Toggle + Render forecast panel
+function cfToggleForecast() {
+  var panel = document.getElementById('cf-detailed-forecast');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) cfRenderForecast();
+}
+
+function cfRenderForecast() {
+  var panel = document.getElementById('cf-detailed-forecast');
+  if (!panel) return;
+  if (!CF_FORECAST) {
+    panel.innerHTML = '<div style="color:rgba(255,255,255,0.35);text-align:center;padding:20px;font-size:13px;">לא נמצאה עמודת \'סיכומים\' באקסל</div>';
+    return;
+  }
+  var f = CF_FORECAST;
+  // הוצאות שונות = other_exp + other_exp_2
+  var otherExpTotal = (f.other_exp != null ? f.other_exp : 0) + (f.other_exp_2 != null ? f.other_exp_2 : 0);
+
+  function card(label, val, color) {
+    var dispVal = (val != null) ? Math.abs(Math.round(val)).toLocaleString() : '—';
+    return '<div style="background:#111827;border-radius:8px;padding:10px 14px;border-top:2px solid ' + color + ';border:1px solid rgba(139,92,246,0.15);border-top:2px solid ' + color + ';">' +
+      '<div style="font-size:10px;color:rgba(255,255,255,0.32);font-weight:600;margin-bottom:4px;">' + label + '</div>' +
+      '<div style="font-size:17px;font-weight:800;color:' + color + ';">' + dispVal + '</div>' +
+      '</div>';
+  }
+
+  var netVal = f.profit_loss;
+  var netColor = (netVal != null && netVal >= 0) ? '#4ade80' : '#f87171';
+  var netDisp = (netVal != null) ? Math.round(netVal).toLocaleString() : '—';
+
+  var html = '<div style="direction:rtl;">';
+  html += '<div style="font-size:11px;font-weight:700;color:rgba(139,92,246,0.7);letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
+
+  // הכנסות
+  html += '<div style="font-size:9px;color:rgba(255,255,255,0.25);font-weight:700;letter-spacing:0.5px;margin-bottom:5px;">הכנסות חזויות</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:12px;">';
+  html += card('משכורת שנתית', f.salary, '#4ade80');
+  html += card('שכר דירה', f.rent_income, '#4ade80');
+  html += '</div>';
+
+  // הוצאות
+  html += '<div style="font-size:9px;color:rgba(255,255,255,0.25);font-weight:700;letter-spacing:0.5px;margin-bottom:5px;">הוצאות חזויות</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:12px;">';
+  html += card('ויזה', f.visa, '#f87171');
+  html += card('מזומן', f.cash_exp, '#f87171');
+  html += card('הלוואות', f.loans, '#f87171');
+  html += card('יותם', f.yotam, '#fb923c');
+  html += card('שונות', otherExpTotal || null, '#fbbf24');
+  html += '</div>';
+
+  // שורת נטו
+  html += '<div style="background:#111827;border-radius:10px;padding:12px 18px;border:1px solid rgba(139,92,246,0.35);display:flex;align-items:center;justify-content:space-between;">';
+  html += '<span style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.45);">רווח / הפסד חזוי</span>';
+  html += '<span style="font-size:22px;font-weight:800;color:' + netColor + ';">' + netDisp + '</span>';
+  html += '</div>';
+
+  html += '</div>';
+  panel.innerHTML = html;
 }
 
 function cfInit() {

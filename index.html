@@ -1,4 +1,4 @@
-<!-- v45.0 -->
+<!-- v46.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v45.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v46.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -730,7 +730,7 @@
   <!-- KPI placeholder (used as guard in cfInit) -->
   <div id="cf-kpi-row" style="display:none;"></div>
 
-  <!-- v45.0: Layout order: dark chips → light chips → summary bar → forecast → chart -->
+  <!-- v46.0: Layout order: dark chips → light chips → summary bar → forecast → chart -->
 
   <!-- Row 1: Dark Chips — פירוט חודשי -->
   <div id="cf-detail-row" style="margin-bottom:12px;"></div>
@@ -741,15 +741,8 @@
   <!-- Row 3: Summary Bar — YTD ושנתי (ירד מטה, מעל הגרף) -->
   <div id="cf-summary-row" style="margin-bottom:0;direction:rtl;"></div>
 
-  <!-- Row 3b: Forecast Toggle Button -->
-  <div style="display:flex;justify-content:flex-end;margin:6px 0 4px 0;">
-    <button onclick="(function(){var fc=document.getElementById('cf-detailed-forecast');if(fc){fc.style.display=fc.style.display==='none'?'block':'none';}})()" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">🔮 תחזית שנתית</button>
-  </div>
-
-  <!-- Row 3c: Forecast Container (hidden by default) -->
-  <div id="cf-detailed-forecast" style="display:none;background:#1e293b;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:rgba(255,255,255,0.5);font-size:13px;direction:rtl;">
-    טוען נתוני תחזית...
-  </div>
+  <!-- Forecast Container (hidden by default) — button rendered inside cf-summary-row by JS -->
+  <div id="cf-detailed-forecast" style="display:none;background:#0d1b2e;border-radius:12px;padding:16px 20px;margin-bottom:12px;border:1px solid rgba(139,92,246,0.2);direction:rtl;"></div>
 
   <!-- Notes Panel — full width, smooth open/close with max-height transition -->
   <div id="cf-notes-panel" style="max-height:0;overflow:hidden;background:#1e293b;border-radius:14px;margin-bottom:0;margin-left:auto;margin-right:auto;max-width:80%;direction:rtl;transition:max-height 0.35s ease,padding 0.25s ease,margin-bottom 0.25s ease;padding:0 18px;"></div>
