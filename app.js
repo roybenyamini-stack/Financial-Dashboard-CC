@@ -1804,7 +1804,11 @@ function cfParseWorkbook(wb) {
             cashflow_total:    ['תזרים שוטף', 'נטו שוטף', '∆ תזרים שוטף', 'Δ תזרים שוטף'],
             profit_loss:       ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
           };
+          // v49.0: last-match לשורות סיכום (net_cashflow, cashflow_total, profit_loss)
+          // שורות אלו עשויות להופיע מספר פעמים — הפגישה האחרונה היא הסיכום האמיתי
+          var FC_LAST_KEYS = ['net_cashflow', 'cashflow_total', 'profit_loss'];
           var fcData = {};
+          var fcLastMatch = {}; // אחסן last match לכל LAST_KEY
           colsToScan.forEach(function(lc) {
             for (var nri = 0; nri < nonEmptyRows.length; nri++) {
               var sr = nonEmptyRows[nri];
@@ -1812,7 +1816,8 @@ function cfParseWorkbook(wb) {
               if (!lbl) continue;
               var lblN = normalizeForCompare(aggressiveClean(String(lbl)).toLowerCase());
               for (var fkey in FC_LABELS) {
-                if (fcData[fkey] !== undefined) continue;
+                var isLast = FC_LAST_KEYS.indexOf(fkey) >= 0;
+                if (!isLast && fcData[fkey] !== undefined) continue; // first-match לשאר
                 if (FC_LABELS[fkey].some(function(kw) {
                   return lblN === normalizeForCompare(aggressiveClean(kw).toLowerCase());
                 })) {
@@ -1822,11 +1827,19 @@ function cfParseWorkbook(wb) {
                     var fp = typeof fval === 'number' ? fval : parseFloat(String(fval).replace(/,/g, ''));
                     if (!isNaN(fp)) fnum = Math.round(fp * 10) / 10;
                   }
-                  fcData[fkey] = fnum;
-                  console.log('[v47 FORECAST]', fkey, '→ row', sr, '| val:', fnum);
+                  if (isLast) {
+                    fcLastMatch[fkey] = {row: sr, val: fnum};
+                  } else {
+                    fcData[fkey] = fnum;
+                  }
+                  console.log('[v49 FORECAST' + (isLast?' LAST':'') + ']', fkey, '→ row', sr, '| val:', fnum);
                 }
               }
             }
+          });
+          // החל last-match על שורות הסיכום
+          FC_LAST_KEYS.forEach(function(k) {
+            if (fcLastMatch[k]) fcData[k] = fcLastMatch[k].val;
           });
           CF_FORECAST = fcData;
           continue;
@@ -1909,7 +1922,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V48.0 - Data Locking & Forecast Fix !!!');
+          console.log('!!! V49.0 - Layout Perfection & Forecast Fix !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1920,7 +1933,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '48.0');
+          localStorage.setItem('dashboard_cf_version', '49.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3453,17 +3466,19 @@ function cfUpdateCFCards() {
   var expCards = [
     {label:'הוצאות שוטפות', val:(r.visa&&r.visa.val||0)+(r.cash_exp&&r.cash_exp.val||0), color:'#dc2626', icon:'💳'},
     {label:'החזר הלוואה',   val:(r.loans&&r.loans.val!=null?r.loans.val:0), color:'#b45309', icon:'🏦'},
-    // v44.0: איחוד other_exp + other_exp_2 לכרטיסייה אחת (Zero Noise: מוסתרת אם 0)
-    {label:'הוצאות שונות', val:(r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0), color:'#eab308', icon:'📌'},
+    // v49.0: כרטיסייה מאוחדת יותם+שונות עם tooltip
+    {label:'הוצאות שונות', val:(r.yotam&&r.yotam.val!=null?r.yotam.val:0)+(r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0), color:'#eab308', icon:'📌',
+     tip:'יותם: '+(r.yotam&&r.yotam.val!=null?Math.round(r.yotam.val).toLocaleString():'0')+' | שונות: '+Math.round((r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)+(r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0)).toLocaleString()},
     {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val!=null?r.total_usd.val:0, color:'#7c3aed', icon:'$'},
   ];
   var container = document.getElementById('cf-cards-row');
   if(!container) return;
   var html = '';
   incCards.concat(expCards).forEach(function(card){
-    if (card.val === 0) return; // v31: הסתר כרטיסיות עם ערך 0
-    var dispVal = Math.abs(Math.round(card.val)).toLocaleString(); // v35: ללא ₪, ללא מינוס בהוצאות
-    html += '<div style="background:white;border-radius:9px;padding:9px 13px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);">';
+    if (card.val === 0) return;
+    var dispVal = Math.abs(Math.round(card.val)).toLocaleString();
+    var titleAttr = card.tip ? ' title="' + card.tip + '"' : '';
+    html += '<div' + titleAttr + ' style="background:white;border-radius:9px;padding:9px 13px;border-right:3px solid '+card.color+';box-shadow:0 1px 4px rgba(0,0,0,0.07);cursor:default;">';
     html += '<div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:2px;">'+card.icon+' '+card.label+'</div>';
     html += '<div style="font-size:18px;font-weight:800;color:'+card.color+';">'+dispVal+'</div>';
     html += '<div style="font-size:11px;color:#9ca3af;">'+m.label+'</div>';
@@ -3493,13 +3508,6 @@ function cfRenderKPI() {
   var SEP = '<div style="width:1px;background:rgba(0,0,0,0.08);flex-shrink:0;align-self:stretch;margin:0 3px;"></div>';
 
   var IG='#16a34a', ER='#dc2626', EO='#ea580c', EY='#ca8a04', EP='#7c3aed';
-  // v48.0: איחוד יותם + שונות לכרטיסייה אחת עם Tooltip
-  var _yotam   = gv('yotam')      || 0;
-  var _other1  = gv('other_exp')  || 0;
-  var _other2  = gv('other_exp_2')|| 0;
-  var _miscSum = _yotam + _other1 + _other2;
-  var _miscTip = 'יותם: ' + Math.round(_yotam).toLocaleString() + ' | שונות: ' + Math.round(_other1 + _other2).toLocaleString();
-
   var h = '<div style="background:#f8fafc;border-radius:12px;padding:10px 14px;direction:rtl;border:1px solid rgba(0,0,0,0.06);margin-bottom:2px;">';
   h += '<div style="display:flex;align-items:flex-start;gap:6px;overflow-x:auto;padding-bottom:2px;">';
   h += chip('שקלית',gv('salary'),IG);
@@ -3512,8 +3520,9 @@ function cfRenderKPI() {
   h += chip('הלוואות',gv('loans'),ER);
   h += chip('שיפוץ',gv('renovation'),ER);
   h += SEP;
-  // v48.0: יותם + שונות — כרטיסייה מאוחדת עם tooltip
-  h += chip('יותם + שונות', _miscSum > 0 ? _miscSum : null, EY, _miscTip);
+  // v49.0: יותם ושונות — כרטיסיות נפרדות עם Zero Noise
+  h += chip('יותם', gv('yotam'), EO);
+  h += chip('הוצ. שונות', gv('other_exp') || gv('other_exp_2'), EY);
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);
@@ -3951,30 +3960,27 @@ function cfRenderForecast() {
       '</div>';
   }
 
+  // v49.0: שורה אחת רציפה — כרטיסיות תזרים בצד שמאל (spacer דוחף אותן שמאלה)
   var html = '<div style="direction:rtl;">';
   html += '<div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
 
-  // כרטיסיות הכנסות + הוצאות בשורה אחת (flex-wrap)
-  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">';
+  // הכנסות
   html += card('משכורת שנתית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
+  // הוצאות
   html += card('ויזה', f.visa ? Math.abs(f.visa) : null, '#dc2626');
   html += card('מזומן', f.cash_exp ? Math.abs(f.cash_exp) : null, '#dc2626');
   html += card('הלוואות', f.loans ? Math.abs(f.loans) : null, '#b45309');
-  // v48.0: יותם ושונות — נפרדים
   html += card('יותם', f.yotam ? Math.abs(f.yotam) : null, '#ea580c');
   html += card('שונות', f.other_exp ? Math.abs(f.other_exp) : null, '#ca8a04');
+  // spacer — דוחף כרטיסיות תזרים לצד שמאל
+  html += '<div style="flex:1;min-width:12px;"></div>';
+  // תזרים/סיכום — שמאל (ישירות מעמודת סיכומים, ללא חישוב)
+  html += bottomCard('תזרים שקלי נטו', netCash, '#3b82f6');
+  html += bottomCard('תזרים שוטף',     cashTotal, '#6366f1');
+  html += bottomCard('רווח / הפסד',    netVal, netColor);
   html += '</div>';
-
-  // שורה תחתונה — נטו חזוי: תזרים שקלי נטו + תזרים שוטף + רווח/הפסד
-  var hasBottom = (netCash != null && netCash !== 0) || (cashTotal != null && cashTotal !== 0) || (netVal != null && netVal !== 0);
-  if (hasBottom) {
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-    html += bottomCard('תזרים שקלי נטו', netCash, '#3b82f6');
-    html += bottomCard('תזרים שוטף', cashTotal, '#6366f1');
-    html += bottomCard('רווח / הפסד', netVal, netColor);
-    html += '</div>';
-  }
 
   html += '</div>';
   panel.innerHTML = html;
