@@ -1795,7 +1795,7 @@ function cfParseWorkbook(wb) {
           var FC_LABELS = {
             salary:            ['משכורת שקלית', 'משכורת שקל', 'הכנסה ממשכורת'],
             rent_income:       ['שכר דירה', 'שכירות'],
-            visa:              ['חיוב ויזה', 'ויזה', 'כרטיס אשראי'],
+            visa:              ['חיוב ויזה', 'ויזה', 'כרטיס אשראי', 'חיוב ויזה מחודש קודם'],
             cash_exp:          ['הוצאות מזומן', 'מזומן'],
             loans:             ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
             yotam:             ['יותם', 'הוצאות יותם'],
@@ -1819,7 +1819,9 @@ function cfParseWorkbook(wb) {
                 var isLast = FC_LAST_KEYS.indexOf(fkey) >= 0;
                 if (!isLast && fcData[fkey] !== undefined) continue; // first-match לשאר
                 if (FC_LABELS[fkey].some(function(kw) {
-                  return lblN === normalizeForCompare(aggressiveClean(kw).toLowerCase());
+                  var nkw = normalizeForCompare(aggressiveClean(kw).toLowerCase());
+                  // v54: LAST_KEYS — exact match בלבד; שאר — substring (תומך בשמות ארוכים כמו 'חיוב ויזה מחודש קודם')
+                  return isLast ? (lblN === nkw) : (lblN.indexOf(nkw) >= 0);
                 })) {
                   var fval = cellVal(ws, sr, col);
                   var fnum = null;
@@ -1924,7 +1926,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V52.0 - Year-Sync Bug & Final Polish !!!');
+          console.log('!!! V54.0 - Dynamic Year Sync, Visa & Visual Separation !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1935,7 +1937,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '52.0');
+          localStorage.setItem('dashboard_cf_version', '54.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3151,6 +3153,9 @@ function cfGoToday() {
   cfRenderSummary();
   cfRenderChart();
   cfRenderTable();
+  // v54.0: רענן תחזית מיידית אם המגירה פתוחה
+  var _fp0 = document.getElementById('cf-detailed-forecast');
+  if (_fp0 && _fp0.style.display !== 'none') cfRenderForecast();
   setTimeout(function(){
     var sc = document.getElementById('cf-scroll-container');
     if (sc) sc.scrollLeft = 0;
@@ -3179,6 +3184,9 @@ function cfSelectYear(year) {
   cfRenderSummary();
   cfRenderChart();
   cfRenderTable();
+  // v54.0: רענן תחזית מיידית אם המגירה פתוחה
+  var _fp = document.getElementById('cf-detailed-forecast');
+  if (_fp && _fp.style.display !== 'none') cfRenderForecast();
   setTimeout(function(){
     var sc = document.getElementById('cf-scroll-container');
     if (sc) sc.scrollLeft = 0;
@@ -4054,24 +4062,26 @@ function cfRenderForecast() {
   var html = '<div style="direction:rtl;">';
   html += '<div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
 
-  // v50.0: שורה אחת רציפה — ללא spacer; divider לפני קבוצת כרטיסיות תזרים
+  // v54.0: 3 גושים: הכנסות | קו | הוצאות | קו | תזרים
   var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">';
-  // הכנסות
+  html += '<div style="display:flex;flex-wrap:nowrap;gap:8px;align-items:flex-start;overflow-x:auto;">';
+  // גוש 1: הכנסות
   html += card('משכורת שקלית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
-  // הוצאות (ערכים גולמיים ישירות מסיכומים — ללא sum/reduce)
-  html += card('ויזה', f.visa != null ? Math.abs(f.visa) : null, '#dc2626');
-  html += card('מזומן', f.cash_exp != null ? Math.abs(f.cash_exp) : null, '#dc2626');
-  html += card('הלוואות', f.loans != null ? Math.abs(f.loans) : null, '#b45309');
-  html += card('יותם', f.yotam != null ? Math.abs(f.yotam) : null, '#ea580c');
-  html += card('שונות', f.other_exp != null ? Math.abs(f.other_exp) : null, '#ca8a04');
-  // divider לפני קבוצת תזרים
+  // קו מפריד: הכנסות | הוצאות
   html += FDIV;
-  // תזרים/סיכום — ישירות מעמודת סיכומים, ללא שום חישוב
-  html += bottomCard('תזרים שקלי נטו', netCash, '#3b82f6');
+  // גוש 2: הוצאות (ערכים גולמיים ישירות מסיכומים — ללא sum/reduce)
+  html += card('ויזה',     f.visa     != null ? Math.abs(f.visa)     : null, '#dc2626');
+  html += card('מזומן',   f.cash_exp != null ? Math.abs(f.cash_exp) : null, '#dc2626');
+  html += card('הלוואות', f.loans    != null ? Math.abs(f.loans)    : null, '#b45309');
+  html += card('יותם',    f.yotam    != null ? Math.abs(f.yotam)    : null, '#ea580c');
+  html += card('שונות',   f.other_exp!= null ? Math.abs(f.other_exp): null, '#ca8a04');
+  // קו מפריד: הוצאות | תזרים
+  html += FDIV;
+  // גוש 3: תזרים — ישירות מסיכומים, ללא חישוב
+  html += bottomCard('תזרים שקלי נטו', netCash,   '#3b82f6');
   html += bottomCard('תזרים שוטף',     cashTotal, '#6366f1');
-  html += bottomCard('רווח / הפסד',    netVal, netColor);
+  html += bottomCard('רווח / הפסד',    netVal,    netColor);
   html += '</div>';
 
   html += '</div>';
