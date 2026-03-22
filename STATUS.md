@@ -1,9 +1,18 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v57.0 — Cashflow Empty State UI Fix.
+גרסה v58.0 — USD Yotam Forecast Card.
 
 ## שינויים אחרונים (22/03/2026)
+
+### v58.0 – USD Yotam Forecast Card
+**app.js:**
+- **FC_LABELS**: נוסף מפתח `yotam_usd` עם keywords: 'יותם $', 'הוצאות יותם $', 'יותם דולרי', 'הוצ יותם $' — substring match מוצא שורת הוצאות יותם דולריות בעמודת הסיכומים
+- **cfRenderForecast**: נוספת כרטיסיית 'יותם $' בצבע כתום (#ea580c), ממוקמת הכי שמאל בגוש ההוצאות (אחרי 'שונות', לפני קו המפריד האנכי)
+- **Zero Noise**: הכרטיסייה מוצגת רק אם val > 0 — תופיע ב-2025 (ערך 251) ותוסתר ב-2026 אוטומטית
+
+**index.html:**
+- תגית גרסה: `v57.0` → `v58.0`
 
 ### v57.0 – Cashflow Empty State UI Fix
 **app.js:**
