@@ -1,9 +1,21 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v39.1 — Naming Fix: תמיכה ב-'סה"כ הוצאות שקלי' כשם אקסל חדש ל-total_exp.
+גרסה v40.0 — Hard-Coded Labels Fix: סנכרון מלא בין שמות שורות האקסל לחישובי ה-Header.
 
 ## שינויים אחרונים (22/03/2026)
+
+### v40.0 – Hard-Coded Labels Fix
+**app.js:**
+- `cfUpdateHeader()`: הוספת fallback לחישוב הוצאות — אם total_exp.val=null, מחשב מרכיבים (cfCalcExp)
+- `cfGetLastRealMonth()`: fallback רב-שלבי — מאתר חודש לפי total_income / salary / total_exp (גמיש כשמיפוי חסר)
+- KPI chip: 'משכורת' → 'שקלית' (מבחין מ'משכ$')
+- localStorage version: '39.1' → '40.0'
+
+**לוגיקה סופית ומאומתת:**
+- Header הכנסות = salary.val ('משכורת שקלית') + rent_income.val ('שכר דירה')
+- Header הוצאות = total_exp.val ('סה"כ הוצאות שקלי') → fallback: cfCalcExp()
+- כרטיסייה 'משכורת כוללת' = salary.val + salary_usd.val ('משכורת דולרית')
 
 ### v39.1 – Naming Fix
 **app.js:**

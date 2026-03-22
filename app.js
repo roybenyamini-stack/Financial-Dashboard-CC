@@ -1805,9 +1805,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V39.1 - Accurate Salaries & Naming Fix !!!');
+          console.log('!!! V40.0 - Hard-Coded Labels Fix !!!');
           console.log('[Dashboard v39.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '39.1');
+          localStorage.setItem('dashboard_cf_version', '40.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2930,9 +2930,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '39.1') {
+    if (savedVer !== '40.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '39.1');
+      localStorage.setItem('dashboard_cf_version', '40.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3236,9 +3236,12 @@ function cfGetLastRealMonth() {
       if (CF_DATA[k].monthId === targetId) return k;
     }
   }
-  // fallback: האחרון עם total_income (לא שני-מהסוף)
+  // v40.0: fallback רב-שלבי — total_income → salary → total_exp → last
   for (var i = CF_DATA.length - 1; i >= 0; i--) {
-    if (CF_DATA[i].rows && CF_DATA[i].rows.total_income && CF_DATA[i].rows.total_income.val !== null) return i;
+    var row = CF_DATA[i].rows;
+    if (row && ((row.total_income && row.total_income.val !== null) ||
+                (row.salary       && row.salary.val       !== null) ||
+                (row.total_exp    && row.total_exp.val    !== null))) return i;
   }
   return CF_DATA.length > 0 ? CF_DATA.length - 1 : 0;
 }
@@ -3260,10 +3263,11 @@ function cfSelectMonth(monthId) {
 function cfUpdateHeader() {
   var lastIdx = cfGetLastRealMonth();
   var m = CF_DATA[lastIdx];
-  // v30.0: הכנסות = משכורת + שכר דירה (ללא "הכנסות שונות" ו"פריטה")
+  // v40.0: הכנסות = 'משכורת שקלית' + 'שכר דירה' (salary + rent_income)
   var inc = (m.rows.salary&&m.rows.salary.val!=null?m.rows.salary.val:0) +
             (m.rows.rent_income&&m.rows.rent_income.val!=null?m.rows.rent_income.val:0);
-  var exp = (m.rows.total_exp    && m.rows.total_exp.val    != null) ? m.rows.total_exp.val    : 0;
+  // v40.0: הוצאות = ערך ישיר מ-'סה"כ הוצאות שקלי' (total_exp); fallback: חישוב מרכיבים
+  var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : cfCalcExp(m.rows);
   var net = (m.rows.profit_loss  && m.rows.profit_loss.val  != null) ? m.rows.profit_loss.val  : (inc - exp);
 
   var elNet = document.getElementById('cf-hdr-net');
@@ -3358,7 +3362,7 @@ function cfRenderKPI() {
   var IG='#4ade80', ER='#f87171', EO='#fb923c', EY='#fbbf24', EP='#818cf8';
   var h = '<div style="background:#0f172a;border-radius:12px;padding:8px 14px;direction:rtl;">';
   h += '<div style="display:flex;align-items:flex-start;gap:4px;overflow-x:auto;padding-bottom:2px;">';
-  h += chip('משכורת',gv('salary'),IG);
+  h += chip('שקלית',gv('salary'),IG);
   h += chip('שכ"ד',gv('rent_income'),IG);
   h += chip('אחרות',gv('other_income'),IG);
   h += chip('פריטה',gv('buffer'),IG);
