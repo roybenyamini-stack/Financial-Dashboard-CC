@@ -1804,9 +1804,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V37.0 - THE PERFECT SYNC !!!');
-          console.log('[Dashboard v37.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '37.0');
+          console.log('!!! V38.0 - THE MIDNIGHT POLISH !!!');
+          console.log('[Dashboard v38.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '38.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2929,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '37.0') {
+    if (savedVer !== '38.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '37.0');
+      localStorage.setItem('dashboard_cf_version', '38.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3345,9 +3345,9 @@ function cfRenderKPI() {
   function gv(key) { return (m.rows[key] && m.rows[key].val != null) ? m.rows[key].val : null; }
   function chip(lbl, val, col) {
     if (val === null || val === 0) return ''; // v31: הסתר אפסים ו-null
-    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:12px 18px;border-top:3px solid '+col+';flex-shrink:0;">' +
-      '<span style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
-      '<span style="font-size:19px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">'+Math.round(val).toLocaleString()+'</span></div>';
+    return '<div style="display:flex;flex-direction:column;background:#1e293b;border-radius:8px;padding:13px 20px;border-top:3px solid '+col+';flex-shrink:0;">' +
+      '<span style="font-size:14px;color:rgba(255,255,255,0.4);font-weight:600;white-space:nowrap;">'+lbl+'</span>' +
+      '<span style="font-size:21px;font-weight:700;color:'+col+';margin-top:3px;white-space:nowrap;">'+Math.round(val).toLocaleString()+'</span></div>';
   }
   var SEP = '<div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>';
 
@@ -3369,8 +3369,8 @@ function cfRenderKPI() {
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);
-  h += chip('הוצ$',  _eusd  !== null ? Math.abs(_eusd)  : null, EP);  // v36: abs
-  h += chip('יותם$', _yusd  !== null ? Math.abs(_yusd)  : null, EP);  // v36: abs
+  h += chip('הוצ$',  _eusd  !== null ? Math.abs(_eusd)  : null, ER);  // v38: אדום = הוצאה
+  h += chip('יותם$', _yusd  !== null ? Math.abs(_yusd)  : null, EO);  // v38: כתום = יותם
   // סך$ הוסר בv36
   h += '</div></div>';
   detailEl.innerHTML = h;
@@ -3696,14 +3696,14 @@ function cfRenderSummary() {
   function fmt(v) { var a = Math.abs(Math.round(v)); return (v < 0 ? '-' : '') + a.toLocaleString(); }
   function cellBig(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
-      '<span style="font-size:13px;color:rgba(255,255,255,0.42);font-weight:600;">' + lbl + '</span>' +
-      '<span style="font-size:20px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '<span style="font-size:14px;color:rgba(255,255,255,0.42);font-weight:600;">' + lbl + '</span>' +
+      '<span style="font-size:22px;font-weight:800;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
       '</div>';
   }
   function cellSmall(lbl, val, col) {
     return '<div style="display:flex;flex-direction:column;gap:1px;">' +
-      '<span style="font-size:10px;color:rgba(255,255,255,0.22);font-weight:500;">' + lbl + '</span>' +
-      '<span style="font-size:13px;font-weight:700;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
+      '<span style="font-size:11px;color:rgba(255,255,255,0.22);font-weight:500;">' + lbl + '</span>' +
+      '<span style="font-size:14px;font-weight:700;color:' + col + ';line-height:1;">' + fmt(val) + '</span>' +
       '</div>';
   }
 
