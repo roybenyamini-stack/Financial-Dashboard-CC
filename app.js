@@ -1,33 +1,35 @@
 // System check: Claude Code is active.
 const LABELS = ['ינו׳ 25','פבר׳ 25','מרץ 25','אפר׳ 25','מאי 25','יוני 25','יולי 25','אוג׳ 25','ספט׳ 25','אוק׳ 25','נוב׳ 25','דצמ׳ 25','ינו׳ 26','פבר׳ 26','מרץ 26'];
 
+// v56.2: כל מערכי data אופסו — הנתונים האמיתיים נטענים בלעדית מ-localStorage (העלאת אקסל קודמת)
+const _Z = Array(15).fill(null); // 15 חודשים: ינו׳25–מרץ26
 const FUNDS = {
-  'אשקהש39905556':       { name:'א״ש ק״הש 39905556',      cat:'hishtalmut', data:[2406,2437,2416,2386,2401,2469,2548,2567,2595,2654,2685,2700,2700,2743,null] },
-  'אשקהש6730513':        { name:'א״ש ק״הש 6730513 ← מיטב 442504', cat:'hishtalmut', transferred:true, data:[772,792,770,747,754,802,846,860,869,905,919,921,941,981,981] },
-  'אשקהש40035706':       { name:'א״ש קה״ש 40035706',       cat:'hishtalmut', data:[281,285,283,279,281,289,298,300,304,310,314,316,316,321,321] },
-  'מורקהש499293':        { name:'מור קה״ש 499293 ← מיטב 443195', cat:'hishtalmut', transferred:true, data:[320,339,348,350,362,391,418,435,448,473,493,508,529,561,null] },
-  'מיטבקהש912-443286':   { name:'מיטב קה״ש 912-443286', cat:'hishtalmut', data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,9] },
+  'אשקהש39905556':       { name:'א״ש ק״הש 39905556',      cat:'hishtalmut', data:[..._Z] },
+  'אשקהש6730513':        { name:'א״ש ק״הש 6730513 ← מיטב 442504', cat:'hishtalmut', transferred:true, data:[..._Z] },
+  'אשקהש40035706':       { name:'א״ש קה״ש 40035706',       cat:'hishtalmut', data:[..._Z] },
+  'מורקהש499293':        { name:'מור קה״ש 499293 ← מיטב 443195', cat:'hishtalmut', transferred:true, data:[..._Z] },
+  'מיטבקהש912-443286':   { name:'מיטב קה״ש 912-443286', cat:'hishtalmut', data:[..._Z] },
 
-  '6730511אשגמל':        { name:'א״ש גמל 6730511 ← מור 1428298', cat:'gemel', data:[402,413,402,391,395,421,444,452,457,476,484,490,495,517,null] },
-  'מורגמל1375900':        { name:'מור גמל 1375900', cat:'gemel', data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,1] },
-  'אשגמל39774495':       { name:'א״ש גמל 39774495 ← מור 1375688', cat:'gemel', data:[262,266,263,260,262,269,277,277,283,289,292,293,294,300,null] },
-  '6730512אשגמל':        { name:'א״ש גמל 6730512 ← מור 1375888', cat:'gemel', data:[218,220,220,220,222,224,230,231,233,237,240,242,242,245,null] },
-  '6899425אשגמל':        { name:'א״ש גמל 6899425 ← מור 1375911', cat:'gemel', data:[176,180,176,170,172,183,193,196,198,206,209,209,213,223,223] },
-  'הפניקסגמל926-084678': { name:'הפניקס גמל 926-084678',   cat:'gemel', data:[null,null,null,null,null,null,null,null,null,null,414,414,437,445,444] },
-  'אשגמללהשקעה2016-1738':{ name:'א״ש גמל להשקעה ← מיטב 917-443197', cat:'gemel_invest', data:[286,371,368,364,366,376,389,391,396,405,410,411,415,424,424] },
-  'מורגמללהשקעה':        { name:'מור גמל להשקעה ← מיטב 912-443197', cat:'gemel_invest', data:[364,376,377,370,373,393,411,419,422,436,446,449,458,478,478] },
-  'הראלמגוון-פוליסתחיסכ':{ name:'הראל מגוון - פוליסת חיסכון', cat:'harel', data:[4469,4473,4440,4444,4536,4630,4704,4758,4810,4927,4949,5019,5119,5174,5181] },
-  'הראלמניות106863031':  { name:'הראל מניות 106863031',    cat:'harel', data:[1680,1631,1572,1515,1620,1655,1703,1732,1799,1828,1775,1768,1766,1664,0] },
-  'הראלכללי109062745':   { name:'הראל כללי 109062745',     cat:'harel', data:[null,null,null,null,252,258,262,265,268,274,275,279,285,288,288] },
-  'מיטבדשניהולקרנות1693':{ name:'מיטב דש ניהול קרנות 169301968', cat:'meitav', data:[530,530,527,520,540,550,560,560,560,560,580,580,580,600,600] },
-  'מיטבדשטרייד': { name:'מיטב דש טרייד', cat:'meitav', data:[39,39,39,39,39,39,39,39,39,39,39,39,39,39,39] },
-  'חובהראל':   { name:'חוב הראל',       cat:'chov', data:[195,179,165,150,135,120,105,90,75,60,45,30,15,0,0] },
-  'חובאלטשולר':{ name:'חוב אלטשולר',    cat:'chov', data:[1667,1674,1681,1681,1696,1708,1718,1727,1735,1743,1750,1756,1765,1768,1588] },
-  'ארביטראזואליו': { name:'ארביטראז׳ ואליו', cat:'arbitrage', data:[719,822,824,772,808,846,902,900,895,895,886,901,0,0,0] },
-  'דירה': { name:'דירה', cat:'dira', data:[1200,1200,1200,1200,1200,1200,1200,1200,1200,1200,1200,1200,1200,1200,1200] },
-  'מזומןשקלי':   { name:'מזומן שקלי',   cat:'mezuman', data:[40,40,40,40,40,40,40,40,30,20,20,20,915,100,1750] },
-  'מזומןדולרי':  { name:'מזומן דולרי $', cat:'mezuman', data:[null,null,null,null,null,null,null,null,null,null,null,null,null,115,116] },
-  'מיטבשקלית':   { name:'מיטב קרן כספית', cat:'mezuman', data:[0,0,0,0,0,0,0,0,0,0,0,0,0,901,901] },
+  '6730511אשגמל':        { name:'א״ש גמל 6730511 ← מור 1428298', cat:'gemel', data:[..._Z] },
+  'מורגמל1375900':        { name:'מור גמל 1375900', cat:'gemel', data:[..._Z] },
+  'אשגמל39774495':       { name:'א״ש גמל 39774495 ← מור 1375688', cat:'gemel', data:[..._Z] },
+  '6730512אשגמל':        { name:'א״ש גמל 6730512 ← מור 1375888', cat:'gemel', data:[..._Z] },
+  '6899425אשגמל':        { name:'א״ש גמל 6899425 ← מור 1375911', cat:'gemel', data:[..._Z] },
+  'הפניקסגמל926-084678': { name:'הפניקס גמל 926-084678',   cat:'gemel', data:[..._Z] },
+  'אשגמללהשקעה2016-1738':{ name:'א״ש גמל להשקעה ← מיטב 917-443197', cat:'gemel_invest', data:[..._Z] },
+  'מורגמללהשקעה':        { name:'מור גמל להשקעה ← מיטב 912-443197', cat:'gemel_invest', data:[..._Z] },
+  'הראלמגוון-פוליסתחיסכ':{ name:'הראל מגוון - פוליסת חיסכון', cat:'harel', data:[..._Z] },
+  'הראלמניות106863031':  { name:'הראל מניות 106863031',    cat:'harel', data:[..._Z] },
+  'הראלכללי109062745':   { name:'הראל כללי 109062745',     cat:'harel', data:[..._Z] },
+  'מיטבדשניהולקרנות1693':{ name:'מיטב דש ניהול קרנות 169301968', cat:'meitav', data:[..._Z] },
+  'מיטבדשטרייד': { name:'מיטב דש טרייד', cat:'meitav', data:[..._Z] },
+  'חובהראל':   { name:'חוב הראל',       cat:'chov', data:[..._Z] },
+  'חובאלטשולר':{ name:'חוב אלטשולר',    cat:'chov', data:[..._Z] },
+  'ארביטראזואליו': { name:'ארביטראז׳ ואליו', cat:'arbitrage', data:[..._Z] },
+  'דירה': { name:'דירה', cat:'dira', data:[..._Z] },
+  'מזומןשקלי':   { name:'מזומן שקלי',   cat:'mezuman', data:[..._Z] },
+  'מזומןדולרי':  { name:'מזומן דולרי $', cat:'mezuman', data:[..._Z] },
+  'מיטבשקלית':   { name:'מיטב קרן כספית', cat:'mezuman', data:[..._Z] },
 };
 
 const CAT_COLORS = { mezuman:'#0891b2', chov:'#94a3b8', arbitrage:'#0d9488', dira:'#a8a29e', hishtalmut:'#fca5a5', gemel:'#fcd34d', gemel_invest:'#6ee7b7', harel:'#fde68a', meitav:'#c4b5fd', all:'#2563eb' };
@@ -1926,7 +1928,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V56.1 - Perfect Default Tab Fix !!!');
+          console.log('!!! V56.2 - Investments Mock Data Eradication !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -4179,7 +4181,8 @@ function switchTab(id){
 })();
 
 // v56.1: הפעל טאב ברירת מחדל ב-DOMContentLoaded — מפעיל את כל ה-show/hide logic
-// רק שינוי class ב-HTML לא מספיק; switchTab מסדר header/cards/chart/buttons
+// v56.2: קרא updateTableCells כדי לאפס תאי HTML לאפס כשאין localStorage
 document.addEventListener('DOMContentLoaded', function() {
   switchTab('cashflow');
+  updateTableCells(); // מבטיח שתאי טבלת השקעות מציגים 0 כשאין נתוני localStorage
 });
