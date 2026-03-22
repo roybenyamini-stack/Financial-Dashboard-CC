@@ -1,7 +1,20 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v48.0 — Data Locking & Forecast Fix.
+גרסה v49.0 — Layout Perfection & Forecast Fix.
+
+## שינויים אחרונים (22/03/2026)
+
+### v49.0 – Layout Perfection & Forecast Fix
+**app.js:**
+- **FC_LABELS last-match**: תזרים שקלי נטו / תזרים שוטף / רווח-הפסד — last-match בלבד (שורות סיכום אחרונות) → ערכים: 280 / 311 / 341
+- **cfRenderKPI (Row 2)**: 'יותם' ו-'הוצ. שונות' — כרטיסיות נפרדות (לא מאוחדות)
+- **cfUpdateCFCards (Row 3)**: כרטיסייה מאוחדת 'הוצאות שונות' = יותם+other_exp+other_exp_2 עם tooltip פירוט
+- **cfRenderForecast**: שורה אחת עם spacer → כרטיסיות תזרים נדחפות שמאלה; margin-bottom: 20px
+
+**index.html:**
+- `cf-detailed-forecast`: margin-bottom שונה מ-12px ל-20px
+- גרסה בכותרת: v48.0 → v49.0
 
 ## שינויים אחרונים (22/03/2026)
 
