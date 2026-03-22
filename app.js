@@ -1926,7 +1926,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V56.0 - Uniform UI & Clean Initial State !!!');
+          console.log('!!! V56.1 - Perfect Default Tab Fix !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -4177,3 +4177,9 @@ function switchTab(id){
   var fi = document.getElementById('fileInput');
   if (fi) fi.addEventListener('change', function() { smartUploadRouter(this); });
 })();
+
+// v56.1: הפעל טאב ברירת מחדל ב-DOMContentLoaded — מפעיל את כל ה-show/hide logic
+// רק שינוי class ב-HTML לא מספיק; switchTab מסדר header/cards/chart/buttons
+document.addEventListener('DOMContentLoaded', function() {
+  switchTab('cashflow');
+});
