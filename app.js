@@ -1801,6 +1801,7 @@ function cfParseWorkbook(wb) {
             cash_exp:          ['הוצאות מזומן', 'מזומן'],
             loans:             ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
             yotam:             ['יותם', 'הוצאות יותם'],
+            yotam_usd:         ['יותם $', 'הוצאות יותם $', 'יותם דולרי', 'הוצ יותם $'],
             other_exp:         ['הוצאות שונות 1', 'הוצאות שונות', 'הוצאות חריגות'],
             net_cashflow:      ['תזרים שקלי נטו', 'תזרים נטו'],
             cashflow_total:    ['תזרים שוטף', 'נטו שוטף', '∆ תזרים שוטף', 'Δ תזרים שוטף'],
@@ -1928,7 +1929,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V57.0 - Cashflow Empty State UI Fix !!!');
+          console.log('!!! V58.0 - USD Yotam Forecast Card !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1939,7 +1940,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '57.0');
+          localStorage.setItem('dashboard_cf_version', '58.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3064,7 +3065,7 @@ function loadCFFromLocalStorage() {
     var savedVer = localStorage.getItem('dashboard_cf_version');
     if (!savedVer || parseFloat(savedVer) < 41) {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '57.0');
+      localStorage.setItem('dashboard_cf_version', '58.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -4131,8 +4132,10 @@ function cfRenderForecast() {
   html += card('ויזה',     f.visa     != null ? Math.abs(f.visa)     : null, '#dc2626');
   html += card('מזומן',   f.cash_exp != null ? Math.abs(f.cash_exp) : null, '#dc2626');
   html += card('הלוואות', f.loans    != null ? Math.abs(f.loans)    : null, '#b45309');
-  html += card('יותם',    f.yotam    != null ? Math.abs(f.yotam)    : null, '#ea580c');
-  html += card('שונות',   f.other_exp!= null ? Math.abs(f.other_exp): null, '#ca8a04');
+  html += card('יותם',    f.yotam     != null ? Math.abs(f.yotam)     : null, '#ea580c');
+  html += card('שונות',   f.other_exp != null ? Math.abs(f.other_exp): null, '#ca8a04');
+  // v58.0: יותם $ — כרטיסיית רפרנס דולרית, הכי שמאל בגוש ההוצאות (Zero Noise)
+  html += card('יותם $',  f.yotam_usd != null ? Math.abs(f.yotam_usd): null, '#ea580c');
   // קו מפריד: הוצאות | תזרים
   html += FDIV;
   // גוש 3: תזרים — ישירות מסיכומים, ללא חישוב
