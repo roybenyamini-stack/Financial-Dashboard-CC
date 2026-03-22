@@ -1,7 +1,16 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v52.0 — Year-Sync Bug & Final Polish.
+גרסה v54.0 — Dynamic Year Sync, Visa & Visual Separation.
+
+## שינויים אחרונים (22/03/2026)
+
+### v54.0 – Dynamic Year Sync, Visa & Visual Separation
+**app.js:**
+- **CRITICAL: סנכרון דינמי תחזית**: `cfSelectYear` ו-`cfGoToday` מפעילים `cfRenderForecast()` מיידית אם המגירה פתוחה — מעבר 2025↔2026 מרענן נתונים בזמן אמת
+- **FC_LABELS matching**: שמות שאינם LAST_KEYS עברו מ-exact match ל-substring match — תומך ב-'חיוב ויזה מחודש קודם' וכדומה; נוסף alias מפורש; LAST_KEYS נשארים exact
+- **כרטיסיית ויזה**: נוספה כרטיסייה 'ויזה' במגירת התחזית, ממוקמת ראשונה בגוש ההוצאות
+- **הפרדה ויזואלית**: 3 גושים ברורים בשורת התחזית — הכנסות | (קו) | הוצאות | (קו) | תזרים; `flex-wrap:nowrap` + `overflow-x:auto`
 
 ## שינויים אחרונים (22/03/2026)
 
