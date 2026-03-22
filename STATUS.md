@@ -1,9 +1,30 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v26.0 — Emergency Fix + CF AI Chat: תיקון קריסת layout, Chips עם wrap, צ'אט AI מובנה לתזרים.
+גרסה v39.0 — Accurate Salaries & Flexible Expenses: תיקון חישובי משכורת, תמיכה בהוצאות שונות מרובות, ויזואליה.
 
-## שינויים אחרונים (21/03/2026)
+## שינויים אחרונים (22/03/2026)
+
+### v39.0 – Accurate Salaries & Flexible Expenses
+
+**index.html:**
+- גרסה עודכנה: `v38.0` → `v39.0`
+- גרף תזרים: גובה 220px → 242px (+10%)
+
+**app.js:**
+- `KEY_LABELS.salary`: נוסף 'משכורת שקלית', 'משכורת שקל' לתמיכה בשמות עמודות חדשים באקסל
+- `KEY_LABELS.salary_usd`: נוסף 'משכורת דולרית'
+- `KEY_LABELS.other_exp`: עדכון סדר — 'הוצאות שונות 1' קודם, נוסף 'other_exp_2' ← 'הוצאות שונות 2'
+- `CF_EMPTY_ROWS`: נוסף 'other_exp_2'
+- `cfCalcExp()`: מחשב גם `other_exp_2`
+- `cfRenderChart()`: charigV כולל גם `other_exp_2`
+- `cfRenderKPI()`: chip 'חריג 2' ל-other_exp_2; הוצ$ צבוע '#fca5a5' (ורוד עדין כמו Slim Bar)
+- `cfUpdateCFCards()`: כרטיסיית 'הוצאות שונות 2' דינמית (מוסתרת אם 0)
+- `cfRenderTable()` ROWS: salary label → 'משכורת שקלית'; other_exp → 'הוצאות שונות 1'; נוסף other_exp_2 (optional — מוסתר אם אין נתונים)
+- `ROW_LABELS`: salary → 'משכורת שקלית', other_exp → 'הוצאות שונות 1', נוסף other_exp_2
+- `localStorage version`: '38.0' → '39.0'
+
+## שינויים קודמים (21/03/2026)
 
 ### v26.0 – Emergency Fix & AI Integration
 

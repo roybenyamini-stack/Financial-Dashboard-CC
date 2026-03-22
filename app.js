@@ -1619,7 +1619,7 @@ function cfParseWorkbook(wb) {
       total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
       total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות'],
       profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
-      salary:       ['הכנסה ממשכורת'],
+      salary:       ['הכנסה ממשכורת', 'משכורת שקלית', 'משכורת שקל'],
       rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
       other_income: ['הכנסות שונות', 'הכנסה אחרת'],
       buffer:       ['פריטה מ-buffer', 'פריטה מ buffer', 'פריטה'],
@@ -1627,10 +1627,11 @@ function cfParseWorkbook(wb) {
       cash_exp:     ['הוצאות מזומן'],
       loans:        ['הלוואות', 'החזר הלוואות', 'החזר הלוואה'],
       yotam:        ['יותם'],
-      other_exp:    ['הוצאות שונות', 'הוצאות חריגות'],
+      other_exp:    ['הוצאות שונות 1', 'הוצאות שונות', 'הוצאות חריגות'],
+      other_exp_2:  ['הוצאות שונות 2'],
       renovation:   ['הוצאות שיפוץ', 'שיפוץ'],
       net_cashflow: ['תזרים שקלי נטו', 'נטו שוטף', 'תזרים נטו'],
-      salary_usd:   ['משכורת $ (בשקלים)', 'משכורת $', 'משכורת דולר'],
+      salary_usd:   ['משכורת $ (בשקלים)', 'משכורת $', 'משכורת דולר', 'משכורת דולרית'],
       exp_usd:      ['הוצאות $ (בשקלים)', 'הוצאות $', 'הוצאות דולר'],
       total_usd:    ['סך הכל $', 'סה"כ דולר', 'סה״כ דולר'],
       delta:        ['∆ תזרים שוטף', '\u0394 תזרים']
@@ -1804,9 +1805,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V38.0 - THE MIDNIGHT POLISH !!!');
-          console.log('[Dashboard v38.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '38.0');
+          console.log('!!! V39.0 - Accurate Salaries & Flexible Expenses !!!');
+          console.log('[Dashboard v39.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
+          localStorage.setItem('dashboard_cf_version', '39.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2929,9 +2930,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '38.0') {
+    if (savedVer !== '39.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '38.0');
+      localStorage.setItem('dashboard_cf_version', '39.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -2960,7 +2961,7 @@ var CF_SELECTED_YEAR = null;   // v22.0: שנת תצוגה נבחרת (null = au
 var CF_CHART_MONTHS = [];      // v22.0: מטמון חודשי הגרף לשימוש ב-onClick
 
 // מחזיר את החודשים לתצוגה לפי cfDateRange
-var CF_EMPTY_ROWS = ['salary','rent_income','other_income','buffer','total_income','visa','cash_exp','loans','yotam','other_exp','total_exp','renovation','net_cashflow','salary_usd','exp_usd','yotam_usd','total_usd','delta','profit_loss'];
+var CF_EMPTY_ROWS = ['salary','rent_income','other_income','buffer','total_income','visa','cash_exp','loans','yotam','other_exp','other_exp_2','total_exp','renovation','net_cashflow','salary_usd','exp_usd','yotam_usd','total_usd','delta','profit_loss'];
 var CF_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 var CF_HEB_MONTHS_ABBR = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
 
@@ -3099,10 +3100,10 @@ function cfRenderNotesPanel() {
   if (!panel) return;
   var lastIdx = cfGetLastRealMonth();
   var ROW_LABELS = {
-    salary:'משכורת', rent_income:'שכר דירה', other_income:'הכנסות שונות',
+    salary:'משכורת שקלית', rent_income:'שכר דירה', other_income:'הכנסות שונות',
     buffer:'פריטה מ-Buffer', total_income:'סה״כ הכנסות', visa:'חיוב ויזה',
     cash_exp:'הוצאות מזומן', loans:'החזר הלוואות', yotam:'הוצאות יותם',
-    other_exp:'הוצאות שונות', total_exp:'סה״כ הוצאות', renovation:'שיפוץ',
+    other_exp:'הוצאות שונות 1', other_exp_2:'הוצאות שונות 2', total_exp:'סה״כ הוצאות', renovation:'שיפוץ',
     net_cashflow:'תזרים שקלי נטו', salary_usd:'משכורת $', exp_usd:'הוצאות $',
     yotam_usd:'הוצאות יותם $', total_usd:'סך הכל $',
     delta:'Δ תזרים שוטף', profit_loss:'רווח / הפסד'
@@ -3168,12 +3169,14 @@ function cfCalcIncome(r) {
 }
 
 // v33.0: חישוב הוצאות מסכום מרכיבים — כולל הלוואות במפורש
+// v39.0: נוסף other_exp_2 (הוצאות שונות 2)
 function cfCalcExp(r) {
   return (r.visa&&r.visa.val!=null?r.visa.val:0)
        + (r.cash_exp&&r.cash_exp.val!=null?r.cash_exp.val:0)
        + (r.loans&&r.loans.val!=null?r.loans.val:0)
        + (r.yotam&&r.yotam.val!=null?r.yotam.val:0)
        + (r.other_exp&&r.other_exp.val!=null?r.other_exp.val:0)
+       + (r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0)
        + (r.renovation&&r.renovation.val!=null?r.renovation.val:0);
 }
 
@@ -3312,10 +3315,11 @@ function cfUpdateCFCards() {
     {label:'הכנסות שונות',  val:r.other_income&&r.other_income.val!=null?r.other_income.val:0, color:'#0891b2', icon:'📦'},
     {label:'פריטה',         val:r.buffer&&r.buffer.val!=null?r.buffer.val:0, color:'#0891b2', icon:'🔄'},
   ];
-  // פירוט הוצאות — v30.0: הלוואות מוסתרות אם 0
+  // פירוט הוצאות — v30.0: הלוואות מוסתרות אם 0; v39.0: other_exp_2 דינמי
   var expCards = [
     {label:'הוצאות שוטפות', val:(r.visa&&r.visa.val||0)+(r.cash_exp&&r.cash_exp.val||0), color:'#dc2626', icon:'💳'},
     {label:'החזר הלוואה',   val:(r.loans&&r.loans.val!=null?r.loans.val:0), color:'#b45309', icon:'🏦'},
+    {label:'הוצאות שונות 2', val:r.other_exp_2&&r.other_exp_2.val!=null?r.other_exp_2.val:0, color:'#eab308', icon:'📌'},
     {label:'תזרים דולרי נטו', val:r.total_usd&&r.total_usd.val!=null?r.total_usd.val:0, color:'#7c3aed', icon:'$'},
   ];
   var container = document.getElementById('cf-cards-row');
@@ -3365,12 +3369,13 @@ function cfRenderKPI() {
   h += chip('שיפוץ',gv('renovation'),ER);
   h += SEP;
   h += chip('יותם',gv('yotam'),EO);
-  h += chip('חריג',gv('other_exp'),EY);
+  h += chip('חריג 1',gv('other_exp'),EY);
+  h += chip('חריג 2',gv('other_exp_2'),EY);   // v39: הוצאות שונות 2
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);
-  h += chip('הוצ$',  _eusd  !== null ? Math.abs(_eusd)  : null, ER);  // v38: אדום = הוצאה
-  h += chip('יותם$', _yusd  !== null ? Math.abs(_yusd)  : null, EO);  // v38: כתום = יותם
+  h += chip('הוצ$',  _eusd  !== null ? Math.abs(_eusd)  : null, '#fca5a5');  // v39: ורוד עדין כמו Slim Bar
+  h += chip('יותם$', _yusd  !== null ? Math.abs(_yusd)  : null, EO);  // כתום = יותם
   // סך$ הוסר בv36
   h += '</div></div>';
   detailEl.innerHTML = h;
@@ -3407,7 +3412,8 @@ function cfRenderChart() {
       // v33.0: totalExpCalc מחושב מרכיבים (כולל הלוואות)
       var totalExpCalc = cfCalcExp(m.rows);
       var yotamV  = (m.rows.yotam    && m.rows.yotam.val    != null) ? m.rows.yotam.val    : 0;
-      var charigV = (m.rows.other_exp && m.rows.other_exp.val != null) ? m.rows.other_exp.val : 0;
+      var charigV = (m.rows.other_exp && m.rows.other_exp.val != null ? m.rows.other_exp.val : 0)
+                  + (m.rows.other_exp_2 && m.rows.other_exp_2.val != null ? m.rows.other_exp_2.val : 0);
       expShoter.push(Math.max(0, totalExpCalc - yotamV - charigV));
       expYotam.push(yotamV);
       expCharig.push(charigV);
@@ -3519,7 +3525,7 @@ function cfRenderTable() {
   var months = cfGetDisplayMonths();
 
   var ROWS = [
-    {key:'salary',       label:'\u05de\u05e9\u05db\u05d5\u05e8\u05ea',               block:'income',   total:false},
+    {key:'salary',       label:'\u05de\u05e9\u05db\u05d5\u05e8\u05ea \u05e9\u05e7\u05dc\u05d9\u05ea',     block:'income',   total:false},
     {key:'rent_income',  label:'\u05e9\u05db\u05e8 \u05d3\u05d9\u05e8\u05d4',             block:'income',   total:false},
     {key:'other_income', label:'\u05d4\u05db\u05e0\u05e1\u05d5\u05ea \u05e9\u05d5\u05e0\u05d5\u05ea',         block:'income',   total:false},
     {key:'buffer',       label:'\u05e4\u05e8\u05d9\u05d8\u05d4 \u05de\u05d1 Buffer',       block:'income',   total:false},
@@ -3528,7 +3534,8 @@ function cfRenderTable() {
     {key:'cash_exp',     label:'\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05de\u05d6\u05d5\u05de\u05df',         block:'expenses', total:false},
     {key:'loans',        label:'\u05d4\u05d7\u05d6\u05e8 \u05d4\u05dc\u05d5\u05d5\u05d0\u05d5\u05ea',         block:'expenses', total:false},
     {key:'yotam',        label:'\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05d9\u05d5\u05ea\u05dd',          block:'expenses', total:false},
-    {key:'other_exp',    label:'\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e9\u05d5\u05e0\u05d5\u05ea',         block:'expenses', total:false},
+    {key:'other_exp',    label:'\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e9\u05d5\u05e0\u05d5\u05ea 1',       block:'expenses', total:false},
+    {key:'other_exp_2',  label:'\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e9\u05d5\u05e0\u05d5\u05ea 2',       block:'expenses', total:false, optional:true},
     {key:'total_exp',    label:'\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05e6\u05d0\u05d5\u05ea',          block:'expenses', total:true},
     {key:'renovation',   label:'\u05e9\u05d9\u05e4\u05d5\u05e5',                block:'special',  total:false},
     {key:'net_cashflow', label:'\u05ea\u05d6\u05e8\u05d9\u05dd \u05e9\u05e7\u05dc\u05d9 \u05e0\u05d8\u05d5',       block:'cashflow', total:true},
@@ -3577,6 +3584,11 @@ function cfRenderTable() {
   var lastBlock = null, rowIdx = 0;
 
   ROWS.forEach(function(row){
+    // v39: optional rows — הסתר שורה אם אין נתונים בשום חודש
+    if (row.optional) {
+      var hasData = months.some(function(m){ var v=m.rows[row.key]; return v&&v.val!=null&&v.val!==0; });
+      if (!hasData) return;
+    }
     var bl    = row.block;
     var col   = BC[bl];
     var isTot = row.total;
