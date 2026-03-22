@@ -1928,7 +1928,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V56.2 - Investments Mock Data Eradication !!!');
+          console.log('!!! V57.0 - Cashflow Empty State UI Fix !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1939,7 +1939,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '56.0');
+          localStorage.setItem('dashboard_cf_version', '57.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3064,7 +3064,7 @@ function loadCFFromLocalStorage() {
     var savedVer = localStorage.getItem('dashboard_cf_version');
     if (!savedVer || parseFloat(savedVer) < 41) {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '56.0');
+      localStorage.setItem('dashboard_cf_version', '57.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3895,14 +3895,59 @@ function cfRenderTable() {
   table.innerHTML = h + b;
 }
 
+// v57.0: Graceful Empty State — skeleton יציב כשאין נתוני תזרים
 function cfShowNoData() {
-  var kpi=document.getElementById('cf-kpi-row');
-  if(kpi) kpi.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px 20px;">'+'<div style="font-size:40px;margin-bottom:12px;">📂</div>'+'<div style="font-size:15px;font-weight:700;color:#374151;margin-bottom:8px;">אין נתוני תזרים</div>'+'<div style="font-size:13px;">לחץ על <strong>עדכן נתונים מאקסל</strong> ובחר את קובץ התזרים השוטף</div></div>';
-  var cf=document.getElementById('cf-cards-row'); if(cf) cf.innerHTML='';
-  var t=document.getElementById('cf-table'); if(t) t.innerHTML='';
-  if(cfChartInstance){cfChartInstance.destroy();cfChartInstance=null;}
-  ['cf-hdr-current','cf-hdr-ytd','cf-hdr-avg'].forEach(function(id){
-    var el=document.getElementById(id); if(el){el.textContent='—';el.className='stat-value';}
+  // Row 1: הודעת "אין נתונים" + הוראת פעולה
+  var kpi = document.getElementById('cf-kpi-row');
+  if (kpi) kpi.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:32px 20px;">' +
+    '<div style="font-size:36px;margin-bottom:10px;">📂</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#374151;margin-bottom:6px;">אין נתוני תזרים</div>' +
+    '<div style="font-size:13px;color:#6b7280;">לחץ על <strong>עדכן נתונים מאקסל</strong> ובחר את קובץ התזרים השוטף</div>' +
+    '</div>';
+
+  // Row 2 (cf-detail-row): כרטיסיית skeleton בהירה עם הודעת המתנה
+  var det = document.getElementById('cf-detail-row');
+  if (det) det.innerHTML = '<div style="background:#f8fafc;border-radius:12px;padding:10px 14px;direction:rtl;border:1px solid rgba(0,0,0,0.06);margin-bottom:2px;">' +
+    '<div style="display:flex;gap:6px;align-items:center;">' +
+    '<div style="display:flex;flex-direction:column;background:white;border-radius:8px;padding:10px 16px;border-right:3px solid #e5e7eb;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.05);">' +
+    '<span style="font-size:12px;color:#9ca3af;font-weight:600;white-space:nowrap;">סעיפים מחכים לנתונים</span>' +
+    '<span style="font-size:19px;font-weight:800;color:#d1d5db;margin-top:2px;">0</span>' +
+    '</div></div></div>';
+
+  // Row 3 (cf-cards-row): נקה והסתר
+  var cf = document.getElementById('cf-cards-row');
+  if (cf) { cf.innerHTML = ''; cf.style.display = 'none'; }
+
+  // Summary Bar: מוצג תמיד עם 0 + כפתור תחזית
+  var sumRow = document.getElementById('cf-summary-row');
+  if (sumRow) {
+    var _D  = '<div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;margin:0 6px;flex-shrink:0;"></div>';
+    var _BD = '<div style="width:3px;background:rgba(255,255,255,0.18);align-self:stretch;margin:0 14px;flex-shrink:0;border-radius:2px;"></div>';
+    function _z(lbl) {
+      return '<div style="display:flex;flex-direction:column;gap:2px;">' +
+        '<span style="font-size:12px;color:rgba(255,255,255,0.35);font-weight:500;">' + lbl + '</span>' +
+        '<span style="font-size:18px;font-weight:600;color:rgba(255,255,255,0.2);line-height:1;">0</span></div>';
+    }
+    var sh = '<div style="background:#0d1b2e;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:8px;direction:rtl;border:1px solid rgba(99,102,241,0.15);overflow-x:auto;">';
+    sh += '<div style="font-size:13px;font-weight:700;color:#6366f1;white-space:nowrap;line-height:1.6;flex-shrink:0;">שנתי<br><span style="font-size:11px;color:rgba(255,255,255,0.25);">—</span></div>';
+    sh += _D; sh += _z('הכנסות'); sh += _z('הוצאות'); sh += _z('נטו');
+    sh += _BD;
+    sh += '<div style="font-size:13px;font-weight:700;color:#22d3ee;white-space:nowrap;line-height:1.6;flex-shrink:0;">YTD<br><span style="font-size:11px;color:rgba(255,255,255,0.25);">—</span></div>';
+    sh += _D; sh += _z('הכנסות'); sh += _z('הוצאות'); sh += _z('נטו');
+    sh += _BD;
+    sh += '<div style="display:flex;flex-direction:column;justify-content:center;align-self:stretch;flex-shrink:0;">';
+    sh += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
+    sh += '</div></div>';
+    sumRow.innerHTML = sh;
+    cfSyncForecastBtn();
+  }
+
+  // ניקוי טבלה, גרף וכותרת
+  var t = document.getElementById('cf-table'); if (t) t.innerHTML = '';
+  if (cfChartInstance) { cfChartInstance.destroy(); cfChartInstance = null; }
+  ['cf-hdr-current','cf-hdr-ytd','cf-hdr-avg'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.textContent = '—'; el.className = 'stat-value'; }
   });
 }
 
