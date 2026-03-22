@@ -1,7 +1,22 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v44.0 — Aggregated Miscellaneous Fix: איחוד הוצאות שונות לכרטיסייה אחת.
+גרסה v45.0 — Logical Layout & Header Fix: סידור מחדש של הדף + נטו כחול + תחזית.
+
+## שינויים אחרונים (22/03/2026)
+
+### v45.0 – Logical Layout & Header Fix
+**app.js — cfUpdateHeader:**
+- Label "נטו — [חודש]" → "תזרים שקלי נטו" (קבוע)
+- Sub-label ממשיך להציג את שם החודש
+- נטו = inc - exp (שקלי בלבד, בלי profit_loss מהאקסל)
+- צבע נטו: `#60a5fa` (כחול) תמיד, ללא green/red
+
+**index.html — layout reorder:**
+- סדר חדש מלמעלה למטה: dark chips → white cards → summary bar → forecast → chart
+- הוסר: cf-summary-row מהמקום הישן (לפני chips)
+- נוסף: כפתור "🔮 תחזית שנתית" (toggle)
+- נוסף: `cf-detailed-forecast` container (מוסתר כברירת מחדל, מציג "טוען נתוני תחזית...")
 
 ## שינויים אחרונים (22/03/2026)
 

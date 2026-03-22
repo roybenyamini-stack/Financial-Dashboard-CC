@@ -1870,7 +1870,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V44.0 - Aggregated Miscellaneous Fix !!!');
+          console.log('!!! V45.0 - Logical Layout & Header Fix !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1881,7 +1881,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '44.0');
+          localStorage.setItem('dashboard_cf_version', '45.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3354,7 +3354,8 @@ function cfUpdateHeader() {
             (m.rows.rent_income&&m.rows.rent_income.val!=null?m.rows.rent_income.val:0);
   // v40.0: הוצאות = ערך ישיר מ-'סה"כ הוצאות שקלי' (total_exp); fallback: חישוב מרכיבים
   var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : cfCalcExp(m.rows);
-  var net = (m.rows.profit_loss  && m.rows.profit_loss.val  != null) ? m.rows.profit_loss.val  : (inc - exp);
+  // v45.0: נטו שקלי בלבד — ללא profit_loss מהאקסל (עלול לכלול דולרים)
+  var net = inc - exp;
 
   var elNet = document.getElementById('cf-hdr-net');
   var elNetSub = document.getElementById('cf-hdr-net-sub');
@@ -3362,9 +3363,10 @@ function cfUpdateHeader() {
   var elInc = document.getElementById('cf-hdr-income');
   var elExp = document.getElementById('cf-hdr-exp');
 
-  if(elNet){ elNet.textContent = Math.round(net).toLocaleString(); elNet.className = 'stat-value ' + (net >= 0 ? 'green' : 'red'); }
+  // v45.0: label קבוע + כחול תמיד
+  if(elNet){ elNet.textContent = Math.round(net).toLocaleString(); elNet.className = 'stat-value'; elNet.style.color = '#60a5fa'; }
   if(elNetSub) elNetSub.textContent = m.label;
-  if(elNetLabel) elNetLabel.textContent = 'נטו — ' + m.label;
+  if(elNetLabel) elNetLabel.textContent = 'תזרים שקלי נטו';
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
 
