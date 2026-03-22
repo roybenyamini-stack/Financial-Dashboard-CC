@@ -1,7 +1,19 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v51.0 — Dynamic Labels, Smart Tooltips & Modal Notes.
+גרסה v52.0 — Year-Sync Bug & Final Polish.
+
+## שינויים אחרונים (22/03/2026)
+
+### v52.0 – Year-Sync Bug & Final Polish
+**app.js:**
+- **CRITICAL BUG FIX — CF_FORECAST_BY_YEAR**: במקום גלובל יחיד `CF_FORECAST`, כעת `CF_FORECAST_BY_YEAR = {2025: {...}, 2026: {...}}`. כל גיליון שנה שומר נתוני סיכומים לשנה שלו בלבד — ללא דריסה הדדית
+- **cfRenderForecast**: קורא מ-`CF_FORECAST_BY_YEAR[displayYear]` — מסונכרן לשנה שנבחרה בבורר. בעת מעבר בין 2025 ל-2026, מספרי התחזית משתנים בהתאם
+- **שם כרטיסייה**: 'משכורת שנתית' → 'משכורת שקלית' במגירת התחזית
+- **Typography Summary Bar**: `font-size:22px;font-weight:800` → `font-size:18px;font-weight:600` (נקי, לא צועק)
+
+**index.html:**
+- `cf-summary-row` + `cf-detailed-forecast`: margin-bottom: 20px → 8px (מרווחים צמצומים)
 
 ## שינויים אחרונים (22/03/2026)
 
