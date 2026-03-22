@@ -1,4 +1,4 @@
-<!-- v55.0 -->
+<!-- v56.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -16,8 +16,8 @@
 <div id="top-fixed">
 <div id="tabs-nav">
   <button class="tab-btn" onclick="switchTab('overview')" id="tabn-overview">מבט על</button>
-  <button class="tab-btn" onclick="switchTab('cashflow')" id="tabn-cashflow">תזרים שוטף</button>
-  <button class="tab-btn active" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
+  <button class="tab-btn active" onclick="switchTab('cashflow')" id="tabn-cashflow">תזרים שוטף</button>
+  <button class="tab-btn" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
   <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
   <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v55.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v56.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -183,7 +183,7 @@
 </div>
 </div><!-- /top-fixed -->
 
-<div class="tab-panel active" id="tab-investments" style="padding-top:12px;">
+<div class="tab-panel" id="tab-investments" style="padding-top:12px;">
 
 
 <!-- NOTES MODAL -->
@@ -724,13 +724,13 @@
 
 </div>
 <div class="tab-panel" id="tab-overview"><div class="tab-coming-soon"><div class="tcs-icon">🗺️</div><div class="tcs-text">מבט על</div><div class="tcs-sub">בבנייה...</div></div></div>
-<div class="tab-panel" id="tab-cashflow">
+<div class="tab-panel active" id="tab-cashflow">
 <div style="padding:16px 20px 40px 20px; font-family:Heebo,sans-serif; direction:rtl;">
 
   <!-- KPI placeholder (used as guard in cfInit) -->
   <div id="cf-kpi-row" style="display:none;"></div>
 
-  <!-- v54.0: Layout order: dark chips → light chips → summary bar → forecast → chart -->
+  <!-- v56.0: Layout order: dark chips → light chips → summary bar → forecast → chart -->
 
   <!-- Row 1: Dark Chips — פירוט חודשי -->
   <div id="cf-detail-row" style="margin-bottom:12px;"></div>

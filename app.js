@@ -1926,7 +1926,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V55.0 - Persistent Forecast State !!!');
+          console.log('!!! V56.0 - Uniform UI & Clean Initial State !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1937,7 +1937,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '55.0');
+          localStorage.setItem('dashboard_cf_version', '56.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3058,11 +3058,11 @@ function saveCFToLocalStorage() {
 
 function loadCFFromLocalStorage() {
   try {
-    // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
+    // v56.0: קבל כל גרסה >= 41 — בדיקת גרסה מחמירה גרמה לאיבוד נתונים בכל upgrade
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '41.0') {
+    if (!savedVer || parseFloat(savedVer) < 41) {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '41.0');
+      localStorage.setItem('dashboard_cf_version', '56.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');
@@ -3999,7 +3999,7 @@ function cfRenderSummary() {
   // v47.0: כפתור תחזית — בצד שמאל, עיצוב כפתורי Header, יישור אנכי למרכז
   html += BDIV;
   html += '<div style="display:flex;flex-direction:column;justify-content:center;align-self:stretch;flex-shrink:0;">';
-  html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="background:rgba(139,92,246,0.18);border:1.5px solid rgba(139,92,246,0.5);color:#c4b5fd;border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;letter-spacing:0.2px;transition:background 0.15s;">🔮 הצג תחזית</button>';
+  html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
   html += '</div>';
 
   html += '</div>';

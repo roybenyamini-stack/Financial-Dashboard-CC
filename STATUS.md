@@ -1,7 +1,17 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v55.0 — Persistent Forecast State.
+גרסה v56.0 — Uniform UI & Clean Initial State.
+
+## שינויים אחרונים (22/03/2026)
+
+### v56.0 – Uniform UI & Clean Initial State
+**app.js:**
+- **CRITICAL BUG FIX — localStorage**: `loadCFFromLocalStorage` השתמש בבדיקה `savedVer !== '41.0'` שגרמה למחיקת נתוני CF בכל refresh (כי גרסה נשמרה כ-'55.0' אך הבדיקה דרשה '41.0'). תוקן ל-`parseFloat(savedVer) < 41` — כל גרסה >= 41 מתקבלת. מעתה נתוני תזרים נשמרים בין רענונים!
+- **כפתור תחזית**: עיצוב עוצב מחדש — זהה לכפתורי Header (רקע לבן 15%, מסגרת לבנה, border-radius:8px, padding:7px 14px, font-size:12px)
+
+**index.html:**
+- **טאב ברירת מחדל**: שונה מ-'השקעות' ל-'תזרים שוטף' — `active` class הועבר לכפתור ול-panel של cashflow
 
 ## שינויים אחרונים (22/03/2026)
 
