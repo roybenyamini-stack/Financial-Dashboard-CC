@@ -1599,10 +1599,10 @@ function cfParseWorkbook(wb) {
     };
 
     // v17.1: normalizeForCompare — ניקוי מלא לפני השוואה
-    // שלב 1: תווים בלתי-נראים → רווח; שלב 2: גרשיים/מרכאות → ASCII; שלב 3: רווחים כפולים → אחד
+    // v41.0: נוספו U+200E/200F (LTR/RTL marks) + U+202A-202F (directional formatting) שExcel מוסיף לעברית
     function normalizeForCompare(s) {
       return s
-        .replace(/[\u00A0\uFEFF\u200B\u200C\u200D\u2060\u180E]/g, ' ')  // non-breaking/invisible → רווח
+        .replace(/[\u00A0\uFEFF\u200B\u200C\u200D\u200E\u200F\u2060\u180E\u202A\u202B\u202C\u202D\u202E\u202F]/g, ' ')  // invisible/directional → רווח
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036\uFF02]/g, '"')  // מרכאות מעוגלות → ASCII "
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035\u0060]/g, "'")  // גרש מעוגל → ASCII '
         .replace(/\u05F4/g, '"')    // ״ גרשיים עברי → ASCII "
@@ -1619,7 +1619,7 @@ function cfParseWorkbook(wb) {
       total_income: ['סה"כ הכנסות', 'סה״כ הכנסות'],
       total_exp:    ['סה"כ הוצאות', 'סה״כ הוצאות', 'סה"כ הוצאות שקלי', 'סה״כ הוצאות שקלי'],
       profit_loss:  ['רווח / הפסד', 'רווח/ הפסד', 'רווח /הפסד', 'רווח/הפסד'],
-      salary:       ['הכנסה ממשכורת', 'משכורת שקלית', 'משכורת שקל'],
+      salary:       ['משכורת שקלית', 'משכורת שקל', 'הכנסה ממשכורת'],  // v41: שמות חדשים קודם
       rent_income:  ['שכר דירה', 'שכירות', 'שכ"ד', 'שכ״ד'],
       other_income: ['הכנסות שונות', 'הכנסה אחרת'],
       buffer:       ['פריטה מ-buffer', 'פריטה מ buffer', 'פריטה'],
@@ -1658,9 +1658,36 @@ function cfParseWorkbook(wb) {
       }
     }
 
-    // מעבר 1: כל שאר המפתחות — First Match Only
+    // v41.0: PRIORITY PASS — EXACT MATCH לשמות האקסל החדשים לפני הסריקה הכללית
+    // מונע false-match של שם ישן בשורה אחרת → גורם לנתונים שגויים
+    var PRIORITY_LABELS = {
+      salary:      ['משכורת שקלית', 'משכורת שקל'],
+      salary_usd:  ['משכורת דולרית'],
+      rent_income: ['שכר דירה'],
+    };
     var mappedKeys = {};
+    colsToScan.forEach(function(lc) {
+      for (var nri = 0; nri < nonEmptyRows.length; nri++) {
+        var sr = nonEmptyRows[nri];
+        var lbl = cellVal(ws, sr, lc);
+        if (!lbl) continue;
+        var lblN = normalizeForCompare(String(lbl).replace(/[\u00A0\uFEFF\t\r\n]+/g, ' ').trim().toLowerCase());
+        for (var pkey in PRIORITY_LABELS) {
+          if (mappedKeys[pkey]) continue;
+          if (PRIORITY_LABELS[pkey].some(function(kw) {
+            return lblN === normalizeForCompare(kw.toLowerCase());  // EXACT match בלבד
+          })) {
+            Object.keys(ROW_MAP).forEach(function(k){ if (ROW_MAP[k] === pkey) delete ROW_MAP[k]; });
+            ROW_MAP[sr] = pkey;
+            mappedKeys[pkey] = true;
+            console.log('[v41 PRIORITY] mapped:', pkey, '→ row', sr, '| label:', String(lbl).trim());
+            break;
+          }
+        }
+      }
+    });
 
+    // מעבר 1: שאר המפתחות — First Match Only (Substring)
     colsToScan.forEach(function(lc) {
       for (var nri = 0; nri < nonEmptyRows.length; nri++) {
         var sr = nonEmptyRows[nri];
@@ -1714,6 +1741,13 @@ function cfParseWorkbook(wb) {
         ROW_MAP[lastMatchRow] = ikey;
         console.log('[v19.2] FINAL iron row:', ikey, '→ row', lastMatchRow);
       }
+    });
+
+    // v41.0: לוג סיכום מיפוי — הדפסה של כל ROW_MAP לדיאגנוסטיקה
+    console.log('[v41 ROW_MAP FINAL]', JSON.stringify(ROW_MAP));
+    ['salary','rent_income','salary_usd','total_exp','total_income'].forEach(function(k) {
+      var found = Object.keys(ROW_MAP).some(function(r){ return ROW_MAP[r] === k; });
+      if (!found) console.warn('[v41 MISSING KEY]', k, '— לא נמצא בגיליון! מפתח חסר.');
     });
 
     // 4. קרא נתוני חודשים
@@ -1805,9 +1839,9 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM && _lastM.rows.total_income ? (_lastM.rows.total_income.val || 0) : 0;
           var _logExp = _lastM && _lastM.rows.total_exp    ? (_lastM.rows.total_exp.val    || 0) : 0;
-          console.log('!!! V40.0 - Hard-Coded Labels Fix !!!');
+          console.log('!!! V41.0 - Data Wiring Fix !!!');
           console.log('[Dashboard v39.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
-          localStorage.setItem('dashboard_cf_version', '40.0');
+          localStorage.setItem('dashboard_cf_version', '41.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -2930,9 +2964,9 @@ function loadCFFromLocalStorage() {
   try {
     // v17.0: נקה localStorage מכל גרסה קודמת — מחייב העלאת קובץ חדש
     var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (savedVer !== '40.0') {
+    if (savedVer !== '41.0') {
       localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '40.0');
+      localStorage.setItem('dashboard_cf_version', '41.0');
       return false;
     }
     var raw = localStorage.getItem('dashboard_cf_data');

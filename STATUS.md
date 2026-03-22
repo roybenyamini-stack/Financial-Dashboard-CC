@@ -1,9 +1,29 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v40.0 — Hard-Coded Labels Fix: סנכרון מלא בין שמות שורות האקסל לחישובי ה-Header.
+גרסה v41.0 — Data Wiring Fix: תיקון שורשי של פרסור האקסל.
 
 ## שינויים אחרונים (22/03/2026)
+
+### v41.0 – Data Wiring Fix
+**app.js — תיקון פרסור אקסל:**
+- `normalizeForCompare()`: נוספו U+200E, U+200F (LTR/RTL marks) + U+202A-202F (directional formatting) שExcel מוסיף לטקסט עברי — גרמו לכשל שקט בהשוואה
+- **PRIORITY PASS חדש**: העברה ראשונה עם EXACT MATCH לפני הסריקה הכללית:
+  - 'משכורת שקלית' / 'משכורת שקל' → salary
+  - 'משכורת דולרית' → salary_usd
+  - 'שכר דירה' → rent_income
+  - מונע false-match של שם ישן ('הכנסה ממשכורת') בשורה אחרת
+- `KEY_LABELS.salary`: 'משכורת שקלית' ו-'משכורת שקל' **קודמים** ל-'הכנסה ממשכורת'
+- **לוג סיכום** אחרי הסריקה: `console.log('[v41 ROW_MAP FINAL]', ...)` + אזהרה על מפתחות חסרים
+- `localStorage version`: '40.0' → '41.0'
+
+**לאחר העלאה — לאבחן בדפדפן:**
+1. פתח DevTools (F12) → Console
+2. טען את קובץ התזרים
+3. חפש `[v41 PRIORITY]` — אמור להציג salary, salary_usd, rent_income
+4. חפש `[v41 MISSING KEY]` — אם מופיע, המפתח לא נמצא בגיליון
+
+## שינויים קודמים (22/03/2026)
 
 ### v40.0 – Hard-Coded Labels Fix
 **app.js:**
