@@ -1,9 +1,14 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v39.0 — Accurate Salaries & Flexible Expenses: תיקון חישובי משכורת, תמיכה בהוצאות שונות מרובות, ויזואליה.
+גרסה v39.1 — Naming Fix: תמיכה ב-'סה"כ הוצאות שקלי' כשם אקסל חדש ל-total_exp.
 
 ## שינויים אחרונים (22/03/2026)
+
+### v39.1 – Naming Fix
+**app.js:**
+- `KEY_LABELS.total_exp`: נוסף 'סה"כ הוצאות שקלי', 'סה״כ הוצאות שקלי' (IRON_KEY — EXACT MATCH חייב ערך מפורש)
+- `localStorage version`: '39.0' → '39.1'
 
 ### v39.0 – Accurate Salaries & Flexible Expenses
 
