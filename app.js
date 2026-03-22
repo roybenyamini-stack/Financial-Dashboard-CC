@@ -1922,7 +1922,7 @@ function smartUploadRouter(input) {
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
           var _logExp = _lastM && _lastM.rows.total_exp ? (_lastM.rows.total_exp.val || 0) : 0;
-          console.log('!!! V49.0 - Layout Perfection & Forecast Fix !!!');
+          console.log('!!! V50.0 - Golden Jubilee & Clean Data !!!');
           console.log('[Dashboard v43.0] | חודשים:', newData.length, '| נוכחי:', CF_CURRENT_MONTH_ID, '| הכנסות:', _logInc, '| הוצאות:', _logExp);
           // v42.0: console.table — הדפסת שורות החודש הנוכחי לדיאגנוסטיקה
           var _diagIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
@@ -1933,7 +1933,7 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '49.0');
+          localStorage.setItem('dashboard_cf_version', '50.0');
           saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
@@ -3520,9 +3520,11 @@ function cfRenderKPI() {
   h += chip('הלוואות',gv('loans'),ER);
   h += chip('שיפוץ',gv('renovation'),ER);
   h += SEP;
-  // v49.0: יותם ושונות — כרטיסיות נפרדות עם Zero Noise
+  // v50.0: יותם נפרד; הוצ. שונות = other_exp + other_exp_2 מחוברים (לא OR)
   h += chip('יותם', gv('yotam'), EO);
-  h += chip('הוצ. שונות', gv('other_exp') || gv('other_exp_2'), EY);
+  var _oe1 = gv('other_exp') !== null ? gv('other_exp') : 0;
+  var _oe2 = gv('other_exp_2') !== null ? gv('other_exp_2') : 0;
+  h += chip('הוצ. שונות', (_oe1 + _oe2) || null, EY);
   h += SEP;
   var _eusd = gv('exp_usd');   var _yusd = gv('yotam_usd');
   h += chip('משכ$ ', gv('salary_usd'), EP);
@@ -3964,19 +3966,21 @@ function cfRenderForecast() {
   var html = '<div style="direction:rtl;">';
   html += '<div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
 
+  // v50.0: שורה אחת רציפה — ללא spacer; divider לפני קבוצת כרטיסיות תזרים
+  var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">';
   // הכנסות
   html += card('משכורת שנתית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
-  // הוצאות
-  html += card('ויזה', f.visa ? Math.abs(f.visa) : null, '#dc2626');
-  html += card('מזומן', f.cash_exp ? Math.abs(f.cash_exp) : null, '#dc2626');
-  html += card('הלוואות', f.loans ? Math.abs(f.loans) : null, '#b45309');
-  html += card('יותם', f.yotam ? Math.abs(f.yotam) : null, '#ea580c');
-  html += card('שונות', f.other_exp ? Math.abs(f.other_exp) : null, '#ca8a04');
-  // spacer — דוחף כרטיסיות תזרים לצד שמאל
-  html += '<div style="flex:1;min-width:12px;"></div>';
-  // תזרים/סיכום — שמאל (ישירות מעמודת סיכומים, ללא חישוב)
+  // הוצאות (ערכים גולמיים ישירות מסיכומים — ללא sum/reduce)
+  html += card('ויזה', f.visa != null ? Math.abs(f.visa) : null, '#dc2626');
+  html += card('מזומן', f.cash_exp != null ? Math.abs(f.cash_exp) : null, '#dc2626');
+  html += card('הלוואות', f.loans != null ? Math.abs(f.loans) : null, '#b45309');
+  html += card('יותם', f.yotam != null ? Math.abs(f.yotam) : null, '#ea580c');
+  html += card('שונות', f.other_exp != null ? Math.abs(f.other_exp) : null, '#ca8a04');
+  // divider לפני קבוצת תזרים
+  html += FDIV;
+  // תזרים/סיכום — ישירות מעמודת סיכומים, ללא שום חישוב
   html += bottomCard('תזרים שקלי נטו', netCash, '#3b82f6');
   html += bottomCard('תזרים שוטף',     cashTotal, '#6366f1');
   html += bottomCard('רווח / הפסד',    netVal, netColor);
