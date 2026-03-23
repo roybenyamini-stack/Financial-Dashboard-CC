@@ -4289,6 +4289,23 @@ var PNS_MARGINAL_RATE  = 0.30;
 var PNS_CAPITAL_RATE   = 0.25;
 var PNS_COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
 
+// מפרמט תאריך לפורמט ישראלי DD/MM/YYYY — מטפל ב-Date object, string ישראלי, ו-raw JS date string
+function pnsFormatDate(v) {
+  if (!v) return '';
+  // כבר בפורמט DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(String(v))) return String(v);
+  // Date object
+  if (v instanceof Date) {
+    return String(v.getDate()).padStart(2,'0')+'/'+String(v.getMonth()+1).padStart(2,'0')+'/'+v.getFullYear();
+  }
+  // ניסיון לפרש string כ-Date (כולל raw JS date strings)
+  var d = new Date(v);
+  if (!isNaN(d.getTime())) {
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  }
+  return String(v);
+}
+
 function pnsFmt(n) {
   if (!n || n === 0) return '—';
   return Math.round(n).toLocaleString('he-IL');
@@ -4417,7 +4434,7 @@ function pensionRenderCards() {
       return '<div class="pns-card-row"><span class="pns-card-lbl">'+r.lbl+'</span><span class="pns-card-num '+r.cls+'">'+r.val+'</span></div>';
     }).join('');
 
-    var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+a.expiryDate+'</div>' : '';
+    var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+pnsFormatDate(a.expiryDate)+'</div>' : '';
     var docHtml    = a.documentLink
       ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
 
@@ -4674,17 +4691,32 @@ function pensionParseWorkbook(wb, sheetName) {
   function getStr(ri, ci) {
     if (ri < 0 || !json[ri]) return null;
     var v = json[ri][ci];
-    return (v !== null && v !== undefined && String(v).trim()) ? String(v).trim() : null;
+    if (v === null || v === undefined) return null;
+    // v61.0: Date objects מ-XLSX → פורמט ישראלי DD/MM/YYYY
+    if (v instanceof Date) {
+      var dd = String(v.getDate()).padStart(2,'0');
+      var mm = String(v.getMonth()+1).padStart(2,'0');
+      var yy = v.getFullYear();
+      return dd+'/'+mm+'/'+yy;
+    }
+    var s = String(v).trim();
+    return s || null;
   }
 
-  var rPension   = findRow('קצבה');
-  var rDeath     = findRow('ביטוח חיים');
-  var rAccum     = findRow('צבירה');
+  // v61.0: מיפוי שורות מתוקן
+  // קיצבה צפויה — "קיצבה" עם יוד (≠ "קצבה" substring) ← חיפוש ספציפי
+  var rPension = findRow('קיצבה');           // "קיצבה צפויה"
+  if (rPension < 0) rPension = findRow('צפויה');  // fallback: כל שורה עם "צפויה"
+  var rDeath   = findRow('ביטוח חיים');
+  var rAccum   = findRow('צבירה');
   if (rAccum < 0) rAccum = findRow('כספים');
-  var rDisab     = findRow('אק"ע');
-  if (rDisab < 0) rDisab = findRow('נכות');
-  var rGuarM     = findRow('חודשי קצבה');
-  var rGuarC     = findRow('מקדם');
+  // אבדן כושר עבודה — ≠ נכות (13,053)
+  var rDisab   = findRow('אבדן כושר');
+  if (rDisab < 0) rDisab = findRow('אובדן כושר');
+  if (rDisab < 0) rDisab = findRow('כושר עבודה');
+  if (rDisab < 0) rDisab = findRow('אק"ע');
+  var rGuarM   = findRow('חודשי קצבה');
+  var rGuarC   = findRow('מקדם');
   var rExpiry    = findRow('תאריך תוקף');
   var rPremium   = findRow('פרמיה');
   var rPurpose   = findRow('ייעוד');
