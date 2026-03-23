@@ -1,4 +1,4 @@
-<!-- v64.0 -->
+<!-- v65.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v64.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v65.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -804,17 +804,20 @@
     <!-- MAIN CONTENT (hidden until data loaded) -->
     <div id="pns-content" style="display:none;">
 
-      <!-- 1. MASTER VIEW TOGGLE -->
-      <div class="pns-view-toggle">
-        <button class="pns-view-btn active" id="pns-view-mine"  onclick="pensionSetView('mine')">שלי</button>
-        <button class="pns-view-btn"        id="pns-view-reaya" onclick="pensionSetView('reaya')">רעיה</button>
-        <button class="pns-view-btn"        id="pns-view-joint" onclick="pensionSetView('joint')">משותף</button>
+      <!-- 1. VIEW DROPDOWN -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <select id="pns-view-select" class="pns-view-dropdown" onchange="pensionSetView(this.value)">
+          <option value="mine" selected>👤 שלי</option>
+          <option value="reaya">👤 רעיה</option>
+          <option value="joint">👥 משותף</option>
+        </select>
       </div>
 
       <!-- 2. MACRO DARK BAR -->
       <div id="pns-snapshot">
         <div id="pns-snap-stats" style="display:flex;align-items:center;flex-wrap:wrap;gap:0;flex:1;"></div>
-        <div id="pns-ni-area" style="display:none;margin-right:24px;flex-shrink:0;"></div>
+        <div id="pns-ni-area" style="display:none;margin-right:16px;flex-shrink:0;"></div>
+        <div id="pns-harel-area" style="display:none;margin-right:16px;flex-shrink:0;"></div>
       </div>
 
       <!-- 3. RISK ROW (light mode, narrow) -->
@@ -866,7 +869,22 @@
         <div id="pns-tax-results" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;"></div>
       </div>
 
-      <!-- 7. TIMELINE / GROWTH AREA -->
+      <!-- 7. LEGACY / INHERITANCE -->
+      <div id="pns-legacy-section" style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div class="pns-section-title">🏛️ הורשה ועיזבון</div>
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="position:relative;width:130px;height:130px;flex-shrink:0;">
+            <canvas id="pns-pie-chart" width="130" height="130"></canvas>
+            <div id="pns-pie-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
+              <div id="pns-pie-total-val" style="font-size:12px;font-weight:800;color:#1a1a2e;"></div>
+              <div style="font-size:9px;color:#9ca3af;">עיזבון</div>
+            </div>
+          </div>
+          <div id="pns-heirs-list" style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:120px;"></div>
+        </div>
+      </div>
+
+      <!-- 8. TIMELINE / GROWTH AREA -->
       <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
         <div class="pns-section-title">📈 ציר זמן וצמיחה</div>
         <div id="pns-timeline-chart-wrap" style="height:140px;margin-bottom:14px;display:none;">

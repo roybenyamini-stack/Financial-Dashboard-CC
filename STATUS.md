@@ -1,9 +1,28 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v64.0 — Pension Tab Full Architectural Refactor.
+גרסה v65.0 — Data Wiring, UI Refactor & Cleanup (3 Sprints).
 
 ## שינויים אחרונים (23/03/2026)
+
+### v65.0 – Data Wiring, UI Refactor & Cleanup
+
+**פעימה 1 — לוגיקת נתונים:**
+- **Parser fix**: נוסף סינון עמודות סיכום — header המכיל 'ללא' או 'סיכום' מדולג (מונע ספירה כפולה של 'קצבה ללא הראל...')
+- **pensionActiveAssets()**: תומך כעת בשני פילטרים — הוצאת הורשה + הוצאת הראל (כשמתג "ללא הראל" פעיל)
+- **4 KPIs**: הון צבור + קצבה ברוטו מחוברים לנתוני PENSION_ASSETS; קצבה נטו מחוברת ל-Tax Lab; הכנסה פנויה placeholder
+
+**פעימה 2 — UI/UX:**
+- **View Dropdown**: כפתורי "שלי/רעיה/משותף" הוחלפו ב-`<select>` dropdown קומפקטי בצד ימין
+- **מתג הראל** (עם/ללא) בבר הכהה — מופיע רק כשקיים נכס הראל; מאפשר סימולציה מהירה
+- **Cards — פנסיה בלבד**: `pensionRenderCards()` מציג רק `!isRisk` — ריסקים (הראל) מוצגים בשורת ה-Cover בלבד
+- **Risk Row**: ביטוח חיים מציג שם ספק הראל ספציפית; אובדן כושר = סיכום כלל הפוליסות
+- **`pensionToggleHarel(exclude)`**: פונקציה חדשה — מחשבת מחדש snapshot + cards + tax
+
+**פעימה 3 — ניקוי:**
+- **Legacy/Inheritance** חזר: כרטיסיית "הורשה ועיזבון" עם pie chart + heirs list
+- **Pie Placeholder**: כשאין נתוני מוטבים — עוגה אפורה (#e5e7eb) + tooltip מבוטל
+- **Timeline**: placeholder "בבנייה" קיים מ-v64
 
 ### v64.0 – Pension Tab Full Architectural Refactor (PRD v64)
 **index.html:**
