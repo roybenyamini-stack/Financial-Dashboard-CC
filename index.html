@@ -1,4 +1,4 @@
-<!-- v62.0 -->
+<!-- v64.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v62.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v64.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -794,91 +794,88 @@
 <div class="tab-panel" id="tab-pension">
   <div id="pns-wrap">
 
-    <!-- SNAPSHOT – dark macro bar -->
-    <div id="pns-snapshot" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-        <div id="pns-snap-stats" style="display:flex;align-items:center;flex-wrap:wrap;gap:0;"></div>
-        <div id="pns-ni-area" style="display:none;"></div>
-      </div>
-    </div>
-
     <!-- EMPTY STATE -->
     <div id="pns-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52vh;color:#9ca3af;gap:12px;">
       <div style="font-size:44px;opacity:0.3;">🏦</div>
       <div style="font-size:15px;font-weight:600;">אין נתוני פנסיה וביטוחים</div>
-      <div style="font-size:12px;text-align:center;max-width:300px;opacity:0.75;">העלה קובץ אקסל הכולל גיליון בשם "ביטוח חיים ופנסיה"</div>
-      <button onclick="document.getElementById('fileInput').click()" style="background:#1a1a2e;color:white;border:none;border-radius:10px;padding:10px 22px;font-size:13px;font-family:Heebo,sans-serif;font-weight:700;cursor:pointer;margin-top:6px;">📂 עדכן נתונים מאקסל</button>
+      <div style="font-size:12px;text-align:center;max-width:300px;opacity:0.75;">לחץ על "טען תכנון פרישה" בסרגל העליון</div>
     </div>
 
     <!-- MAIN CONTENT (hidden until data loaded) -->
     <div id="pns-content" style="display:none;">
 
-      <!-- DETAIL CARDS -->
+      <!-- 1. MASTER VIEW TOGGLE -->
+      <div class="pns-view-toggle">
+        <button class="pns-view-btn active" id="pns-view-mine"  onclick="pensionSetView('mine')">שלי</button>
+        <button class="pns-view-btn"        id="pns-view-reaya" onclick="pensionSetView('reaya')">רעיה</button>
+        <button class="pns-view-btn"        id="pns-view-joint" onclick="pensionSetView('joint')">משותף</button>
+      </div>
+
+      <!-- 2. MACRO DARK BAR -->
+      <div id="pns-snapshot">
+        <div id="pns-snap-stats" style="display:flex;align-items:center;flex-wrap:wrap;gap:0;flex:1;"></div>
+        <div id="pns-ni-area" style="display:none;margin-right:24px;flex-shrink:0;"></div>
+      </div>
+
+      <!-- 3. RISK ROW (light mode, narrow) -->
+      <div id="pns-risk-row" class="pns-risk-row"></div>
+
+      <!-- 4. PENSION & ASSETS CARDS (The Stream) -->
       <div style="margin-bottom:14px;">
-        <div class="pns-section-title">📋 פוליסות ונכסים</div>
+        <div class="pns-section-title">📋 פוליסות ונכסים פעילים</div>
         <div id="pns-cards-grid"></div>
       </div>
 
-      <!-- TWO-COL: TAX LAB + LEGACY -->
-      <div class="pns-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <!-- 5. LUMP SUMS — zero noise, hidden if empty -->
+      <div id="pns-lumpsum-section" style="display:none;background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div class="pns-section-title">💰 מענקי פרישה ואירועים הוניים</div>
+        <div id="pns-events-list"></div>
+      </div>
 
-        <!-- TAX LAB -->
-        <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-          <div class="pns-section-title">⚙️ מעבדת הסימולציות והמס</div>
-
-          <!-- Heritage toggle -->
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f8fafc;border-radius:10px;margin-bottom:14px;">
-            <label class="pns-toggle-switch">
-              <input type="checkbox" id="pns-heritage-chk" onchange="pensionToggleHeritage(this.checked)">
-              <span class="pns-toggle-slider"></span>
-            </label>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:#374151;">הוצא נכסי הורשה מחישוב הקצבה</div>
-              <div style="font-size:10px;color:#9ca3af;">מסנן פוליסות שייעודן הורשה</div>
-            </div>
-          </div>
-
-          <!-- Tax slider -->
+      <!-- 6. TAX LAB -->
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+          <div class="pns-section-title" style="margin-bottom:0;">⚙️ מחשבון מס</div>
+          <span class="pns-info-icon" title="מדרגות מס פנסיה: פטור חודשי עד ₪9,430 | פטור היוון עד ₪800,000 | מס שולי על יתרה 30% | מס רווח הון 25%">ℹ️</span>
+        </div>
+        <!-- Heritage toggle -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f8fafc;border-radius:10px;margin-bottom:16px;">
+          <label class="pns-toggle-switch">
+            <input type="checkbox" id="pns-heritage-chk" onchange="pensionToggleHeritage(this.checked)">
+            <span class="pns-toggle-slider"></span>
+          </label>
           <div>
-            <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">קיבוע זכויות – הקצאת הפטור הפנסיוני</div>
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:4px;">
-              <span>הון חד-פעמי</span><span>קצבה חודשית</span>
-            </div>
-            <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
-              oninput="pensionSliderChange(this.value)">
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:3px;">
-              <span id="pns-cap-pct">50%</span><span id="pns-pen-pct">50%</span>
-            </div>
-          </div>
-
-          <!-- Net results -->
-          <div id="pns-tax-results" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;"></div>
-        </div>
-
-        <!-- LEGACY -->
-        <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-          <div class="pns-section-title">🏛️ הורשה ועיזבון</div>
-          <div class="pns-legacy-grid" style="display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:start;">
-            <div style="position:relative;width:160px;height:160px;">
-              <canvas id="pns-pie-chart" width="160" height="160"></canvas>
-              <div id="pns-pie-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
-                <div id="pns-pie-total-val" style="font-size:13px;font-weight:800;color:#1a1a2e;"></div>
-                <div style="font-size:9px;color:#9ca3af;">סה״כ עיזבון</div>
-              </div>
-            </div>
-            <div id="pns-heirs-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="font-size:12px;font-weight:600;color:#374151;">הוצא נכסי הורשה מחישוב הקצבה</div>
+            <div style="font-size:10px;color:#9ca3af;">מסנן פוליסות שייעודן הורשה</div>
           </div>
         </div>
+        <!-- Tax slider — prominent -->
+        <div class="pns-slider-section">
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">קיבוע זכויות – הקצאת הפטור הפנסיוני</div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:8px;">
+            <span>← הון חד-פעמי (היוון)</span><span>(קצבה חודשית) הכנסה שוטפת →</span>
+          </div>
+          <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
+            oninput="pensionSliderChange(this.value)">
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-top:6px;">
+            <span id="pns-cap-pct" style="color:#2563eb;">50%</span>
+            <span id="pns-pen-pct" style="color:#16a34a;">50%</span>
+          </div>
+        </div>
+        <!-- Net results -->
+        <div id="pns-tax-results" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;"></div>
+      </div>
 
-      </div><!-- /two-col -->
-
-      <!-- TIMELINE -->
+      <!-- 7. TIMELINE / GROWTH AREA -->
       <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-        <div class="pns-section-title">📅 ציר זמן ואירועים</div>
+        <div class="pns-section-title">📈 ציר זמן וצמיחה</div>
         <div id="pns-timeline-chart-wrap" style="height:140px;margin-bottom:14px;display:none;">
           <canvas id="pns-timeline-chart"></canvas>
         </div>
-        <div id="pns-events-list"></div>
+        <div id="pns-growth-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80px;color:#9ca3af;gap:6px;background:#f8fafc;border-radius:10px;">
+          <div style="font-size:24px;opacity:0.35;">📊</div>
+          <div style="font-size:11px;">גרף צבירת הון לאורך זמן — בבנייה</div>
+        </div>
       </div>
 
     </div><!-- /pns-content -->
