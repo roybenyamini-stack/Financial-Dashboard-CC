@@ -4246,6 +4246,7 @@ function switchTab(id){
   // Header buttons
   document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isInv ? '' : 'none'; });
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
+  document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
 
   // v28.0: סגור חלוני צ'אט פתוחים בעת מעבר בין טאבים
   if (cfChatOpen) { cfChatOpen = false; var _cfcp = document.getElementById('cf-cp'); if(_cfcp) _cfcp.style.display='none'; }
