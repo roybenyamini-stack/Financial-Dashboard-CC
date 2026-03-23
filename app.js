@@ -1921,11 +1921,10 @@ function smartUploadRouter(input) {
       CF_DATA = [];
       var data = new Uint8Array(e.target.result);
       var wb = XLSX.read(data, {type:'array', cellDates:true});
-      // בדיקת גיליון פנסיה — עדיפות ראשונה
-      var pnsKey = PNS_SHEET_KEY.normalize('NFC');
-      var isPns  = wb.SheetNames.some(function(n){ return n.normalize('NFC').indexOf(pnsKey) >= 0; });
-      if (isPns) {
-        var pnsAssets = pensionParseWorkbook(wb);
+      // בדיקת גיליון פנסיה לפי תוכן תאים — עדיפות ראשונה (v60.0)
+      var pnsSheetName = detectPensionSheet(wb);
+      if (pnsSheetName) {
+        var pnsAssets = pensionParseWorkbook(wb, pnsSheetName);
         if (pnsAssets && pnsAssets.length > 0) {
           PENSION_ASSETS = pnsAssets;
           pensionSaveToStorage();
@@ -2000,7 +1999,8 @@ function smartUploadRouter(input) {
         if(hasInvestSheets) {
           loadExcelFileCore(wb);
         } else {
-          if(status) { status.textContent = '❌ קובץ לא זוהה'; setTimeout(function(){status.textContent='';},4000); }
+          var sheetList = wb.SheetNames.slice(0,5).join(', ');
+          if(status) { status.textContent = '❌ קובץ לא זוהה – גיליונות: ' + sheetList; setTimeout(function(){status.textContent='';},6000); }
         }
       }
     } catch(err) {
@@ -2230,8 +2230,9 @@ function loadExcelFileCore(wb) {
       selectView(currentView || 'all');
       updateNavButtons();
       
-      status.textContent = '✅ הועלו נתוני השקעות – ' + newLabels.length + ' חודשים';
+      status.textContent = '✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים';
       status.style.color = '#4ade80';
+      setTimeout(function(){ status.style.color = ''; }, 5000);
       
     } catch(err) {
       status.textContent = 'שגיאה: ' + err.message;
@@ -4611,14 +4612,40 @@ function pensionRenderTimeline() {
   });
 }
 
-// ---------- EXCEL PARSER ----------
-function pensionParseWorkbook(wb) {
-  var sheetName = wb.SheetNames.find(function(n) {
-    return n.normalize('NFC').indexOf(PNS_SHEET_KEY.normalize('NFC')) >= 0;
-  });
-  if (!sheetName) return null;
+// ---------- PENSION SHEET DETECTOR (content-based) ----------
+// מזהה גיליון פנסיה לפי תוכן תאים — בלתי תלוי בשם הגיליון
+var PNS_DETECT_KEYWORDS = ['ביטוח חיים', 'קצבה', 'ביטוח מנהלים', 'ייעוד מרכזי', 'תאריך תוקף', 'מקדם', 'מוטבים', 'אק"ע', 'פנסיה', 'הפניקס'];
+var PNS_DETECT_SCORE    = 3; // מספר מילות מפתח מינימלי לזיהוי חיובי
 
-  var json = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, defval:null });
+function detectPensionSheet(wb) {
+  for (var si = 0; si < wb.SheetNames.length; si++) {
+    var sName = wb.SheetNames[si];
+    try {
+      var sheet = wb.Sheets[sName];
+      if (!sheet || !sheet['!ref']) continue;
+      var range = XLSX.utils.decode_range(sheet['!ref']);
+      range.e.r = Math.min(range.e.r, 34);  // סריקת עד 35 שורות
+      range.e.c = Math.min(range.e.c, 19);  // סריקת עד 20 עמודות
+      var text = '';
+      for (var r = range.s.r; r <= range.e.r; r++) {
+        for (var c = range.s.c; c <= range.e.c; c++) {
+          var cell = sheet[XLSX.utils.encode_cell({r:r, c:c})];
+          if (cell && cell.v) text += String(cell.v) + ' ';
+        }
+      }
+      var score = PNS_DETECT_KEYWORDS.filter(function(kw){ return text.indexOf(kw) >= 0; }).length;
+      if (score >= PNS_DETECT_SCORE) return sName;
+    } catch(ignored) {}
+  }
+  return null;
+}
+
+// ---------- EXCEL PARSER ----------
+function pensionParseWorkbook(wb, sheetName) {
+  var resolvedSheet = sheetName || detectPensionSheet(wb);
+  if (!resolvedSheet) return null;
+
+  var json = XLSX.utils.sheet_to_json(wb.Sheets[resolvedSheet], { header:1, defval:null });
 
   // Find header row (first row with 3+ non-empty cells)
   var headerRow = null, headerIdx = 0;
