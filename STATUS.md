@@ -1,7 +1,18 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v61.0 — Pension Parser Row Mapping Fix + Date Formatting.
+גרסה v62.0 — Permanent Pension Upload Button.
+
+## שינויים אחרונים (23/03/2026)
+
+### v62.0 – Permanent Pension Upload Button
+**index.html:**
+- נוסף כפתור **"טען תכנון פרישה"** בשורת כפתורי ה-Header (לפני כפתור ה-Theme), עם class `pns-only-btn` ו-`display:none` כברירת מחדל
+- הכפתור מקושר ל-`fileInput` הקיים — לחיצה = פתיחת חלון בחירת קובץ
+- גרסה עודכנה: v61.0 → v62.0
+
+**app.js:**
+- **switchTab()**: נוסף טיפול ב-`.pns-only-btn` — מוצג כ-`flex` בטאב פנסיה, מוסתר בשאר הטאבים
 
 ## שינויים אחרונים (23/03/2026)
 
