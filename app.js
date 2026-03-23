@@ -1914,10 +1914,36 @@ function smartUploadRouter(input) {
   reader.onload = function(e) {
     try {
       // v19.2: ניקוי זיכרון אגרסיבי — דף נקי בכל טעינת אקסל
+      // v59.0: שמירת נתוני פנסיה לפני הניקוי — הם לא קשורים לקובץ הנוכחי
+      var _pnsBackup = localStorage.getItem('dashboard_pension_data');
       localStorage.clear();
+      if (_pnsBackup) localStorage.setItem('dashboard_pension_data', _pnsBackup);
       CF_DATA = [];
       var data = new Uint8Array(e.target.result);
       var wb = XLSX.read(data, {type:'array', cellDates:true});
+      // בדיקת גיליון פנסיה — עדיפות ראשונה
+      var pnsKey = PNS_SHEET_KEY.normalize('NFC');
+      var isPns  = wb.SheetNames.some(function(n){ return n.normalize('NFC').indexOf(pnsKey) >= 0; });
+      if (isPns) {
+        var pnsAssets = pensionParseWorkbook(wb);
+        if (pnsAssets && pnsAssets.length > 0) {
+          PENSION_ASSETS = pnsAssets;
+          pensionSaveToStorage();
+          if (status) { status.textContent = '✅ עודכנו נתוני פנסיה – '+pnsAssets.length+' פוליסות'; setTimeout(function(){ status.textContent=''; }, 5000); }
+          // אם הטאב פנסיה פעיל — רנדר מחדש; אחרת — אפס כדי לאלץ init
+          var activePanel = document.querySelector('.tab-panel.active');
+          if (activePanel && activePanel.id === 'tab-pension') {
+            pensionRender();
+          } else {
+            pensionInited = false;
+          }
+        } else {
+          if (status) { status.textContent = '⚠️ לא נמצאו נתוני פנסיה בגיליון'; setTimeout(function(){ status.textContent=''; }, 5000); }
+        }
+        input.value = '';
+        return;
+      }
+
       var cfKey = 'שוטף חדשי'.normalize('NFC');
       var isCF = wb.SheetNames.some(function(n){ return n.normalize('NFC').indexOf(cfKey) >= 0; });
       if (isCF) {
@@ -4196,23 +4222,28 @@ function switchTab(id){
   var t=document.getElementById('hdr-tab-title');
   if(t)t.textContent=TAB_NAMES[id]||id;
 
-  var isCF = (id === 'cashflow');
-  // Header stats swap
-  var invStats = document.querySelector('.header-stats:not(#cf-header-stats)');
-  if(invStats) invStats.style.display = isCF ? 'none' : '';
+  var isCF  = (id === 'cashflow');
+  var isInv = (id === 'investments');
+  var isPns = (id === 'pension');
+
+  // Header stats: only for investments tab
+  var invStats = document.getElementById('inv-header-stats');
+  if(invStats) invStats.style.display = isInv ? '' : 'none';
   var cfStats = document.getElementById('cf-header-stats');
   if(cfStats) cfStats.style.display = isCF ? 'flex' : 'none';
-  // Cards swap
+
+  // Cards row
   var invCards = document.getElementById('inv-cards-row');
-  if(invCards) invCards.style.display = isCF ? 'none' : '';
+  if(invCards) invCards.style.display = isInv ? '' : 'none';
   var cfCards = document.getElementById('cf-cards-row');
   if(cfCards) cfCards.style.display = isCF ? 'grid' : 'none';
-  // Chart hide/show
-  var invChart = document.getElementById('inv-chart-section');
-  if(invChart) invChart.style.display = isCF ? 'none' : '';
 
-  // Context-sensitive header buttons
-  document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isCF ? 'none' : ''; });
+  // Chart section
+  var invChart = document.getElementById('inv-chart-section');
+  if(invChart) invChart.style.display = isInv ? '' : 'none';
+
+  // Header buttons
+  document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isInv ? '' : 'none'; });
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
 
   // v28.0: סגור חלוני צ'אט פתוחים בעת מעבר בין טאבים
@@ -4220,6 +4251,7 @@ function switchTab(id){
   if (chatOpen)   { chatOpen   = false; var _cp   = document.getElementById('cp');    if(_cp)   _cp.style.display='none'; }
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
+  if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
 }
 
 // חיבור כפתור העדכון ל-fileInput
@@ -4234,3 +4266,471 @@ document.addEventListener('DOMContentLoaded', function() {
   switchTab('cashflow');
   updateTableCells(); // מבטיח שתאי טבלת השקעות מציגים 0 כשאין נתוני localStorage
 });
+
+// =========================================
+// PENSION TAB v1.0
+// =========================================
+
+var PENSION_ASSETS  = [];
+var PENSION_EVENTS  = [];
+var PENSION_NI      = { single: 0, couple: 0 };
+var pensionInited   = false;
+var pensionExcludeHeritage = false;
+var pensionTaxSliderVal    = 50;
+var pensionNIMode   = 'single';
+var pnsLegacyChart  = null;
+var pnsTimelineChart = null;
+var PNS_SHEET_KEY   = 'ביטוח חיים ופנסיה';
+// Israel 2025 approximate tax ceilings
+var PNS_MONTHLY_EXEMPT = 9430;
+var PNS_CAPITAL_EXEMPT = 800000;
+var PNS_MARGINAL_RATE  = 0.30;
+var PNS_CAPITAL_RATE   = 0.25;
+var PNS_COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
+
+function pnsFmt(n) {
+  if (!n || n === 0) return '—';
+  return Math.round(n).toLocaleString('he-IL');
+}
+function pnsFmtK(n) {
+  if (!n || n === 0) return '—';
+  if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1000)    return Math.round(n / 1000) + 'K';
+  return Math.round(n).toLocaleString('he-IL');
+}
+
+function pensionInit() {
+  var saved = null;
+  try { var raw = localStorage.getItem('dashboard_pension_data'); if (raw) saved = JSON.parse(raw); } catch(e) {}
+  if (saved && saved.assets && saved.assets.length > 0) {
+    PENSION_ASSETS = saved.assets;
+    PENSION_EVENTS = saved.events || [];
+    PENSION_NI     = saved.ni    || { single: 0, couple: 0 };
+    pensionRender();
+  } else {
+    pensionShowEmpty();
+  }
+}
+
+function pensionShowEmpty() {
+  var c = document.getElementById('pns-content');
+  var e = document.getElementById('pns-empty');
+  var s = document.getElementById('pns-snapshot');
+  if (c) c.style.display = 'none';
+  if (e) e.style.display = 'flex';
+  if (s) s.style.display = 'none';
+}
+
+function pensionRender() {
+  var c = document.getElementById('pns-content');
+  var e = document.getElementById('pns-empty');
+  var s = document.getElementById('pns-snapshot');
+  if (c) c.style.display = '';
+  if (e) e.style.display = 'none';
+  if (s) s.style.display = '';
+  pensionRenderSnapshot();
+  pensionRenderCards();
+  pensionRenderTaxLab();
+  pensionRenderLegacy();
+  pensionRenderTimeline();
+}
+
+function pensionActiveAssets() {
+  if (!pensionExcludeHeritage) return PENSION_ASSETS;
+  return PENSION_ASSETS.filter(function(a) { return a.mainPurpose !== 'הורשה'; });
+}
+
+// ---------- SNAPSHOT ----------
+function pensionRenderSnapshot() {
+  var active = pensionActiveAssets();
+  var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+  var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+  var totalRisk    = PENSION_ASSETS.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  var totalDisab   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
+  var niVal        = PENSION_NI[pensionNIMode] || 0;
+
+  var items = [];
+  if (totalPension > 0) items.push({ lbl:'קצבה ברוטו',   val:pnsFmt(totalPension),  sub:'₪/חודש', color:'#4ade80' });
+  if (niVal > 0)        items.push({ lbl:'ביטוח לאומי',  val:pnsFmt(niVal),          sub:'₪/חודש', color:'#fff'    });
+  if (totalAccum > 0)   items.push({ lbl:'הון צבור',     val:pnsFmtK(totalAccum),   sub:'ש״ח',    color:'#7dd3fc' });
+  if (totalRisk > 0)    items.push({ lbl:'ביטוח חיים',   val:pnsFmtK(totalRisk),    sub:'ש״ח',    color:'#fbbf24' });
+  if (totalDisab > 0)   items.push({ lbl:'אק״ע',         val:pnsFmt(totalDisab),    sub:'₪/חודש', color:'#fff'    });
+
+  var statsEl = document.getElementById('pns-snap-stats');
+  if (statsEl) {
+    statsEl.innerHTML = items.map(function(it, i) {
+      return '<div class="pns-snap-item">' +
+        '<div class="pns-snap-label">'+it.lbl+'</div>' +
+        '<div class="pns-snap-val" style="color:'+it.color+';">'+it.val+'</div>' +
+        '<div class="pns-snap-sub">'+it.sub+'</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  var niArea = document.getElementById('pns-ni-area');
+  if (niArea) {
+    var hasBoth = (PENSION_NI.single > 0 || PENSION_NI.couple > 0);
+    niArea.style.display = hasBoth ? '' : 'none';
+    if (hasBoth) {
+      niArea.innerHTML =
+        '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">ביטוח לאומי:</span>' +
+        '<button class="pns-ni-btn '+(pensionNIMode==='single'?'active':'')+'" onclick="pensionSetNI(\'single\')">יחיד</button> ' +
+        '<button class="pns-ni-btn '+(pensionNIMode==='couple'?'active':'')+'" onclick="pensionSetNI(\'couple\')">זוג</button>';
+    }
+  }
+}
+
+function pensionSetNI(mode) {
+  pensionNIMode = mode;
+  pensionRenderSnapshot();
+}
+
+// ---------- CARDS ----------
+function pensionRenderCards() {
+  var grid = document.getElementById('pns-cards-grid');
+  if (!grid) return;
+  var visible = PENSION_ASSETS.filter(function(a) {
+    return (a.accumulation > 0 || a.expectedPension > 0 || a.deathCapital > 0 || a.disabilityCover > 0);
+  });
+  if (!visible.length) { grid.innerHTML = ''; return; }
+
+  grid.innerHTML = visible.map(function(a) {
+    var isRisk     = a.isRisk;
+    var isHeritage = (a.mainPurpose === 'הורשה');
+    var borderColor = isRisk ? '#ef4444' : isHeritage ? '#8b5cf6' : '#3b82f6';
+    var iconBg      = isRisk ? '#fee2e2' : '#dbeafe';
+    var icon        = isRisk ? '🛡️' : '🏦';
+
+    var rows = [];
+    if (a.expectedPension > 0) rows.push({ lbl:'קצבה חודשית',    val:pnsFmt(a.expectedPension)+' ₪',  cls:'green' });
+    if (a.accumulation    > 0) rows.push({ lbl:'צבירה',           val:pnsFmtK(a.accumulation)+' ₪',   cls:'' });
+    if (a.deathCapital    > 0) rows.push({ lbl:'ביטוח חיים/ריסק', val:pnsFmtK(a.deathCapital)+' ₪',   cls:'red' });
+    if (a.disabilityCover > 0) rows.push({ lbl:'אק״ע',             val:pnsFmt(a.disabilityCover)+' ₪', cls:'' });
+    if (a.guaranteedMonths> 0) rows.push({ lbl:'חודשים מובטחים',  val:a.guaranteedMonths,              cls:'' });
+
+    var badges = '';
+    if (a.policyType) badges += '<span class="pns-card-badge '+(isRisk?'pns-badge-risk':'pns-badge-pension')+'">'+a.policyType+'</span>';
+    if (isHeritage)   badges += '<span class="pns-card-badge pns-badge-heritage">הורשה</span>';
+
+    var rowsHtml = rows.map(function(r) {
+      return '<div class="pns-card-row"><span class="pns-card-lbl">'+r.lbl+'</span><span class="pns-card-num '+r.cls+'">'+r.val+'</span></div>';
+    }).join('');
+
+    var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+a.expiryDate+'</div>' : '';
+    var docHtml    = a.documentLink
+      ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
+
+    return '<div class="pns-card'+(isRisk?' risk':'')+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';">' +
+      '<div class="pns-card-header">' +
+        '<div class="pns-card-icon'+(isRisk?' risk':'')+'" style="background:'+iconBg+';">'+icon+'</div>' +
+        '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
+        (badges ? '<div style="margin-right:auto;">'+badges+'</div>' : '') +
+      '</div>' +
+      '<div class="pns-card-rows">'+rowsHtml+'</div>' +
+      expiryHtml + docHtml +
+    '</div>';
+  }).join('');
+}
+
+// ---------- TAX LAB ----------
+function pensionToggleHeritage(checked) {
+  pensionExcludeHeritage = checked;
+  pensionRenderSnapshot();
+  pensionSliderChange(pensionTaxSliderVal);
+}
+
+function pensionRenderTaxLab() {
+  pensionSliderChange(pensionTaxSliderVal);
+}
+
+function pensionSliderChange(val) {
+  pensionTaxSliderVal = parseInt(val);
+  var sliderEl = document.getElementById('pns-tax-slider');
+  if (sliderEl) { sliderEl.value = val; sliderEl.style.setProperty('--pns-val', val + '%'); }
+  var capPct = document.getElementById('pns-cap-pct');
+  var penPct = document.getElementById('pns-pen-pct');
+  if (capPct) capPct.textContent = val + '%';
+  if (penPct) penPct.textContent = (100 - val) + '%';
+
+  var active = pensionActiveAssets();
+  var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+  var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+
+  var pensionExemptFrac = (100 - val) / 100;
+  var capitalExemptFrac = val / 100;
+  var monthlyExempt = PNS_MONTHLY_EXEMPT * pensionExemptFrac;
+  var capitalExempt = PNS_CAPITAL_EXEMPT  * capitalExemptFrac;
+
+  var taxOnPension = Math.max(0, totalPension - monthlyExempt) * PNS_MARGINAL_RATE;
+  var netMonthly   = totalPension - taxOnPension;
+  var taxOnCapital = Math.max(0, totalAccum - capitalExempt) * PNS_CAPITAL_RATE;
+  var netCapital   = totalAccum - taxOnCapital;
+
+  var resultsEl = document.getElementById('pns-tax-results');
+  if (resultsEl) {
+    resultsEl.innerHTML =
+      '<div style="background:#f0fdf4;border-radius:10px;padding:10px 14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">קצבה נטו</div>' +
+        '<div style="font-size:16px;font-weight:800;color:#16a34a;">'+(totalPension>0?pnsFmt(Math.round(netMonthly))+' ₪':'—')+'</div>' +
+        '<div style="font-size:10px;color:#9ca3af;">/חודש</div>' +
+      '</div>' +
+      '<div style="background:#eff6ff;border-radius:10px;padding:10px 14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">הון פנוי</div>' +
+        '<div style="font-size:16px;font-weight:800;color:#2563eb;">'+(totalAccum>0?pnsFmtK(Math.round(netCapital))+' ₪':'—')+'</div>' +
+        '<div style="font-size:10px;color:#9ca3af;">לאחר מס</div>' +
+      '</div>';
+  }
+}
+
+// ---------- LEGACY / PIE ----------
+function pensionRenderLegacy() {
+  var totalLegacy = PENSION_ASSETS.reduce(function(s,a) {
+    return s + (a.deathCapital||0) + (a.guaranteedMonths||0) * (a.expectedPension||0);
+  }, 0);
+
+  var totalValEl = document.getElementById('pns-pie-total-val');
+  if (totalValEl) totalValEl.textContent = pnsFmtK(totalLegacy) + ' ₪';
+
+  // Build heirs map
+  var heirMap = {};
+  PENSION_ASSETS.forEach(function(a) {
+    if (!a.beneficiaries || !a.beneficiaries.length) return;
+    var base = (a.deathCapital||0) + (a.guaranteedMonths||0)*(a.expectedPension||0);
+    a.beneficiaries.forEach(function(b) {
+      if (!b.name || !b.pct) return;
+      heirMap[b.name] = (heirMap[b.name]||0) + base * b.pct / 100;
+    });
+  });
+  var heirs = Object.keys(heirMap).map(function(n){ return {name:n, val:Math.round(heirMap[n])}; })
+                .sort(function(a,b){ return b.val-a.val; });
+
+  // Pie chart
+  var canvas = document.getElementById('pns-pie-chart');
+  if (canvas) {
+    if (pnsLegacyChart) { pnsLegacyChart.destroy(); pnsLegacyChart = null; }
+    var pieData = heirs.length > 0 ? heirs.map(function(h){ return h.val; }) : [totalLegacy||1];
+    var pieLabels = heirs.length > 0 ? heirs.map(function(h){ return h.name; }) : ['סה״כ'];
+    var pieColors = PNS_COLORS.slice(0, pieData.length);
+    pnsLegacyChart = new Chart(canvas.getContext('2d'), {
+      type:'doughnut',
+      data: { labels:pieLabels, datasets:[{ data:pieData, backgroundColor:pieColors, borderWidth:2, borderColor:'#fff' }] },
+      options: {
+        cutout:'68%',
+        plugins: {
+          legend: { display:false },
+          tooltip: { rtl:true, callbacks:{ label:function(c){ return c.label+': '+pnsFmtK(c.raw)+' ₪'; } } }
+        },
+        animation: { duration:600 }
+      }
+    });
+  }
+
+  // Heirs list
+  var heirsList = document.getElementById('pns-heirs-list');
+  if (!heirsList) return;
+  var totalH = heirs.reduce(function(s,h){ return s+h.val; }, 0);
+  var heirRows = heirs.map(function(h, i) {
+    var pct = totalH > 0 ? Math.round(h.val/totalH*100) : 0;
+    return '<div class="pns-heir-row">' +
+      '<div class="pns-heir-dot" style="background:'+PNS_COLORS[i%PNS_COLORS.length]+';"></div>' +
+      '<div class="pns-heir-name">'+h.name+'</div>' +
+      '<div class="pns-heir-pct">'+pct+'%</div>' +
+      '<div class="pns-heir-val">'+pnsFmtK(h.val)+' ₪</div>' +
+    '</div>';
+  }).join('');
+
+  if (!heirRows) {
+    heirRows = '<div style="font-size:12px;color:#9ca3af;">אין נתוני מוטבים</div>';
+  }
+
+  // Document links
+  var docLinks = PENSION_ASSETS.filter(function(a){ return a.documentLink; });
+  var docHtml = '';
+  if (docLinks.length) {
+    docHtml = '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f3f4f6;">' +
+      '<div style="font-size:10px;color:#9ca3af;margin-bottom:5px;">מסמכים</div>' +
+      docLinks.map(function(a){
+        return '<a href="'+a.documentLink+'" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;display:flex;align-items:center;gap:3px;margin-bottom:2px;">📄 '+a.provider+' '+a.policyId+'</a>';
+      }).join('') +
+    '</div>';
+  }
+  heirsList.innerHTML = heirRows + docHtml;
+}
+
+// ---------- TIMELINE ----------
+function pensionRenderTimeline() {
+  var listEl = document.getElementById('pns-events-list');
+  var chartWrap = document.getElementById('pns-timeline-chart-wrap');
+  if (!listEl) return;
+
+  if (!PENSION_EVENTS.length) {
+    listEl.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px 0;">אין אירועי ציר זמן</div>';
+    if (chartWrap) chartWrap.style.display = 'none';
+    return;
+  }
+
+  var sorted = PENSION_EVENTS.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+
+  listEl.innerHTML = sorted.map(function(ev) {
+    var pos = ev.amount > 0;
+    var dp = ev.date.split('-');
+    var dateDisplay = dp.length===3 ? dp[2]+'/'+dp[1]+'/'+dp[0] : ev.date;
+    var dotColor = ev.type==='expense' ? '#dc2626' : ev.type==='transfer' ? '#3b82f6' : '#16a34a';
+    return '<div class="pns-event-row">' +
+      '<div class="pns-event-dot" style="background:'+dotColor+';"></div>' +
+      '<div class="pns-event-date">'+dateDisplay+'</div>' +
+      '<div class="pns-event-label">'+ev.label+'</div>' +
+      '<div class="pns-event-amt '+(pos?'pos':'neg')+'">'+(pos?'+':'')+pnsFmt(Math.abs(ev.amount))+' ₪</div>' +
+    '</div>';
+  }).join('');
+
+  if (!chartWrap) return;
+  chartWrap.style.display = '';
+  var canvas = document.getElementById('pns-timeline-chart');
+  if (!canvas) return;
+  if (pnsTimelineChart) { pnsTimelineChart.destroy(); pnsTimelineChart = null; }
+  pnsTimelineChart = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data: {
+      labels: sorted.map(function(ev){ var dp=ev.date.split('-'); return dp.length===3?dp[2]+'/'+dp[1]:ev.date; }),
+      datasets:[{
+        data: sorted.map(function(ev){ return ev.amount; }),
+        backgroundColor: sorted.map(function(ev){ return ev.amount>0?'rgba(22,163,74,0.7)':'rgba(220,38,38,0.7)'; }),
+        borderColor:     sorted.map(function(ev){ return ev.amount>0?'#16a34a':'#dc2626'; }),
+        borderWidth:1.5, borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ rtl:true, callbacks:{ label:function(c){ return pnsFmt(c.raw)+' ₪'; } } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10},color:'#9ca3af'} },
+        y:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#9ca3af',callback:function(v){ return pnsFmtK(v); }} }
+      }
+    }
+  });
+}
+
+// ---------- EXCEL PARSER ----------
+function pensionParseWorkbook(wb) {
+  var sheetName = wb.SheetNames.find(function(n) {
+    return n.normalize('NFC').indexOf(PNS_SHEET_KEY.normalize('NFC')) >= 0;
+  });
+  if (!sheetName) return null;
+
+  var json = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, defval:null });
+
+  // Find header row (first row with 3+ non-empty cells)
+  var headerRow = null, headerIdx = 0;
+  for (var r = 0; r < Math.min(6, json.length); r++) {
+    var row = json[r];
+    if (row && row.filter(function(c){ return c && String(c).trim().length > 2; }).length >= 3) {
+      headerRow = row; headerIdx = r; break;
+    }
+  }
+  if (!headerRow) return null;
+
+  function findRow(label) {
+    for (var i = 0; i < json.length; i++) {
+      var cell = json[i] && (json[i][0] || json[i][1]);
+      if (cell && String(cell).indexOf(label) >= 0) return i;
+    }
+    return -1;
+  }
+  function getNum(ri, ci) {
+    if (ri < 0 || !json[ri]) return null;
+    var v = json[ri][ci];
+    if (v === null || v === undefined || v === '') return null;
+    var n = parseFloat(String(v).replace(/,/g,''));
+    return isNaN(n) ? null : n;
+  }
+  function getStr(ri, ci) {
+    if (ri < 0 || !json[ri]) return null;
+    var v = json[ri][ci];
+    return (v !== null && v !== undefined && String(v).trim()) ? String(v).trim() : null;
+  }
+
+  var rPension   = findRow('קצבה');
+  var rDeath     = findRow('ביטוח חיים');
+  var rAccum     = findRow('צבירה');
+  if (rAccum < 0) rAccum = findRow('כספים');
+  var rDisab     = findRow('אק"ע');
+  if (rDisab < 0) rDisab = findRow('נכות');
+  var rGuarM     = findRow('חודשי קצבה');
+  var rGuarC     = findRow('מקדם');
+  var rExpiry    = findRow('תאריך תוקף');
+  var rPremium   = findRow('פרמיה');
+  var rPurpose   = findRow('ייעוד');
+  var rTax       = findRow('מיסוי');
+  var rBenef     = findRow('מוטבים');
+  var rDoc       = findRow('קישור');
+
+  var assets = [];
+  for (var c = 1; c < headerRow.length; c++) {
+    var hdr = headerRow[c];
+    if (!hdr || !String(hdr).trim()) continue;
+    var hdrStr = String(hdr).trim();
+    if (hdrStr.indexOf('סה') >= 0 || hdrStr.indexOf('כולל') >= 0 || hdrStr.indexOf('סך') >= 0) continue;
+
+    var provider = hdrStr, policyId = '';
+    var m = hdrStr.match(/^(.+?)\s+(\d{6,15})$/);
+    if (m) { provider = m[1]; policyId = m[2]; }
+
+    var subType = getStr(headerIdx + 2, c);
+    var accumVal   = getNum(rAccum, c);
+    var pensionVal = getNum(rPension, c);
+    var deathVal   = getNum(rDeath, c);
+    var disabVal   = getNum(rDisab, c);
+    var guarM      = getNum(rGuarM, c);
+    var guarC      = getNum(rGuarC, c);
+    var expiry     = getStr(rExpiry, c);
+    var premium    = getNum(rPremium, c);
+    var purpose    = getStr(rPurpose, c);
+    var taxSt      = getStr(rTax, c);
+    var benefStr   = getStr(rBenef, c);
+    var docLink    = getStr(rDoc, c);
+
+    if (!accumVal && !pensionVal && !deathVal && !disabVal) continue;
+
+    var benefList = [];
+    if (benefStr) {
+      benefStr.split(/[,;\/]/).forEach(function(p) {
+        var pm = p.trim().match(/^(.+?)\s*[-–]\s*(\d+)%?$/);
+        if (pm) benefList.push({ name:pm[1].trim(), pct:parseInt(pm[2]) });
+        else if (p.trim()) benefList.push({ name:p.trim(), pct:null });
+      });
+    }
+
+    var isRisk = (!pensionVal && !accumVal && deathVal > 0);
+    if (subType && (subType.indexOf('ריסק') >= 0 || subType.indexOf('מגן') >= 0)) isRisk = true;
+
+    assets.push({
+      id:          (provider+policyId).replace(/\s+/g,''),
+      provider:    provider,
+      policyId:    policyId,
+      policyType:  subType || (isRisk ? 'ריסק' : 'מנהלים'),
+      accumulation:  accumVal  || 0,
+      expectedPension: pensionVal || 0,
+      deathCapital:  deathVal  || 0,
+      disabilityCover: disabVal || 0,
+      guaranteedMonths: guarM  || 0,
+      guaranteedCoeff:  guarC  || 0,
+      mainPurpose: purpose  || 'קצבה',
+      taxStatus:   taxSt    || '',
+      beneficiaries: benefList,
+      expiryDate:  expiry   || null,
+      lastPremium: premium  || 0,
+      documentLink: (docLink && (docLink.indexOf('http')===0 || docLink.indexOf('/')===0)) ? docLink : null,
+      isRisk:      isRisk
+    });
+  }
+  return assets;
+}
+
+function pensionSaveToStorage() {
+  try {
+    localStorage.setItem('dashboard_pension_data', JSON.stringify({
+      assets: PENSION_ASSETS, events: PENSION_EVENTS, ni: PENSION_NI
+    }));
+  } catch(e) {}
+}
