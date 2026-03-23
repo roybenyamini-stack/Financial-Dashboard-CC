@@ -4282,8 +4282,9 @@ var pensionTaxSliderVal    = 50;
 var pensionNIMode   = 'single';
 var pnsLegacyChart  = null;
 var pnsTimelineChart = null;
-var pnsViewMode     = 'mine';
-var pnsNetMonthly   = 0;
+var pnsViewMode      = 'mine';
+var pnsNetMonthly    = 0;
+var pnsExcludeHarel  = false;
 var PNS_SHEET_KEY   = 'ביטוח חיים ופנסיה';
 // Israel 2025 approximate tax ceilings
 var PNS_MONTHLY_EXEMPT = 9430;
@@ -4350,11 +4351,14 @@ function pensionRender() {
   pensionRenderCards();
   pensionRenderLumpsums();
   pensionRenderTaxLab();
+  pensionRenderLegacy();
 }
 
 function pensionActiveAssets() {
-  if (!pensionExcludeHeritage) return PENSION_ASSETS;
-  return PENSION_ASSETS.filter(function(a) { return a.mainPurpose !== 'הורשה'; });
+  var base = PENSION_ASSETS;
+  if (pensionExcludeHeritage) base = base.filter(function(a){ return a.mainPurpose !== 'הורשה'; });
+  if (pnsExcludeHarel)       base = base.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; });
+  return base;
 }
 
 // ---------- SNAPSHOT — 4 KPIs ----------
@@ -4392,6 +4396,18 @@ function pensionRenderSnapshot() {
         '<button class="pns-ni-btn '+(pensionNIMode==='couple'?'active':'')+'" onclick="pensionSetNI(\'couple\')">זוג</button>';
     }
   }
+  // הראל toggle — מוצג רק אם קיים נכס הראל
+  var harelArea = document.getElementById('pns-harel-area');
+  if (harelArea) {
+    var hasHarel = PENSION_ASSETS.some(function(a){ return a.provider && a.provider.indexOf('הראל') >= 0; });
+    harelArea.style.display = hasHarel ? '' : 'none';
+    if (hasHarel) {
+      harelArea.innerHTML =
+        '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">הראל:</span>' +
+        '<button class="pns-ni-btn '+(!pnsExcludeHarel?'active':'')+'" onclick="pensionToggleHarel(false)">עם</button> ' +
+        '<button class="pns-ni-btn '+(pnsExcludeHarel?'active':'')+'" onclick="pensionToggleHarel(true)">ללא</button>';
+    }
+  }
 }
 
 function pensionSetNI(mode) {
@@ -4399,13 +4415,18 @@ function pensionSetNI(mode) {
   pensionRenderSnapshot();
 }
 
+function pensionToggleHarel(exclude) {
+  pnsExcludeHarel = exclude;
+  pensionRenderSnapshot();
+  pensionRenderCards();
+  pensionRenderTaxLab();
+}
+
 // ---------- MASTER VIEW TOGGLE ----------
 function pensionSetView(mode) {
   pnsViewMode = mode;
-  ['mine','reaya','joint'].forEach(function(m) {
-    var btn = document.getElementById('pns-view-'+m);
-    if (btn) btn.classList.toggle('active', m === mode);
-  });
+  var sel = document.getElementById('pns-view-select');
+  if (sel) sel.value = mode;
   // הכנה לעתיד: כאן יסונן PENSION_ASSETS לפי בעלים
   pensionRenderSnapshot();
   pensionRenderRiskRow();
@@ -4418,14 +4439,18 @@ function pensionSetView(mode) {
 function pensionRenderRiskRow() {
   var el = document.getElementById('pns-risk-row');
   if (!el) return;
-  var totalLife  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
-  var totalDisab = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
+  // הראל ספציפי — כיסוי ביטוח חיים
+  var harelAssets = PENSION_ASSETS.filter(function(a){ return a.isRisk || (a.provider && a.provider.indexOf('הראל') >= 0); });
+  var totalLife   = harelAssets.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  // אובדן כושר — מכלל הפוליסות שיש להן disabilityCover
+  var totalDisab  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
+  var harelProvider = harelAssets.length > 0 ? harelAssets[0].provider : '';
 
   el.innerHTML =
     '<div class="pns-risk-item life">' +
       '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
       '<div>' +
-        '<div class="pns-risk-lbl">ביטוח חיים</div>' +
+        '<div class="pns-risk-lbl">ביטוח חיים'+(harelProvider?' – '+harelProvider:'')+'</div>' +
         '<div class="pns-risk-val">'+(totalLife  > 0 ? pnsFmtK(totalLife) +' ₪' : '—')+'</div>' +
         '<div class="pns-risk-sub">כיסוי מוות</div>' +
       '</div>' +
@@ -4455,9 +4480,11 @@ function pensionRenderCards() {
   var visible = PENSION_ASSETS.filter(function(a) {
     return (a.accumulation > 0 || a.expectedPension > 0 || a.deathCapital > 0 || a.disabilityCover > 0);
   });
-  if (!visible.length) { grid.innerHTML = ''; return; }
+  // הצג רק נכסי פנסיה — ריסקים (כגון הראל ביטוח חיים) מוצגים בשורת ה-Cover בלבד
+  var pensionOnly = visible.filter(function(a){ return !a.isRisk; });
+  if (!pensionOnly.length) { grid.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px;">אין נכסי פנסיה פעילים</div>'; return; }
 
-  grid.innerHTML = visible.map(function(a) {
+  grid.innerHTML = pensionOnly.map(function(a) {
     var isRisk     = a.isRisk;
     var isHeritage = (a.mainPurpose === 'הורשה');
     // תיקון: מבטחים היא קרן פנסיה — לא ביטוח מנהלים
@@ -4599,21 +4626,22 @@ function pensionRenderLegacy() {
   var heirs = Object.keys(heirMap).map(function(n){ return {name:n, val:Math.round(heirMap[n])}; })
                 .sort(function(a,b){ return b.val-a.val; });
 
-  // Pie chart
+  // Pie chart — placeholder אפור אם אין נתוני מוטבים
   var canvas = document.getElementById('pns-pie-chart');
   if (canvas) {
     if (pnsLegacyChart) { pnsLegacyChart.destroy(); pnsLegacyChart = null; }
-    var pieData = heirs.length > 0 ? heirs.map(function(h){ return h.val; }) : [totalLegacy||1];
-    var pieLabels = heirs.length > 0 ? heirs.map(function(h){ return h.name; }) : ['סה״כ'];
-    var pieColors = PNS_COLORS.slice(0, pieData.length);
+    var noData = (heirs.length === 0 && totalLegacy === 0);
+    var pieData   = noData ? [1] : (heirs.length > 0 ? heirs.map(function(h){ return h.val; }) : [totalLegacy||1]);
+    var pieLabels = noData ? ['אין נתונים'] : (heirs.length > 0 ? heirs.map(function(h){ return h.name; }) : ['סה״כ']);
+    var pieColors = noData ? ['#e5e7eb'] : PNS_COLORS.slice(0, pieData.length);
     pnsLegacyChart = new Chart(canvas.getContext('2d'), {
       type:'doughnut',
-      data: { labels:pieLabels, datasets:[{ data:pieData, backgroundColor:pieColors, borderWidth:2, borderColor:'#fff' }] },
+      data: { labels:pieLabels, datasets:[{ data:pieData, backgroundColor:pieColors, borderWidth:noData?0:2, borderColor:'#fff' }] },
       options: {
         cutout:'68%',
         plugins: {
           legend: { display:false },
-          tooltip: { rtl:true, callbacks:{ label:function(c){ return c.label+': '+pnsFmtK(c.raw)+' ₪'; } } }
+          tooltip: { enabled:!noData, rtl:true, callbacks:{ label:function(c){ return c.label+': '+pnsFmtK(c.raw)+' ₪'; } } }
         },
         animation: { duration:600 }
       }
@@ -4806,7 +4834,7 @@ function pensionParseWorkbook(wb, sheetName) {
     var hdr = headerRow[c];
     if (!hdr || !String(hdr).trim()) continue;
     var hdrStr = String(hdr).trim();
-    if (hdrStr.indexOf('סה') >= 0 || hdrStr.indexOf('כולל') >= 0 || hdrStr.indexOf('סך') >= 0) continue;
+    if (hdrStr.indexOf('סה') >= 0 || hdrStr.indexOf('כולל') >= 0 || hdrStr.indexOf('סך') >= 0 || hdrStr.indexOf('ללא') >= 0 || hdrStr.indexOf('סיכום') >= 0) continue;
 
     var provider = hdrStr, policyId = '';
     var m = hdrStr.match(/^(.+?)\s+(\d{6,15})$/);
