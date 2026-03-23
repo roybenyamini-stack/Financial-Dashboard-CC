@@ -1,9 +1,36 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v62.0 — Permanent Pension Upload Button.
+גרסה v64.0 — Pension Tab Full Architectural Refactor.
 
 ## שינויים אחרונים (23/03/2026)
+
+### v64.0 – Pension Tab Full Architectural Refactor (PRD v64)
+**index.html:**
+- **בורר תצוגה ראשי**: כפתורי "שלי / רעיה / משותף" ממורכזים מעל כל התוכן — הכנה לפילטור עתידי לפי בעלים
+- **Macro Dark Bar**: 4 KPIs גדולים — הון צבור | קצבה ברוטו | קצבה נטו (מ-Tax Lab) | הכנסה פנויה (placeholder)
+- **שורת הגנה וסיכונים**: 3 כרטיסיות Light Mode — ביטוח חיים 🛡️ | אובדן כושר ♿ | תאונות אישיות 🏥
+- **מענקי פרישה ואירועים**: Zero Noise — מוסתר אוטומטית אם אין PENSION_EVENTS
+- **Tax Lab משודרג**: סליידר בולט יותר (8px track, thumb גדול), תוויות מפורטות, אייקון ℹ️ עם tooltip מדרגות מס
+- **Timeline/Growth Placeholder**: חלונית עם placeholder לגרף צבירה עתידי
+- הוסרה: עמודת הורשה ועיזבון (pie chart) — לא בארכיטקטורת PRD החדשה
+
+**app.js:**
+- **pensionSetView(mode)**: בורר תצוגה — מעדכן כפתורים + קוראים לכל render functions; מוכן לפילטור עתידי
+- **pensionRenderSnapshot()**: מחושב 4 KPIs קבועים; קצבה נטו מוזנת מ-pnsNetMonthly global
+- **pensionRenderRiskRow()**: חדש — מחשב totalLife ו-totalDisab, מרנדר שורת הגנה
+- **pensionRenderCards()**: תיקון מבטחים — provider שמכיל 'מבטחים' מקבל badge "פנסיה" (לא "ביטוח מנהלים") ואייקון 🏛️
+- **pensionRenderLumpsums()**: חדש — מחליף pensionRenderTimeline; Zero Noise מלא (מסתיר section אם אין events)
+- **pensionSliderChange()**: מעדכן pnsNetMonthly ומקרין pensionRenderSnapshot() — KPI קצבה נטו בbar חי
+- **globals חדשים**: pnsViewMode, pnsNetMonthly
+- גרסה: v62.0 → v64.0
+
+**style.css:**
+- **.pns-view-toggle / .pns-view-btn**: עיצוב pill toggle מרכזי
+- **.pns-risk-row / .pns-risk-item**: grid 3 עמודות, border-right צבעוני לפי סוג
+- **.pns-slider-section**: רקע f8fafc עוטף את הסליידר
+- **.pns-info-icon**: hover opacity
+- Slider thumb גדול יותר (22px) עם shadow כחול
 
 ### v62.0 – Permanent Pension Upload Button
 **index.html:**
