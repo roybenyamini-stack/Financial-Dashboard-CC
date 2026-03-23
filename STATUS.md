@@ -1,7 +1,32 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v58.0 — USD Yotam Forecast Card.
+גרסה v59.0 — Pension & Insurance Tab (Full Implementation).
+
+## שינויים אחרונים (23/03/2026)
+
+### v59.0 – Pension & Insurance Tab
+**app.js:**
+- **PENSION_ASSETS / PENSION_EVENTS / PENSION_NI**: מערכי נתונים חדשים לטאב פנסיה
+- **pensionInit()**: טעינה מ-localStorage; מציג empty state אם אין נתונים
+- **pensionRender()**: רנדר כולל — snapshot, cards, tax lab, legacy, timeline
+- **pensionRenderSnapshot()**: שורת מאקרו Dark Mode (קצבה ברוטו, הון צבור, ביטוח חיים, אק"ע) + מתג ביטוח לאומי יחיד/זוג
+- **pensionRenderCards()**: כרטיסיות מיקרו Light Mode — לולאה דינמית על PENSION_ASSETS, Zero Noise, אייקוני 🏦/🛡️
+- **pensionToggleHeritage()**: מתג החרגת נכסי הורשה מחישוב הקצבה
+- **pensionSliderChange()**: סליידר קיבוע זכויות — מחשב קצבה נטו והון פנוי בזמן אמת
+- **pensionRenderLegacy()**: גרף עוגה (doughnut) + רשימת יורשים + קישורי מסמכים
+- **pensionRenderTimeline()**: ציר זמן אירועים (bar chart + רשימה)
+- **pensionParseWorkbook()**: מפרסר גיליון "ביטוח חיים ופנסיה" מ-Excel באופן דינמי
+- **pensionSaveToStorage()**: שמירה ב-localStorage
+- **switchTab()**: עודכן — הפרדה בין `isInv` / `isCF` / `isPns`; מסתיר אלמנטי INV בטאב פנסיה; קריאה ל-`pensionInit` בביקור ראשון
+- **smartUploadRouter()**: נוסף זיהוי ראשוני לגיליון "ביטוח חיים ופנסיה" — מנותב ל-pensionParseWorkbook
+
+**index.html:**
+- **tab-pension**: הוחלף placeholder ב-HTML מלא — snapshot bar, empty state, cards grid, tax lab, legacy section עם canvas pie, timeline section
+- גרסה: v58.0 → v59.0 (ממתין לאישור)
+
+**style.css:**
+- נוספו ~100 שורות CSS עבור טאב פנסיה: snapshot, cards, toggle switch, tax slider, heirs list, event rows, skeleton animation, responsive
 
 ## שינויים אחרונים (22/03/2026)
 
