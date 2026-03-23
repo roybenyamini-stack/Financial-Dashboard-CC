@@ -1,7 +1,7 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v60.0 — Smart Upload Router: Content-Based Pension Detection.
+גרסה v61.0 — Pension Parser Row Mapping Fix + Date Formatting.
 
 ## שינויים אחרונים (23/03/2026)
 
