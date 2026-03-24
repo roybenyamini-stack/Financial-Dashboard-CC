@@ -4333,6 +4333,8 @@ function switchTab(id){
   if (cfChatOpen)  { cfChatOpen  = false; var _cfcp  = document.getElementById('cf-cp');  if(_cfcp)  _cfcp.style.display='none'; }
   if (chatOpen)    { chatOpen    = false; var _cp    = document.getElementById('cp');     if(_cp)    _cp.style.display='none'; }
   if (pnsChatOpen) { pnsChatOpen = false; var _pnscp = document.getElementById('pns-cp'); if(_pnscp) _pnscp.style.display='none'; }
+  // הסתר harel-area כשעוזבים טאב פנסיה (אין לה pns-only-btn — מנוהלת ידנית)
+  if (!isPns) { var _ha = document.getElementById('pns-harel-area'); if(_ha) _ha.style.display='none'; }
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
@@ -4523,20 +4525,30 @@ function pensionSetView(mode) {
 function pensionRenderRiskRow() {
   var el = document.getElementById('pns-risk-row');
   if (!el) return;
-  // הראל ספציפי — כיסוי ביטוח חיים
-  var harelAssets = PENSION_ASSETS.filter(function(a){ return a.isRisk || (a.provider && a.provider.indexOf('הראל') >= 0); });
-  var totalLife   = harelAssets.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  // ביטוח חיים — כולל כל פוליסות עם deathCapital
+  var totalLifeAll  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  var pureRiskLife  = PENSION_ASSETS.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  var accumLifePart = totalLifeAll - pureRiskLife;
   // אובדן כושר — מכלל הפוליסות שיש להן disabilityCover
   var totalDisab  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
-  var harelProvider = harelAssets.length > 0 ? harelAssets[0].provider : '';
+
+  var lifeBreakdown = '';
+  if (totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)) {
+    lifeBreakdown =
+      '<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px;">' +
+        (accumLifePart > 0 ? '<div style="font-size:9px;color:#6b7280;">📦 הון צבור: <span style="font-weight:700;color:#374151;">'+pnsFmtK(accumLifePart)+' ₪</span></div>' : '') +
+        (pureRiskLife  > 0 ? '<div style="font-size:9px;color:#6b7280;">🔴 ריסק טהור: <span style="font-weight:700;color:#374151;">'+pnsFmtK(pureRiskLife)+' ₪</span></div>' : '') +
+      '</div>';
+  }
 
   el.innerHTML =
     '<div class="pns-risk-item life">' +
       '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
       '<div>' +
-        '<div class="pns-risk-lbl">ביטוח חיים'+(harelProvider?' – '+harelProvider:'')+'</div>' +
-        '<div class="pns-risk-val">'+(totalLife  > 0 ? pnsFmtK(totalLife) +' ₪' : '—')+'</div>' +
-        '<div class="pns-risk-sub">כיסוי מוות</div>' +
+        '<div class="pns-risk-lbl">ביטוח חיים / הורשה</div>' +
+        '<div class="pns-risk-val">'+(totalLifeAll > 0 ? pnsFmtK(totalLifeAll)+' ₪' : '—')+'</div>' +
+        '<div class="pns-risk-sub">סה״כ מוות</div>' +
+        lifeBreakdown +
       '</div>' +
     '</div>' +
     '<div class="pns-risk-item disab">' +
@@ -4671,6 +4683,21 @@ function pensionSliderChange(val) {
   // עדכן global ורענן KPI קצבה נטו ב-snapshot
   pnsNetMonthly = netMonthly;
   pensionRenderSnapshot();
+
+  // אנימציית עיגולים — גדלים פרופורציונליים לאחוז
+  var capFrac = parseInt(val) / 100;
+  var penFrac = (100 - parseInt(val)) / 100;
+  var MIN_SZ = 54, MAX_SZ = 104;
+  var capSz = Math.round(MIN_SZ + capFrac * (MAX_SZ - MIN_SZ));
+  var penSz = Math.round(MIN_SZ + penFrac * (MAX_SZ - MIN_SZ));
+  var circCap = document.getElementById('pns-circle-capital');
+  var circPen = document.getElementById('pns-circle-pension');
+  if (circCap) { circCap.style.width = capSz + 'px'; circCap.style.height = capSz + 'px'; }
+  if (circPen) { circPen.style.width = penSz + 'px'; circPen.style.height = penSz + 'px'; }
+  var circCapVal = document.getElementById('pns-circle-cap-val');
+  var circPenVal = document.getElementById('pns-circle-pen-val');
+  if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt))  + ' ₪' : '—';
+  if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt)) + ' ₪' : '—';
 
   var resultsEl = document.getElementById('pns-tax-results');
   if (resultsEl) {

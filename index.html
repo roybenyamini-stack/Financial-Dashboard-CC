@@ -1,4 +1,4 @@
-<!-- v67.0 -->
+<!-- v68.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v67.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v68.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -91,16 +91,14 @@
       <button id="pns-upload-hdr-btn" class="pns-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;gap:6px;background:rgba(99,179,237,0.18);color:#90cdf4;border:1px solid rgba(99,179,237,0.45);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:700;white-space:nowrap;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>טען תכנון פרישה
       </button>
-      <!-- pension control block: view select + harel toggle as one unified unit -->
-      <div id="pns-ctrl-block" class="pns-only-btn" style="display:none;align-items:center;gap:0;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.35);border-radius:8px;overflow:hidden;height:34px;">
-        <!-- RTL: harel is rightmost (adjacent to upload), view-select is leftmost -->
-        <div id="pns-harel-area" style="display:none;align-items:center;padding:0 10px;gap:5px;height:100%;border-left:1px solid rgba(255,255,255,0.2);flex-shrink:0;"></div>
-        <select id="pns-view-select" onchange="pensionSetView(this.value)" style="cursor:pointer;background:transparent;color:white;border:none;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:100%;direction:rtl;min-width:96px;">
-          <option value="mine">👤 שלי</option>
-          <option value="reaya">👤 רעיה</option>
-          <option value="joint">👥 משותף</option>
-        </select>
-      </div>
+      <!-- pension harel toggle — standalone, managed by pensionRenderSnapshot() -->
+      <div id="pns-harel-area" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.35);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;"></div>
+      <!-- pension view select — standalone -->
+      <select id="pns-view-select" class="pns-only-btn" onchange="pensionSetView(this.value)" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;min-width:96px;">
+        <option value="mine">👤 שלי</option>
+        <option value="reaya">👤 רעיה</option>
+        <option value="joint">👥 משותף</option>
+      </select>
       <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
@@ -851,17 +849,35 @@
             <div style="font-size:10px;color:#9ca3af;">מסנן פוליסות שייעודן הורשה</div>
           </div>
         </div>
-        <!-- Tax slider — prominent -->
-        <div class="pns-slider-section">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">קיבוע זכויות – הקצאת הפטור הפנסיוני</div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:8px;">
-            <span>← הון חד-פעמי (היוון)</span><span>(קצבה חודשית) הכנסה שוטפת →</span>
+        <!-- Tax slider + circle visualization -->
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          <!-- Two animated circles -->
+          <div style="display:flex;gap:14px;align-items:flex-end;flex-shrink:0;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div id="pns-circle-capital" style="width:80px;height:80px;border-radius:50%;background:#eff6ff;border:2.5px solid #2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:width .2s ease,height .2s ease;flex-shrink:0;">
+                <div style="font-size:9px;color:#2563eb;font-weight:700;line-height:1.2;">הון</div>
+                <div id="pns-circle-cap-val" style="font-size:10px;font-weight:800;color:#1e3a8a;line-height:1.3;text-align:center;padding:0 3px;word-break:break-all;">—</div>
+                <div style="font-size:8px;color:#93c5fd;line-height:1.2;">פטור</div>
+              </div>
+              <div id="pns-cap-pct" style="color:#2563eb;font-size:11px;font-weight:700;">50%</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div id="pns-circle-pension" style="width:80px;height:80px;border-radius:50%;background:#f0fdf4;border:2.5px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:width .2s ease,height .2s ease;flex-shrink:0;">
+                <div style="font-size:9px;color:#16a34a;font-weight:700;line-height:1.2;">קצבה</div>
+                <div id="pns-circle-pen-val" style="font-size:10px;font-weight:800;color:#14532d;line-height:1.3;text-align:center;padding:0 3px;word-break:break-all;">—</div>
+                <div style="font-size:8px;color:#86efac;line-height:1.2;">פטורה</div>
+              </div>
+              <div id="pns-pen-pct" style="color:#16a34a;font-size:11px;font-weight:700;">50%</div>
+            </div>
           </div>
-          <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
-            oninput="pensionSliderChange(this.value)">
-          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-top:6px;">
-            <span id="pns-cap-pct" style="color:#2563eb;">50%</span>
-            <span id="pns-pen-pct" style="color:#16a34a;">50%</span>
+          <!-- Compact slider -->
+          <div class="pns-slider-section" style="flex:1;min-width:180px;max-width:320px;">
+            <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:6px;">קיבוע זכויות</div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:#9ca3af;margin-bottom:6px;">
+              <span>← היוון (הון)</span><span>(קצבה) שוטף →</span>
+            </div>
+            <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
+              oninput="pensionSliderChange(this.value)">
           </div>
         </div>
         <!-- Net results -->
