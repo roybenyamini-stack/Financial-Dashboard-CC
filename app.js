@@ -1437,6 +1437,85 @@ async function sendCFChat() {
   }
 }
 
+// ===== PENSION CHAT v66.0 =====
+var pnsChatOpen = false;
+var pnsChatHistory = [];
+
+function buildPnsContext() {
+  if (!PENSION_ASSETS || PENSION_ASSETS.length === 0) return 'no pension data';
+  var active = pensionActiveAssets();
+  var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+  var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+  var lines = ['נכסי פנסיה וביטוח:'];
+  PENSION_ASSETS.forEach(function(a) {
+    lines.push('- '+(a.provider||'?')+' | '+(a.type||'?')+' | הון: '+(a.accumulation||0)+' | קצבה: '+(a.expectedPension||0));
+  });
+  lines.push('סה"כ הון צבור: '+Math.round(totalAccum));
+  lines.push('קצבה ברוטו: '+Math.round(totalPension)+' ₪/חודש');
+  lines.push('קצבה נטו (אחרי מס): '+Math.round(pnsNetMonthly)+' ₪/חודש');
+  return lines.join('\n');
+}
+
+function togglePnsChat() {
+  pnsChatOpen = !pnsChatOpen;
+  var cp = document.getElementById('pns-cp');
+  if (!cp) return;
+  cp.style.display = pnsChatOpen ? 'flex' : 'none';
+  if (pnsChatOpen) {
+    var cm = document.getElementById('pns-cm');
+    if (cm && cm.children.length === 0) {
+      addPnsMsg('שלום! שאל אותי על הפנסיה וביטוחים שלך 🏦', false);
+    }
+    setTimeout(function() { var i = document.getElementById('pns-ci'); if(i) i.focus(); }, 100);
+  }
+}
+
+function addPnsMsg(txt, isUser) {
+  var cm = document.getElementById('pns-cm');
+  if (!cm) return null;
+  var d = document.createElement('div');
+  var base = 'padding:8px 12px;border-radius:10px;font-family:Heebo,sans-serif;font-size:14px;line-height:1.6;direction:rtl;max-width:85%;white-space:pre-wrap;margin-bottom:4px;';
+  var clr = isUser ? 'background:#2d2d4e;color:white;align-self:flex-end;margin-right:auto;' : 'background:#0f3460;color:#e2e8f0;align-self:flex-start;margin-left:auto;';
+  d.style.cssText = base + clr;
+  d.textContent = txt;
+  cm.appendChild(d);
+  cm.scrollTop = cm.scrollHeight;
+  return d;
+}
+
+async function sendPnsChat() {
+  var ci = document.getElementById('pns-ci');
+  if (!ci) return;
+  var q = ci.value.trim();
+  if (!q) return;
+  ci.value = '';
+  addPnsMsg(q, true);
+  pnsChatHistory.push({role: 'user', content: q});
+  var thinking = addPnsMsg('חושב...', false);
+  try {
+    var sys = 'אתה עוזר פיננסי המנתח נתוני פנסיה וביטוחים. ענה בעברית בתמציתיות.\n' + buildPnsContext();
+    var res = await fetch('https://holy-poetry-claude-proxy.roy-benyamini.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1200, system:sys, messages:pnsChatHistory.slice(-10)})
+    });
+    var data = await res.json();
+    thinking.remove();
+    var answer = '';
+    if (data.content && data.content.length > 0) {
+      answer = data.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n');
+    } else if (data.error) {
+      answer = 'שגיאה: ' + (data.error.message || '');
+    }
+    if (!answer) answer = 'תגובה ריקה. נסה שוב.';
+    pnsChatHistory.push({role:'assistant', content:answer});
+    addPnsMsg(answer, false);
+  } catch(e) {
+    thinking.remove();
+    addPnsMsg('שגיאה: ' + e.message, false);
+  }
+}
+
 function answerQ(q) {
   var months = {'ינו':0,'ינואר':0,'פבר':1,'פברואר':1,'מרץ':2,'מרס':2,'אפר':3,'אפריל':3,'מאי':4,'יוני':5,'יולי':6,'אוג':7,'אוגוסט':7,'ספט':8,'ספטמבר':8,'אוק':9,'אוקטובר':9,'נוב':10,'נובמבר':10,'דצמ':11,'דצמבר':11};
   function getMonths(str) {
@@ -4232,6 +4311,8 @@ function switchTab(id){
   if(invStats) invStats.style.display = isInv ? '' : 'none';
   var cfStats = document.getElementById('cf-header-stats');
   if(cfStats) cfStats.style.display = isCF ? 'flex' : 'none';
+  var pnsStats = document.getElementById('pns-header-stats');
+  if(pnsStats) pnsStats.style.display = isPns ? 'flex' : 'none';
 
   // Cards row
   var invCards = document.getElementById('inv-cards-row');
@@ -4249,8 +4330,9 @@ function switchTab(id){
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
 
   // v28.0: סגור חלוני צ'אט פתוחים בעת מעבר בין טאבים
-  if (cfChatOpen) { cfChatOpen = false; var _cfcp = document.getElementById('cf-cp'); if(_cfcp) _cfcp.style.display='none'; }
-  if (chatOpen)   { chatOpen   = false; var _cp   = document.getElementById('cp');    if(_cp)   _cp.style.display='none'; }
+  if (cfChatOpen)  { cfChatOpen  = false; var _cfcp  = document.getElementById('cf-cp');  if(_cfcp)  _cfcp.style.display='none'; }
+  if (chatOpen)    { chatOpen    = false; var _cp    = document.getElementById('cp');     if(_cp)    _cp.style.display='none'; }
+  if (pnsChatOpen) { pnsChatOpen = false; var _pnscp = document.getElementById('pns-cp'); if(_pnscp) _pnscp.style.display='none'; }
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
@@ -4376,11 +4458,13 @@ function pensionRenderSnapshot() {
 
   var statsEl = document.getElementById('pns-snap-stats');
   if (statsEl) {
+    var colorMap = {blue:'color:#7dd3fc', green:'color:#4ade80', muted:'color:rgba(255,255,255,0.35);font-size:14px;font-weight:600'};
     statsEl.innerHTML = items.map(function(it) {
-      return '<div class="pns-snap-item">' +
-        '<div class="pns-snap-label">'+it.lbl+'</div>' +
-        '<div class="pns-snap-val '+it.cls+'">'+it.val+'</div>' +
-        '<div class="pns-snap-sub">'+it.sub+'</div>' +
+      var style = colorMap[it.cls] || '';
+      return '<div class="stat-item">' +
+        '<div class="stat-label">'+it.lbl+'</div>' +
+        '<div class="stat-value" style="'+style+'">'+it.val+'</div>' +
+        '<div class="stat-change">'+it.sub+'</div>' +
       '</div>';
     }).join('');
   }
