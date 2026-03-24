@@ -4472,7 +4472,7 @@ function pensionRenderSnapshot() {
   var niArea = document.getElementById('pns-ni-area');
   if (niArea) {
     var hasBoth = (PENSION_NI.single > 0 || PENSION_NI.couple > 0);
-    niArea.style.display = hasBoth ? '' : 'none';
+    niArea.style.display = hasBoth ? 'flex' : 'none';
     if (hasBoth) {
       niArea.innerHTML =
         '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">ביטוח לאומי:</span>' +
@@ -4484,7 +4484,7 @@ function pensionRenderSnapshot() {
   var harelArea = document.getElementById('pns-harel-area');
   if (harelArea) {
     var hasHarel = PENSION_ASSETS.some(function(a){ return a.provider && a.provider.indexOf('הראל') >= 0; });
-    harelArea.style.display = hasHarel ? '' : 'none';
+    harelArea.style.display = hasHarel ? 'flex' : 'none';
     if (hasHarel) {
       harelArea.innerHTML =
         '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">הראל:</span>' +
