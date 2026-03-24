@@ -4333,8 +4333,6 @@ function switchTab(id){
   if (cfChatOpen)  { cfChatOpen  = false; var _cfcp  = document.getElementById('cf-cp');  if(_cfcp)  _cfcp.style.display='none'; }
   if (chatOpen)    { chatOpen    = false; var _cp    = document.getElementById('cp');     if(_cp)    _cp.style.display='none'; }
   if (pnsChatOpen) { pnsChatOpen = false; var _pnscp = document.getElementById('pns-cp'); if(_pnscp) _pnscp.style.display='none'; }
-  // הסתר harel-area כשעוזבים טאב פנסיה (אין לה pns-only-btn — מנוהלת ידנית)
-  if (!isPns) { var _ha = document.getElementById('pns-harel-area'); if(_ha) _ha.style.display='none'; }
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
@@ -4482,17 +4480,20 @@ function pensionRenderSnapshot() {
         '<button class="pns-ni-btn '+(pensionNIMode==='couple'?'active':'')+'" onclick="pensionSetNI(\'couple\')">זוג</button>';
     }
   }
-  // הראל toggle — מוצג רק אם קיים נכס הראל
+  // הראל toggle — תמיד מוצג; active כשיש נתוני הראל, disabled (greyed) כשאין
   var harelArea = document.getElementById('pns-harel-area');
   if (harelArea) {
     var hasHarel = PENSION_ASSETS.some(function(a){ return a.provider && a.provider.indexOf('הראל') >= 0; });
-    harelArea.style.display = hasHarel ? 'flex' : 'none';
-    if (hasHarel) {
-      harelArea.innerHTML =
-        '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">הראל:</span>' +
-        '<button class="pns-ni-btn '+(!pnsExcludeHarel?'active':'')+'" onclick="pensionToggleHarel(false)">עם</button> ' +
-        '<button class="pns-ni-btn '+(pnsExcludeHarel?'active':'')+'" onclick="pensionToggleHarel(true)">ללא</button>';
-    }
+    harelArea.style.display = 'flex';
+    harelArea.style.opacity = hasHarel ? '1' : '0.4';
+    harelArea.innerHTML =
+      '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">הראל:</span>' +
+      '<button class="pns-ni-btn '+( hasHarel && !pnsExcludeHarel ? 'active' : '')+'" '+
+        (hasHarel ? 'onclick="pensionToggleHarel(false)"' : 'disabled style="cursor:default;"') +
+        '>עם</button> ' +
+      '<button class="pns-ni-btn '+( hasHarel && pnsExcludeHarel  ? 'active' : '')+'" '+
+        (hasHarel ? 'onclick="pensionToggleHarel(true)"' : 'disabled style="cursor:default;"') +
+        '>ללא</button>';
   }
 }
 
@@ -4532,23 +4533,26 @@ function pensionRenderRiskRow() {
   // אובדן כושר — מכלל הפוליסות שיש להן disabilityCover
   var totalDisab  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
 
-  var lifeBreakdown = '';
-  if (totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)) {
-    lifeBreakdown =
-      '<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px;">' +
-        (accumLifePart > 0 ? '<div style="font-size:9px;color:#6b7280;">📦 הון צבור: <span style="font-weight:700;color:#374151;">'+pnsFmtK(accumLifePart)+' ₪</span></div>' : '') +
-        (pureRiskLife  > 0 ? '<div style="font-size:9px;color:#6b7280;">🔴 ריסק טהור: <span style="font-weight:700;color:#374151;">'+pnsFmtK(pureRiskLife)+' ₪</span></div>' : '') +
-      '</div>';
-  }
+  // tooltip breakdown for life insurance
+  var lifeTooltipHtml =totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)
+    ? '<span class="pns-life-tooltip">ℹ️<div class="pns-life-tooltip-box">' +
+        '<div style="font-weight:700;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px;">פירוט כיסוי מוות</div>' +
+        '<div>סה״כ: <b>' + pnsFmtK(totalLifeAll) + ' ₪</b></div>' +
+        (accumLifePart > 0 ? '<div style="color:#93c5fd;">📦 הון צבור: ' + pnsFmtK(accumLifePart) + ' ₪</div>' : '') +
+        (pureRiskLife  > 0 ? '<div style="color:#fca5a5;">🔴 ריסק טהור: ' + pnsFmtK(pureRiskLife) + ' ₪</div>' : '') +
+      '</div></span>'
+    : '';
 
   el.innerHTML =
     '<div class="pns-risk-item life">' +
       '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
       '<div>' +
         '<div class="pns-risk-lbl">ביטוח חיים / הורשה</div>' +
-        '<div class="pns-risk-val">'+(totalLifeAll > 0 ? pnsFmtK(totalLifeAll)+' ₪' : '—')+'</div>' +
+        '<div class="pns-risk-val" style="display:flex;align-items:center;gap:4px;">' +
+          (totalLifeAll > 0 ? pnsFmtK(totalLifeAll)+' ₪' : '—') +
+          lifeTooltipHtml +
+        '</div>' +
         '<div class="pns-risk-sub">סה״כ מוות</div>' +
-        lifeBreakdown +
       '</div>' +
     '</div>' +
     '<div class="pns-risk-item disab">' +
@@ -4684,16 +4688,15 @@ function pensionSliderChange(val) {
   pnsNetMonthly = netMonthly;
   pensionRenderSnapshot();
 
-  // אנימציית עיגולים — גדלים פרופורציונליים לאחוז
+  // אנימציית עיגולים — scale() בתוך מיכל יציב (אין layout shift)
   var capFrac = parseInt(val) / 100;
   var penFrac = (100 - parseInt(val)) / 100;
-  var MIN_SZ = 54, MAX_SZ = 104;
-  var capSz = Math.round(MIN_SZ + capFrac * (MAX_SZ - MIN_SZ));
-  var penSz = Math.round(MIN_SZ + penFrac * (MAX_SZ - MIN_SZ));
+  var capScale = (0.55 + capFrac * 0.7).toFixed(3);
+  var penScale = (0.55 + penFrac * 0.7).toFixed(3);
   var circCap = document.getElementById('pns-circle-capital');
   var circPen = document.getElementById('pns-circle-pension');
-  if (circCap) { circCap.style.width = capSz + 'px'; circCap.style.height = capSz + 'px'; }
-  if (circPen) { circPen.style.width = penSz + 'px'; circPen.style.height = penSz + 'px'; }
+  if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
+  if (circPen) circPen.style.transform = 'scale(' + penScale + ')';
   var circCapVal = document.getElementById('pns-circle-cap-val');
   var circPenVal = document.getElementById('pns-circle-pen-val');
   if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt))  + ' ₪' : '—';
