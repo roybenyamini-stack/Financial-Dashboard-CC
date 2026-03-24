@@ -1,4 +1,4 @@
-<!-- v66.0 -->
+<!-- v67.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v66.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v67.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -70,10 +70,9 @@
       <div class="stat-change" id="hdr-ret-range">ינו׳ 2025 – פבר׳ 26</div>
     </div>
   </div>
-  <div id="pns-header-stats" class="header-stats" style="display:none;">
+  <div id="pns-header-stats" class="header-stats" style="display:none;margin-left:40px;">
     <div id="pns-snap-stats" style="display:contents;"></div>
-    <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:12px;display:flex;align-items:center;gap:6px;"></div>
-    <div id="pns-harel-area" style="display:none;flex-shrink:0;margin-right:12px;display:flex;align-items:center;gap:6px;"></div>
+    <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
   </div>
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
     <div style="display:flex; align-items:center; gap:8px;">
@@ -92,11 +91,16 @@
       <button id="pns-upload-hdr-btn" class="pns-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;gap:6px;background:rgba(99,179,237,0.18);color:#90cdf4;border:1px solid rgba(99,179,237,0.45);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:700;white-space:nowrap;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>טען תכנון פרישה
       </button>
-      <select id="pns-view-select" class="pns-only-btn" onchange="pensionSetView(this.value)" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;">
-        <option value="mine">👤 שלי</option>
-        <option value="reaya">👤 רעיה</option>
-        <option value="joint">👥 משותף</option>
-      </select>
+      <!-- pension control block: view select + harel toggle as one unified unit -->
+      <div id="pns-ctrl-block" class="pns-only-btn" style="display:none;align-items:center;gap:0;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.35);border-radius:8px;overflow:hidden;height:34px;">
+        <!-- RTL: harel is rightmost (adjacent to upload), view-select is leftmost -->
+        <div id="pns-harel-area" style="display:none;align-items:center;padding:0 10px;gap:5px;height:100%;border-left:1px solid rgba(255,255,255,0.2);flex-shrink:0;"></div>
+        <select id="pns-view-select" onchange="pensionSetView(this.value)" style="cursor:pointer;background:transparent;color:white;border:none;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:100%;direction:rtl;min-width:96px;">
+          <option value="mine">👤 שלי</option>
+          <option value="reaya">👤 רעיה</option>
+          <option value="joint">👥 משותף</option>
+        </select>
+      </div>
       <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
