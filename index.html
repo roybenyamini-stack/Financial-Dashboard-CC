@@ -1,4 +1,4 @@
-<!-- v65.0 -->
+<!-- v66.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v65.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v66.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -70,6 +70,11 @@
       <div class="stat-change" id="hdr-ret-range">ינו׳ 2025 – פבר׳ 26</div>
     </div>
   </div>
+  <div id="pns-header-stats" class="header-stats" style="display:none;">
+    <div id="pns-snap-stats" style="display:contents;"></div>
+    <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:12px;display:flex;align-items:center;gap:6px;"></div>
+    <div id="pns-harel-area" style="display:none;flex-shrink:0;margin-right:12px;display:flex;align-items:center;gap:6px;"></div>
+  </div>
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
     <div style="display:flex; align-items:center; gap:8px;">
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
@@ -87,6 +92,12 @@
       <button id="pns-upload-hdr-btn" class="pns-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;gap:6px;background:rgba(99,179,237,0.18);color:#90cdf4;border:1px solid rgba(99,179,237,0.45);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:700;white-space:nowrap;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>טען תכנון פרישה
       </button>
+      <select id="pns-view-select" class="pns-only-btn" onchange="pensionSetView(this.value)" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;">
+        <option value="mine">👤 שלי</option>
+        <option value="reaya">👤 רעיה</option>
+        <option value="joint">👥 משותף</option>
+      </select>
+      <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
       <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
@@ -804,22 +815,6 @@
     <!-- MAIN CONTENT (hidden until data loaded) -->
     <div id="pns-content" style="display:none;">
 
-      <!-- 1. VIEW DROPDOWN -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <select id="pns-view-select" class="pns-view-dropdown" onchange="pensionSetView(this.value)">
-          <option value="mine" selected>👤 שלי</option>
-          <option value="reaya">👤 רעיה</option>
-          <option value="joint">👥 משותף</option>
-        </select>
-      </div>
-
-      <!-- 2. MACRO DARK BAR -->
-      <div id="pns-snapshot">
-        <div id="pns-snap-stats" style="display:flex;align-items:center;flex-wrap:wrap;gap:0;flex:1;"></div>
-        <div id="pns-ni-area" style="display:none;margin-right:16px;flex-shrink:0;"></div>
-        <div id="pns-harel-area" style="display:none;margin-right:16px;flex-shrink:0;"></div>
-      </div>
-
       <!-- 3. RISK ROW (light mode, narrow) -->
       <div id="pns-risk-row" class="pns-risk-row"></div>
 
@@ -914,6 +909,19 @@
   <div style="padding:10px;display:flex;gap:8px;border-top:1px solid rgba(255,255,255,0.1);">
     <input id="cf-ci" type="text" placeholder="למשל: השווה הכנסות 2025 מול 2026..." onkeydown="if(event.key==='Enter')sendCFChat()" style="flex:1;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:white;font-family:Heebo,sans-serif;font-size:17px;direction:rtl;outline:none;"/>
     <button onclick="sendCFChat()" style="background:#4ade80;color:#0f0f23;border:none;border-radius:8px;padding:8px 12px;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;cursor:pointer;">שלח</button>
+  </div>
+</div>
+
+<!-- PNS CHAT PANEL v66.0 -->
+<div id="pns-cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+  <div style="padding:12px 16px;background:#0f0f23;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
+    <span style="color:white;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;">🏦 שאל על הפנסיה שלך</span>
+    <span onclick="togglePnsChat()" style="color:#888;cursor:pointer;font-size:18px;">✕</span>
+  </div>
+  <div id="pns-cm" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:240px;max-height:420px;"></div>
+  <div style="padding:10px;display:flex;gap:8px;border-top:1px solid rgba(255,255,255,0.1);">
+    <input id="pns-ci" type="text" placeholder="למשל: מה הקצבה החזויה שלי?" onkeydown="if(event.key==='Enter')sendPnsChat()" style="flex:1;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:white;font-family:Heebo,sans-serif;font-size:17px;direction:rtl;outline:none;"/>
+    <button onclick="sendPnsChat()" style="background:#4ade80;color:#0f0f23;border:none;border-radius:8px;padding:8px 12px;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;cursor:pointer;">שלח</button>
   </div>
 </div>
 
