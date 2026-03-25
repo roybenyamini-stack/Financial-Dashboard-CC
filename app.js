@@ -4705,9 +4705,9 @@ function pensionSliderChange(val) {
   // אנימציית עיגולים — scale() בתוך מיכל יציב (אין layout shift)
   var capFrac = parseInt(val) / 100;
   var penFrac = (100 - parseInt(val)) / 100;
-  // v73: minimum scale 0.67 → text always readable; max 1.15 → fits 180px wrapper
-  var capScale = (0.67 + capFrac * 0.48).toFixed(3);
-  var penScale = (0.67 + penFrac * 0.48).toFixed(3);
+  // v74: minimum scale 0.85 → text always readable; max 1.15 → fits 180px wrapper
+  var capScale = (0.85 + capFrac * 0.30).toFixed(3);
+  var penScale = (0.85 + penFrac * 0.30).toFixed(3);
   var circCap = document.getElementById('pns-circle-capital');
   var circPen = document.getElementById('pns-circle-pension');
   if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
@@ -4718,11 +4718,11 @@ function pensionSliderChange(val) {
   if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
   if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
 
-  // נטו בתוך העיגולים — Placeholder = זהה לברוטו (v71.0)
+  // נטו בתוך העיגולים — Placeholder: 85% מברוטו (v74.0, עד חיבור מנוע מס מלא)
   var circCapNet = document.getElementById('pns-circle-cap-net');
   var circPenNet = document.getElementById('pns-circle-pen-net');
-  if (circCapNet) circCapNet.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
-  if (circPenNet) circPenNet.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
+  if (circCapNet) circCapNet.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt * 0.85)) + ' ₪' : '—';
+  if (circPenNet) circPenNet.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt  * 0.85)) + ' ₪' : '—';
 
   // Total + Delta מתחת לעיגולים
   var capTotalEl = document.getElementById('pns-cap-total');
