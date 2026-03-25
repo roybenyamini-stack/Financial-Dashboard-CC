@@ -4369,10 +4369,12 @@ var pnsNetMonthly    = 0;
 var pnsExcludeHarel  = false;
 var PNS_SHEET_KEY   = 'ביטוח חיים ופנסיה';
 // Israel 2025 approximate tax ceilings
-var PNS_MONTHLY_EXEMPT = 9430;
-var PNS_CAPITAL_EXEMPT = 800000;
+var PNS_MONTHLY_EXEMPT = 9430;   // פטור חודשי (ישן — לא בשימוש בנוסחת הסל)
+var PNS_CAPITAL_EXEMPT = 800000; // פטור היוון (ישן — לא בשימוש בנוסחת הסל)
 var PNS_MARGINAL_RATE  = 0.30;
 var PNS_CAPITAL_RATE   = 0.25;
+// סל פטור קיבוע זכויות — ניתן לשינוי ע"י המשתמש
+var pnsExemptBasket    = 882924;
 var PNS_COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
 
 // מפרמט תאריך לפורמט ישראלי DD/MM/YYYY — מטפל ב-Date object, string ישראלי, ו-raw JS date string
@@ -4451,7 +4453,7 @@ function pensionRenderSnapshot() {
 
   var items = [
     { lbl:'הון צבור',    val: totalAccum   > 0 ? pnsFmtK(totalAccum)                  : '—', sub:'ש״ח',           cls:'blue'  },
-    { lbl:'קצבה ברוטו',  val: totalPension > 0 ? pnsFmt(totalPension)                 : '—', sub:'₪/חודש',        cls:'green' },
+    { lbl:'קצבה ברוטו',  val: totalPension > 0 ? pnsFmt(totalPension)                 : '—', sub:'₪/חודש',        cls:'blue'  },
     { lbl:'קצבה נטו',    val: pnsNetMonthly > 0 ? pnsFmt(Math.round(pnsNetMonthly))   : '—', sub:'₪/חודש (אחרי מס)', cls:'green' },
     { lbl:'הכנסה פנויה', val: '—',                                                           sub:'ממתין לחישוב',  cls:'muted' }
   ];
@@ -4487,7 +4489,7 @@ function pensionRenderSnapshot() {
     harelArea.style.display = 'flex';
     harelArea.style.opacity = hasHarel ? '1' : '0.4';
     harelArea.innerHTML =
-      '<span style="font-size:10px;color:rgba(255,255,255,0.45);margin-left:6px;">הראל:</span>' +
+      '<span style="font-size:10px;color:white;margin-left:6px;">הראל:</span>' +
       '<button class="pns-ni-btn '+( hasHarel && !pnsExcludeHarel ? 'active' : '')+'" '+
         (hasHarel ? 'onclick="pensionToggleHarel(false)"' : 'disabled style="cursor:default;"') +
         '>עם</button> ' +
@@ -4598,7 +4600,7 @@ function pensionRenderCards() {
     if (a.expectedPension > 0) rows.push({ lbl:'קצבה חודשית',    val:pnsFmt(a.expectedPension)+' ₪',  cls:'green' });
     if (a.accumulation    > 0) rows.push({ lbl:'צבירה',           val:pnsFmtK(a.accumulation)+' ₪',   cls:'' });
     if (a.deathCapital    > 0) rows.push({ lbl:'ביטוח חיים/ריסק', val:pnsFmtK(a.deathCapital)+' ₪',   cls:'red' });
-    if (a.disabilityCover > 0) rows.push({ lbl:'אק״ע',             val:pnsFmt(a.disabilityCover)+' ₪', cls:'' });
+    if (a.disabilityCover > 0) rows.push({ lbl:'אכ״ע',             val:pnsFmt(a.disabilityCover)+' ₪', cls:'' });
     if (a.guaranteedMonths> 0) rows.push({ lbl:'חודשים מובטחים',  val:a.guaranteedMonths,              cls:'' });
 
     var badges = '';
@@ -4675,15 +4677,25 @@ function pensionSliderChange(val) {
   var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
   var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
 
-  var pensionExemptFrac = (100 - val) / 100;
+  // נוסחת סל פטור קיבוע זכויות (v70.0):
+  // הון פטור = סל × אחוז היוון
+  // קצבה פטורה = (סל × אחוז קצבה) / 180
   var capitalExemptFrac = val / 100;
-  var monthlyExempt = PNS_MONTHLY_EXEMPT * pensionExemptFrac;
-  var capitalExempt = PNS_CAPITAL_EXEMPT  * capitalExemptFrac;
+  var pensionExemptFrac = (100 - val) / 100;
+  var capitalExempt = pnsExemptBasket * capitalExemptFrac;
+  var monthlyExempt = pnsExemptBasket * pensionExemptFrac / 180;
 
   var taxOnPension = Math.max(0, totalPension - monthlyExempt) * PNS_MARGINAL_RATE;
   var netMonthly   = totalPension - taxOnPension;
   var taxOnCapital = Math.max(0, totalAccum - capitalExempt) * PNS_CAPITAL_RATE;
   var netCapital   = totalAccum - taxOnCapital;
+
+  // Delta — ביחס למצב ללא פטור כלל
+  var netMonthly_base = totalPension * (1 - PNS_MARGINAL_RATE);
+  var netCapital_base = totalAccum   * (1 - PNS_CAPITAL_RATE);
+  var deltaMonthly    = netMonthly - netMonthly_base;
+  var deltaCapital    = netCapital - netCapital_base;
+
   // עדכן global ורענן KPI קצבה נטו ב-snapshot
   pnsNetMonthly = netMonthly;
   pensionRenderSnapshot();
@@ -4702,6 +4714,16 @@ function pensionSliderChange(val) {
   if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt))  + ' ₪' : '—';
   if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt)) + ' ₪' : '—';
 
+  // Total + Delta מתחת לעיגולים
+  var capTotalEl  = document.getElementById('pns-cap-total');
+  var capDeltaEl  = document.getElementById('pns-cap-delta');
+  var penTotalEl  = document.getElementById('pns-pen-total');
+  var penDeltaEl  = document.getElementById('pns-pen-delta');
+  if (capTotalEl) capTotalEl.textContent = totalAccum   > 0 ? 'הון נטו: ' + pnsFmtK(Math.round(netCapital))  + ' ₪'  : '—';
+  if (capDeltaEl) capDeltaEl.textContent = totalAccum   > 0 && deltaCapital  > 0 ? '+ ' + pnsFmtK(Math.round(deltaCapital))  + ' ₪'  : '';
+  if (penTotalEl) penTotalEl.textContent = totalPension > 0 ? 'קצבה נטו: ' + pnsFmt(Math.round(netMonthly)) + ' ₪' : '—';
+  if (penDeltaEl) penDeltaEl.textContent = totalPension > 0 && deltaMonthly > 0 ? '+ ' + pnsFmt(Math.round(deltaMonthly)) + ' ₪/חודש' : '';
+
   var resultsEl = document.getElementById('pns-tax-results');
   if (resultsEl) {
     resultsEl.innerHTML =
@@ -4716,6 +4738,15 @@ function pensionSliderChange(val) {
         '<div style="font-size:10px;color:#9ca3af;">לאחר מס</div>' +
       '</div>';
   }
+}
+
+function pensionBasketChange(val) {
+  var v = parseInt(val) || 882924;
+  pnsExemptBasket = Math.max(0, v);
+  var inp = document.getElementById('pns-basket-input');
+  if (inp) inp.value = pnsExemptBasket;
+  var sliderEl = document.getElementById('pns-tax-slider');
+  pensionSliderChange(sliderEl ? sliderEl.value : pensionTaxSliderVal);
 }
 
 // ---------- LEGACY / PIE ----------
@@ -4850,7 +4881,7 @@ function pensionRenderTimeline() {
 
 // ---------- PENSION SHEET DETECTOR (content-based) ----------
 // מזהה גיליון פנסיה לפי תוכן תאים — בלתי תלוי בשם הגיליון
-var PNS_DETECT_KEYWORDS = ['ביטוח חיים', 'קצבה', 'ביטוח מנהלים', 'ייעוד מרכזי', 'תאריך תוקף', 'מקדם', 'מוטבים', 'אק"ע', 'פנסיה', 'הפניקס'];
+var PNS_DETECT_KEYWORDS = ['ביטוח חיים', 'קצבה', 'ביטוח מנהלים', 'ייעוד מרכזי', 'תאריך תוקף', 'מקדם', 'מוטבים', 'אכ"ע', 'פנסיה', 'הפניקס'];
 var PNS_DETECT_SCORE    = 3; // מספר מילות מפתח מינימלי לזיהוי חיובי
 
 function detectPensionSheet(wb) {
@@ -4929,11 +4960,12 @@ function pensionParseWorkbook(wb, sheetName) {
   var rDeath   = findRow('ביטוח חיים');
   var rAccum   = findRow('צבירה');
   if (rAccum < 0) rAccum = findRow('כספים');
-  // אבדן כושר עבודה — ≠ נכות (13,053)
+  // אובדן כושר עבודה (אכ"ע) — ≠ נכות (13,053)
   var rDisab   = findRow('אבדן כושר');
   if (rDisab < 0) rDisab = findRow('אובדן כושר');
   if (rDisab < 0) rDisab = findRow('כושר עבודה');
-  if (rDisab < 0) rDisab = findRow('אק"ע');
+  if (rDisab < 0) rDisab = findRow('אכ"ע');
+  if (rDisab < 0) rDisab = findRow('אק"ע'); // תאימות לאחור — קבצי Excel ישנים
   var rGuarM   = findRow('חודשי קצבה');
   var rGuarC   = findRow('מקדם');
   var rExpiry    = findRow('תאריך תוקף');
