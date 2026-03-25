@@ -1,7 +1,26 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v70.0 — UI Fixes & Exemption Lab Upgrade (25/03/2026).
+גרסה v71.0 — Exemption Lab Redesign & Legacy Local Simulation (25/03/2026).
+
+## שינויים אחרונים (25/03/2026)
+
+### v71.0 – Exemption Lab Redesign & Legacy Local Simulation
+
+**מעבדת קיבוע זכויות:**
+- **Heritage toggle הוסר** מה-Tax Lab (היה מבלבל עם מתג גלובלי דומה)
+- **pns-tax-results הוסר** — הבלוקים המלבניים הכפולים (המידע כבר מוצג בעיגולים)
+- **Layout מחודש**: עיגולים מעל הסליידר (`flex-direction:column`), ממורכזים
+- **עיגולים גדולים**: wrapper 150px, עיגול 120px (מ-108/80px)
+- **ברוטו+נטו בתוך כל עיגול**: IDs `pns-circle-cap-net`, `pns-circle-pen-net` (נטו = Placeholder = ברוטו)
+- **סליידר Track**: דוקה מ-12px ל-7px (`style.css`)
+- **תוויות הסליידר**: הוגדלו מ-9px ל-11px
+
+**כרטיסיית הורשה ועיזבון:**
+- **מתג עדין "ללא הראל 🔍"** נוסף בכותרת הכרטיסייה (עם tooltip המסביר שזו סימולציה מקומית)
+- **`pensionLegacyToggleHarel(checked)`**: פונקציה חדשה — משנה רק את גרף העוגה ורשימת היורשים בלבד
+- **`pnsLegacyExcludeHarel = false`**: global חדש
+- **`pensionRenderLegacy()`** עודכן — מסנן לפי `pnsLegacyExcludeHarel` (local), לא משפיע על ה-snapshot הכללי
 
 ## שינויים אחרונים (25/03/2026)
 
