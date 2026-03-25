@@ -4705,8 +4705,9 @@ function pensionSliderChange(val) {
   // אנימציית עיגולים — scale() בתוך מיכל יציב (אין layout shift)
   var capFrac = parseInt(val) / 100;
   var penFrac = (100 - parseInt(val)) / 100;
-  var capScale = (0.55 + capFrac * 0.7).toFixed(3);
-  var penScale = (0.55 + penFrac * 0.7).toFixed(3);
+  // v73: minimum scale 0.67 → text always readable; max 1.15 → fits 180px wrapper
+  var capScale = (0.67 + capFrac * 0.48).toFixed(3);
+  var penScale = (0.67 + penFrac * 0.48).toFixed(3);
   var circCap = document.getElementById('pns-circle-capital');
   var circPen = document.getElementById('pns-circle-pension');
   if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
