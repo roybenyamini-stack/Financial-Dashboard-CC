@@ -4666,6 +4666,30 @@ function pensionRenderTaxLab() {
   pensionSliderChange(pensionTaxSliderVal);
 }
 
+// מנוע מס הכנסה חודשי ישראלי — מדרגות 2025 + נקודות זיכוי (v75.0)
+function pnsCalcTax(gross) {
+  var brackets = [
+    { up: 7010,      rate: 0.10 },
+    { up: 10060,     rate: 0.14 },
+    { up: 16150,     rate: 0.20 },
+    { up: 22440,     rate: 0.31 },
+    { up: 46690,     rate: 0.35 },
+    { up: 60130,     rate: 0.47 },
+    { up: Infinity,  rate: 0.50 }
+  ];
+  var tax = 0;
+  var prev = 0;
+  for (var i = 0; i < brackets.length; i++) {
+    var band = Math.min(gross, brackets[i].up) - prev;
+    if (band <= 0) break;
+    tax += band * brackets[i].rate;
+    prev = brackets[i].up;
+  }
+  // קיזוז 2.25 נקודות זיכוי × ~241.6 ₪ = 543.6 ₪ לחודש
+  var CREDIT = 544;
+  return Math.max(0, tax - CREDIT);
+}
+
 function pensionSliderChange(val) {
   pensionTaxSliderVal = parseInt(val);
   var sliderEl = document.getElementById('pns-tax-slider');
@@ -4687,7 +4711,18 @@ function pensionSliderChange(val) {
   var capitalExempt = pnsExemptBasket * capitalExemptFrac;
   var monthlyExempt = pnsExemptBasket * pensionExemptFrac / 180;
 
-  var taxOnPension = Math.max(0, totalPension - monthlyExempt) * PNS_MARGINAL_RATE;
+  // מנוע מס — לפי שיטה שנבחרה ב-dropdown (v75.0)
+  var taxMethodEl  = document.getElementById('pns-tax-method');
+  var taxMethod    = taxMethodEl ? taxMethodEl.value : 'auto';
+  var taxableMonthly = Math.max(0, totalPension - monthlyExempt);
+  var taxOnPension;
+  if (taxMethod === '31') {
+    taxOnPension = taxableMonthly * 0.31;
+  } else if (taxMethod === '35') {
+    taxOnPension = taxableMonthly * 0.35;
+  } else {
+    taxOnPension = pnsCalcTax(taxableMonthly);
+  }
   var netMonthly   = totalPension - taxOnPension;
   var taxOnCapital = Math.max(0, totalAccum - capitalExempt) * PNS_CAPITAL_RATE;
   var netCapital   = totalAccum - taxOnCapital;
@@ -4717,12 +4752,6 @@ function pensionSliderChange(val) {
   var circPenVal = document.getElementById('pns-circle-pen-val');
   if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
   if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
-
-  // נטו בתוך העיגולים — Placeholder: 85% מברוטו (v74.0, עד חיבור מנוע מס מלא)
-  var circCapNet = document.getElementById('pns-circle-cap-net');
-  var circPenNet = document.getElementById('pns-circle-pen-net');
-  if (circCapNet) circCapNet.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt * 0.85)) + ' ₪' : '—';
-  if (circPenNet) circPenNet.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt  * 0.85)) + ' ₪' : '—';
 
   // Total + Delta מתחת לעיגולים
   var capTotalEl = document.getElementById('pns-cap-total');
