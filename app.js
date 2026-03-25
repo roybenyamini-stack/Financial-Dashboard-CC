@@ -4359,7 +4359,8 @@ var PENSION_ASSETS  = [];
 var PENSION_EVENTS  = [];
 var PENSION_NI      = { single: 0, couple: 0 };
 var pensionInited   = false;
-var pensionExcludeHeritage = false;
+var pensionExcludeHeritage  = false;
+var pnsLegacyExcludeHarel   = false; // סימולציה מקומית לכרטיסיית עיזבון בלבד
 var pensionTaxSliderVal    = 50;
 var pensionNIMode   = 'single';
 var pnsLegacyChart  = null;
@@ -4709,35 +4710,27 @@ function pensionSliderChange(val) {
   var circPen = document.getElementById('pns-circle-pension');
   if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
   if (circPen) circPen.style.transform = 'scale(' + penScale + ')';
+  // ברוטו בתוך העיגולים
   var circCapVal = document.getElementById('pns-circle-cap-val');
   var circPenVal = document.getElementById('pns-circle-pen-val');
-  if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt))  + ' ₪' : '—';
-  if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt)) + ' ₪' : '—';
+  if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
+  if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
+
+  // נטו בתוך העיגולים — Placeholder = זהה לברוטו (v71.0)
+  var circCapNet = document.getElementById('pns-circle-cap-net');
+  var circPenNet = document.getElementById('pns-circle-pen-net');
+  if (circCapNet) circCapNet.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
+  if (circPenNet) circPenNet.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
 
   // Total + Delta מתחת לעיגולים
-  var capTotalEl  = document.getElementById('pns-cap-total');
-  var capDeltaEl  = document.getElementById('pns-cap-delta');
-  var penTotalEl  = document.getElementById('pns-pen-total');
-  var penDeltaEl  = document.getElementById('pns-pen-delta');
-  if (capTotalEl) capTotalEl.textContent = totalAccum   > 0 ? 'הון נטו: ' + pnsFmtK(Math.round(netCapital))  + ' ₪'  : '—';
-  if (capDeltaEl) capDeltaEl.textContent = totalAccum   > 0 && deltaCapital  > 0 ? '+ ' + pnsFmtK(Math.round(deltaCapital))  + ' ₪'  : '';
-  if (penTotalEl) penTotalEl.textContent = totalPension > 0 ? 'קצבה נטו: ' + pnsFmt(Math.round(netMonthly)) + ' ₪' : '—';
+  var capTotalEl = document.getElementById('pns-cap-total');
+  var capDeltaEl = document.getElementById('pns-cap-delta');
+  var penTotalEl = document.getElementById('pns-pen-total');
+  var penDeltaEl = document.getElementById('pns-pen-delta');
+  if (capTotalEl) capTotalEl.textContent = totalAccum   > 0 ? 'הון נטו: ' + pnsFmtK(Math.round(netCapital))  + ' ₪' : '—';
+  if (capDeltaEl) capDeltaEl.textContent = totalAccum   > 0 && deltaCapital  > 0 ? '+ ' + pnsFmtK(Math.round(deltaCapital))  + ' ₪' : '';
+  if (penTotalEl) penTotalEl.textContent = totalPension > 0 ? 'קצבה נטו: ' + pnsFmt(Math.round(netMonthly))  + ' ₪' : '—';
   if (penDeltaEl) penDeltaEl.textContent = totalPension > 0 && deltaMonthly > 0 ? '+ ' + pnsFmt(Math.round(deltaMonthly)) + ' ₪/חודש' : '';
-
-  var resultsEl = document.getElementById('pns-tax-results');
-  if (resultsEl) {
-    resultsEl.innerHTML =
-      '<div style="background:#f0fdf4;border-radius:10px;padding:10px 14px;text-align:center;">' +
-        '<div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">קצבה נטו</div>' +
-        '<div style="font-size:16px;font-weight:800;color:#16a34a;">'+(totalPension>0?pnsFmt(Math.round(netMonthly))+' ₪':'—')+'</div>' +
-        '<div style="font-size:10px;color:#9ca3af;">/חודש</div>' +
-      '</div>' +
-      '<div style="background:#eff6ff;border-radius:10px;padding:10px 14px;text-align:center;">' +
-        '<div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">הון פנוי</div>' +
-        '<div style="font-size:16px;font-weight:800;color:#2563eb;">'+(totalAccum>0?pnsFmtK(Math.round(netCapital))+' ₪':'—')+'</div>' +
-        '<div style="font-size:10px;color:#9ca3af;">לאחר מס</div>' +
-      '</div>';
-  }
 }
 
 function pensionBasketChange(val) {
@@ -4750,8 +4743,18 @@ function pensionBasketChange(val) {
 }
 
 // ---------- LEGACY / PIE ----------
+function pensionLegacyToggleHarel(checked) {
+  pnsLegacyExcludeHarel = checked;
+  pensionRenderLegacy();
+}
+
 function pensionRenderLegacy() {
-  var totalLegacy = PENSION_ASSETS.reduce(function(s,a) {
+  // סינון מקומי לסימולציה ללא הראל (לא משפיע על שאר הדשבורד)
+  var legacyAssets = pnsLegacyExcludeHarel
+    ? PENSION_ASSETS.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; })
+    : PENSION_ASSETS;
+
+  var totalLegacy = legacyAssets.reduce(function(s,a) {
     return s + (a.deathCapital||0) + (a.guaranteedMonths||0) * (a.expectedPension||0);
   }, 0);
 
@@ -4760,7 +4763,7 @@ function pensionRenderLegacy() {
 
   // Build heirs map
   var heirMap = {};
-  PENSION_ASSETS.forEach(function(a) {
+  legacyAssets.forEach(function(a) {
     if (!a.beneficiaries || !a.beneficiaries.length) return;
     var base = (a.deathCapital||0) + (a.guaranteedMonths||0)*(a.expectedPension||0);
     a.beneficiaries.forEach(function(b) {
@@ -4811,7 +4814,7 @@ function pensionRenderLegacy() {
     heirRows = '<div style="font-size:12px;color:#9ca3af;">אין נתוני מוטבים</div>';
   }
 
-  // Document links
+  // Document links — מהכלל (לא מסוננים)
   var docLinks = PENSION_ASSETS.filter(function(a){ return a.documentLink; });
   var docHtml = '';
   if (docLinks.length) {
