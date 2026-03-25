@@ -1,7 +1,27 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v71.0 — Exemption Lab Redesign & Legacy Local Simulation (25/03/2026).
+גרסה v72.0 — Tax Lab Two-Column Layout & KPI Color Fix (25/03/2026).
+
+## שינויים אחרונים (25/03/2026)
+
+### v72.0 – Tax Lab Two-Column Layout & KPI Color Fix
+
+**עימוד 2 עמודות במעבדת קיבוע זכויות:**
+- עמודה ימנית (RTL): סל פטור input + תוויות + סליידר (`pns-slider-section`)
+- עמודה שמאלית: שני עיגולים זה לצד זה (`flex-row`, `justify-content:center`)
+- מיכל: `display:flex;gap:28px;align-items:center` (מגיב ל-flex-wrap עבור מסכים צרים)
+
+**עיגולים גדולים יותר:**
+- wrapper: 180×180px (מ-150px), עיגול: 155px (מ-120px)
+- פונטים בתוך העיגול: label 11px, ערך ברוטו 17px, sub 10px, ערך נטו 14px
+- פונטים מתחת לעיגול: אחוז 14px, total 12px, delta 13px
+
+**הבדלת צבעים ב-KPI Macro Header:**
+- `הון צבור` → `cls:'capital'` → `color:#a5b4fc` (violet-blue, indigo-300)
+- `קצבה ברוטו` → `cls:'blue'` → `color:#7dd3fc` (sky-300 — כבעבר)
+- `קצבה נטו` → `cls:'green'` → `color:#4ade80` (ירוק בוהק — כבעבר)
+- colorMap הורחב: `capital`, `blue`, `green`, `muted`
 
 ## שינויים אחרונים (25/03/2026)
 
