@@ -1,4 +1,4 @@
-<!-- v72.0 -->
+<!-- v73.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v72.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v73.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -855,15 +855,17 @@
                 onchange="pensionBasketChange(this.value)"
                 style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:8px;">
-              <span>← היוון (הון)</span><span>(קצבה) שוטף →</span>
+            <div style="display:flex;justify-content:center;gap:14px;font-size:11px;color:#9ca3af;margin-bottom:8px;">
+              <span>← קצבה (שוטף)</span>
+              <span style="color:#d1d5db;">|</span>
+              <span>היוון (הון) →</span>
             </div>
             <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
               oninput="pensionSliderChange(this.value)">
           </div>
 
           <!-- עמודה שמאלית: שני עיגולים זה לצד זה -->
-          <div style="flex:1;min-width:260px;display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:260px;display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap;margin-top:-8px;">
 
             <!-- Capital circle -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
@@ -877,8 +879,8 @@
                 </div>
               </div>
               <div id="pns-cap-pct" style="color:#2563eb;font-size:14px;font-weight:700;">50%</div>
-              <div id="pns-cap-total" style="font-size:12px;color:#1e3a8a;font-weight:600;text-align:center;line-height:1.5;">—</div>
-              <div id="pns-cap-delta" style="font-size:13px;color:#059669;font-weight:700;text-align:center;"></div>
+              <div id="pns-cap-total" style="font-size:14px;color:#1e3a8a;font-weight:700;text-align:center;line-height:1.5;">—</div>
+              <div id="pns-cap-delta" style="font-size:15px;color:#059669;font-weight:800;text-align:center;"></div>
             </div>
 
             <!-- Pension circle -->
@@ -893,8 +895,8 @@
                 </div>
               </div>
               <div id="pns-pen-pct" style="color:#16a34a;font-size:14px;font-weight:700;">50%</div>
-              <div id="pns-pen-total" style="font-size:12px;color:#14532d;font-weight:600;text-align:center;line-height:1.5;">—</div>
-              <div id="pns-pen-delta" style="font-size:13px;color:#059669;font-weight:700;text-align:center;"></div>
+              <div id="pns-pen-total" style="font-size:14px;color:#14532d;font-weight:700;text-align:center;line-height:1.5;">—</div>
+              <div id="pns-pen-delta" style="font-size:15px;color:#059669;font-weight:800;text-align:center;"></div>
             </div>
 
           </div>
