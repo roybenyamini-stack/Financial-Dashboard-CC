@@ -1,4 +1,4 @@
-<!-- v73.0 -->
+<!-- v74.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v73.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v74.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -853,12 +853,12 @@
               <input type="number" id="pns-basket-input"
                 value="882924" min="0" max="9999999" step="1000"
                 onchange="pensionBasketChange(this.value)"
-                style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
+                style="width:110px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
             </div>
             <div style="display:flex;justify-content:center;gap:14px;font-size:11px;color:#9ca3af;margin-bottom:8px;">
-              <span>← קצבה (שוטף)</span>
+              <span>← היוון (הון)</span>
               <span style="color:#d1d5db;">|</span>
-              <span>היוון (הון) →</span>
+              <span>קצבה (שוטף) →</span>
             </div>
             <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
               oninput="pensionSliderChange(this.value)">
@@ -870,8 +870,8 @@
             <!-- Capital circle -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
               <div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <div id="pns-circle-capital" style="width:155px;height:155px;border-radius:50%;background:#eff6ff;border:3px solid #2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.9);flex-shrink:0;padding:10px;box-sizing:border-box;">
-                  <div style="font-size:11px;color:#2563eb;font-weight:700;line-height:1.3;text-align:center;">הון פטור</div>
+                <div id="pns-circle-capital" style="width:155px;height:155px;border-radius:50%;background:#eff6ff;border:3px solid #2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.85);flex-shrink:0;padding:10px;box-sizing:border-box;">
+                  <div style="font-size:10px;color:#2563eb;font-weight:700;line-height:1.3;text-align:center;">הון פטור ברוטו</div>
                   <div id="pns-circle-cap-val" style="font-size:17px;font-weight:800;color:#1e3a8a;line-height:1.3;text-align:center;padding:0 4px;">—</div>
                   <div style="font-size:10px;color:#93c5fd;line-height:1.2;">ברוטו</div>
                   <div id="pns-circle-cap-net" style="font-size:14px;font-weight:700;color:#1d4ed8;line-height:1.3;text-align:center;padding:0 4px;margin-top:3px;">—</div>
@@ -886,7 +886,7 @@
             <!-- Pension circle -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
               <div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <div id="pns-circle-pension" style="width:155px;height:155px;border-radius:50%;background:#f0fdf4;border:3px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.9);flex-shrink:0;padding:10px;box-sizing:border-box;">
+                <div id="pns-circle-pension" style="width:155px;height:155px;border-radius:50%;background:#f0fdf4;border:3px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.85);flex-shrink:0;padding:10px;box-sizing:border-box;">
                   <div style="font-size:11px;color:#16a34a;font-weight:700;line-height:1.3;text-align:center;">קצבה פטורה</div>
                   <div id="pns-circle-pen-val" style="font-size:17px;font-weight:800;color:#14532d;line-height:1.3;text-align:center;padding:0 4px;">—</div>
                   <div style="font-size:10px;color:#86efac;line-height:1.2;">ברוטו</div>
