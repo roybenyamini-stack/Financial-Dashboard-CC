@@ -4453,15 +4453,16 @@ function pensionRenderSnapshot() {
   var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
 
   var items = [
-    { lbl:'הון צבור',    val: totalAccum   > 0 ? pnsFmtK(totalAccum)                  : '—', sub:'ש״ח',           cls:'blue'  },
-    { lbl:'קצבה ברוטו',  val: totalPension > 0 ? pnsFmt(totalPension)                 : '—', sub:'₪/חודש',        cls:'blue'  },
+    { lbl:'הון צבור',    val: totalAccum   > 0 ? pnsFmtK(totalAccum)                  : '—', sub:'ש״ח',           cls:'capital' },
+    { lbl:'קצבה ברוטו',  val: totalPension > 0 ? pnsFmt(totalPension)                 : '—', sub:'₪/חודש',        cls:'blue'    },
     { lbl:'קצבה נטו',    val: pnsNetMonthly > 0 ? pnsFmt(Math.round(pnsNetMonthly))   : '—', sub:'₪/חודש (אחרי מס)', cls:'green' },
-    { lbl:'הכנסה פנויה', val: '—',                                                           sub:'ממתין לחישוב',  cls:'muted' }
+    { lbl:'הכנסה פנויה', val: '—',                                                           sub:'ממתין לחישוב',  cls:'muted'   }
   ];
 
   var statsEl = document.getElementById('pns-snap-stats');
   if (statsEl) {
-    var colorMap = {blue:'color:#7dd3fc', green:'color:#4ade80', muted:'color:rgba(255,255,255,0.35);font-size:14px;font-weight:600'};
+    // capital = violet-blue (#a5b4fc) | blue = sky (#7dd3fc) | green = bright green | muted = dim
+    var colorMap = {capital:'color:#a5b4fc', blue:'color:#7dd3fc', green:'color:#4ade80', muted:'color:rgba(255,255,255,0.35);font-size:14px;font-weight:600'};
     statsEl.innerHTML = items.map(function(it) {
       var style = colorMap[it.cls] || '';
       return '<div class="stat-item">' +
