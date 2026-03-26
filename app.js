@@ -4720,6 +4720,8 @@ function pensionSliderChange(val) {
     taxOnPension = taxableMonthly * 0.31;
   } else if (taxMethod === '35') {
     taxOnPension = taxableMonthly * 0.35;
+  } else if (taxMethod === '47') {
+    taxOnPension = taxableMonthly * 0.47;
   } else {
     taxOnPension = pnsCalcTax(taxableMonthly);
   }
@@ -4727,8 +4729,12 @@ function pensionSliderChange(val) {
   var taxOnCapital = Math.max(0, totalAccum - capitalExempt) * PNS_CAPITAL_RATE;
   var netCapital   = totalAccum - taxOnCapital;
 
-  // Delta — ביחס למצב ללא פטור כלל
-  var netMonthly_base = totalPension * (1 - PNS_MARGINAL_RATE);
+  // Delta — ביחס למצב ללא פטור כלל (אותו מנוע מס, אפס פטור)
+  var taxOnPension_base = (taxMethod === '31') ? totalPension * 0.31
+                        : (taxMethod === '35') ? totalPension * 0.35
+                        : (taxMethod === '47') ? totalPension * 0.47
+                        : pnsCalcTax(totalPension);
+  var netMonthly_base = totalPension - taxOnPension_base;
   var netCapital_base = totalAccum   * (1 - PNS_CAPITAL_RATE);
   var deltaMonthly    = netMonthly - netMonthly_base;
   var deltaCapital    = netCapital - netCapital_base;
