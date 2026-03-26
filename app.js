@@ -4564,15 +4564,27 @@ function pensionSetView(mode) {
 function pensionRenderRiskRow() {
   var el = document.getElementById('pns-risk-row');
   if (!el) return;
-  // v83.0: סינון לפי view mode דרך pensionActiveAssets
   var active = pensionActiveAssets();
   var totalLifeAll  = active.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var pureRiskLife  = active.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var accumLifePart = totalLifeAll - pureRiskLife;
   var totalDisab    = active.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
-  var totalAccident = active.reduce(function(s,a){ return s+(a.accidentCover||0); }, 0);
-  // v85.0: per-asset real estate (מונע כפילויות + מפצל לפי בעלים ב-משותף)
+  // v91.0: הגנה מתאונות — מוצגת תמיד ללא תלות ב-Toggle הראל
+  var accidentBase = pnsExcludeHarel
+    ? PENSION_ASSETS.filter(function(a){
+        if (a.isPendingReview) return false;
+        if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
+        if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
+        if (pensionExcludeHeritage && a.mainPurpose === 'הורשה') return false;
+        return true; // אין סינון הראל
+      })
+    : active;
+  var totalAccident = accidentBase.reduce(function(s,a){ return s+(a.accidentCover||0); }, 0);
   var realEstAssets = active.filter(function(a){ return a.realEstateIncome > 0; });
+
+  // v91.0: compact = true במצב משותף — 6 כרטיסיות בשורה אחת
+  var compact = (pnsViewMode === 'all');
+  var cs = compact ? 'flex:1 0 0;min-width:115px;max-width:160px;padding:8px 10px;' : '';
 
   // tooltip breakdown for life insurance
   var lifeTooltipHtml = totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)
@@ -4585,7 +4597,7 @@ function pensionRenderRiskRow() {
     : '';
 
   var lifeHtml = totalLifeAll > 0
-    ? '<div class="pns-risk-item life">' +
+    ? '<div class="pns-risk-item life" style="'+cs+'">' +
         '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
         '<div>' +
           '<div class="pns-risk-lbl">ביטוח חיים / הורשה</div>' +
@@ -4598,7 +4610,7 @@ function pensionRenderRiskRow() {
     : '';
 
   var disabHtml = totalDisab > 0
-    ? '<div class="pns-risk-item disab">' +
+    ? '<div class="pns-risk-item disab" style="'+cs+'">' +
         '<div class="pns-risk-icon" style="background:#dbeafe;">♿</div>' +
         '<div>' +
           '<div class="pns-risk-lbl">אובדן כושר עבודה</div>' +
@@ -4608,9 +4620,8 @@ function pensionRenderRiskRow() {
       '</div>'
     : '';
 
-  // v85.0: כרטיסיית פיצוי תאונתי (הגנה מתאונות — נכות/שארים)
   var accidentHtml = totalAccident > 0
-    ? '<div class="pns-risk-item accid">' +
+    ? '<div class="pns-risk-item accid" style="'+cs+'">' +
         '<div class="pns-risk-icon" style="background:#d1fae5;">🏥</div>' +
         '<div>' +
           '<div class="pns-risk-lbl">הגנה מתאונות</div>' +
@@ -4620,10 +4631,9 @@ function pensionRenderRiskRow() {
       '</div>'
     : '';
 
-  // v85.0: כרטיסיות נדל"ן per-asset — כל נכס בנפרד, מוצמדות לשמאל בשורה
   var realEstHtml = realEstAssets.map(function(a) {
     var ownerLabel = (pnsViewMode === 'all' && a.owner) ? ' – ' + a.owner : '';
-    return '<div class="pns-risk-item" style="border-right-color:#f59e0b;">' +
+    return '<div class="pns-risk-item" style="border-right-color:#f59e0b;'+cs+'">' +
       '<div class="pns-risk-icon" style="background:#fef3c7;">🏠</div>' +
       '<div>' +
         '<div class="pns-risk-lbl">שכר דירה נטו' + ownerLabel + '</div>' +
@@ -4633,7 +4643,7 @@ function pensionRenderRiskRow() {
     '</div>';
   }).join('');
 
-  // v88.0: מצב יעל — שורת הסטטוס מציגה פנסיה שוטפת + שכר דירה בלבד (ללא ביטוחים)
+  // מצב יעל — פנסיה + שכר דירה בלבד
   if (pnsViewMode === 'yael') {
     var currPenHtml = active.filter(function(a){ return a.currentPension > 0; }).map(function(a) {
       return '<div class="pns-risk-item" style="border-right-color:#22c55e;">' +
@@ -4649,12 +4659,13 @@ function pensionRenderRiskRow() {
     return;
   }
 
-  // v89.0: ב-משותף — פנסיה שוטפת של יעל מוצגת בשורת הסטטוס (ליד שכר הדירה)
+  // v91.0: משותף — שורה שטוחה אחת: ביטוחים (ימין) | spacer | הכנסות (שמאל)
+  // v89.0: פנסיה יעל מוצגת בשורת הסטטוס
   var yaelPenHtml = '';
   if (pnsViewMode === 'all') {
     yaelPenHtml = active.filter(function(a){ return a.currentPension > 0 && a.owner === 'יעל'; })
       .map(function(a) {
-        return '<div class="pns-risk-item" style="border-right-color:#22c55e;">' +
+        return '<div class="pns-risk-item" style="border-right-color:#22c55e;'+cs+'">' +
           '<div class="pns-risk-icon" style="background:#dcfce7;">👵</div>' +
           '<div>' +
             '<div class="pns-risk-lbl">פנסיה ' + (a.owner || '') + '</div>' +
@@ -4665,15 +4676,23 @@ function pensionRenderRiskRow() {
       }).join('');
   }
 
-  // v86.0: ביטוחים בקבוצה flex:1 (ימין), הכנסות (נדל"ן + פנסיה יעל) בקבוצה נפרדת (שמאל)
-  var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
-    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
-    : '';
-  var incomeGroup = (yaelPenHtml || realEstHtml)
-    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + yaelPenHtml + realEstHtml + '</div>'
+  var hasIncome = yaelPenHtml || realEstHtml;
+  var spacer = (compact && hasIncome && (lifeHtml || disabHtml || accidentHtml))
+    ? '<div style="flex:0 0 16px;"></div>'
     : '';
 
-  el.innerHTML = insuranceGroup + incomeGroup;
+  // כל 6 הכרטיסיות בשורה שטוחה אחת ב-משותף; שתי קבוצות ב-רועי
+  if (compact) {
+    el.innerHTML = lifeHtml + disabHtml + accidentHtml + spacer + yaelPenHtml + realEstHtml;
+  } else {
+    var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
+      ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
+      : '';
+    var incomeGroup = hasIncome
+      ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + realEstHtml + '</div>'
+      : '';
+    el.innerHTML = insuranceGroup + incomeGroup;
+  }
 }
 
 // ---------- CARDS ----------
