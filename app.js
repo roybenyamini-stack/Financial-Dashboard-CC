@@ -4748,9 +4748,9 @@ function pensionSliderChange(val) {
   var circPen = document.getElementById('pns-circle-pension');
   if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
   if (circPen) circPen.style.transform = 'scale(' + penScale + ')';
-  // עיגול הון: מציג סל פטור ברוטו בלבד (v77.0 — אין חישוב הון נטו)
-  var circCapVal = document.getElementById('pns-circle-cap-val');
-  if (circCapVal) circCapVal.textContent = totalAccum > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
+  // עיגול הון: פנים ריק ממספרים — הנתון מוצג מתחת לעיגול (v78.0)
+  var capTotalEl = document.getElementById('pns-cap-total');
+  if (capTotalEl) capTotalEl.textContent = totalAccum > 0 ? 'סך הון פטור: ' + pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
 
   // עיגול קצבה: מציג חיסכון מס (דלתא) + נטו חודשי (v77.0)
   var circPenVal = document.getElementById('pns-circle-pen-val');
