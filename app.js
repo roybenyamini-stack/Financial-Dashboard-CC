@@ -2311,7 +2311,7 @@ function loadExcelFileCore(wb) {
         return String(v||'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\xa0]/g,'').trim();
       }
       function parseYaelFromSheet(rows) {
-        var ownerColIdx = -1, valColIdx = 1, typeColIdx = 0;
+        var ownerColIdx = -1, typeColIdx = 0;
 
         // --- Strategy A: find header row containing "שייכות" or "בעלות" ---
         for (var ri = 0; ri < Math.min(rows.length, 15); ri++) {
@@ -2321,7 +2321,6 @@ function loadExcelFileCore(wb) {
           for (var ci = 0; ci < hrow.length; ci++) {
             var cell = normCell(hrow[ci]);
             if (cell.includes('שייכות') || cell.includes('בעלות')) { ownerColIdx = ci; found = true; }
-            if (cell.includes('יתרה') || cell.includes('שווי') || cell === 'ערך') valColIdx = ci;
             if (cell.includes('קטגוריה') || cell.includes('מוצר') || cell.includes('שם קרן')) typeColIdx = ci;
           }
           if (found) break;
@@ -2333,7 +2332,7 @@ function loadExcelFileCore(wb) {
           for (var ri2 = 0; ri2 < rows.length; ri2++) {
             var r2 = rows[ri2];
             if (!Array.isArray(r2)) continue;
-            for (var ci2 = 2; ci2 <= Math.min(r2.length - 1, 6); ci2++) {
+            for (var ci2 = 2; ci2 <= Math.min(r2.length - 1, 20); ci2++) {
               if (normCell(r2[ci2]) === 'יעל') hits[ci2] = (hits[ci2]||0) + 1;
             }
           }
@@ -2354,14 +2353,11 @@ function loadExcelFileCore(wb) {
           if (!Array.isArray(row) || row.length <= ownerColIdx) continue;
           if (normCell(row[ownerColIdx]) !== 'יעל') continue;
 
-          // Extract numeric value: try valColIdx first, then scan cols 1-4
+          // v95.2: Extract "last column with a number" — scan right-to-left, skip owner/liquidity cols
           var val = 0;
-          if (typeof row[valColIdx] === 'number') {
-            val = row[valColIdx];
-          } else {
-            for (var vc = 1; vc <= Math.min(row.length - 1, 5); vc++) {
-              if (vc !== ownerColIdx && typeof row[vc] === 'number') { val = row[vc]; break; }
-            }
+          for (var vc = row.length - 1; vc >= 1; vc--) {
+            if (vc === ownerColIdx) continue;
+            if (typeof row[vc] === 'number' && row[vc] > 0) { val = row[vc]; break; }
           }
           if (val <= 0) continue;
 
@@ -2386,6 +2382,13 @@ function loadExcelFileCore(wb) {
       sortedKeys.forEach(function(key, colIdx) {
         var sname = monthSheets[key].name;
         var ws = wb.Sheets[sname];
+        // v95.2: Extend !ref so rows added below Excel's auto-range are captured
+        if (ws['!ref']) {
+          var wsRange = XLSX.utils.decode_range(ws['!ref']);
+          wsRange.e.r = wsRange.e.r + 300; // read up to 300 extra rows beyond stated range
+          wsRange.e.c = Math.max(wsRange.e.c, 20); // at least 21 columns
+          ws['!ref'] = XLSX.utils.encode_range(wsRange);
+        }
         var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
 
         // Standard ANCHOR_MAP pass (רועי + any named יעל rows)
