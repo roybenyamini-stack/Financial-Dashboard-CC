@@ -4633,6 +4633,22 @@ function pensionRenderRiskRow() {
     '</div>';
   }).join('');
 
+  // v88.0: מצב יעל — שורת הסטטוס מציגה פנסיה שוטפת + שכר דירה בלבד (ללא ביטוחים)
+  if (pnsViewMode === 'yael') {
+    var currPenHtml = active.filter(function(a){ return a.currentPension > 0; }).map(function(a) {
+      return '<div class="pns-risk-item" style="border-right-color:#22c55e;">' +
+        '<div class="pns-risk-icon" style="background:#dcfce7;">👵</div>' +
+        '<div>' +
+          '<div class="pns-risk-lbl">פנסיה' + (a.owner ? ' ' + a.owner : '') + '</div>' +
+          '<div class="pns-risk-val">' + pnsFmt(a.currentPension) + ' ₪</div>' +
+          '<div class="pns-risk-sub">קצבה שוטפת נטו</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + currPenHtml + realEstHtml + '</div>';
+    return;
+  }
+
   // v86.0: ביטוחים בקבוצה flex:1 (ימין), נדל"ן בקבוצה נפרדת (נדחפת לשמאל ב-RTL)
   var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
     ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
@@ -4648,6 +4664,9 @@ function pensionRenderRiskRow() {
 function pensionRenderCards() {
   var grid = document.getElementById('pns-cards-grid');
   if (!grid) return;
+
+  // v88.0: ביעל mode — אזור הכרטיסיות ריק לחלוטין (הכל מוצג בשורת הסטטוס)
+  if (pnsViewMode === 'yael') { grid.innerHTML = ''; return; }
 
   // v80.0: סינון לפי בעלות + מסנן קופות ממתינות
   var active = pensionActiveAssets();
@@ -4728,9 +4747,9 @@ function pensionRenderCards() {
 
     var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+pnsFormatDate(a.expiryDate)+'</div>' : '';
     var docHtml    = a.documentLink ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
-    var mutedStyle = muted ? 'opacity:0.45;filter:grayscale(0.4);' : '';
+    // v88.0: הראל מוחרג — צבע מלא, רק תגית ייעוד (ללא הצללה/אפרוריות)
 
-    return '<div class="pns-card'+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';'+mutedStyle+'">' +
+    return '<div class="pns-card'+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';">' +
       '<div class="pns-card-header">' +
         '<div class="pns-card-icon" style="background:'+iconBg+';">'+icon+'</div>' +
         '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
