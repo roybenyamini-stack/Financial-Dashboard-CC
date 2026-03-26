@@ -4455,12 +4455,23 @@ function pensionActiveAssets() {
 
 // ---------- SNAPSHOT — 4 KPIs ----------
 function pensionRenderSnapshot() {
-  // v81.0: כל האגרגציות מסוננות לפי view mode דרך pensionActiveAssets
   var active       = pensionActiveAssets();
   var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
-  var totalAccum   = active.reduce(function(s,a){ return s+(a.accumulation||0);    }, 0);
   var totalCurrPen = active.reduce(function(s,a){ return s+(a.currentPension||0);  }, 0);
   var totalRealEst = active.reduce(function(s,a){ return s+(a.realEstateIncome||0);}, 0);
+
+  // v87.0: הון צבור — תמיד כולל הראל (נכס קיים גם כש"ללא הראל" מופעל)
+  // הראל מוחרג מהקצבה אך לא מהשווי הכולל של התיק
+  var activeForAccum = pnsExcludeHarel
+    ? PENSION_ASSETS.filter(function(a){
+        if (a.isPendingReview) return false;
+        if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
+        if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
+        if (pensionExcludeHeritage && a.mainPurpose === 'הורשה') return false;
+        return true; // אין סינון הראל כאן
+      })
+    : active;
+  var totalAccum = activeForAccum.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
   // v82.0: קצבה נטו = קצבה לאחר מס (רועי) + קצבה שוטפת (יעל, כבר נטו)
   // הכנסה פנויה = שכירות נטו (ללא קשר לקצבה)
   var pensionNetVal = (pnsViewMode === 'yael')
@@ -4527,6 +4538,7 @@ function pensionSetNI(mode) {
 function pensionToggleHarel(exclude) {
   pnsExcludeHarel = exclude;
   pensionRenderSnapshot();
+  pensionRenderRiskRow();
   pensionRenderCards();
   pensionRenderTaxLab();
 }
@@ -4663,12 +4675,30 @@ function pensionRenderCards() {
     ? PENSION_ASSETS.filter(function(a){ return a.isPendingReview; })
     : [];
 
-  if (!pensionOnly.length && !realEstCards.length && !pendingCards.length) {
+  // v87.0: הראל — מוצג גם ב"ללא הראל" אך מעומעם עם תווית הורשה/גיבוי
+  var harelMuted = [];
+  if (pnsExcludeHarel) {
+    var baseNoHarelFilter = PENSION_ASSETS.filter(function(a){
+      if (a.isPendingReview) return false;
+      if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
+      if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
+      if (pensionExcludeHeritage && a.mainPurpose === 'הורשה') return false;
+      return true;
+    });
+    harelMuted = baseNoHarelFilter.filter(function(a){
+      return !a.isRisk && !activeIds[a.id] && !isPureRealEst(a) &&
+        a.provider && a.provider.indexOf('הראל') >= 0 &&
+        (a.currentPension > 0 || a.expectedPension > 0 || a.accumulation > 0 ||
+         a.deathCapital > 0 || a.disabilityCover > 0 || a.guaranteedMonths > 0);
+    });
+  }
+
+  if (!pensionOnly.length && !harelMuted.length && !realEstCards.length && !pendingCards.length) {
     grid.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px;">אין נכסי פנסיה פעילים</div>';
     return;
   }
 
-  function renderPensionCard(a) {
+  function renderPensionCard(a, muted) {
     var isHeritage  = (a.mainPurpose === 'הורשה');
     var isMivtachim = (a.provider && a.provider.indexOf('מבטחים') >= 0);
     var displayType = isMivtachim ? 'פנסיה' : a.policyType;
@@ -4688,6 +4718,8 @@ function pensionRenderCards() {
     var badges = '';
     if (displayType) badges += '<span class="pns-card-badge pns-badge-pension">'+displayType+'</span>';
     if (isHeritage)  badges += '<span class="pns-card-badge pns-badge-heritage">הורשה</span>';
+    // v87.0: תווית ייעוד הורשה/גיבוי כאשר הראל מוחרג מהקצבה
+    if (muted) badges += '<span class="pns-card-badge" style="background:#fef3c7;color:#92400e;font-size:9px;">מיועד להורשה / גיבוי</span>';
     badges += ownerBadge;
 
     var rowsHtml = rows.map(function(r) {
@@ -4696,8 +4728,9 @@ function pensionRenderCards() {
 
     var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+pnsFormatDate(a.expiryDate)+'</div>' : '';
     var docHtml    = a.documentLink ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
+    var mutedStyle = muted ? 'opacity:0.45;filter:grayscale(0.4);' : '';
 
-    return '<div class="pns-card'+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';">' +
+    return '<div class="pns-card'+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';'+mutedStyle+'">' +
       '<div class="pns-card-header">' +
         '<div class="pns-card-icon" style="background:'+iconBg+';">'+icon+'</div>' +
         '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
@@ -4739,7 +4772,8 @@ function pensionRenderCards() {
   }
 
   grid.innerHTML =
-    pensionOnly.map(renderPensionCard).join('') +
+    pensionOnly.map(function(a){ return renderPensionCard(a, false); }).join('') +
+    harelMuted.map(function(a){ return renderPensionCard(a, true); }).join('') +
     realEstCards.map(renderRealEstCard).join('') +
     pendingListHtml;
 }
