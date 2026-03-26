@@ -4643,6 +4643,26 @@ function pensionRenderRiskRow() {
     '</div>';
   }).join('');
 
+  // v93.1: חישוב ממתינים לפני כל early-return — נגיש בכל המצבים
+  var pendingBadgesHtml = '';
+  if (pnsViewMode !== 'mine') {
+    var pendingForRow = PENSION_ASSETS.filter(function(a){ return a.isPendingReview; });
+    if (pendingForRow.length > 0) {
+      pendingBadgesHtml =
+        '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;align-self:center;' +
+                     'border-right:1px solid #e5e7eb;padding-right:10px;margin-right:4px;">' +
+        '<span style="font-size:9px;color:#9ca3af;white-space:nowrap;">ממתינים:</span>' +
+        pendingForRow.map(function(a){
+          var label = a.provider + (a.policyId ? ' '+a.policyId : '');
+          var amt   = a.accumulation > 0 ? ' '+pnsFmtK(a.accumulation)+' ₪' : '';
+          return '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;' +
+            'padding:3px 8px;border-radius:12px;border:1px solid #e5e7eb;white-space:nowrap;">' +
+            label + amt + '</span>';
+        }).join('') +
+        '</div>';
+    }
+  }
+
   // מצב יעל — פנסיה + שכר דירה + ממתינים
   if (pnsViewMode === 'yael') {
     var currPenHtml = active.filter(function(a){ return a.currentPension > 0; }).map(function(a) {
@@ -4681,26 +4701,6 @@ function pensionRenderRiskRow() {
   var spacer = (compact && hasIncome && (lifeHtml || disabHtml || accidentHtml))
     ? '<div style="flex:0 0 16px;"></div>'
     : '';
-
-  // v93.0: תגי נכסים ממתינים — מוצגים ביעל ובמשותף, מוסתרים ברועי
-  var pendingBadgesHtml = '';
-  if (pnsViewMode !== 'mine') {
-    var pendingForRow = PENSION_ASSETS.filter(function(a){ return a.isPendingReview; });
-    if (pendingForRow.length > 0) {
-      pendingBadgesHtml =
-        '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;align-self:center;' +
-                     'border-right:1px solid #e5e7eb;padding-right:10px;margin-right:4px;">' +
-        '<span style="font-size:9px;color:#9ca3af;white-space:nowrap;">ממתינים:</span>' +
-        pendingForRow.map(function(a){
-          var label = a.provider + (a.policyId ? ' '+a.policyId : '');
-          var amt   = a.accumulation > 0 ? ' '+pnsFmtK(a.accumulation)+' ₪' : '';
-          return '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;' +
-            'padding:3px 8px;border-radius:12px;border:1px solid #e5e7eb;white-space:nowrap;">' +
-            label + amt + '</span>';
-        }).join('') +
-        '</div>';
-    }
-  }
 
   // כל 6 הכרטיסיות בשורה שטוחה אחת ב-משותף; שתי קבוצות ב-רועי
   if (compact) {
