@@ -4621,10 +4621,15 @@ function pensionRenderRiskRow() {
     '</div>';
   }).join('');
 
-  // ספייסר מפריד ביטוחים (ימין) מנדל"ן (שמאל) בשורת flex RTL
-  var spacer = realEstHtml ? '<div style="flex:1;min-width:16px;"></div>' : '';
+  // v86.0: ביטוחים בקבוצה flex:1 (ימין), נדל"ן בקבוצה נפרדת (נדחפת לשמאל ב-RTL)
+  var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
+    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
+    : '';
+  var realEstGroup = realEstHtml
+    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + realEstHtml + '</div>'
+    : '';
 
-  el.innerHTML = lifeHtml + disabHtml + accidentHtml + spacer + realEstHtml;
+  el.innerHTML = insuranceGroup + realEstGroup;
 }
 
 // ---------- CARDS ----------
@@ -4643,13 +4648,15 @@ function pensionRenderCards() {
            !a.deathCapital && !a.disabilityCover && !a.currentPension;
   }
 
-  // כרטיסיות פנסיה רגילות (לא ריסק, לא נדל"ן טהור)
-  var pensionOnly = PENSION_ASSETS.filter(function(a){ return !a.isRisk && activeIds[a.id] && !isPureRealEst(a); });
+  // כרטיסיות פנסיה רגילות (לא ריסק, לא נדל"ן טהור, לפחות שדה אחד עם ערך)
+  var pensionOnly = PENSION_ASSETS.filter(function(a){
+    return !a.isRisk && activeIds[a.id] && !isPureRealEst(a) &&
+      (a.currentPension > 0 || a.expectedPension > 0 || a.accumulation > 0 ||
+       a.deathCapital > 0 || a.disabilityCover > 0 || a.guaranteedMonths > 0);
+  });
 
-  // v84.0: נדל"ן מוצג בכרטיסיות רק ב-יעל/משותף (ב-רועי מופיע בשורת הריסק בלבד)
-  var realEstCards = (pnsViewMode !== 'mine')
-    ? active.filter(isPureRealEst)
-    : [];
+  // v86.0: נדל"ן מוצג בשורת הסטטוס העליונה בלבד — לא בגריד הכרטיסיות
+  var realEstCards = [];
 
   // קופות ממתינות — מוצגות כרשימה קומפקטית, לא כרטיסיות גדולות (v81.0)
   var pendingCards = (pnsViewMode !== 'mine')
