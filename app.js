@@ -4461,16 +4461,17 @@ function pensionRenderSnapshot() {
   var totalAccum   = active.reduce(function(s,a){ return s+(a.accumulation||0);    }, 0);
   var totalCurrPen = active.reduce(function(s,a){ return s+(a.currentPension||0);  }, 0);
   var totalRealEst = active.reduce(function(s,a){ return s+(a.realEstateIncome||0);}, 0);
-  // hכנסה חודשית נטו: ביעל — רק currentPension + נדל"ן; בשאר — גם pnsNetMonthly (לאחר קיבוע זכויות)
-  var pensionNetPart = (pnsViewMode === 'yael') ? 0 : (pnsNetMonthly || 0);
-  var totalMonthlyNet = pensionNetPart + totalCurrPen + totalRealEst;
-  var netSub = (pnsViewMode === 'all') ? '₪/חודש (משפחה)' : '₪/חודש (נטו)';
+  // v82.0: קצבה נטו = קצבה לאחר מס (רועי) + קצבה שוטפת (יעל, כבר נטו)
+  // הכנסה פנויה = שכירות נטו (ללא קשר לקצבה)
+  var pensionNetVal = (pnsViewMode === 'yael')
+    ? totalCurrPen
+    : ((pnsNetMonthly || 0) + totalCurrPen);
 
   var items = [
-    { lbl:'הון צבור',         val: totalAccum      > 0 ? pnsFmtK(totalAccum)                 : '—', sub:'ש״ח',       cls:'capital' },
-    { lbl:'קצבה ברוטו',       val: totalPension    > 0 ? pnsFmt(totalPension)                : '—', sub:'₪/חודש',    cls:'blue'    },
-    { lbl:'הכנסה חודשית נטו', val: totalMonthlyNet > 0 ? pnsFmt(Math.round(totalMonthlyNet)) : '—', sub:netSub,       cls:'green'   },
-    { lbl:'הכנסה מנדל״ן',     val: totalRealEst    > 0 ? pnsFmt(Math.round(totalRealEst))    : '—', sub:'₪/חודש',    cls:'muted'   }
+    { lbl:'הון צבור',    val: totalAccum    > 0 ? pnsFmtK(totalAccum)              : '—', sub:'ש״ח',        cls:'capital' },
+    { lbl:'קצבה ברוטו',  val: totalPension  > 0 ? pnsFmt(totalPension)             : '—', sub:'₪/חודש',     cls:'blue'    },
+    { lbl:'קצבה נטו',    val: pensionNetVal > 0 ? pnsFmt(Math.round(pensionNetVal)) : '—', sub:'₪/חודש',     cls:'green'   },
+    { lbl:'הכנסה פנויה', val: totalRealEst  > 0 ? pnsFmt(Math.round(totalRealEst))  : '—', sub:'שכירות נטו', cls:'blue'    }
   ];
 
   var statsEl = document.getElementById('pns-snap-stats');
@@ -4532,9 +4533,11 @@ function pensionSetView(mode) {
   pnsViewMode = mode;
   var sel = document.getElementById('pns-view-select');
   if (sel) sel.value = mode;
-  // v81.0: מחשבון מס מוסתר ביעל (קצבתה כבר נטו)
+  // v81-82: מחשבון מס + הורשה מוסתרים ביעל
   var taxLab = document.getElementById('pns-tax-lab');
   if (taxLab) taxLab.style.display = (mode === 'yael') ? 'none' : '';
+  var legacySec = document.getElementById('pns-legacy-section');
+  if (legacySec) legacySec.style.display = (mode === 'yael') ? 'none' : '';
   pensionRenderSnapshot();
   pensionRenderRiskRow();
   pensionRenderCards();
@@ -4606,10 +4609,8 @@ function pensionRenderCards() {
   // כרטיסיות פנסיה רגילות (לא ריסק, לא ממתין)
   var pensionOnly = PENSION_ASSETS.filter(function(a){ return !a.isRisk && activeIds[a.id]; });
 
-  // כרטיסיות נדל"ן — מסוננות לפי view mode דרך active (v81.0)
-  var realEstCards = active.filter(function(a){
-    return a.realEstateIncome > 0 && !a.expectedPension && !a.accumulation && !a.isRisk;
-  });
+  // v82.0: נדל"ן מוצג ב-Header — לא בכרטיסיות
+  var realEstCards = [];
 
   // קופות ממתינות — מוצגות כרשימה קומפקטית, לא כרטיסיות גדולות (v81.0)
   var pendingCards = (pnsViewMode !== 'mine')
@@ -4731,9 +4732,11 @@ function pensionToggleHeritage(checked) {
 }
 
 function pensionRenderTaxLab() {
-  // v81.0: מוסתר ביעל — קצבתה נטו, אין צורך בקיבוע זכויות
+  var isYael = (pnsViewMode === 'yael');
   var taxLab = document.getElementById('pns-tax-lab');
-  if (taxLab) taxLab.style.display = (pnsViewMode === 'yael') ? 'none' : '';
+  if (taxLab) taxLab.style.display = isYael ? 'none' : '';
+  var legacySec = document.getElementById('pns-legacy-section');
+  if (legacySec) legacySec.style.display = isYael ? 'none' : '';
   pensionSliderChange(pensionTaxSliderVal);
 }
 
