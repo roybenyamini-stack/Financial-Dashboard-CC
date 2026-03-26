@@ -4558,10 +4558,12 @@ function pensionRenderRiskRow() {
   var pureRiskLife  = active.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var accumLifePart = totalLifeAll - pureRiskLife;
   var totalDisab    = active.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
-  var totalRealEst  = active.reduce(function(s,a){ return s+(a.realEstateIncome||0); }, 0);
+  var totalAccident = active.reduce(function(s,a){ return s+(a.accidentCover||0); }, 0);
+  // v85.0: per-asset real estate (מונע כפילויות + מפצל לפי בעלים ב-משותף)
+  var realEstAssets = active.filter(function(a){ return a.realEstateIncome > 0; });
 
   // tooltip breakdown for life insurance
-  var lifeTooltipHtml =totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)
+  var lifeTooltipHtml = totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)
     ? '<span class="pns-life-tooltip">ℹ️<div class="pns-life-tooltip-box">' +
         '<div style="font-weight:700;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px;">פירוט כיסוי מוות</div>' +
         '<div>סה״כ: <b>' + pnsFmtK(totalLifeAll) + ' ₪</b></div>' +
@@ -4570,7 +4572,6 @@ function pensionRenderRiskRow() {
       '</div></span>'
     : '';
 
-  // v83.0: מציג פריטים רק אם יש נתונים, מוסיף כרטיסיית שכ"ד
   var lifeHtml = totalLifeAll > 0
     ? '<div class="pns-risk-item life">' +
         '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
@@ -4595,18 +4596,35 @@ function pensionRenderRiskRow() {
       '</div>'
     : '';
 
-  var realEstHtml = totalRealEst > 0
-    ? '<div class="pns-risk-item" style="border-right-color:#f59e0b;">' +
-        '<div class="pns-risk-icon" style="background:#fef3c7;">🏠</div>' +
+  // v85.0: כרטיסיית פיצוי תאונתי (הגנה מתאונות — נכות/שארים)
+  var accidentHtml = totalAccident > 0
+    ? '<div class="pns-risk-item accid">' +
+        '<div class="pns-risk-icon" style="background:#d1fae5;">🏥</div>' +
         '<div>' +
-          '<div class="pns-risk-lbl">שכר דירה נטו</div>' +
-          '<div class="pns-risk-val">'+pnsFmt(Math.round(totalRealEst))+' ₪</div>' +
-          '<div class="pns-risk-sub">₪/חודש</div>' +
+          '<div class="pns-risk-lbl">הגנה מתאונות</div>' +
+          '<div class="pns-risk-val">'+pnsFmtK(totalAccident)+' ₪</div>' +
+          '<div class="pns-risk-sub">פיצוי אירוע תאונתי</div>' +
         '</div>' +
       '</div>'
     : '';
 
-  el.innerHTML = lifeHtml + disabHtml + realEstHtml;
+  // v85.0: כרטיסיות נדל"ן per-asset — כל נכס בנפרד, מוצמדות לשמאל בשורה
+  var realEstHtml = realEstAssets.map(function(a) {
+    var ownerLabel = (pnsViewMode === 'all' && a.owner) ? ' – ' + a.owner : '';
+    return '<div class="pns-risk-item" style="border-right-color:#f59e0b;">' +
+      '<div class="pns-risk-icon" style="background:#fef3c7;">🏠</div>' +
+      '<div>' +
+        '<div class="pns-risk-lbl">שכר דירה נטו' + ownerLabel + '</div>' +
+        '<div class="pns-risk-val">' + pnsFmt(Math.round(a.realEstateIncome)) + ' ₪</div>' +
+        '<div class="pns-risk-sub">₪/חודש</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // ספייסר מפריד ביטוחים (ימין) מנדל"ן (שמאל) בשורת flex RTL
+  var spacer = realEstHtml ? '<div style="flex:1;min-width:16px;"></div>' : '';
+
+  el.innerHTML = lifeHtml + disabHtml + accidentHtml + spacer + realEstHtml;
 }
 
 // ---------- CARDS ----------
@@ -5105,6 +5123,10 @@ function pensionParseWorkbook(wb, sheetName) {
   var rCurrPen = findRow('קצבה שוטפת');     // קצבה שכבר משולמת נטו (יעל)
   var rRealEst = findRow('נדל');             // הכנסה מנדל"ן נטו
   if (rRealEst < 0) rRealEst = findRow('שכירות');
+  // v85.0: כיסוי תאונתי (נכות/מוות מתאונה)
+  var rAccident = findRow('נכות מתאונה');
+  if (rAccident < 0) rAccident = findRow('מוות מתאונה');
+  if (rAccident < 0) rAccident = findRow('תאונה');
 
   var assets = [];
   for (var c = 1; c < headerRow.length; c++) {
@@ -5138,8 +5160,10 @@ function pensionParseWorkbook(wb, sheetName) {
     if (ownerVal === 'רעיה') ownerVal = 'יעל';
     var currPenVal  = getNum(rCurrPen, c);
     var realEstVal  = getNum(rRealEst, c);
+    // v85.0: כיסוי תאונתי
+    var accidentVal = getNum(rAccident, c);
 
-    if (!accumVal && !pensionVal && !deathVal && !disabVal && !currPenVal && !realEstVal) continue;
+    if (!accumVal && !pensionVal && !deathVal && !disabVal && !currPenVal && !realEstVal && !accidentVal) continue;
 
     var benefList = [];
     if (benefStr) {
@@ -5177,6 +5201,7 @@ function pensionParseWorkbook(wb, sheetName) {
       owner:            ownerVal   || '',
       currentPension:   currPenVal || 0,
       realEstateIncome: realEstVal || 0,
+      accidentCover:    accidentVal || 0,
       isPendingReview:  isPending
     });
   }
