@@ -4681,9 +4681,29 @@ function pensionRenderRiskRow() {
     ? '<div style="flex:0 0 16px;"></div>'
     : '';
 
+  // v92.0: תגי נכסים ממתינים (הראל/מנורה) — מוצגים בסוף שורת-משותף בלבד
+  var pendingBadgesHtml = '';
+  if (compact) {
+    var pendingForRow = PENSION_ASSETS.filter(function(a){ return a.isPendingReview; });
+    if (pendingForRow.length > 0) {
+      pendingBadgesHtml =
+        '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;align-self:center;' +
+                     'border-right:1px solid #e5e7eb;padding-right:10px;margin-right:4px;">' +
+        '<span style="font-size:9px;color:#9ca3af;white-space:nowrap;">ממתינים:</span>' +
+        pendingForRow.map(function(a){
+          var label = a.provider + (a.policyId ? ' '+a.policyId : '');
+          var amt   = a.accumulation > 0 ? ' '+pnsFmtK(a.accumulation)+' ₪' : '';
+          return '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;' +
+            'padding:3px 8px;border-radius:12px;border:1px solid #e5e7eb;white-space:nowrap;">' +
+            label + amt + '</span>';
+        }).join('') +
+        '</div>';
+    }
+  }
+
   // כל 6 הכרטיסיות בשורה שטוחה אחת ב-משותף; שתי קבוצות ב-רועי
   if (compact) {
-    el.innerHTML = lifeHtml + disabHtml + accidentHtml + spacer + yaelPenHtml + realEstHtml;
+    el.innerHTML = lifeHtml + disabHtml + accidentHtml + spacer + yaelPenHtml + realEstHtml + pendingBadgesHtml;
   } else {
     var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
       ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
@@ -4822,20 +4842,8 @@ function pensionRenderCards() {
     '</div>';
   }
 
-  // רשימה קומפקטית לקופות ממתינות — לא כרטיסיות גדולות (v81.0)
+  // v92.0: נכסים ממתינים מוצגים כ-Badges בשורת הסטטוס — לא בגריד
   var pendingListHtml = '';
-  if (pendingCards.length > 0) {
-    pendingListHtml = '<div style="grid-column:1/-1;margin-top:8px;">' +
-      '<div style="font-size:10px;color:#9ca3af;font-weight:600;margin-bottom:5px;">נכסים נוספים ללא תזרים</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
-      pendingCards.map(function(a) {
-        return '<span style="font-size:11px;background:#f3f4f6;color:#6b7280;padding:3px 10px;border-radius:20px;border:1px solid #e5e7eb;">' +
-          a.provider + (a.policyId ? ' ' + a.policyId : '') +
-          (a.accumulation > 0 ? ' — ' + pnsFmtK(a.accumulation) + ' ₪' : '') +
-        '</span>';
-      }).join('') +
-      '</div></div>';
-  }
 
   // v89.0: מיזוג pensionOnly + harelMuted בסדר טבעי לפי PENSION_ASSETS (הראל במיקומו הטבעי)
   var pensionOnlyMap = {}, harelMutedMap = {};
