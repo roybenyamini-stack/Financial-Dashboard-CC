@@ -108,6 +108,29 @@ function invSetView(mode) {
                (mode === 'yael' && owner === 'yael');
     row.style.display = show ? '' : 'none';
   });
+  // יעל mode: rename הראל card/section → פוליסות חיסכון, hide irrelevant cards/sections
+  var yaelOnlyCats = ['mezuman','meitav','arbitrage','dira','chov'];
+  var harelCardTitle = document.getElementById('harel-card-label');
+  var harelSecTitle  = document.getElementById('harel-sec-name');
+  if (mode === 'yael') {
+    if (harelCardTitle) harelCardTitle.textContent = 'פוליסות חיסכון';
+    if (harelSecTitle)  harelSecTitle.textContent  = 'פוליסות חיסכון';
+    yaelOnlyCats.forEach(function(cat) {
+      var card = document.getElementById('card-' + cat);
+      var sec  = document.getElementById('sec-'  + cat);
+      if (card) card.style.display = 'none';
+      if (sec)  sec.style.display  = 'none';
+    });
+  } else {
+    if (harelCardTitle) harelCardTitle.textContent = 'הראל';
+    if (harelSecTitle)  harelSecTitle.textContent  = 'הראל';
+    yaelOnlyCats.forEach(function(cat) {
+      var card = document.getElementById('card-' + cat);
+      var sec  = document.getElementById('sec-'  + cat);
+      if (card) card.style.display = '';
+      if (sec)  sec.style.display  = '';
+    });
+  }
   rebuildInvTotals();
   CAT_CHART_TOTALS = buildCatChartTotals();
   updateTableCells();
@@ -352,12 +375,13 @@ function updateDynamicStats() {
       .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0 && invFilter(f))
       .reduce((a,[,f])=>a+(f.data[startIdx]||0),0);
   }, 0);
-  const grandBase = grandMeasuredStart > 0 ? grandMeasuredStart : cats.reduce((s,c) => noPctCats.includes(c) ? s : s + (BASE[c]||0), 0);
-  const grandBase0 = cats.reduce((s,c) => {
+const grandBase0 = cats.reduce((s,c) => {
     const v = Object.entries(FUNDS).filter(([,f])=>f.cat===c && invFilter(f)).reduce((a,[,f])=>a+(f.data[startIdx]||0),0);
     return c === 'chov' ? s - v : s + v;
   }, 0);
-  const grandPct = (grandBase > 0 && grandMeasured > 0) ? ((grandMeasured - grandBase) / grandBase * 100).toFixed(1) : '0.0';
+  const grandPct = (grandMeasuredStart > 0 && grandMeasured > 0)
+    ? ((grandMeasured - grandMeasuredStart) / grandMeasuredStart * 100).toFixed(1)
+    : (grandMeasured > 0 ? '—' : '0.0');
   const grandDiff = grandTotal - grandBase0;
 
   if(el('hdr-total')) el('hdr-total').textContent = '' + Math.round(grandTotal).toLocaleString();
@@ -388,8 +412,13 @@ function updateDynamicStats() {
   }
   // Right stat: measured return %
   if(el('hdr-ret-val')) {
-    el('hdr-ret-val').textContent = (parseFloat(grandPct)<0?'-':'') + Math.abs(parseFloat(grandPct)).toFixed(1) + '%';
-    el('hdr-ret-val').style.color = parseFloat(grandPct)<0 ? '#ef4444' : '#4ade80';
+    if (grandPct === '—') {
+      el('hdr-ret-val').textContent = '—';
+      el('hdr-ret-val').style.color = '#94a3b8';
+    } else {
+      el('hdr-ret-val').textContent = (parseFloat(grandPct)<0?'-':'') + Math.abs(parseFloat(grandPct)).toFixed(1) + '%';
+      el('hdr-ret-val').style.color = parseFloat(grandPct)<0 ? '#ef4444' : '#4ade80';
+    }
   }
   if(el('hdr-ret-range')) el('hdr-ret-range').textContent = startLabel + ' – ' + endLabel;
   // Subtitle in red
@@ -397,7 +426,10 @@ function updateDynamicStats() {
   if(headerSub) { headerSub.textContent = 'מציג: ' + endLabel; }
 
   if(el('card-val-all')) el('card-val-all').textContent = '' + Math.round(grandTotal).toLocaleString();
-  if(el('card-chg-all')) el('card-chg-all').textContent = grandPct + '% נמדד';
+  if(el('card-chg-all')) {
+    el('card-chg-all').textContent = grandPct === '—' ? '—' : grandPct + '% נמדד';
+    el('card-chg-all').style.color = grandPct === '—' ? '#94a3b8' : '';
+  }
 
   cats.forEach(cat => {
     const noPct = ['mezuman','chov','arbitrage','dira'];
@@ -2370,7 +2402,7 @@ function loadExcelFileCore(wb) {
             result['יעלגמלהשקעה'] += val;
           } else if (typeStr.includes('גמל')) {
             result['יעלגמל'] += val;
-          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח')) {
+          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח') || typeStr.includes('הראל') || typeStr.includes('מגוון')) {
             result['יעלפוליסה'] += val;
           }
           hasData = true;
