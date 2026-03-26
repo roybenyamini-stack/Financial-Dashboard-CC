@@ -4752,11 +4752,9 @@ function pensionSliderChange(val) {
   var capTotalEl = document.getElementById('pns-cap-total');
   if (capTotalEl) capTotalEl.textContent = totalAccum > 0 ? 'סך הון פטור: ' + pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
 
-  // עיגול קצבה: מציג חיסכון מס (דלתא) + נטו חודשי (v77.0)
+  // עיגול קצבה: מציג חיסכון מס (דלתא) בלבד (v79.0 — הוסרה שורת נטו מהעיגול)
   var circPenVal = document.getElementById('pns-circle-pen-val');
-  var circPenNet = document.getElementById('pns-circle-pen-net');
   if (circPenVal) circPenVal.textContent = totalPension > 0 && deltaMonthly > 0 ? '+ ' + pnsFmt(Math.round(deltaMonthly)) + ' ₪' : '—';
-  if (circPenNet) circPenNet.textContent = totalPension > 0 ? 'נטו: ' + pnsFmt(Math.round(netMonthly)) + ' ₪/חודש' : '—';
 
   // מתחת לעיגול קצבה: הצג פטור ברוטו — הנתון הטכני
   var penTotalEl = document.getElementById('pns-pen-total');
