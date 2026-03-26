@@ -1,4 +1,4 @@
-<!-- v76.0 -->
+<!-- v77.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v76.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v77.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -855,10 +855,11 @@
                 onchange="pensionBasketChange(this.value)"
                 style="width:110px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
             </div>
-            <div style="display:flex;justify-content:center;gap:14px;font-size:11px;color:#9ca3af;margin-bottom:8px;">
-              <span>← היוון (הון)</span>
+            <!-- direction:ltr מבטיח שהחיצים יפנו החוצה בכל סביבת RTL (v77.0) -->
+            <div style="display:flex;justify-content:center;gap:10px;font-size:11px;color:#9ca3af;margin-bottom:8px;direction:ltr;">
+              <span style="direction:ltr;">&#8592; היוון (הון)</span>
               <span style="color:#d1d5db;">|</span>
-              <span>קצבה (שוטף) →</span>
+              <span style="direction:ltr;">קצבה (שוטף) &#8594;</span>
             </div>
             <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
               oninput="pensionSliderChange(this.value)">
@@ -886,21 +887,20 @@
                 </div>
               </div>
               <div id="pns-cap-pct" style="color:#2563eb;font-size:16px;font-weight:800;">50%</div>
-              <div id="pns-cap-total" style="font-size:13px;color:#1e3a8a;font-weight:700;text-align:center;line-height:1.5;">—</div>
-              <div id="pns-cap-delta" style="font-size:14px;color:#059669;font-weight:800;text-align:center;"></div>
+              <div style="font-size:12px;color:#6b7280;font-weight:600;text-align:center;">הון פטור ממס</div>
             </div>
 
             <!-- Pension circle -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
               <div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <div id="pns-circle-pension" style="width:155px;height:155px;border-radius:50%;background:#f0fdf4;border:3px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.85);flex-shrink:0;padding:10px;box-sizing:border-box;">
-                  <div style="font-size:11px;color:#16a34a;font-weight:700;line-height:1.3;text-align:center;">קצבה פטורה</div>
+                  <div style="font-size:11px;color:#16a34a;font-weight:700;line-height:1.3;text-align:center;">חיסכון מס</div>
                   <div id="pns-circle-pen-val" style="font-size:22px;font-weight:800;color:#14532d;line-height:1.3;text-align:center;padding:0 4px;">—</div>
+                  <div id="pns-circle-pen-net" style="font-size:11px;color:#15803d;font-weight:600;text-align:center;line-height:1.4;padding:0 4px;">—</div>
                 </div>
               </div>
               <div id="pns-pen-pct" style="color:#16a34a;font-size:16px;font-weight:800;">50%</div>
-              <div id="pns-pen-total" style="font-size:13px;color:#14532d;font-weight:700;text-align:center;line-height:1.5;">—</div>
-              <div id="pns-pen-delta" style="font-size:14px;color:#059669;font-weight:800;text-align:center;"></div>
+              <div id="pns-pen-total" style="font-size:12px;color:#6b7280;font-weight:600;text-align:center;line-height:1.5;">—</div>
             </div>
 
           </div>

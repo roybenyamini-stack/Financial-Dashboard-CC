@@ -4726,18 +4726,13 @@ function pensionSliderChange(val) {
     taxOnPension = pnsCalcTax(taxableMonthly);
   }
   var netMonthly   = totalPension - taxOnPension;
-  var taxOnCapital = Math.max(0, totalAccum - capitalExempt) * PNS_CAPITAL_RATE;
-  var netCapital   = totalAccum - taxOnCapital;
-
-  // Delta — ביחס למצב ללא פטור כלל (אותו מנוע מס, אפס פטור)
+  // Delta קצבה — הפרש בין "עם פטור" ל"ללא פטור" (v77.0: הון נטו הוסר)
   var taxOnPension_base = (taxMethod === '31') ? totalPension * 0.31
                         : (taxMethod === '35') ? totalPension * 0.35
                         : (taxMethod === '47') ? totalPension * 0.47
                         : pnsCalcTax(totalPension);
   var netMonthly_base = totalPension - taxOnPension_base;
-  var netCapital_base = totalAccum   * (1 - PNS_CAPITAL_RATE);
   var deltaMonthly    = netMonthly - netMonthly_base;
-  var deltaCapital    = netCapital - netCapital_base;
 
   // עדכן global ורענן KPI קצבה נטו ב-snapshot
   pnsNetMonthly = netMonthly;
@@ -4753,21 +4748,19 @@ function pensionSliderChange(val) {
   var circPen = document.getElementById('pns-circle-pension');
   if (circCap) circCap.style.transform = 'scale(' + capScale + ')';
   if (circPen) circPen.style.transform = 'scale(' + penScale + ')';
-  // ברוטו בתוך העיגולים
+  // עיגול הון: מציג סל פטור ברוטו בלבד (v77.0 — אין חישוב הון נטו)
   var circCapVal = document.getElementById('pns-circle-cap-val');
-  var circPenVal = document.getElementById('pns-circle-pen-val');
-  if (circCapVal) circCapVal.textContent = totalAccum   > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
-  if (circPenVal) circPenVal.textContent = totalPension > 0 ? pnsFmt(Math.round(monthlyExempt))  + ' ₪' : '—';
+  if (circCapVal) circCapVal.textContent = totalAccum > 0 ? pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
 
-  // Total + Delta מתחת לעיגולים
-  var capTotalEl = document.getElementById('pns-cap-total');
-  var capDeltaEl = document.getElementById('pns-cap-delta');
+  // עיגול קצבה: מציג חיסכון מס (דלתא) + נטו חודשי (v77.0)
+  var circPenVal = document.getElementById('pns-circle-pen-val');
+  var circPenNet = document.getElementById('pns-circle-pen-net');
+  if (circPenVal) circPenVal.textContent = totalPension > 0 && deltaMonthly > 0 ? '+ ' + pnsFmt(Math.round(deltaMonthly)) + ' ₪' : '—';
+  if (circPenNet) circPenNet.textContent = totalPension > 0 ? 'נטו: ' + pnsFmt(Math.round(netMonthly)) + ' ₪/חודש' : '—';
+
+  // מתחת לעיגול קצבה: הצג פטור ברוטו — הנתון הטכני
   var penTotalEl = document.getElementById('pns-pen-total');
-  var penDeltaEl = document.getElementById('pns-pen-delta');
-  if (capTotalEl) capTotalEl.textContent = totalAccum   > 0 ? 'הון נטו: ' + pnsFmtK(Math.round(netCapital))  + ' ₪' : '—';
-  if (capDeltaEl) capDeltaEl.textContent = totalAccum   > 0 && deltaCapital  > 0 ? '+ ' + pnsFmtK(Math.round(deltaCapital))  + ' ₪' : '';
-  if (penTotalEl) penTotalEl.textContent = totalPension > 0 ? 'קצבה נטו: ' + pnsFmt(Math.round(netMonthly))  + ' ₪' : '—';
-  if (penDeltaEl) penDeltaEl.textContent = totalPension > 0 && deltaMonthly > 0 ? '+ ' + pnsFmt(Math.round(deltaMonthly)) + ' ₪/חודש' : '';
+  if (penTotalEl) penTotalEl.textContent = totalPension > 0 ? 'פטור (ברוטו): ' + pnsFmt(Math.round(monthlyExempt)) + ' ₪/חודש' : '—';
 }
 
 function pensionBasketChange(val) {
