@@ -4648,17 +4648,20 @@ function pensionRenderRiskRow() {
   if (pnsViewMode !== 'mine') {
     var pendingForRow = PENSION_ASSETS.filter(function(a){ return a.isPendingReview; });
     if (pendingForRow.length > 0) {
+      // v93.2: מבנה אנכי — כותרת מעל, תגים מתחת, כולו ממורכז אנכית
       pendingBadgesHtml =
-        '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;align-self:center;' +
-                     'border-right:1px solid #e5e7eb;padding-right:10px;margin-right:4px;">' +
-        '<span style="font-size:9px;color:#9ca3af;white-space:nowrap;">ממתינים:</span>' +
-        pendingForRow.map(function(a){
-          var label = a.provider + (a.policyId ? ' '+a.policyId : '');
-          var amt   = a.accumulation > 0 ? ' '+pnsFmtK(a.accumulation)+' ₪' : '';
-          return '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;' +
-            'padding:3px 8px;border-radius:12px;border:1px solid #e5e7eb;white-space:nowrap;">' +
-            label + amt + '</span>';
-        }).join('') +
+        '<div style="display:flex;flex-direction:column;align-items:flex-start;align-self:center;' +
+                     'border-right:1px solid #e5e7eb;padding-right:10px;margin-right:4px;gap:4px;">' +
+          '<span style="font-size:9px;color:#9ca3af;font-weight:600;white-space:nowrap;">ממתינים</span>' +
+          '<div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+          pendingForRow.map(function(a){
+            var label = a.provider + (a.policyId ? ' '+a.policyId : '');
+            var amt   = a.accumulation > 0 ? ' '+pnsFmtK(a.accumulation)+' ₪' : '';
+            return '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;' +
+              'padding:3px 8px;border-radius:12px;border:1px solid #e5e7eb;white-space:nowrap;">' +
+              label + amt + '</span>';
+          }).join('') +
+          '</div>' +
         '</div>';
     }
   }
