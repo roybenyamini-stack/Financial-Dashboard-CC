@@ -225,15 +225,15 @@ body{background:var(--bg,#f0f2f5);}
 .tab-coming-soon .tcs-sub { font-size:13px; opacity:0.7; }
 
 /* ===== PENSION TAB v64.0 ===== */
-#tab-pension { padding:16px 20px; font-family:Heebo,sans-serif; }
-.pns-section-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:10px; }
+#tab-pension { padding:12px 20px; font-family:Heebo,sans-serif; }
+.pns-section-title { font-size:12px; font-weight:700; color:#1a1a2e; margin-bottom:7px; }
 
 /* View Dropdown */
 .pns-view-dropdown { font-family:Heebo,sans-serif; font-size:12px; font-weight:600; color:#374151; background:#fff; border:1.5px solid #e5e7eb; border-radius:9px; padding:6px 12px; cursor:pointer; outline:none; transition:border-color .15s; direction:rtl; }
 .pns-view-dropdown:hover, .pns-view-dropdown:focus { border-color:#3b82f6; }
 
 /* Snapshot dark bar — 4 KPIs */
-#pns-snapshot { background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%); border-radius:14px; padding:20px 24px; margin-bottom:14px; display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+#pns-snapshot { background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%); border-radius:14px; padding:16px 22px; margin-bottom:10px; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .pns-snap-item { display:flex; flex-direction:column; align-items:center; padding:0 24px; border-left:1px solid rgba(255,255,255,0.1); }
 .pns-snap-item:first-child { padding-right:0; }
 .pns-snap-item:last-child  { border-left:none; padding-left:0; }
@@ -248,7 +248,7 @@ body{background:var(--bg,#f0f2f5);}
 .pns-ni-btn.active { background:#3b82f6; border-color:#3b82f6; color:white; font-weight:700; }
 
 /* Risk Row */
-.pns-risk-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.pns-risk-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
 .pns-risk-item { background:#fff; border-radius:12px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; box-shadow:0 1px 6px rgba(0,0,0,0.05); border-right:3px solid #e5e7eb; flex:0 0 auto; min-width:190px; max-width:240px; transition:transform .18s,box-shadow .18s; }
 .pns-risk-item:hover { transform:scale(1.08); box-shadow:0 6px 20px rgba(0,0,0,0.13); z-index:2; position:relative; }
 .pns-risk-item.life  { border-right-color:#fbbf24; }
@@ -260,12 +260,12 @@ body{background:var(--bg,#f0f2f5);}
 .pns-risk-sub { font-size:9px; color:#9ca3af; }
 
 /* Detail cards */
-#pns-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
-.pns-card { background:#fff; border-radius:14px; padding:14px 16px; border-right:4px solid #3b82f6; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:all .18s; }
+#pns-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:8px; }
+.pns-card { background:#fff; border-radius:14px; padding:11px 14px; border-right:4px solid #3b82f6; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:all .18s; }
 .pns-card:hover { transform:scale(1.05); box-shadow:0 8px 24px rgba(0,0,0,0.13); z-index:2; position:relative; }
 .pns-card.risk     { border-right-color:#ef4444; }
 .pns-card.heritage { border-right-color:#8b5cf6; }
-.pns-card-header  { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.pns-card-header  { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
 .pns-card-icon    { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; background:#dbeafe; }
 .pns-card-icon.risk { background:#fee2e2; }
 .pns-card-provider { font-size:13px; font-weight:700; color:#1a1a2e; }
