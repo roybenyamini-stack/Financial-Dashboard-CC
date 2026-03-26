@@ -2305,45 +2305,76 @@ function loadExcelFileCore(wb) {
         newFundData[fk] = new Array(newLabels.length).fill(null);
       });
 
-      // v95.0: Dynamic Yael row aggregation via שייכות column
+      // v95.1: Robust Yael row aggregation via שייכות column
+      function normCell(v) {
+        // Strip Unicode directional/bidi marks, non-breaking spaces, then trim
+        return String(v||'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\xa0]/g,'').trim();
+      }
       function parseYaelFromSheet(rows) {
-        var ownerColIdx = -1, valColIdx = -1, typeColIdx = -1, headerRowIdx = -1;
-        // Scan first rows to find header with שייכות column
-        for (var ri = 0; ri < Math.min(rows.length, 10); ri++) {
-          var hrow = rows[ri];
-          if (!hrow) continue;
-          for (var ci = 0; ci < hrow.length; ci++) {
-            var cell = String(hrow[ci]||'').trim();
-            if (cell === 'שייכות' || cell === 'בעלות') ownerColIdx = ci;
-            if (cell === 'יתרה' || cell === 'שווי' || cell === 'ערך') valColIdx = ci;
-            if (cell === 'סוג' || cell === 'קטגוריה' || cell === 'מוצר' || cell === 'שם קרן' || cell === 'שם') typeColIdx = ci;
-          }
-          if (ownerColIdx >= 0) { headerRowIdx = ri; break; }
-        }
-        if (ownerColIdx < 0) return null; // No ownership column in this sheet
-        if (valColIdx < 0) valColIdx = 1;  // fallback: column B
-        if (typeColIdx < 0) typeColIdx = 0; // fallback: column A
+        var ownerColIdx = -1, valColIdx = 1, typeColIdx = 0;
 
+        // --- Strategy A: find header row containing "שייכות" or "בעלות" ---
+        for (var ri = 0; ri < Math.min(rows.length, 15); ri++) {
+          var hrow = rows[ri];
+          if (!Array.isArray(hrow)) continue;
+          var found = false;
+          for (var ci = 0; ci < hrow.length; ci++) {
+            var cell = normCell(hrow[ci]);
+            if (cell.includes('שייכות') || cell.includes('בעלות')) { ownerColIdx = ci; found = true; }
+            if (cell.includes('יתרה') || cell.includes('שווי') || cell === 'ערך') valColIdx = ci;
+            if (cell.includes('קטגוריה') || cell.includes('מוצר') || cell.includes('שם קרן')) typeColIdx = ci;
+          }
+          if (found) break;
+        }
+
+        // --- Strategy B: if no header, auto-detect by counting "יעל" in cols 2-6 ---
+        if (ownerColIdx < 0) {
+          var hits = {};
+          for (var ri2 = 0; ri2 < rows.length; ri2++) {
+            var r2 = rows[ri2];
+            if (!Array.isArray(r2)) continue;
+            for (var ci2 = 2; ci2 <= Math.min(r2.length - 1, 6); ci2++) {
+              if (normCell(r2[ci2]) === 'יעל') hits[ci2] = (hits[ci2]||0) + 1;
+            }
+          }
+          var bestCol = -1, bestCnt = 0;
+          Object.keys(hits).forEach(function(c) {
+            if (hits[c] > bestCnt) { bestCnt = hits[c]; bestCol = parseInt(c); }
+          });
+          if (bestCol >= 0) ownerColIdx = bestCol;
+        }
+
+        if (ownerColIdx < 0) return null; // No owner column detected
+
+        // --- Aggregate יעל rows ---
         var result = { 'יעלקהש': 0, 'יעלגמל': 0, 'יעלגמלהשקעה': 0, 'יעלפוליסה': 0 };
         var hasData = false;
-        for (var ri2 = headerRowIdx + 1; ri2 < rows.length; ri2++) {
-          var drow = rows[ri2];
-          if (!drow) continue;
-          var owner = String(drow[ownerColIdx]||'').trim();
-          if (owner !== 'יעל') continue;
-          var rawVal = drow[valColIdx];
-          var val = typeof rawVal === 'number' ? rawVal :
-                    parseFloat(String(rawVal||'').replace(/,/g,'')) || 0;
+        for (var ri3 = 0; ri3 < rows.length; ri3++) {
+          var row = rows[ri3];
+          if (!Array.isArray(row) || row.length <= ownerColIdx) continue;
+          if (normCell(row[ownerColIdx]) !== 'יעל') continue;
+
+          // Extract numeric value: try valColIdx first, then scan cols 1-4
+          var val = 0;
+          if (typeof row[valColIdx] === 'number') {
+            val = row[valColIdx];
+          } else {
+            for (var vc = 1; vc <= Math.min(row.length - 1, 5); vc++) {
+              if (vc !== ownerColIdx && typeof row[vc] === 'number') { val = row[vc]; break; }
+            }
+          }
           if (val <= 0) continue;
-          var typeStr = String(drow[typeColIdx]||'').trim();
-          // Category matching by Hebrew keywords
+
+          // Graceful null guard for typeCol
+          var typeStr = row.length > typeColIdx ? normCell(row[typeColIdx]) : '';
+
           if (typeStr.includes('השתלמות') || typeStr.includes('קה"ש') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
             result['יעלקהש'] += val;
           } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
             result['יעלגמלהשקעה'] += val;
           } else if (typeStr.includes('גמל')) {
             result['יעלגמל'] += val;
-          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח מנהלים')) {
+          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח')) {
             result['יעלפוליסה'] += val;
           }
           hasData = true;
