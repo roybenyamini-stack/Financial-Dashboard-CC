@@ -439,8 +439,8 @@ const grandBase0 = cats.reduce((s,c) => {
       el('sec-val-'+cat).textContent = total;
       if(cat==='chov') el('sec-val-'+cat).style.color='#ef4444';
     }
-    if (noPct.includes(cat)) {
-      if(el('card-chg-'+cat)) { el('card-chg-'+cat).textContent=''; }
+    if (noPct.includes(cat) || invViewMode === 'yael') {
+      if(el('card-chg-'+cat)) { el('card-chg-'+cat).textContent = invViewMode === 'yael' ? '—' : ''; el('card-chg-'+cat).style.color = '#94a3b8'; }
       if(el('sec-pct-'+cat)) { el('sec-pct-'+cat).textContent=''; el('sec-pct-'+cat).className='cat-pct'; }
       return;
     }
@@ -2396,7 +2396,7 @@ function loadExcelFileCore(wb) {
           // Graceful null guard for typeCol
           var typeStr = row.length > typeColIdx ? normCell(row[typeColIdx]) : '';
 
-          if (typeStr.includes('השתלמות') || typeStr.includes('קה"ש') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
+          if (typeStr.includes('השתלמות') || typeStr.includes('קה') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
             result['יעלקהש'] += val;
           } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
             result['יעלגמלהשקעה'] += val;
