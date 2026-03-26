@@ -4649,15 +4649,31 @@ function pensionRenderRiskRow() {
     return;
   }
 
-  // v86.0: ביטוחים בקבוצה flex:1 (ימין), נדל"ן בקבוצה נפרדת (נדחפת לשמאל ב-RTL)
+  // v89.0: ב-משותף — פנסיה שוטפת של יעל מוצגת בשורת הסטטוס (ליד שכר הדירה)
+  var yaelPenHtml = '';
+  if (pnsViewMode === 'all') {
+    yaelPenHtml = active.filter(function(a){ return a.currentPension > 0 && a.owner === 'יעל'; })
+      .map(function(a) {
+        return '<div class="pns-risk-item" style="border-right-color:#22c55e;">' +
+          '<div class="pns-risk-icon" style="background:#dcfce7;">👵</div>' +
+          '<div>' +
+            '<div class="pns-risk-lbl">פנסיה ' + (a.owner || '') + '</div>' +
+            '<div class="pns-risk-val">' + pnsFmt(a.currentPension) + ' ₪</div>' +
+            '<div class="pns-risk-sub">קצבה שוטפת נטו</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  }
+
+  // v86.0: ביטוחים בקבוצה flex:1 (ימין), הכנסות (נדל"ן + פנסיה יעל) בקבוצה נפרדת (שמאל)
   var insuranceGroup = (lifeHtml || disabHtml || accidentHtml)
     ? '<div style="display:flex;flex-wrap:wrap;gap:8px;flex:1;">' + lifeHtml + disabHtml + accidentHtml + '</div>'
     : '';
-  var realEstGroup = realEstHtml
-    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + realEstHtml + '</div>'
+  var incomeGroup = (yaelPenHtml || realEstHtml)
+    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + yaelPenHtml + realEstHtml + '</div>'
     : '';
 
-  el.innerHTML = insuranceGroup + realEstGroup;
+  el.innerHTML = insuranceGroup + incomeGroup;
 }
 
 // ---------- CARDS ----------
@@ -4679,9 +4695,21 @@ function pensionRenderCards() {
            !a.deathCapital && !a.disabilityCover && !a.currentPension;
   }
 
+  // v89.0: ב-משותף — "קצבה שוטפת בלבד" של יעל שייכת לשורת הסטטוס, לא לגריד
+  var currPenOnlyIds = {};
+  if (pnsViewMode === 'all') {
+    PENSION_ASSETS.forEach(function(a){
+      if (a.currentPension > 0 && a.owner === 'יעל' &&
+          !a.accumulation && !a.expectedPension && !a.deathCapital &&
+          !a.disabilityCover && !a.guaranteedMonths) {
+        currPenOnlyIds[a.id] = true;
+      }
+    });
+  }
+
   // כרטיסיות פנסיה רגילות (לא ריסק, לא נדל"ן טהור, לפחות שדה אחד עם ערך)
   var pensionOnly = PENSION_ASSETS.filter(function(a){
-    return !a.isRisk && activeIds[a.id] && !isPureRealEst(a) &&
+    return !a.isRisk && activeIds[a.id] && !isPureRealEst(a) && !currPenOnlyIds[a.id] &&
       (a.currentPension > 0 || a.expectedPension > 0 || a.accumulation > 0 ||
        a.deathCapital > 0 || a.disabilityCover > 0 || a.guaranteedMonths > 0);
   });
@@ -4790,9 +4818,18 @@ function pensionRenderCards() {
       '</div></div>';
   }
 
+  // v89.0: מיזוג pensionOnly + harelMuted בסדר טבעי לפי PENSION_ASSETS (הראל במיקומו הטבעי)
+  var pensionOnlyMap = {}, harelMutedMap = {};
+  pensionOnly.forEach(function(a){ pensionOnlyMap[a.id] = true; });
+  harelMuted.forEach(function(a){ harelMutedMap[a.id] = true; });
+  var allCardsSorted = [];
+  PENSION_ASSETS.forEach(function(a){
+    if (pensionOnlyMap[a.id])   allCardsSorted.push({ asset: a, muted: false });
+    else if (harelMutedMap[a.id]) allCardsSorted.push({ asset: a, muted: true });
+  });
+
   grid.innerHTML =
-    pensionOnly.map(function(a){ return renderPensionCard(a, false); }).join('') +
-    harelMuted.map(function(a){ return renderPensionCard(a, true); }).join('') +
+    allCardsSorted.map(function(c){ return renderPensionCard(c.asset, c.muted); }).join('') +
     realEstCards.map(renderRealEstCard).join('') +
     pendingListHtml;
 }
