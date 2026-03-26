@@ -4643,7 +4643,7 @@ function pensionRenderRiskRow() {
     '</div>';
   }).join('');
 
-  // מצב יעל — פנסיה + שכר דירה בלבד
+  // מצב יעל — פנסיה + שכר דירה + ממתינים
   if (pnsViewMode === 'yael') {
     var currPenHtml = active.filter(function(a){ return a.currentPension > 0; }).map(function(a) {
       return '<div class="pns-risk-item" style="border-right-color:#22c55e;">' +
@@ -4655,7 +4655,8 @@ function pensionRenderRiskRow() {
         '</div>' +
       '</div>';
     }).join('');
-    el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + currPenHtml + realEstHtml + '</div>';
+    el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' +
+      currPenHtml + realEstHtml + pendingBadgesHtml + '</div>';
     return;
   }
 
@@ -4681,9 +4682,9 @@ function pensionRenderRiskRow() {
     ? '<div style="flex:0 0 16px;"></div>'
     : '';
 
-  // v92.0: תגי נכסים ממתינים (הראל/מנורה) — מוצגים בסוף שורת-משותף בלבד
+  // v93.0: תגי נכסים ממתינים — מוצגים ביעל ובמשותף, מוסתרים ברועי
   var pendingBadgesHtml = '';
-  if (compact) {
+  if (pnsViewMode !== 'mine') {
     var pendingForRow = PENSION_ASSETS.filter(function(a){ return a.isPendingReview; });
     if (pendingForRow.length > 0) {
       pendingBadgesHtml =
