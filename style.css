@@ -117,6 +117,9 @@ tr:last-child td { border-bottom: none; }
 .note-equity      { background: #dbeafe; color: #2563eb; }
 .note-equity-sold { background: #f1f5f9; color: #64748b; }
 .note-cash-fund   { background: #f3e8ff; color: #7c3aed; }
+.note-liquid      { background: #d1fae5; color: #059669; }
+.note-age64       { background: #fef3c7; color: #d97706; }
+.note-yael        { background: #fce7f3; color: #ec4899; }
 .delta-row { display: none; }
 .delta-row.visible { display: table-row; }
 .delta-row td { background: #fffbf0 !important; font-size: 10.5px; }

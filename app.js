@@ -30,6 +30,11 @@ const FUNDS = {
   'מזומןשקלי':   { name:'מזומן שקלי',   cat:'mezuman', data:[..._Z] },
   'מזומןדולרי':  { name:'מזומן דולרי $', cat:'mezuman', data:[..._Z] },
   'מיטבשקלית':   { name:'מיטב קרן כספית', cat:'mezuman', data:[..._Z] },
+  // ── יעל ──
+  'יעלקהש':        { name:'ק״הש – יעל',         cat:'hishtalmut', owner:'yael', liquidity:'age64', data:[..._Z] },
+  'יעלגמל':        { name:'גמל – יעל',           cat:'gemel',      owner:'yael', liquidity:'age64', data:[..._Z] },
+  'יעלגמלהשקעה':   { name:'גמל להשקעה – יעל',    cat:'gemel_invest',owner:'yael', liquidity:'now',   data:[..._Z] },
+  'יעלפוליסה':     { name:'פוליסת חיסכון – יעל', cat:'harel',      owner:'yael', liquidity:'now',   data:[..._Z] },
 };
 
 const CAT_COLORS = { mezuman:'#0891b2', chov:'#94a3b8', arbitrage:'#0d9488', dira:'#a8a29e', hishtalmut:'#fca5a5', gemel:'#fcd34d', gemel_invest:'#6ee7b7', harel:'#fde68a', meitav:'#c4b5fd', all:'#2563eb' };
@@ -59,13 +64,62 @@ const FUND_COLORS = {
   'ארביטראזואליו': '#7c3aed',
   'חובהראל': '#64748b',
   'חובאלטשולר': '#64748b',
+  'יעלקהש':        '#ec4899',
+  'יעלגמל':        '#ec4899',
+  'יעלגמלהשקעה':   '#ec4899',
+  'יעלפוליסה':     '#ec4899',
 };
 
-// Category totals (for table display - includes all funds)
+// ── Family View (v94.0) ──
+var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
+function invFundFilter() {
+  if (invViewMode === 'roee') return function(f) { return !f.owner || f.owner === 'roee'; };
+  if (invViewMode === 'yael') return function(f) { return f.owner === 'yael'; };
+  return function() { return true; };
+}
+function rebuildInvTotals() {
+  var ff = invFundFilter();
+  Object.keys(CAT_TOTALS).forEach(function(cat) { CAT_TOTALS[cat].length = 0; });
+  LABELS.forEach(function(_, i) {
+    Object.keys(CAT_TOTALS).forEach(function(cat) {
+      var vals = Object.values(FUNDS).filter(function(f) { return f.cat===cat && ff(f); }).map(function(f) { return f.data[i]||0; });
+      CAT_TOTALS[cat].push(vals.reduce(function(a,b) { return a+b; }, 0));
+    });
+  });
+}
+function getFilteredAllTotals() {
+  var ff = invFundFilter();
+  return LABELS.map(function(_, i) {
+    return Object.values(FUNDS).filter(ff).reduce(function(t, f) {
+      var ffed = ffFundData(f.data);
+      return t + (f.cat === 'chov' ? -(ffed[i]||0) : (ffed[i]||0));
+    }, 0);
+  });
+}
+function invSetView(mode) {
+  invViewMode = mode;
+  var sel = document.getElementById('inv-view-select');
+  if (sel) sel.value = mode;
+  // Show/hide fund rows by owner
+  document.querySelectorAll('tr[data-fund]').forEach(function(row) {
+    var owner = row.getAttribute('data-owner') || 'roee';
+    var show = mode === 'all' ||
+               (mode === 'roee' && owner === 'roee') ||
+               (mode === 'yael' && owner === 'yael');
+    row.style.display = show ? '' : 'none';
+  });
+  rebuildInvTotals();
+  CAT_CHART_TOTALS = buildCatChartTotals();
+  updateTableCells();
+  updateDynamicStats();
+  if (typeof currentView !== 'undefined') selectView(currentView || 'all');
+}
+
+// Category totals (for table display - includes all funds initially, rebuilt by rebuildInvTotals on view switch)
 const CAT_TOTALS = { mezuman:[], chov:[], arbitrage:[], dira:[], hishtalmut:[], gemel:[], gemel_invest:[], harel:[], meitav:[] };
 LABELS.forEach((_, i) => {
   Object.entries(CAT_TOTALS).forEach(([cat, arr]) => {
-    const vals = Object.values(FUNDS).filter(f => f.cat===cat).map(f => f.data[i]||0);
+    const vals = Object.values(FUNDS).filter(f => f.cat===cat && (!f.owner||f.owner==='roee')).map(f => f.data[i]||0);
     arr.push(vals.reduce((a,b)=>a+b,0));
   });
 });
@@ -78,9 +132,10 @@ function ffFundData(data) {
 
 // CAT_CHART_TOTALS: forward-fill each fund BEFORE summing category
 function buildCatChartTotals() {
+  var filterFn = invFundFilter();
   const totals = { mezuman:[], chov:[], arbitrage:[], dira:[], hishtalmut:[], gemel:[], gemel_invest:[], harel:[], meitav:[] };
   Object.entries(totals).forEach(([cat, arr]) => {
-    const funds = Object.values(FUNDS).filter(f => f.cat===cat);
+    const funds = Object.values(FUNDS).filter(f => f.cat===cat && filterFn(f));
     const ffed = funds.map(f => ffFundData(f.data));
     LABELS.forEach((_, i) => { arr.push(ffed.reduce((s,fd) => s+(fd[i]||0), 0)); });
   });
@@ -268,6 +323,7 @@ function updateDynamicStats() {
   const el = id => document.getElementById(id);
   const endLabel = LABELS[endIdx];
 
+  const invFilter = invFundFilter();
   const catTotals = {}, catMeasured = {};
   cats.forEach(cat => {
     catTotals[cat] = 0;
@@ -275,6 +331,7 @@ function updateDynamicStats() {
     const excl = EXCLUDE_FROM_PCT[cat] || [];
     Object.entries(FUNDS).forEach(([k, f]) => {
       if (f.cat !== cat) return;
+      if (!invFilter(f)) return;
       const v = f.data[endIdx] || 0;
       catTotals[cat] += v;
       if (!excl.includes(k) && v > 0) catMeasured[cat] += v;
@@ -292,15 +349,15 @@ function updateDynamicStats() {
     const excl = EXCLUDE_FROM_PCT[c]||[];
     // Only include funds active (>0) at endIdx in the base calculation
     return s + Object.entries(FUNDS)
-      .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0)
+      .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0 && invFilter(f))
       .reduce((a,[,f])=>a+(f.data[startIdx]||0),0);
   }, 0);
   const grandBase = grandMeasuredStart > 0 ? grandMeasuredStart : cats.reduce((s,c) => noPctCats.includes(c) ? s : s + (BASE[c]||0), 0);
   const grandBase0 = cats.reduce((s,c) => {
-    const v = Object.entries(FUNDS).filter(([k,f])=>f.cat===c).reduce((a,[k,f])=>a+(f.data[startIdx]||0),0);
+    const v = Object.entries(FUNDS).filter(([,f])=>f.cat===c && invFilter(f)).reduce((a,[,f])=>a+(f.data[startIdx]||0),0);
     return c === 'chov' ? s - v : s + v;
   }, 0);
-  const grandPct = ((grandMeasured - grandBase) / grandBase * 100).toFixed(1);
+  const grandPct = (grandBase > 0 && grandMeasured > 0) ? ((grandMeasured - grandBase) / grandBase * 100).toFixed(1) : '0.0';
   const grandDiff = grandTotal - grandBase0;
 
   if(el('hdr-total')) el('hdr-total').textContent = '' + Math.round(grandTotal).toLocaleString();
@@ -679,7 +736,7 @@ function selectView(cat) {
   if (cat !== 'all') document.getElementById('hdr-'+cat)?.classList.add('active');
 
   if (cat === 'all') {
-    updateChart(ALL_TOTALS, '#2563eb', CAT_NAMES.all);
+    updateChart(getFilteredAllTotals(), '#2563eb', CAT_NAMES.all);
   } else {
     updateChart(CAT_CHART_TOTALS[cat] || CAT_TOTALS[cat], CAT_COLORS[cat], CAT_NAMES[cat]);
   }
@@ -2163,6 +2220,12 @@ function loadExcelFileCore(wb) {
         'חוב הראל': 'LIAB_HAREL',
         'חוב אלטשולר': 'LIAB_ALTSHULER',
         'ארביטראז׳ ואליו': 'SOLD_ARBITRAGE',
+        // יעל — יש לעדכן שמות עמודות לפי קובץ האקסל בפועל
+        'קה"ש יעל': 'INV_SH_YAEL',
+        'ק"הש יעל': 'INV_SH_YAEL',
+        'גמל יעל': 'INV_GEMEL_YAEL',
+        'גמל להשקעה יעל': 'INV_GEMEL_INV_YAEL',
+        'פוליסת חיסכון יעל': 'INV_POLICY_YAEL',
       };
 
       // Fund ID -> FUNDS key mapping
@@ -2192,6 +2255,10 @@ function loadExcelFileCore(wb) {
         'LIAB_HAREL': 'חובהראל',
         'LIAB_ALTSHULER': 'חובאלטשולר',
         'SOLD_ARBITRAGE': 'ארביטראזואליו',
+        'INV_SH_YAEL':       'יעלקהש',
+        'INV_GEMEL_YAEL':    'יעלגמל',
+        'INV_GEMEL_INV_YAEL':'יעלגמלהשקעה',
+        'INV_POLICY_YAEL':   'יעלפוליסה',
       };
 
       // Parse sheet dates, keep only 2025+
