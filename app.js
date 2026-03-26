@@ -4619,11 +4619,19 @@ function pensionRenderCards() {
   var activeIds = {};
   active.forEach(function(a){ activeIds[a.id] = true; });
 
-  // כרטיסיות פנסיה רגילות (לא ריסק, לא ממתין)
-  var pensionOnly = PENSION_ASSETS.filter(function(a){ return !a.isRisk && activeIds[a.id]; });
+  // v84.0: נכס נדל"ן טהור = רק realEstateIncome, ללא פנסיה/צבירה/ביטוח
+  function isPureRealEst(a) {
+    return a.realEstateIncome > 0 && !a.accumulation && !a.expectedPension &&
+           !a.deathCapital && !a.disabilityCover && !a.currentPension;
+  }
 
-  // v82.0: נדל"ן מוצג ב-Header — לא בכרטיסיות
-  var realEstCards = [];
+  // כרטיסיות פנסיה רגילות (לא ריסק, לא נדל"ן טהור)
+  var pensionOnly = PENSION_ASSETS.filter(function(a){ return !a.isRisk && activeIds[a.id] && !isPureRealEst(a); });
+
+  // v84.0: נדל"ן מוצג בכרטיסיות רק ב-יעל/משותף (ב-רועי מופיע בשורת הריסק בלבד)
+  var realEstCards = (pnsViewMode !== 'mine')
+    ? active.filter(isPureRealEst)
+    : [];
 
   // קופות ממתינות — מוצגות כרשימה קומפקטית, לא כרטיסיות גדולות (v81.0)
   var pendingCards = (pnsViewMode !== 'mine')
@@ -5108,6 +5116,8 @@ function pensionParseWorkbook(wb, sheetName) {
     var provider = hdrStr, policyId = '';
     var m = hdrStr.match(/^(.+?)\s+(\d{6,15})$/);
     if (m) { provider = m[1]; policyId = m[2]; }
+    // v84.0: נורמליזציה — "רעיה" → "יעל" בשם ספק (כותרת עמודה באקסל)
+    provider = provider.replace(/רעיה/g, 'יעל');
 
     var subType = getStr(headerIdx + 2, c);
     var accumVal   = getNum(rAccum, c);
@@ -5124,6 +5134,8 @@ function pensionParseWorkbook(wb, sheetName) {
     var docLink    = getStr(rDoc, c);
     // v80.0: שדות משפחתיים ונדל"ן
     var ownerVal    = getStr(rOwner, c);
+    // v84.0: נורמליזציה — "רעיה" הוא שם ישן ל-"יעל" בקובץ אקסל
+    if (ownerVal === 'רעיה') ownerVal = 'יעל';
     var currPenVal  = getNum(rCurrPen, c);
     var realEstVal  = getNum(rRealEst, c);
 
