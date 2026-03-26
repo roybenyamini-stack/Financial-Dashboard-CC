@@ -2305,12 +2305,59 @@ function loadExcelFileCore(wb) {
         newFundData[fk] = new Array(newLabels.length).fill(null);
       });
 
+      // v95.0: Dynamic Yael row aggregation via שייכות column
+      function parseYaelFromSheet(rows) {
+        var ownerColIdx = -1, valColIdx = -1, typeColIdx = -1, headerRowIdx = -1;
+        // Scan first rows to find header with שייכות column
+        for (var ri = 0; ri < Math.min(rows.length, 10); ri++) {
+          var hrow = rows[ri];
+          if (!hrow) continue;
+          for (var ci = 0; ci < hrow.length; ci++) {
+            var cell = String(hrow[ci]||'').trim();
+            if (cell === 'שייכות' || cell === 'בעלות') ownerColIdx = ci;
+            if (cell === 'יתרה' || cell === 'שווי' || cell === 'ערך') valColIdx = ci;
+            if (cell === 'סוג' || cell === 'קטגוריה' || cell === 'מוצר' || cell === 'שם קרן' || cell === 'שם') typeColIdx = ci;
+          }
+          if (ownerColIdx >= 0) { headerRowIdx = ri; break; }
+        }
+        if (ownerColIdx < 0) return null; // No ownership column in this sheet
+        if (valColIdx < 0) valColIdx = 1;  // fallback: column B
+        if (typeColIdx < 0) typeColIdx = 0; // fallback: column A
+
+        var result = { 'יעלקהש': 0, 'יעלגמל': 0, 'יעלגמלהשקעה': 0, 'יעלפוליסה': 0 };
+        var hasData = false;
+        for (var ri2 = headerRowIdx + 1; ri2 < rows.length; ri2++) {
+          var drow = rows[ri2];
+          if (!drow) continue;
+          var owner = String(drow[ownerColIdx]||'').trim();
+          if (owner !== 'יעל') continue;
+          var rawVal = drow[valColIdx];
+          var val = typeof rawVal === 'number' ? rawVal :
+                    parseFloat(String(rawVal||'').replace(/,/g,'')) || 0;
+          if (val <= 0) continue;
+          var typeStr = String(drow[typeColIdx]||'').trim();
+          // Category matching by Hebrew keywords
+          if (typeStr.includes('השתלמות') || typeStr.includes('קה"ש') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
+            result['יעלקהש'] += val;
+          } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
+            result['יעלגמלהשקעה'] += val;
+          } else if (typeStr.includes('גמל')) {
+            result['יעלגמל'] += val;
+          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח מנהלים')) {
+            result['יעלפוליסה'] += val;
+          }
+          hasData = true;
+        }
+        return hasData ? result : null;
+      }
+
       // Fill data from sheets
       sortedKeys.forEach(function(key, colIdx) {
         var sname = monthSheets[key].name;
         var ws = wb.Sheets[sname];
         var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-        
+
+        // Standard ANCHOR_MAP pass (רועי + any named יעל rows)
         rows.forEach(function(row) {
           var cellName = row[0];
           var cellVal = row[1];
@@ -2322,6 +2369,16 @@ function loadExcelFileCore(wb) {
           if (!fundKey || !newFundData[fundKey]) return;
           newFundData[fundKey][colIdx] = cellVal;
         });
+
+        // v95.0: Dynamic Yael pass — aggregate rows where שייכות = "יעל"
+        var yaelAgg = parseYaelFromSheet(rows);
+        if (yaelAgg) {
+          Object.keys(yaelAgg).forEach(function(fk) {
+            if (yaelAgg[fk] > 0 && newFundData[fk] !== undefined) {
+              newFundData[fk][colIdx] = yaelAgg[fk];
+            }
+          });
+        }
       });
 
       // Update global data
@@ -2332,14 +2389,8 @@ function loadExcelFileCore(wb) {
         if (FUNDS[fk]) FUNDS[fk].data = newFundData[fk];
       });
 
-      // Recalculate CAT_TOTALS and ALL_TOTALS after data update
-      Object.keys(CAT_TOTALS).forEach(cat => { CAT_TOTALS[cat].length = 0; });
-      LABELS.forEach((_, i) => {
-        Object.entries(CAT_TOTALS).forEach(([cat, arr]) => {
-          const vals = Object.values(FUNDS).filter(f => f.cat===cat).map(f => f.data[i]||0);
-          arr.push(vals.reduce((a,b)=>a+b,0));
-        });
-      });
+      // v95.0: Recalculate CAT_TOTALS respecting current invViewMode, then rebuild ALL_TOTALS
+      rebuildInvTotals();
       ALL_TOTALS.length = 0;
       LABELS.forEach((_, i) => {
         let t = 0;
@@ -2366,8 +2417,9 @@ function loadExcelFileCore(wb) {
       // Read Notes sheet if exists
       loadNotesFromExcel(wb);
 
-      // Refresh table cells from updated FUNDS data
+      // Refresh table cells and header stats from updated FUNDS data
       updateTableCells();
+      updateDynamicStats();
       saveToLocalStorage();
       markNoteMonths();
 
