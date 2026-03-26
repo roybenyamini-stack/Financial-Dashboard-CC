@@ -4467,17 +4467,20 @@ function pensionRenderSnapshot() {
     ? totalCurrPen
     : ((pnsNetMonthly || 0) + totalCurrPen);
 
+  // v83.0: הכנסה פנויה = Cash Flow מלא (קצבה נטו + שכירות נטו)
+  var cashFlowVal = pensionNetVal + totalRealEst;
+
   var items = [
-    { lbl:'הון צבור',    val: totalAccum    > 0 ? pnsFmtK(totalAccum)              : '—', sub:'ש״ח',        cls:'capital' },
-    { lbl:'קצבה ברוטו',  val: totalPension  > 0 ? pnsFmt(totalPension)             : '—', sub:'₪/חודש',     cls:'blue'    },
-    { lbl:'קצבה נטו',    val: pensionNetVal > 0 ? pnsFmt(Math.round(pensionNetVal)) : '—', sub:'₪/חודש',     cls:'green'   },
-    { lbl:'הכנסה פנויה', val: totalRealEst  > 0 ? pnsFmt(Math.round(totalRealEst))  : '—', sub:'שכירות נטו', cls:'blue'    }
+    { lbl:'הון צבור',    val: totalAccum    > 0 ? pnsFmtK(totalAccum)               : '—', sub:'ש״ח',              cls:'capital'  },
+    { lbl:'קצבה ברוטו',  val: totalPension  > 0 ? pnsFmt(totalPension)              : '—', sub:'₪/חודש',           cls:'blue'     },
+    { lbl:'קצבה נטו',    val: pensionNetVal > 0 ? pnsFmt(Math.round(pensionNetVal))  : '—', sub:'₪/חודש',           cls:'green'    },
+    { lbl:'הכנסה פנויה', val: cashFlowVal   > 0 ? pnsFmt(Math.round(cashFlowVal))    : '—', sub:'Cash Flow נטו',   cls:'cashflow' }
   ];
 
   var statsEl = document.getElementById('pns-snap-stats');
   if (statsEl) {
     // capital = violet-blue (#a5b4fc) | blue = sky (#7dd3fc) | green = bright green | muted = dim
-    var colorMap = {capital:'color:#a5b4fc', blue:'color:#7dd3fc', green:'color:#4ade80', muted:'color:rgba(255,255,255,0.35);font-size:14px;font-weight:600'};
+    var colorMap = {capital:'color:#a5b4fc', blue:'color:#7dd3fc', green:'color:#4ade80', muted:'color:rgba(255,255,255,0.35);font-size:14px;font-weight:600', cashflow:'color:#60a5fa;font-weight:800'};
     statsEl.innerHTML = items.map(function(it) {
       var style = colorMap[it.cls] || '';
       return '<div class="stat-item">' +
@@ -4533,11 +4536,11 @@ function pensionSetView(mode) {
   pnsViewMode = mode;
   var sel = document.getElementById('pns-view-select');
   if (sel) sel.value = mode;
-  // v81-82: מחשבון מס + הורשה מוסתרים ביעל
+  // v83.0: מחשבון מס — מוסתר ביעל | הורשה — גלויה רק ב"משותף"
   var taxLab = document.getElementById('pns-tax-lab');
   if (taxLab) taxLab.style.display = (mode === 'yael') ? 'none' : '';
   var legacySec = document.getElementById('pns-legacy-section');
-  if (legacySec) legacySec.style.display = (mode === 'yael') ? 'none' : '';
+  if (legacySec) legacySec.style.display = (mode === 'all') ? '' : 'none';
   pensionRenderSnapshot();
   pensionRenderRiskRow();
   pensionRenderCards();
@@ -4549,12 +4552,13 @@ function pensionSetView(mode) {
 function pensionRenderRiskRow() {
   var el = document.getElementById('pns-risk-row');
   if (!el) return;
-  // ביטוח חיים — כולל כל פוליסות עם deathCapital
-  var totalLifeAll  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
-  var pureRiskLife  = PENSION_ASSETS.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  // v83.0: סינון לפי view mode דרך pensionActiveAssets
+  var active = pensionActiveAssets();
+  var totalLifeAll  = active.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  var pureRiskLife  = active.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var accumLifePart = totalLifeAll - pureRiskLife;
-  // אובדן כושר — מכלל הפוליסות שיש להן disabilityCover
-  var totalDisab  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
+  var totalDisab    = active.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
+  var totalRealEst  = active.reduce(function(s,a){ return s+(a.realEstateIncome||0); }, 0);
 
   // tooltip breakdown for life insurance
   var lifeTooltipHtml =totalLifeAll > 0 && (accumLifePart > 0 || pureRiskLife > 0)
@@ -4566,34 +4570,43 @@ function pensionRenderRiskRow() {
       '</div></span>'
     : '';
 
-  el.innerHTML =
-    '<div class="pns-risk-item life">' +
-      '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
-      '<div>' +
-        '<div class="pns-risk-lbl">ביטוח חיים / הורשה</div>' +
-        '<div class="pns-risk-val" style="display:flex;align-items:center;gap:4px;">' +
-          (totalLifeAll > 0 ? pnsFmtK(totalLifeAll)+' ₪' : '—') +
-          lifeTooltipHtml +
+  // v83.0: מציג פריטים רק אם יש נתונים, מוסיף כרטיסיית שכ"ד
+  var lifeHtml = totalLifeAll > 0
+    ? '<div class="pns-risk-item life">' +
+        '<div class="pns-risk-icon" style="background:#fef3c7;">🛡️</div>' +
+        '<div>' +
+          '<div class="pns-risk-lbl">ביטוח חיים / הורשה</div>' +
+          '<div class="pns-risk-val" style="display:flex;align-items:center;gap:4px;">' +
+            pnsFmtK(totalLifeAll)+' ₪' + lifeTooltipHtml +
+          '</div>' +
+          '<div class="pns-risk-sub">סה״כ מוות</div>' +
         '</div>' +
-        '<div class="pns-risk-sub">סה״כ מוות</div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="pns-risk-item disab">' +
-      '<div class="pns-risk-icon" style="background:#dbeafe;">♿</div>' +
-      '<div>' +
-        '<div class="pns-risk-lbl">אובדן כושר עבודה</div>' +
-        '<div class="pns-risk-val">'+(totalDisab > 0 ? pnsFmt(totalDisab)+' ₪' : '—')+'</div>' +
-        '<div class="pns-risk-sub">קצבה חודשית</div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="pns-risk-item accid">' +
-      '<div class="pns-risk-icon" style="background:#d1fae5;">🏥</div>' +
-      '<div>' +
-        '<div class="pns-risk-lbl">תאונות אישיות</div>' +
-        '<div class="pns-risk-val">—</div>' +
-        '<div class="pns-risk-sub">ממתין לנתונים</div>' +
-      '</div>' +
-    '</div>';
+      '</div>'
+    : '';
+
+  var disabHtml = totalDisab > 0
+    ? '<div class="pns-risk-item disab">' +
+        '<div class="pns-risk-icon" style="background:#dbeafe;">♿</div>' +
+        '<div>' +
+          '<div class="pns-risk-lbl">אובדן כושר עבודה</div>' +
+          '<div class="pns-risk-val">'+pnsFmt(totalDisab)+' ₪</div>' +
+          '<div class="pns-risk-sub">קצבה חודשית</div>' +
+        '</div>' +
+      '</div>'
+    : '';
+
+  var realEstHtml = totalRealEst > 0
+    ? '<div class="pns-risk-item" style="border-right-color:#f59e0b;">' +
+        '<div class="pns-risk-icon" style="background:#fef3c7;">🏠</div>' +
+        '<div>' +
+          '<div class="pns-risk-lbl">שכר דירה נטו</div>' +
+          '<div class="pns-risk-val">'+pnsFmt(Math.round(totalRealEst))+' ₪</div>' +
+          '<div class="pns-risk-sub">₪/חודש</div>' +
+        '</div>' +
+      '</div>'
+    : '';
+
+  el.innerHTML = lifeHtml + disabHtml + realEstHtml;
 }
 
 // ---------- CARDS ----------
@@ -4732,11 +4745,10 @@ function pensionToggleHeritage(checked) {
 }
 
 function pensionRenderTaxLab() {
-  var isYael = (pnsViewMode === 'yael');
   var taxLab = document.getElementById('pns-tax-lab');
-  if (taxLab) taxLab.style.display = isYael ? 'none' : '';
+  if (taxLab) taxLab.style.display = (pnsViewMode === 'yael') ? 'none' : '';
   var legacySec = document.getElementById('pns-legacy-section');
-  if (legacySec) legacySec.style.display = isYael ? 'none' : '';
+  if (legacySec) legacySec.style.display = (pnsViewMode === 'all') ? '' : 'none';
   pensionSliderChange(pensionTaxSliderVal);
 }
 
