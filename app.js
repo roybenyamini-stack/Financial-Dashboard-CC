@@ -4440,9 +4440,16 @@ function pensionRender() {
 }
 
 function pensionActiveAssets() {
-  var base = PENSION_ASSETS;
+  // v80.0: מסנן קופות ממתינות לבדיקה ומפעיל סינון לפי בעלות
+  var base = PENSION_ASSETS.filter(function(a){ return !a.isPendingReview; });
+  if (pnsViewMode === 'mine') {
+    base = base.filter(function(a){ return !a.owner || a.owner === 'רועי'; });
+  } else if (pnsViewMode === 'yael') {
+    base = base.filter(function(a){ return a.owner === 'יעל'; });
+  }
+  // 'all' = כל הבעלים
   if (pensionExcludeHeritage) base = base.filter(function(a){ return a.mainPurpose !== 'הורשה'; });
-  if (pnsExcludeHarel)       base = base.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; });
+  if (pnsExcludeHarel)        base = base.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; });
   return base;
 }
 
@@ -4450,13 +4457,18 @@ function pensionActiveAssets() {
 function pensionRenderSnapshot() {
   var active       = pensionActiveAssets();
   var totalPension = active.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
-  var totalAccum   = PENSION_ASSETS.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+  // v80.0: הון צבור — ללא קופות ממתינות לבדיקה
+  var totalAccum   = PENSION_ASSETS.filter(function(a){ return !a.isPendingReview; }).reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+  // v80.0: הכנסה חודשית נטו — קצבה נטו (רועי) + קצבה שוטפת (יעל) + נדל"ן (שניהם)
+  var totalCurrPen  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.currentPension||0);    }, 0);
+  var totalRealEst  = PENSION_ASSETS.reduce(function(s,a){ return s+(a.realEstateIncome||0);  }, 0);
+  var totalMonthlyNet = (pnsNetMonthly || 0) + totalCurrPen + totalRealEst;
 
   var items = [
-    { lbl:'הון צבור',    val: totalAccum   > 0 ? pnsFmtK(totalAccum)                  : '—', sub:'ש״ח',           cls:'capital' },
-    { lbl:'קצבה ברוטו',  val: totalPension > 0 ? pnsFmt(totalPension)                 : '—', sub:'₪/חודש',        cls:'blue'    },
-    { lbl:'קצבה נטו',    val: pnsNetMonthly > 0 ? pnsFmt(Math.round(pnsNetMonthly))   : '—', sub:'₪/חודש (אחרי מס)', cls:'green' },
-    { lbl:'הכנסה פנויה', val: '—',                                                           sub:'ממתין לחישוב',  cls:'muted'   }
+    { lbl:'הון צבור',              val: totalAccum      > 0 ? pnsFmtK(totalAccum)                    : '—', sub:'ש״ח',             cls:'capital' },
+    { lbl:'קצבה ברוטו',            val: totalPension    > 0 ? pnsFmt(totalPension)                   : '—', sub:'₪/חודש',          cls:'blue'    },
+    { lbl:'הכנסה חודשית נטו',      val: totalMonthlyNet > 0 ? pnsFmt(Math.round(totalMonthlyNet))    : '—', sub:'₪/חודש (משפחה)',  cls:'green'   },
+    { lbl:'הכנסה מנדל״ן',          val: totalRealEst    > 0 ? pnsFmt(Math.round(totalRealEst))       : '—', sub:'₪/חודש (נטו)',    cls:'muted'   }
   ];
 
   var statsEl = document.getElementById('pns-snap-stats');
@@ -4581,52 +4593,103 @@ function pensionRenderRiskRow() {
 function pensionRenderCards() {
   var grid = document.getElementById('pns-cards-grid');
   if (!grid) return;
-  var visible = PENSION_ASSETS.filter(function(a) {
-    return (a.accumulation > 0 || a.expectedPension > 0 || a.deathCapital > 0 || a.disabilityCover > 0);
-  });
-  // הצג רק נכסי פנסיה — ריסקים (כגון הראל ביטוח חיים) מוצגים בשורת ה-Cover בלבד
-  var pensionOnly = visible.filter(function(a){ return !a.isRisk; });
-  if (!pensionOnly.length) { grid.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px;">אין נכסי פנסיה פעילים</div>'; return; }
 
-  grid.innerHTML = pensionOnly.map(function(a) {
-    var isRisk     = a.isRisk;
-    var isHeritage = (a.mainPurpose === 'הורשה');
-    // תיקון: מבטחים היא קרן פנסיה — לא ביטוח מנהלים
+  // v80.0: סינון לפי בעלות + מסנן קופות ממתינות
+  var active = pensionActiveAssets();
+  var activeIds = {};
+  active.forEach(function(a){ activeIds[a.id] = true; });
+
+  // כרטיסיות פנסיה רגילות (לא ריסק, לא ממתין)
+  var pensionOnly = PENSION_ASSETS.filter(function(a){ return !a.isRisk && activeIds[a.id]; });
+
+  // כרטיסיות נדל"ן — עמודות עם הכנסה מנדל"ן בלבד
+  var realEstCards = PENSION_ASSETS.filter(function(a){
+    return a.realEstateIncome > 0 && !a.expectedPension && !a.accumulation && !a.isRisk;
+  });
+
+  // קופות ממתינות לבדיקה (רלוונטי בתצוגת יעל / שלנו)
+  var pendingCards = (pnsViewMode !== 'mine')
+    ? PENSION_ASSETS.filter(function(a){ return a.isPendingReview; })
+    : [];
+
+  if (!pensionOnly.length && !realEstCards.length && !pendingCards.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px;">אין נכסי פנסיה פעילים</div>';
+    return;
+  }
+
+  function renderPensionCard(a) {
+    var isHeritage  = (a.mainPurpose === 'הורשה');
     var isMivtachim = (a.provider && a.provider.indexOf('מבטחים') >= 0);
     var displayType = isMivtachim ? 'פנסיה' : a.policyType;
-    var borderColor = isRisk ? '#ef4444' : isHeritage ? '#8b5cf6' : '#3b82f6';
-    var iconBg      = isRisk ? '#fee2e2' : isMivtachim ? '#dcfce7' : '#dbeafe';
-    var icon        = isRisk ? '🛡️' : isMivtachim ? '🏛️' : '🏦';
+    var borderColor = isHeritage ? '#8b5cf6' : '#3b82f6';
+    var iconBg      = isMivtachim ? '#dcfce7' : '#dbeafe';
+    var icon        = isMivtachim ? '🏛️' : '🏦';
+    var ownerBadge  = a.owner ? '<span class="pns-card-badge" style="background:#f3f4f6;color:#374151;">'+a.owner+'</span>' : '';
 
     var rows = [];
-    if (a.expectedPension > 0) rows.push({ lbl:'קצבה חודשית',    val:pnsFmt(a.expectedPension)+' ₪',  cls:'green' });
-    if (a.accumulation    > 0) rows.push({ lbl:'צבירה',           val:pnsFmtK(a.accumulation)+' ₪',   cls:'' });
-    if (a.deathCapital    > 0) rows.push({ lbl:'ביטוח חיים/ריסק', val:pnsFmtK(a.deathCapital)+' ₪',   cls:'red' });
-    if (a.disabilityCover > 0) rows.push({ lbl:'אכ״ע',             val:pnsFmt(a.disabilityCover)+' ₪', cls:'' });
-    if (a.guaranteedMonths> 0) rows.push({ lbl:'חודשים מובטחים',  val:a.guaranteedMonths,              cls:'' });
+    if (a.currentPension   > 0) rows.push({ lbl:'קצבה שוטפת (נטו)',  val:pnsFmt(a.currentPension)+' ₪',  cls:'green' });
+    if (a.expectedPension  > 0) rows.push({ lbl:'קצבה חודשית',        val:pnsFmt(a.expectedPension)+' ₪', cls:'green' });
+    if (a.accumulation     > 0) rows.push({ lbl:'צבירה',               val:pnsFmtK(a.accumulation)+' ₪',  cls:'' });
+    if (a.deathCapital     > 0) rows.push({ lbl:'ביטוח חיים',          val:pnsFmtK(a.deathCapital)+' ₪',  cls:'red' });
+    if (a.disabilityCover  > 0) rows.push({ lbl:'אכ״ע',                val:pnsFmt(a.disabilityCover)+' ₪', cls:'' });
+    if (a.guaranteedMonths > 0) rows.push({ lbl:'חודשים מובטחים',      val:a.guaranteedMonths,             cls:'' });
 
     var badges = '';
-    if (displayType) badges += '<span class="pns-card-badge '+(isRisk?'pns-badge-risk':'pns-badge-pension')+'">'+displayType+'</span>';
+    if (displayType) badges += '<span class="pns-card-badge pns-badge-pension">'+displayType+'</span>';
     if (isHeritage)  badges += '<span class="pns-card-badge pns-badge-heritage">הורשה</span>';
+    badges += ownerBadge;
 
     var rowsHtml = rows.map(function(r) {
       return '<div class="pns-card-row"><span class="pns-card-lbl">'+r.lbl+'</span><span class="pns-card-num '+r.cls+'">'+r.val+'</span></div>';
     }).join('');
 
     var expiryHtml = a.expiryDate ? '<div class="pns-card-expiry">תוקף: '+pnsFormatDate(a.expiryDate)+'</div>' : '';
-    var docHtml    = a.documentLink
-      ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
+    var docHtml    = a.documentLink ? '<a class="pns-card-doc-link" href="'+a.documentLink+'" target="_blank">📄 מסמך פוליסה</a>' : '';
 
-    return '<div class="pns-card'+(isRisk?' risk':'')+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';">' +
+    return '<div class="pns-card'+(isHeritage?' heritage':'')+'" style="border-right-color:'+borderColor+';">' +
       '<div class="pns-card-header">' +
-        '<div class="pns-card-icon'+(isRisk?' risk':'')+'" style="background:'+iconBg+';">'+icon+'</div>' +
+        '<div class="pns-card-icon" style="background:'+iconBg+';">'+icon+'</div>' +
         '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
         (badges ? '<div style="margin-right:auto;">'+badges+'</div>' : '') +
       '</div>' +
       '<div class="pns-card-rows">'+rowsHtml+'</div>' +
       expiryHtml + docHtml +
     '</div>';
-  }).join('');
+  }
+
+  function renderRealEstCard(a) {
+    var ownerBadge = a.owner ? '<span class="pns-card-badge" style="background:#f3f4f6;color:#374151;">'+a.owner+'</span>' : '';
+    return '<div class="pns-card" style="border-right-color:#f59e0b;background:#fffbeb;">' +
+      '<div class="pns-card-header">' +
+        '<div class="pns-card-icon" style="background:#fef3c7;">🏠</div>' +
+        '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
+        '<div style="margin-right:auto;"><span class="pns-card-badge" style="background:#fef3c7;color:#92400e;">נדל״ן</span>'+ownerBadge+'</div>' +
+      '</div>' +
+      '<div class="pns-card-rows">' +
+        '<div class="pns-card-row"><span class="pns-card-lbl">הכנסה חודשית</span><span class="pns-card-num green">'+pnsFmt(a.realEstateIncome)+' ₪</span></div>' +
+        '<div class="pns-card-row"><span class="pns-card-lbl">סטטוס</span><span class="pns-card-num" style="font-size:11px;color:#6b7280;">נטו (לאחר הוצאות)</span></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderPendingCard(a) {
+    return '<div class="pns-card" style="border-right-color:#9ca3af;background:#f9fafb;opacity:0.85;">' +
+      '<div class="pns-card-header">' +
+        '<div class="pns-card-icon" style="background:#f3f4f6;">⏳</div>' +
+        '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
+        '<div style="margin-right:auto;"><span class="pns-card-badge" style="background:#e5e7eb;color:#6b7280;">ממתינה לבדיקה</span></div>' +
+      '</div>' +
+      '<div class="pns-card-rows">' +
+        '<div class="pns-card-row"><span class="pns-card-lbl">יתרה</span><span class="pns-card-num" style="color:#6b7280;">'+pnsFmtK(a.accumulation)+' ₪</span></div>' +
+        '<div class="pns-card-row"><span class="pns-card-lbl" style="color:#9ca3af;font-size:9px;">קופה ממתינה להפעלה/בדיקה</span><span></span></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  grid.innerHTML =
+    pensionOnly.map(renderPensionCard).join('') +
+    realEstCards.map(renderRealEstCard).join('') +
+    pendingCards.map(renderPendingCard).join('');
 }
 
 // ---------- LUMP SUMS (zero noise) ----------
@@ -4991,6 +5054,7 @@ function pensionParseWorkbook(wb, sheetName) {
   var rDeath   = findRow('ביטוח חיים');
   var rAccum   = findRow('צבירה');
   if (rAccum < 0) rAccum = findRow('כספים');
+  if (rAccum < 0) rAccum = findRow('יתרת כספים'); // v80.0: שם שורה חדש
   // אובדן כושר עבודה (אכ"ע) — ≠ נכות (13,053)
   var rDisab   = findRow('אבדן כושר');
   if (rDisab < 0) rDisab = findRow('אובדן כושר');
@@ -5005,6 +5069,11 @@ function pensionParseWorkbook(wb, sheetName) {
   var rTax       = findRow('מיסוי');
   var rBenef     = findRow('מוטבים');
   var rDoc       = findRow('קישור');
+  // v80.0: שורות חדשות — מבנה משפחתי + נדל"ן
+  var rOwner   = findRow('שייכות');          // "רועי" / "יעל"
+  var rCurrPen = findRow('קצבה שוטפת');     // קצבה שכבר משולמת נטו (יעל)
+  var rRealEst = findRow('נדל');             // הכנסה מנדל"ן נטו
+  if (rRealEst < 0) rRealEst = findRow('שכירות');
 
   var assets = [];
   for (var c = 1; c < headerRow.length; c++) {
@@ -5030,8 +5099,12 @@ function pensionParseWorkbook(wb, sheetName) {
     var taxSt      = getStr(rTax, c);
     var benefStr   = getStr(rBenef, c);
     var docLink    = getStr(rDoc, c);
+    // v80.0: שדות משפחתיים ונדל"ן
+    var ownerVal    = getStr(rOwner, c);
+    var currPenVal  = getNum(rCurrPen, c);
+    var realEstVal  = getNum(rRealEst, c);
 
-    if (!accumVal && !pensionVal && !deathVal && !disabVal) continue;
+    if (!accumVal && !pensionVal && !deathVal && !disabVal && !currPenVal && !realEstVal) continue;
 
     var benefList = [];
     if (benefStr) {
@@ -5042,27 +5115,34 @@ function pensionParseWorkbook(wb, sheetName) {
       });
     }
 
-    var isRisk = (!pensionVal && !accumVal && deathVal > 0);
+    var isRisk = (!pensionVal && !accumVal && deathVal > 0 && !realEstVal);
     if (subType && (subType.indexOf('ריסק') >= 0 || subType.indexOf('מגן') >= 0)) isRisk = true;
+
+    // v80.0: קופה ממתינה לבדיקה — שייכת ליעל, יש יתרה, אין קצבה צפויה/שוטפת
+    var isPending = (ownerVal === 'יעל' && (accumVal > 0) && !pensionVal && !currPenVal);
 
     assets.push({
       id:          (provider+policyId).replace(/\s+/g,''),
       provider:    provider,
       policyId:    policyId,
       policyType:  subType || (isRisk ? 'ריסק' : 'מנהלים'),
-      accumulation:  accumVal  || 0,
+      accumulation:    accumVal   || 0,
       expectedPension: pensionVal || 0,
-      deathCapital:  deathVal  || 0,
-      disabilityCover: disabVal || 0,
-      guaranteedMonths: guarM  || 0,
-      guaranteedCoeff:  guarC  || 0,
-      mainPurpose: purpose  || 'קצבה',
-      taxStatus:   taxSt    || '',
+      deathCapital:    deathVal   || 0,
+      disabilityCover: disabVal   || 0,
+      guaranteedMonths: guarM     || 0,
+      guaranteedCoeff:  guarC     || 0,
+      mainPurpose:  purpose  || 'קצבה',
+      taxStatus:    taxSt    || '',
       beneficiaries: benefList,
-      expiryDate:  expiry   || null,
-      lastPremium: premium  || 0,
+      expiryDate:   expiry   || null,
+      lastPremium:  premium  || 0,
       documentLink: (docLink && (docLink.indexOf('http')===0 || docLink.indexOf('/')===0)) ? docLink : null,
-      isRisk:      isRisk
+      isRisk:           isRisk,
+      owner:            ownerVal   || '',
+      currentPension:   currPenVal || 0,
+      realEstateIncome: realEstVal || 0,
+      isPendingReview:  isPending
     });
   }
   return assets;
