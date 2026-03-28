@@ -4753,6 +4753,18 @@ function pensionRenderRiskRow() {
   var totalLifeAll  = active.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var pureRiskLife  = active.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var accumLifePart = totalLifeAll - pureRiskLife;
+  // v96.0: כשהראל מוחרג מקצבה, ההון הצבור שלו מופנה במלואו להורשה/גיבוי ומצטרף לסך כיסוי מוות
+  if (pnsExcludeHarel) {
+    var harelForLegacy = PENSION_ASSETS.filter(function(a){
+      if (a.isPendingReview) return false;
+      if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
+      if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
+      return !a.isRisk && a.provider && a.provider.indexOf('הראל') >= 0;
+    });
+    var harelAccumBonus = harelForLegacy.reduce(function(s,a){ return s + (a.accumulation||0); }, 0);
+    totalLifeAll  += harelAccumBonus;
+    accumLifePart += harelAccumBonus;
+  }
   var totalDisab    = active.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
   // v91.0: הגנה מתאונות — מוצגת תמיד ללא תלות ב-Toggle הראל
   var accidentBase = pnsExcludeHarel
@@ -4994,7 +5006,7 @@ function pensionRenderCards() {
     if (displayType) badges += '<span class="pns-card-badge pns-badge-pension">'+displayType+'</span>';
     if (isHeritage)  badges += '<span class="pns-card-badge pns-badge-heritage">הורשה</span>';
     // v87.0: תווית ייעוד הורשה/גיבוי כאשר הראל מוחרג מהקצבה
-    if (muted) badges += '<span class="pns-card-badge" style="background:#fef3c7;color:#92400e;font-size:9px;">מיועד להורשה / גיבוי</span>';
+    if (muted) badges += '<span class="pns-card-badge" style="background:#fef3c7;color:#92400e;font-size:9px;">להורשה/גיבוי</span>';
     badges += ownerBadge;
 
     var rowsHtml = rows.map(function(r) {
@@ -5009,7 +5021,7 @@ function pensionRenderCards() {
       '<div class="pns-card-header">' +
         '<div class="pns-card-icon" style="background:'+iconBg+';">'+icon+'</div>' +
         '<div><div class="pns-card-provider">'+a.provider+'</div><div class="pns-card-policy">'+a.policyId+'</div></div>' +
-        (badges ? '<div style="margin-right:auto;">'+badges+'</div>' : '') +
+        '<div style="margin-right:auto;min-height:36px;display:flex;flex-wrap:wrap;align-content:flex-start;align-items:flex-start;gap:2px;">' + badges + '</div>' +
       '</div>' +
       '<div class="pns-card-rows">'+rowsHtml+'</div>' +
       expiryHtml + docHtml +
