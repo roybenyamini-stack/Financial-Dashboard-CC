@@ -1304,13 +1304,17 @@ function renderNotesList() {
       ? '<a href="' + n.link + '" target="_blank" style="color:#0891b2; text-decoration:none; font-size:14px; font-weight:600;">מסמך ↗</a>'
       : '';
     const taxVal = tax ? '<span style="color:#dc2626;">-' + tax.value + '</span>' : '—';
+    // v97.3: in shared view, show a "יעל" badge on notes that belong to Yael
+    const ownerBadge = (invViewMode === 'all' && n.owner === 'יעל')
+      ? ' <span style="background:#fce7f3;color:#be185d;padding:1px 6px;border-radius:20px;font-size:10px;font-weight:700;">יעל</span>'
+      : '';
 
     tableHtml += '<tr style="background:' + bg + '; border-bottom:1px solid #e5e7eb;">' +
       '<td style="padding:10px 16px; text-align:right; white-space:nowrap;">' + linkHtml + '</td>' +
       '<td style="padding:10px 16px; text-align:right; font-weight:700; white-space:nowrap;">' + (net ? net.value : '—') + '</td>' +
       '<td style="padding:10px 16px; text-align:right; white-space:nowrap;">' + taxVal + '</td>' +
       '<td style="padding:10px 16px; text-align:right; white-space:nowrap;">' + (gross ? gross.value : '—') + '</td>' +
-      '<td style="padding:10px 16px; font-weight:600; white-space:nowrap;">' + n.title + '</td>' +
+      '<td style="padding:10px 16px; font-weight:600; white-space:nowrap;">' + n.title + ownerBadge + '</td>' +
       '<td style="padding:10px;"><span style="background:' + color + '20; color:' + color + '; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap;">' + n.type + '</span></td>' +
       '<td style="padding:10px; white-space:nowrap; color:#555;">' + n.date + '</td>' +
       '<td style="padding:10px; white-space:nowrap;">' +
