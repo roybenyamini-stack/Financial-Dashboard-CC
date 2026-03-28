@@ -1,4 +1,4 @@
-<!-- v96.6 -->
+<!-- v97.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v96.6</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v97.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -276,6 +276,36 @@
     </div>
   </div>
 </div>
+<!-- v97.0: Yael snapshot analysis (shown in yael/all views) -->
+<div id="yael-analysis-section" style="display:none;padding:0 0 16px;">
+  <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px;padding:4px 0;">תמונת מצב – יעל</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:230px;background:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי סוג מוצר</div>
+      <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
+        <canvas id="yael-donut-type" width="140" height="140"></canvas>
+        <div id="yael-donut-type-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+          <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
+          <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
+        </div>
+      </div>
+      <div id="yael-donut-type-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
+    </div>
+    <div style="flex:1;min-width:230px;background:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי נזילות</div>
+      <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
+        <canvas id="yael-donut-liq" width="140" height="140"></canvas>
+        <div id="yael-donut-liq-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+          <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
+          <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
+        </div>
+      </div>
+      <div id="yael-donut-liq-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
+    </div>
+  </div>
+</div>
+<!-- v97.0: Table label shown only in "all" (shared) view -->
+<div id="cat-scroll-label" style="display:none;font-size:12px;font-weight:700;color:#6b7280;padding:10px 4px 6px;border-top:1px solid #e5e7eb;margin-top:4px;">📋 טבלת נכסים – רועי</div>
 <div id="categories-scroll">
 <!-- CATEGORY: מזומן -->
 <div class="category-section" id="sec-mezuman" style="--cat-color:#0891b2;--cat-color-light:#e0f2fe;--cat-color-ultralight:#f0fbff">
