@@ -337,3 +337,16 @@ body{background:var(--bg,#f0f2f5);}
 .ch-legend-item { display:flex;align-items:center;gap:6px;white-space:nowrap; }
 .ch-legend-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
 .ch-legend-sep { height:8px; }
+
+/* LOGIN OVERLAY */
+body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
+#login-overlay { position:fixed;inset:0;z-index:99999;background:#1a1a2e;display:flex;align-items:center;justify-content:center; }
+#login-overlay.hidden { display:none; }
+.login-box { background:#16213e;border-radius:20px;padding:40px 48px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);min-width:320px; }
+.login-box h2 { color:#fff;font-size:22px;font-weight:800;margin-bottom:8px; }
+.login-box p { color:rgba(255,255,255,0.45);font-size:13px;margin-bottom:28px; }
+#login-pw { width:100%;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 14px;color:white;font-family:Heebo,sans-serif;font-size:16px;text-align:center;outline:none;margin-bottom:16px; }
+#login-pw:focus { border-color:#7dd3fc; }
+#login-btn { width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-family:Heebo,sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:background 0.2s; }
+#login-btn:hover { background:#1d4ed8; }
+#login-err { color:#f87171;font-size:13px;margin-top:12px;min-height:18px; }
