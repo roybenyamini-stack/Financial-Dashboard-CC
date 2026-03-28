@@ -4750,21 +4750,17 @@ function pensionRenderRiskRow() {
   var el = document.getElementById('pns-risk-row');
   if (!el) return;
   var active = pensionActiveAssets();
-  var totalLifeAll  = active.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
-  var pureRiskLife  = active.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  // v96.1: ביטוח חיים מחושב מכלל הנכסים ללא תלות בטוגל הראל (Single Source of Truth)
+  var lifeBase = PENSION_ASSETS.filter(function(a){
+    if (a.isPendingReview) return false;
+    if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
+    if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
+    if (pensionExcludeHeritage && a.mainPurpose === 'הורשה') return false;
+    return true;
+  });
+  var totalLifeAll  = lifeBase.reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
+  var pureRiskLife  = lifeBase.filter(function(a){ return a.isRisk; }).reduce(function(s,a){ return s+(a.deathCapital||0); }, 0);
   var accumLifePart = totalLifeAll - pureRiskLife;
-  // v96.0: כשהראל מוחרג מקצבה, ההון הצבור שלו מופנה במלואו להורשה/גיבוי ומצטרף לסך כיסוי מוות
-  if (pnsExcludeHarel) {
-    var harelForLegacy = PENSION_ASSETS.filter(function(a){
-      if (a.isPendingReview) return false;
-      if (pnsViewMode === 'mine' && a.owner && a.owner !== 'רועי') return false;
-      if (pnsViewMode === 'yael' && a.owner !== 'יעל') return false;
-      return !a.isRisk && a.provider && a.provider.indexOf('הראל') >= 0;
-    });
-    var harelAccumBonus = harelForLegacy.reduce(function(s,a){ return s + (a.accumulation||0); }, 0);
-    totalLifeAll  += harelAccumBonus;
-    accumLifePart += harelAccumBonus;
-  }
   var totalDisab    = active.reduce(function(s,a){ return s+(a.disabilityCover||0); }, 0);
   // v91.0: הגנה מתאונות — מוצגת תמיד ללא תלות ב-Toggle הראל
   var accidentBase = pnsExcludeHarel
