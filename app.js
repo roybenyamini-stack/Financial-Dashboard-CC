@@ -1,4 +1,36 @@
 // System check: Claude Code is active.
+
+// LOGIN — v97.6
+(function() {
+  var HASH = '73ad549fa408e66ead012a22af3eee5f45dc521864a3a67d91bb1d8e9bd662b7';
+  function unlock() {
+    var overlay = document.getElementById('login-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    document.body.classList.remove('locked');
+  }
+  if (sessionStorage.getItem('auth') === '1') { unlock(); return; }
+  function doLogin() {
+    var pw = document.getElementById('login-pw').value;
+    var err = document.getElementById('login-err');
+    err.textContent = '';
+    if (!pw) return;
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw)).then(function(buf) {
+      var hash = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+      if (hash === HASH) {
+        sessionStorage.setItem('auth', '1');
+        unlock();
+      } else {
+        err.textContent = 'סיסמה שגויה. נסה שוב.';
+        document.getElementById('login-pw').value = '';
+        document.getElementById('login-pw').focus();
+      }
+    });
+  }
+  document.getElementById('login-btn').addEventListener('click', doLogin);
+  document.getElementById('login-pw').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+})();
 const LABELS = ['ינו׳ 25','פבר׳ 25','מרץ 25','אפר׳ 25','מאי 25','יוני 25','יולי 25','אוג׳ 25','ספט׳ 25','אוק׳ 25','נוב׳ 25','דצמ׳ 25','ינו׳ 26','פבר׳ 26','מרץ 26'];
 
 // v56.2: כל מערכי data אופסו — הנתונים האמיתיים נטענים בלעדית מ-localStorage (העלאת אקסל קודמת)
