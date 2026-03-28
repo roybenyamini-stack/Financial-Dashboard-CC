@@ -3338,6 +3338,9 @@ var TV_SECTIONS = [
 
 function openTableView() {
   document.getElementById('table-modal').style.display = 'flex';
+  // v97.5: dynamic title — clarify Roee ownership in shared view
+  var titleEl = document.getElementById('tv-title-label');
+  if (titleEl) titleEl.textContent = invViewMode === 'all' ? 'תצוגת טבלה – רועי' : 'תצוגת טבלה';
   buildTableView();
 }
 function closeTableView() {
