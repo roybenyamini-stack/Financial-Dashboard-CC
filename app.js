@@ -275,8 +275,10 @@ let chart = new Chart(ctx, {
               lines2.push('שינוי: ' + pct + '%');
             }
             if (currentView && currentView !== 'all') {
+              var tooltipFilter = invFundFilter(); // v96.5: סנן לפי מבט נוכחי
               var soldFunds = Object.values(FUNDS).filter(function(f) {
                 if (f.cat !== currentView) return false;
+                if (!tooltipFilter(f)) return false;
                 var wasActive = false;
                 for (var i2 = 0; i2 < f.data.length; i2++) {
                   if ((f.data[i2]||0) > 0) wasActive = true;
@@ -491,8 +493,10 @@ function updateNavButtons() {
     let noticeText = '';
     if (currentView && currentView !== 'all') {
       const lastVisIdx = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
+      const noticeFilter = invFundFilter(); // v96.5: הצג הערות רק לקרנות הרלוונטיות למבט הנוכחי
       Object.values(FUNDS).forEach(f => {
         if (f.cat !== currentView) return;
+        if (!noticeFilter(f)) return;
         if (f.transferred) return;
         let wasActive = false;
         for (let i = 0; i < f.data.length; i++) {
@@ -754,6 +758,24 @@ function hoverFund(fundKey, color) {
   document.getElementById('activeLabelText').textContent = fund.name;
 }
 
+// v96.5: Empty State helpers for non-roee views
+function showEmptyChart() {
+  var ep = document.getElementById('chart-empty-msg');
+  if (ep) ep.style.display = 'flex';
+  chart.data.labels = [];
+  chart.data.datasets[0].data = [];
+  chart.data.datasets[0].borderColor = '#94a3b8';
+  chart.data.datasets[0].backgroundColor = makeGradient(ctx, '#94a3b8');
+  chart.update();
+  updateChartStats([], null);
+  document.getElementById('activeLabel').style.setProperty('--active-color', '#94a3b8');
+  document.getElementById('activeLabelText').textContent = CAT_NAMES.all;
+}
+function hideEmptyChart() {
+  var ep = document.getElementById('chart-empty-msg');
+  if (ep) ep.style.display = 'none';
+}
+
 function selectView(cat) {
   currentFund = null;
   updateActiveTags(null);
@@ -768,8 +790,14 @@ function selectView(cat) {
   if (cat !== 'all') document.getElementById('hdr-'+cat)?.classList.add('active');
 
   if (cat === 'all') {
-    updateChart(getFilteredAllTotals(), '#2563eb', CAT_NAMES.all);
+    // v96.5: במבט יעל/משותף — אל תציג את גרף "סה"כ" כברירת מחדל
+    if (invViewMode !== 'roee') {
+      showEmptyChart();
+    } else {
+      updateChart(getFilteredAllTotals(), '#2563eb', CAT_NAMES.all);
+    }
   } else {
+    hideEmptyChart();
     updateChart(CAT_CHART_TOTALS[cat] || CAT_TOTALS[cat], CAT_COLORS[cat], CAT_NAMES[cat]);
   }
   updateNavButtons();
