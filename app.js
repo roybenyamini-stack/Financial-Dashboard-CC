@@ -116,7 +116,7 @@ function renderYaelDonuts() {
   });
   var typeTotal  = typeVals.reduce(function(a,b){ return a+b; }, 0);
 
-  var c1 = document.getElementById('yael-donut-type');
+  var c1 = document.getElementById('yael-modal-donut-type');
   if (c1) {
     if (yael_donut_type_chart) { yael_donut_type_chart.destroy(); yael_donut_type_chart = null; }
     var ctx1 = c1.getContext('2d');
@@ -135,9 +135,9 @@ function renderYaelDonuts() {
         animation: { duration: 500 }
       }
     });
-    var centerEl = document.getElementById('yael-donut-type-center');
+    var centerEl = document.getElementById('yael-modal-donut-type-center');
     if (centerEl) centerEl.querySelector('span').textContent = Math.round(typeTotal).toLocaleString();
-    var legendEl = document.getElementById('yael-donut-type-legend');
+    var legendEl = document.getElementById('yael-modal-donut-type-legend');
     if (legendEl) {
       legendEl.innerHTML = typeLabels.map(function(lbl, i){
         if (!typeVals[i]) return '';
@@ -160,7 +160,7 @@ function renderYaelDonuts() {
   var liqColors = ['#4ade80','#94a3b8'];
   var liqVals   = [liqNow, liqAge64];
 
-  var c2 = document.getElementById('yael-donut-liq');
+  var c2 = document.getElementById('yael-modal-donut-liq');
   if (c2) {
     if (yael_donut_liq_chart) { yael_donut_liq_chart.destroy(); yael_donut_liq_chart = null; }
     var ctx2 = c2.getContext('2d');
@@ -179,9 +179,9 @@ function renderYaelDonuts() {
         animation: { duration: 500 }
       }
     });
-    var center2 = document.getElementById('yael-donut-liq-center');
+    var center2 = document.getElementById('yael-modal-donut-liq-center');
     if (center2) center2.querySelector('span').textContent = Math.round(liqTotal).toLocaleString();
-    var legend2 = document.getElementById('yael-donut-liq-legend');
+    var legend2 = document.getElementById('yael-modal-donut-liq-legend');
     if (legend2) {
       legend2.innerHTML = liqLabels.map(function(lbl, i){
         if (!liqVals[i]) return '';
@@ -231,25 +231,23 @@ function invSetView(mode) {
   updateTableCells();
   updateDynamicStats();
   if (typeof currentView !== 'undefined') selectView(currentView || 'all');
-  // v97.0: visibility of yael analysis section + categories table
-  var yaelSec  = document.getElementById('yael-analysis-section');
+  // v97.1: visibility of categories table + table button state
   var catLabel = document.getElementById('cat-scroll-label');
   var catScr   = document.getElementById('categories-scroll');
+  var tableBtn = document.getElementById('inv-table-btn');
   if (mode === 'yael') {
     if (catScr)   catScr.style.display   = 'none';
     if (catLabel) catLabel.style.display = 'none';
-    if (yaelSec)  yaelSec.style.display  = '';
-    renderYaelDonuts();
+    if (tableBtn) { tableBtn.disabled = true; tableBtn.style.opacity = '0.35'; tableBtn.style.cursor = 'not-allowed'; }
   } else if (mode === 'all') {
     if (catScr)   catScr.style.display   = '';
     if (catLabel) catLabel.style.display = '';
-    if (yaelSec)  yaelSec.style.display  = '';
-    renderYaelDonuts();
+    if (tableBtn) { tableBtn.disabled = false; tableBtn.style.opacity = ''; tableBtn.style.cursor = 'pointer'; }
   } else {
-    // roee — no change to categories, hide yael extras
+    // roee
     if (catScr)   catScr.style.display   = '';
     if (catLabel) catLabel.style.display = 'none';
-    if (yaelSec)  yaelSec.style.display  = 'none';
+    if (tableBtn) { tableBtn.disabled = false; tableBtn.style.opacity = ''; tableBtn.style.cursor = 'pointer'; }
   }
 }
 
@@ -458,12 +456,14 @@ function getCatBase(cat, idx) {
 function updateDynamicStats() {
   const rawEndIdx = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
   let endIdx = rawEndIdx;
-  while (endIdx > 0 && Object.values(FUNDS).every(f => f.data[endIdx] === null || f.data[endIdx] === undefined)) endIdx--;
+  const invFilter = invFundFilter();
+  const filteredFunds = Object.values(FUNDS).filter(invFilter);
+  // v97.1: find endIdx using only the funds visible in current view
+  while (endIdx > 0 && filteredFunds.every(f => f.data[endIdx] === null || f.data[endIdx] === undefined)) endIdx--;
   const cats = ['mezuman','hishtalmut','gemel','gemel_invest','harel','meitav','arbitrage','dira','chov'];
   const el = id => document.getElementById(id);
   const endLabel = LABELS[endIdx];
 
-  const invFilter = invFundFilter();
   const catTotals = {}, catMeasured = {};
   cats.forEach(cat => {
     catTotals[cat] = 0;
@@ -2695,6 +2695,23 @@ var _chartsInited = false;
 function openCharts() {
   var m = document.getElementById('charts-modal');
   m.style.display = 'flex';
+
+  // v97.1: show/hide sections based on view mode
+  var roeeSec = document.getElementById('roee-charts-section');
+  var yaelSec = document.getElementById('yael-charts-section');
+  if (invViewMode === 'yael') {
+    if (roeeSec) roeeSec.style.display = 'none';
+    if (yaelSec) yaelSec.style.display = '';
+    renderYaelDonuts();
+    return;
+  } else if (invViewMode === 'all') {
+    if (roeeSec) roeeSec.style.display = '';
+    if (yaelSec) yaelSec.style.display = '';
+  } else {
+    if (roeeSec) roeeSec.style.display = '';
+    if (yaelSec) yaelSec.style.display = 'none';
+  }
+
   // תמיד בנה מחדש – נתונים עשויים להתעדכן
   if (_chartsInited) {
     // השמד instances קודמים
@@ -2815,6 +2832,11 @@ function openCharts() {
   });
   var mgrTotal = mgr.reduce(function(s,m){ return s+m.val; }, 0);
   makePie('chart-manager', 'legend-manager', mgr, mgrTotal);
+
+  // v97.1: also render Yael donuts in shared (all) mode
+  if (invViewMode === 'all') {
+    renderYaelDonuts();
+  }
 }
 
 function makePieWithActive(canvasId, legendId, defs, total) {

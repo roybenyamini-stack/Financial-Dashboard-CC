@@ -1,4 +1,4 @@
-<!-- v97.0 -->
+<!-- v97.1 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,7 +26,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v97.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v97.1</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -113,7 +113,7 @@
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
       <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
-      <button class="inv-only-btn" onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
+      <button id="inv-table-btn" class="inv-only-btn" onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
       <span class="inv-only-btn" onclick="toggleChat()" style="cursor:pointer; color:white; font-size:22px; opacity:0.85;" title="צ׳אט">💬</span>
     </div>
     <span id="excel-status" style="color:rgba(255,255,255,0.85); font-size:11px; min-height:16px; display:block;"></span>
@@ -273,34 +273,6 @@
     </div>
     <div style="padding:18px; overflow-y:auto; flex:1;">
       <div id="notes-list"></div>
-    </div>
-  </div>
-</div>
-<!-- v97.0: Yael snapshot analysis (shown in yael/all views) -->
-<div id="yael-analysis-section" style="display:none;padding:0 0 16px;">
-  <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px;padding:4px 0;">תמונת מצב – יעל</div>
-  <div style="display:flex;gap:14px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:230px;background:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי סוג מוצר</div>
-      <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
-        <canvas id="yael-donut-type" width="140" height="140"></canvas>
-        <div id="yael-donut-type-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
-          <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
-          <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
-        </div>
-      </div>
-      <div id="yael-donut-type-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
-    </div>
-    <div style="flex:1;min-width:230px;background:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי נזילות</div>
-      <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
-        <canvas id="yael-donut-liq" width="140" height="140"></canvas>
-        <div id="yael-donut-liq-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
-          <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
-          <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
-        </div>
-      </div>
-      <div id="yael-donut-liq-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
     </div>
   </div>
 </div>
@@ -725,11 +697,43 @@
       <span style="font-size:19px;font-weight:800;color:#1a1a2e;">📊 ניתוח תיק השקעות</span>
       <button onclick="closeCharts()" style="background:#f3f4f6;border:none;font-size:18px;cursor:pointer;color:#6b7280;width:34px;height:34px;border-radius:50%;">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="charts-grid">
-      <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-by-cat" style="max-width:200px;max-height:200px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
-      <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-equity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
-      <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-liquidity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
-      <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-manager" style="max-width:200px;max-height:200px;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
+    <!-- v97.1: Roee historical analysis section -->
+    <div id="roee-charts-section">
+      <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">ניתוח – רועי</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="charts-grid">
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-by-cat" style="max-width:200px;max-height:200px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-equity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-liquidity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-manager" style="max-width:200px;max-height:200px;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
+      </div>
+    </div>
+    <!-- v97.1: Yael snapshot section inside modal -->
+    <div id="yael-charts-section" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid #f0f0f0;">
+      <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:14px;letter-spacing:0.3px;">תמונת מצב – יעל</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:230px;background:#f9fafb;border-radius:14px;padding:16px 14px;">
+          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי סוג מוצר</div>
+          <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
+            <canvas id="yael-modal-donut-type" width="140" height="140"></canvas>
+            <div id="yael-modal-donut-type-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+              <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
+              <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
+            </div>
+          </div>
+          <div id="yael-modal-donut-type-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+        <div style="flex:1;min-width:230px;background:#f9fafb;border-radius:14px;padding:16px 14px;">
+          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">פילוח לפי נזילות</div>
+          <div style="position:relative;width:140px;height:140px;margin:0 auto 10px;">
+            <canvas id="yael-modal-donut-liq" width="140" height="140"></canvas>
+            <div id="yael-modal-donut-liq-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+              <span style="font-size:15px;font-weight:800;color:#1a1a2e;font-family:Heebo,sans-serif;"></span>
+              <span style="font-size:9px;color:#9ca3af;font-family:Heebo,sans-serif;">אלפי ₪</span>
+            </div>
+          </div>
+          <div id="yael-modal-donut-liq-legend" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
