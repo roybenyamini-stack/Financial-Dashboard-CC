@@ -96,105 +96,38 @@ function getFilteredAllTotals() {
     }, 0);
   });
 }
-// v97.0: Yael snapshot donut charts
-var yael_donut_type_chart = null;
-var yael_donut_liq_chart  = null;
-
+// v97.2: Yael snapshot donut charts — uses makePie() for identical look/feel to Roee charts
 function renderYaelDonuts() {
   // Find last month with data for any yael fund
   var endIdx = LABELS.length - 1;
-  while (endIdx > 0 && Object.values(FUNDS).filter(function(f){ return f.owner === 'yael'; }).every(function(f){ return !f.data[endIdx]; })) endIdx--;
-
   var yaelFunds = Object.values(FUNDS).filter(function(f){ return f.owner === 'yael'; });
+  while (endIdx > 0 && yaelFunds.every(function(f){ return !f.data[endIdx]; })) endIdx--;
+
+  // Destroy any existing chart instances before re-creating
+  ['yael-modal-donut-type', 'yael-modal-donut-liq'].forEach(function(id) {
+    var existing = Chart.getChart(id);
+    if (existing) existing.destroy();
+  });
 
   // --- Donut 1: by product type ---
-  var typeLabels = ['קרן השתלמות','קופת גמל','פוליסת חיסכון','גמל להשקעה'];
-  var typeColors = ['#fca5a5','#fcd34d','#fde68a','#6ee7b7'];
-  var typeCats   = ['hishtalmut','gemel','harel','gemel_invest'];
-  var typeVals   = typeCats.map(function(cat){
-    return yaelFunds.filter(function(f){ return f.cat === cat; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0);
-  });
-  var typeTotal  = typeVals.reduce(function(a,b){ return a+b; }, 0);
-
-  var c1 = document.getElementById('yael-modal-donut-type');
-  if (c1) {
-    if (yael_donut_type_chart) { yael_donut_type_chart.destroy(); yael_donut_type_chart = null; }
-    var ctx1 = c1.getContext('2d');
-    yael_donut_type_chart = new Chart(ctx1, {
-      type: 'doughnut',
-      data: {
-        labels: typeLabels,
-        datasets: [{ data: typeVals, backgroundColor: typeColors, borderWidth: 2, borderColor: '#fff' }]
-      },
-      options: {
-        responsive: false, cutout: '65%',
-        plugins: {
-          legend: { display: false },
-          tooltip: { rtl: true, callbacks: { label: function(c){ return c.label+': '+Math.round(c.raw).toLocaleString()+' אלף'; } } }
-        },
-        animation: { duration: 500 }
-      }
-    });
-    var centerEl = document.getElementById('yael-modal-donut-type-center');
-    if (centerEl) centerEl.querySelector('span').textContent = Math.round(typeTotal).toLocaleString();
-    var legendEl = document.getElementById('yael-modal-donut-type-legend');
-    if (legendEl) {
-      legendEl.innerHTML = typeLabels.map(function(lbl, i){
-        if (!typeVals[i]) return '';
-        var pct = typeTotal > 0 ? Math.round(typeVals[i]/typeTotal*100) : 0;
-        return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:Heebo,sans-serif;">' +
-          '<div style="width:8px;height:8px;border-radius:50%;background:'+typeColors[i]+';flex-shrink:0;"></div>' +
-          '<span style="flex:1;color:#374151;">'+lbl+'</span>' +
-          '<span style="font-weight:700;color:#1a1a2e;">'+pct+'%</span>' +
-          '<span style="color:#9ca3af;margin-right:4px;">'+Math.round(typeVals[i]).toLocaleString()+'</span>' +
-        '</div>';
-      }).join('');
-    }
-  }
+  var typeDefs = [
+    { label:'קרן השתלמות',   color:'#fca5a5', val: Math.round(yaelFunds.filter(function(f){ return f.cat==='hishtalmut';   }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0)) },
+    { label:'קופת גמל',      color:'#fcd34d', val: Math.round(yaelFunds.filter(function(f){ return f.cat==='gemel';         }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0)) },
+    { label:'פוליסת חיסכון', color:'#fde68a', val: Math.round(yaelFunds.filter(function(f){ return f.cat==='harel';         }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0)) },
+    { label:'גמל להשקעה',    color:'#6ee7b7', val: Math.round(yaelFunds.filter(function(f){ return f.cat==='gemel_invest';  }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0)) },
+  ];
+  var typeTotal = typeDefs.reduce(function(s,d){ return s+d.val; }, 0);
+  makePie('yael-modal-donut-type', 'yael-modal-donut-type-legend', typeDefs, typeTotal);
 
   // --- Donut 2: by liquidity ---
-  var liqNow   = yaelFunds.filter(function(f){ return f.liquidity === 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0);
-  var liqAge64 = yaelFunds.filter(function(f){ return f.liquidity !== 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0);
+  var liqNow   = Math.round(yaelFunds.filter(function(f){ return f.liquidity === 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
+  var liqAge64 = Math.round(yaelFunds.filter(function(f){ return f.liquidity !== 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
+  var liqDefs = [
+    { label:'נזיל היום',    color:'#4ade80', val: liqNow },
+    { label:'נזיל בגיל 64', color:'#94a3b8', val: liqAge64 },
+  ];
   var liqTotal = liqNow + liqAge64;
-  var liqLabels = ['נזיל היום','נזיל בגיל 64'];
-  var liqColors = ['#4ade80','#94a3b8'];
-  var liqVals   = [liqNow, liqAge64];
-
-  var c2 = document.getElementById('yael-modal-donut-liq');
-  if (c2) {
-    if (yael_donut_liq_chart) { yael_donut_liq_chart.destroy(); yael_donut_liq_chart = null; }
-    var ctx2 = c2.getContext('2d');
-    yael_donut_liq_chart = new Chart(ctx2, {
-      type: 'doughnut',
-      data: {
-        labels: liqLabels,
-        datasets: [{ data: liqVals, backgroundColor: liqColors, borderWidth: 2, borderColor: '#fff' }]
-      },
-      options: {
-        responsive: false, cutout: '65%',
-        plugins: {
-          legend: { display: false },
-          tooltip: { rtl: true, callbacks: { label: function(c){ return c.label+': '+Math.round(c.raw).toLocaleString()+' אלף'; } } }
-        },
-        animation: { duration: 500 }
-      }
-    });
-    var center2 = document.getElementById('yael-modal-donut-liq-center');
-    if (center2) center2.querySelector('span').textContent = Math.round(liqTotal).toLocaleString();
-    var legend2 = document.getElementById('yael-modal-donut-liq-legend');
-    if (legend2) {
-      legend2.innerHTML = liqLabels.map(function(lbl, i){
-        if (!liqVals[i]) return '';
-        var pct = liqTotal > 0 ? Math.round(liqVals[i]/liqTotal*100) : 0;
-        return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-family:Heebo,sans-serif;">' +
-          '<div style="width:8px;height:8px;border-radius:50%;background:'+liqColors[i]+';flex-shrink:0;"></div>' +
-          '<span style="flex:1;color:#374151;">'+lbl+'</span>' +
-          '<span style="font-weight:700;color:#1a1a2e;">'+pct+'%</span>' +
-          '<span style="color:#9ca3af;margin-right:4px;">'+Math.round(liqVals[i]).toLocaleString()+'</span>' +
-        '</div>';
-      }).join('');
-    }
-  }
+  makePie('yael-modal-donut-liq', 'yael-modal-donut-liq-legend', liqDefs, liqTotal);
 }
 
 function invSetView(mode) {
@@ -1248,6 +1181,8 @@ function loadNotesFromExcel(workbook) {
     const iNet    = headers.indexOf('נטו');
     const iAmount = headers.indexOf('סכום');
     const iLink   = headers.indexOf('קישור');
+    // v97.2: owner column for notes filtering
+    const iOwner  = headers.findIndex(function(h){ return h && (String(h).includes('שייכות ההערה') || String(h) === 'שייכות'); });
 
     const excelNotes = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -1287,7 +1222,8 @@ function loadNotesFromExcel(workbook) {
         title: r[iTitle] || '',
         fields,
         link: r[iLink] || null,
-        linkLabel: r[iLink] ? 'מסמך רפרנס' : null
+        linkLabel: r[iLink] ? 'מסמך רפרנס' : null,
+        owner: iOwner >= 0 ? (r[iOwner] ? String(r[iOwner]).trim() : '') : '' // v97.2: 'רועי'/'יעל'/''
       });
     }
     if (excelNotes.length === 0) return;
@@ -1332,14 +1268,23 @@ function closeNotes() {
 
 function renderNotesList() {
   const list = document.getElementById('notes-list');
-  if (NOTES.length === 0) {
-    list.innerHTML = '<p style="color:#888; text-align:center; padding:20px;">אין הערות עדיין</p>';
+
+  // v97.2: filter by current view mode
+  const filtered = NOTES.filter(function(n) {
+    if (invViewMode === 'all') return true;
+    if (invViewMode === 'yael') return n.owner === 'יעל';
+    // roee: show notes with owner='רועי' OR owner='' (legacy notes without owner field)
+    return !n.owner || n.owner === 'רועי';
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<p style="color:#888; text-align:center; padding:20px;">אין הערות להצגה</p>';
     return;
   }
 
   // Table headers based on note type columns
   const colHeaders = ['קישור','תמורה נטו','מס','סכום כולל','פירוט','אירוע','תאריך',''];
-  
+
   let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:13px; font-family:Heebo,sans-serif;" dir="rtl">';
   // Header row
   tableHtml += '<thead><tr style="border-bottom:2px solid #1a1a2e;">';
@@ -1349,7 +1294,7 @@ function renderNotesList() {
   tableHtml += '</tr></thead><tbody>';
 
   // Data rows (newest first)
-  NOTES.forEach((n, i) => {
+  filtered.forEach((n, i) => {
     const color = NOTE_TYPE_COLOR[n.type] || '#64748b';
     const bg = i % 2 === 0 ? '#f9fafb' : 'white';
     const gross = n.fields.find(f => f.label === 'סכום כולל בפוליסה');
