@@ -211,8 +211,7 @@ function getWindow(data) {
 }
 
 const ctx = document.getElementById('mainChart').getContext('2d');
-let currentData = [];
-var chartUserSelected = false; // v96.2: גרף מוצג רק לאחר בחירה אקטיבית של המשתמש
+let currentData = ALL_TOTALS;
 
 // Gradient fill helper
 function makeGradient(chartCtx, colorStr) {
@@ -229,10 +228,10 @@ function makeGradient(chartCtx, colorStr) {
 let chart = new Chart(ctx, {
   type: 'line',
   data: {
-    labels: [],
+    labels: getWindow(ALL_TOTALS).labels,
     datasets: [{
       label: 'סה״״כ',
-      data: [],
+      data: getWindow(ALL_TOTALS).data,
       borderColor: '#2563eb',
       backgroundColor: makeGradient(ctx, '#2563eb'),
       borderWidth: 2,
@@ -367,19 +366,13 @@ function updateDynamicStats() {
   const startIdx = winStart;
   const startLabel = LABELS[startIdx];
 
-  // v96.2: נכסים שלא היו קיימים בתחילת החלון (startIdx=0) הם הפקדות הוניות — מוחרגים מחישוב התשואה
-  const grandMeasured = cats.reduce((s,c) => {
-    if (noPctCats.includes(c)) return s;
-    const excl = EXCLUDE_FROM_PCT[c]||[];
-    return s + Object.entries(FUNDS)
-      .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0 && (f.data[startIdx]||0)>0 && invFilter(f))
-      .reduce((a,[,f])=>a+(f.data[endIdx]||0),0);
-  }, 0);
+  const grandMeasured = cats.reduce((s,c) => noPctCats.includes(c) ? s : s + catMeasured[c], 0);
   const grandMeasuredStart = cats.reduce((s,c) => {
     if(noPctCats.includes(c)) return s;
     const excl = EXCLUDE_FROM_PCT[c]||[];
+    // Only include funds active (>0) at endIdx in the base calculation
     return s + Object.entries(FUNDS)
-      .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0 && (f.data[startIdx]||0)>0 && invFilter(f))
+      .filter(([k,f])=>f.cat===c && !excl.includes(k) && (f.data[endIdx]||0)>0 && invFilter(f))
       .reduce((a,[,f])=>a+(f.data[startIdx]||0),0);
   }, 0);
 const grandBase0 = cats.reduce((s,c) => {
@@ -762,9 +755,6 @@ function hoverFund(fundKey, color) {
 }
 
 function selectView(cat) {
-  chartUserSelected = true;
-  var ep = document.getElementById('chart-empty-msg');
-  if (ep) ep.style.display = 'none';
   currentFund = null;
   updateActiveTags(null);
   currentView = cat;
@@ -788,9 +778,6 @@ function selectView(cat) {
 
 
 function selectFund(fundKey, color) {
-  chartUserSelected = true;
-  var ep = document.getElementById('chart-empty-msg');
-  if (ep) ep.style.display = 'none';
   const fund = FUNDS[fundKey];
   if (!fund) return;
 
@@ -1282,8 +1269,12 @@ if (loadFromLocalStorage()) {
     if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
   });
   updateTableCells();
-  // v96.2: עדכן נתונים ללא הצגת גרף — גרף יוצג רק לאחר בחירה אקטיבית
+  // Refresh chart with loaded data
   currentData = ALL_TOTALS;
+  const w = getWindow(ALL_TOTALS);
+  chart.data.labels = w.labels;
+  chart.data.datasets[0].data = w.data;
+  chart.update();
 }
 loadNotesFromStorage();
 document.getElementById('card-all').classList.add('active');
@@ -2485,8 +2476,9 @@ function loadExcelFileCore(wb) {
       // Rebuild chart totals (excludes sold funds)
       CAT_CHART_TOTALS = buildCatChartTotals();
 
-      // Refresh chart with updated data — v96.2: רק אם המשתמש כבר בחר קטגוריה
-      if (chartUserSelected && currentView && currentView !== 'all') selectView(currentView);
+      // Refresh chart with updated data
+      if (currentView && currentView !== 'all') selectView(currentView);
+      else selectView('all');
 
       // Read Notes sheet if exists
       loadNotesFromExcel(wb);
@@ -2499,6 +2491,7 @@ function loadExcelFileCore(wb) {
 
       // Refresh UI – reset currentData so chart picks up new arrays
       currentData = (currentView === 'all' || !currentView) ? ALL_TOTALS : (CAT_TOTALS[currentView] || ALL_TOTALS);
+      selectView(currentView || 'all');
       updateNavButtons();
       
       status.textContent = '✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים';
