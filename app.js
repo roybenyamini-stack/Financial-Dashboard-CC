@@ -38,7 +38,7 @@ const FUNDS = {
 };
 
 const CAT_COLORS = { mezuman:'#0891b2', chov:'#94a3b8', arbitrage:'#0d9488', dira:'#a8a29e', hishtalmut:'#fca5a5', gemel:'#fcd34d', gemel_invest:'#6ee7b7', harel:'#fde68a', meitav:'#c4b5fd', all:'#2563eb' };
-const CAT_NAMES  = { mezuman:'מזומן', chov:'חוב', arbitrage:'ארביטראז׳ ואליו', dira:'דירה', hishtalmut:'קרנות השתלמות', gemel:'קופות גמל', gemel_invest:'גמל להשקעה', harel:'הראל', meitav:'מיטב', all:'סה״כ כל הקטגוריות' };
+const CAT_NAMES  = { mezuman:'מזומן', chov:'חוב', arbitrage:'ארביטראז׳ ואליו', dira:'דירה', hishtalmut:'קרנות השתלמות', gemel:'קופות גמל', gemel_invest:'גמל להשקעה', harel:'פוליסות חיסכון', meitav:'מיטב', all:'סה״כ כל הקטגוריות' };
 const FUND_COLORS = {
   'מזומןשקלי': '#0891b2',
   'מזומןדולרי': '#0891b2',
@@ -108,13 +108,9 @@ function invSetView(mode) {
                (mode === 'yael' && owner === 'yael');
     row.style.display = show ? '' : 'none';
   });
-  // יעל mode: rename הראל card/section → פוליסות חיסכון, hide irrelevant cards/sections
+  // v96.6: "פוליסות חיסכון" is the unified name for 'harel' category across all views
   var yaelOnlyCats = ['mezuman','meitav','arbitrage','dira','chov'];
-  var harelCardTitle = document.getElementById('harel-card-label');
-  var harelSecTitle  = document.getElementById('harel-sec-name');
   if (mode === 'yael') {
-    if (harelCardTitle) harelCardTitle.textContent = 'פוליסות חיסכון';
-    if (harelSecTitle)  harelSecTitle.textContent  = 'פוליסות חיסכון';
     yaelOnlyCats.forEach(function(cat) {
       var card = document.getElementById('card-' + cat);
       var sec  = document.getElementById('sec-'  + cat);
@@ -122,8 +118,6 @@ function invSetView(mode) {
       if (sec)  sec.style.display  = 'none';
     });
   } else {
-    if (harelCardTitle) harelCardTitle.textContent = 'הראל';
-    if (harelSecTitle)  harelSecTitle.textContent  = 'הראל';
     yaelOnlyCats.forEach(function(cat) {
       var card = document.getElementById('card-' + cat);
       var sec  = document.getElementById('sec-'  + cat);
