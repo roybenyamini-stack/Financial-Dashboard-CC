@@ -2645,6 +2645,9 @@ function openCharts() {
   var m = document.getElementById('charts-modal');
   m.style.display = 'flex';
 
+  // v97.4: reset any previously expanded cards on each open
+  document.querySelectorAll('.ch-card').forEach(function(c){ c.classList.remove('expanded'); });
+
   // v97.1: show/hide sections based on view mode
   var roeeSec = document.getElementById('roee-charts-section');
   var yaelSec = document.getElementById('yael-charts-section');
