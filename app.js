@@ -1269,6 +1269,10 @@ if (loadFromLocalStorage()) {
     if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
   });
   updateTableCells();
+  // v96.4: rebuild chart series + card stats from restored data (CAT_CHART_TOTALS was built before data loaded)
+  rebuildInvTotals();
+  CAT_CHART_TOTALS = buildCatChartTotals();
+  updateDynamicStats();
   // Refresh chart with loaded data
   currentData = ALL_TOTALS;
   const w = getWindow(ALL_TOTALS);
