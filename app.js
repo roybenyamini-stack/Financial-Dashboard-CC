@@ -4095,10 +4095,17 @@ function cfRenderKPI() {
   detailEl.innerHTML = h;
 }
 
+// v98.3: סניטציה — מונע null/undefined/NaN שגורמים לציר Y להתאפס
+function cfSafeArr(arr) {
+  return arr.map(function(v) { var n = Number(v); return (v === null || v === undefined || isNaN(n)) ? 0 : n; });
+}
+
 function cfRenderChart() {
   var COL_W   = 80;
   var YAXIS_W = 50;  // רוחב ציר Y — חייב להתאים ל-YAXIS_W ב-cfRenderTable
   var months = cfGetDisplayMonths();
+  // v98.3: guard — אל תנסה לרנדר בלי נתונים
+  if (!months || months.length === 0) return;
   // תוויות מקוצרות רק לגרף — ינו׳ 25, פבר׳ 26 וכו׳
   CF_CHART_MONTHS = months; // v22.0: שמור לשימוש ב-onClick
   var labels = months.map(function(m){ return CF_HEB_MONTHS_ABBR[m.month-1] + ' ' + String(m.year).slice(2); });
@@ -4108,21 +4115,25 @@ function cfRenderChart() {
   var CHART_H = 242;
   var wrap = document.getElementById('cf-chart-wrap');
   if (wrap) {
-    wrap.style.width    = chartW + 'px';
-    wrap.style.minWidth = chartW + 'px';
-    wrap.style.maxWidth = chartW + 'px';
-    wrap.style.height   = CHART_H + 'px';
-    wrap.style.flex     = 'none';
+    wrap.style.width     = chartW + 'px';
+    wrap.style.minWidth  = chartW + 'px';
+    wrap.style.maxWidth  = chartW + 'px';
+    wrap.style.height    = CHART_H + 'px';
+    wrap.style.minHeight = CHART_H + 'px'; // v98.3: מניעת קריסת גובה
+    wrap.style.flex      = 'none';
   }
 
-  var ctx = document.getElementById('cf-chart');
-  if (!ctx) return;
-  // v97.6: מימדים מפורשים על ה-Canvas — מונע קריסת ResizeObserver כשפאנל התחזית נפתח
-  ctx.style.width  = chartW + 'px';
-  ctx.style.height = CHART_H + 'px';
+  // v98.3: Canvas Re-mount — החלפה פיזית של האלמנט (שקוילנט של React key prop)
+  // מונע state שבור שנשאר על Canvas ישן לאחר destroy
+  if (cfChartInstance) { cfChartInstance.destroy(); cfChartInstance = null; }
+  var oldCtx = document.getElementById('cf-chart');
+  if (!oldCtx) return;
+  var ctx = document.createElement('canvas');
+  ctx.id = 'cf-chart';
+  ctx.style.cssText = 'display:block;width:' + chartW + 'px;height:' + CHART_H + 'px;';
   ctx.width  = chartW;
   ctx.height = CHART_H;
-  if (cfChartInstance) { cfChartInstance.destroy(); cfChartInstance = null; }
+  oldCtx.parentNode.replaceChild(ctx, oldCtx);
 
   var datasets;
   var isMonthly = cfCurrentView === 'monthly';
@@ -4140,10 +4151,10 @@ function cfRenderChart() {
       expCharig.push(charigV);
     });
     datasets = [
-      { label:'הכנסות', data:months.map(function(m){ return cfCalcIncome(m.rows); }), backgroundColor:'rgba(34,197,94,0.85)',  borderRadius:4, stack:'income' },
-      { label:'שוטף',  data:expShoter, backgroundColor:'rgba(239,68,68,0.85)',  borderRadius:0, stack:'exp' },
-      { label:'יותם',  data:expYotam,  backgroundColor:'rgba(249,115,22,0.85)', borderRadius:0, stack:'exp' },
-      { label:'חריג',  data:expCharig, backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
+      { label:'הכנסות', data:cfSafeArr(months.map(function(m){ return cfCalcIncome(m.rows); })), backgroundColor:'rgba(34,197,94,0.85)',  borderRadius:4, stack:'income' },
+      { label:'שוטף',  data:cfSafeArr(expShoter), backgroundColor:'rgba(239,68,68,0.85)',  borderRadius:0, stack:'exp' },
+      { label:'יותם',  data:cfSafeArr(expYotam),  backgroundColor:'rgba(249,115,22,0.85)', borderRadius:0, stack:'exp' },
+      { label:'חריג',  data:cfSafeArr(expCharig), backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
     ];
   } else {
     // ytd: מצטבר לפי cfGetNetVal (total_income - total_exp)
@@ -4153,9 +4164,10 @@ function cfRenderChart() {
       s += (v !== null ? v : 0);
       cum.push(s);
     });
+    var safeCum = cfSafeArr(cum);
     datasets = [{
-      label:'מצטבר', data:cum,
-      backgroundColor:cum.map(function(v){ return v>=0?'rgba(34,197,94,0.85)':'rgba(239,68,68,0.85)'; }),
+      label:'מצטבר', data:safeCum,
+      backgroundColor:safeCum.map(function(v){ return v>=0?'rgba(34,197,94,0.85)':'rgba(239,68,68,0.85)'; }),
       borderRadius:3,
       maxBarThickness: 34  // v23.0: אחיד עם רוחב עמודות בגרף חודשי
     }];

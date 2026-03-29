@@ -1,9 +1,16 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v98.2 — כותרת דינמית "רווח"/"הפסד" ב-Header KPI (29/03/2026).
+גרסה v98.3 — חבילת הגנות נגד קריסות אקראיות של גרף התזרים (29/03/2026).
 
 ## שינויים אחרונים (29/03/2026)
+
+### v98.3 – Chart Crash Protection
+- **`cfSafeArr()`**: פונקציה חדשה — ממפה כל ערך בנתוני הגרף, null/undefined/NaN → 0 לפני העברה ל-Chart.js
+- **Canvas Re-mount**: `cfRenderChart()` מחליף פיזית את אלמנט ה-`<canvas>` (`replaceChild`) בכל קריאה — שקוילנט Vanilla JS של React `key` prop, מונע state שבור
+- **min-height קשיח**: `cf-chart-wrap` מקבל `min-height:242px` גם ב-HTML (סטטי) וגם ב-JS — מניעת קריסת Container לגובה 0
+- **Empty guard**: `cfRenderChart()` מחזיר מיידית אם `months.length === 0` — מניעת Chart ריק
+- שינויים: `index.html` (min-height + גרסה), `app.js` (cfSafeArr + cfRenderChart)
 
 ### v98.2 – Dynamic P&L Header Label
 - `id="cf-hdr-pl-label"` נוסף לתווית ב-`index.html`

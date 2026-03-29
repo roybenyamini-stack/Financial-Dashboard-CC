@@ -1,4 +1,4 @@
-<!-- v98.2 -->
+<!-- v98.3 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v98.2</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v98.3</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -858,7 +858,7 @@
       <div id="cf-inner-wrap" style="position:relative;display:inline-block;">
 
         <!-- Chart canvas — width set precisely by JS (includes Y axis width) -->
-        <div id="cf-chart-wrap" style="height:242px;overflow:hidden;" dir="ltr">
+        <div id="cf-chart-wrap" style="height:242px;min-height:242px;overflow:hidden;" dir="ltr">
           <canvas id="cf-chart" style="display:block;height:100%;"></canvas>
         </div>
 
