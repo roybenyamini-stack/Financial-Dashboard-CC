@@ -4435,7 +4435,7 @@ function cfRenderSummary() {
     ytdTotUsd  += m.rows.total_usd  && m.rows.total_usd.val  != null ? m.rows.total_usd.val  : 0;
     ytdMonths++;
   });
-  var ytdNetCol    = ytdNet    >= 0 ? '#4ade80' : '#f87171';
+  var ytdNetCol    = ytdNet    >= 0 ? '#60a5fa' : '#f87171'; // v97.7: תכלת = צבע נטו ראשי (כמו Header KPI)
   var ytdTotUsdCol = ytdTotUsd >= 0 ? '#a5b4fc' : '#fca5a5';
   var ytdRange = (selM && ytdMonths > 1) ? '\u05d9\u05e0\u05d5\u02b9\u2013' + selM.label : (selM ? selM.label : String(displayYear));
 
@@ -4450,7 +4450,7 @@ function cfRenderSummary() {
     annExpUsd += m.rows.exp_usd    && m.rows.exp_usd.val    != null ? m.rows.exp_usd.val    : 0;
     annTotUsd += m.rows.total_usd  && m.rows.total_usd.val  != null ? m.rows.total_usd.val  : 0;
   });
-  var annNetCol    = annNet    >= 0 ? '#4ade80' : '#f87171';
+  var annNetCol    = annNet    >= 0 ? '#60a5fa' : '#f87171'; // v97.7: תכלת = צבע נטו ראשי (כמו Header KPI)
   var annTotUsdCol = annTotUsd >= 0 ? '#a5b4fc' : '#fca5a5';
 
   // ללא ₪; מינוס רק לנטו שלילי; הוצאות מועברות כ-Math.abs
