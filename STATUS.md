@@ -1,9 +1,15 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v97.6 — מסך כניסה עם סיסמה מוצפנת (28/03/2026).
+גרסה v97.6 — בידוד גרף תזרים מכפתור התחזית (28/03/2026).
 
 ## שינויים אחרונים (28/03/2026)
+
+### v97.6 – Cash Flow Chart Isolation
+- **ניתוק תלות גרף/תחזית**: `responsive: false` ב-Chart.js — הגרף לא מגיב לשינויי DOM חיצוניים
+- **מימדים מפורשים**: Canvas מקבל `width`/`height` מפורשים לפני יצירה — מונע קריסת ResizeObserver
+- **ציור מחדש בטוח**: `cfToggleForecast()` מפעיל `setTimeout(cfRenderChart,0)` — הגרף משוחזר עם הנתונים ההיסטוריים לאחר שהלייאאוט מסתדר
+- שינויים: `app.js` (cfRenderChart + cfToggleForecast)
 
 ### v97.6 – Login Security
 - נוסף מסך כניסה עם סיסמה (SHA-256 via Web Crypto API)
