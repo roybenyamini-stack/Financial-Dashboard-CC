@@ -4085,16 +4085,23 @@ function cfRenderChart() {
   var chartW = months.length * COL_W + YAXIS_W;
 
   // קבע רוחב מדויק למניעת מתיחת עמודות
+  var CHART_H = 242;
   var wrap = document.getElementById('cf-chart-wrap');
   if (wrap) {
     wrap.style.width    = chartW + 'px';
     wrap.style.minWidth = chartW + 'px';
     wrap.style.maxWidth = chartW + 'px';
+    wrap.style.height   = CHART_H + 'px';
     wrap.style.flex     = 'none';
   }
 
   var ctx = document.getElementById('cf-chart');
   if (!ctx) return;
+  // v97.6: מימדים מפורשים על ה-Canvas — מונע קריסת ResizeObserver כשפאנל התחזית נפתח
+  ctx.style.width  = chartW + 'px';
+  ctx.style.height = CHART_H + 'px';
+  ctx.width  = chartW;
+  ctx.height = CHART_H;
   if (cfChartInstance) { cfChartInstance.destroy(); cfChartInstance = null; }
 
   var datasets;
@@ -4138,7 +4145,7 @@ function cfRenderChart() {
     type: 'bar',
     data: { labels:labels, datasets:datasets },
     options: {
-      responsive: true,
+      responsive: false,
       maintainAspectRatio: false,
       animation: false,
       layout: { padding:{ top:8, bottom:0, left:0, right:0 } },
@@ -4521,6 +4528,8 @@ function cfToggleForecast() {
   var btn = document.getElementById('cf-forecast-btn');
   if (btn) btn.textContent = isOpen ? '🔮 הצג תחזית' : '🔮 הסתר תחזית';
   if (!isOpen) cfRenderForecast();
+  // v97.6: צייר מחדש את הגרף לאחר שינוי הלייאאוט — מונע ציר Y מתאפס
+  setTimeout(cfRenderChart, 0);
 }
 
 function cfRenderForecast() {
