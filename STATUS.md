@@ -1,9 +1,16 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v98.4 — ארגון Top-Down + כותרות מקטע + קו תחזית בגרף (29/03/2026).
+גרסה v98.5 — Soft Matching לעמודת "סיכומים" בפארסר (29/03/2026).
 
 ## שינויים אחרונים (29/03/2026)
+
+### v98.5 – Soft Matching לעמודת "סיכומים" (Robust Parser)
+- **שורש הבעיה**: `colHeaderRaw.trim().toLowerCase()` לא מנקה תווי Unicode בלתי נראים (`\u200F` RTL mark, `\u00A0` non-breaking space וכו') שExcel מוסיף לתאי עברית — גורם ל-indexOf('סיכומים') להיכשל
+- **תיקון**: בדיקת כותרת העמודה מחיל עכשיו `aggressiveClean(String(...))` + `normalizeForCompare()` — אותה שרשרת ניקוי שמשמשת לתוויות שורה
+- שינוי נוסף: `typeof === 'string'` הוחלף ב-`!= null` + `String()` — עמודות עם כותרות לא-string (תאריך, מספר) מטופלות גם הן
+- **ניקוי ערכים**: `parseFloat` מקבל `.trim()` נוסף — מנקה רווחים שנשארו אחרי replace
+- שינויים: `app.js` (cfParseWorkbook — פונקציית parseSheet), `index.html` (גרסה)
 
 ### v98.4 – Top-Down Layout + Micro-labels + Forecast Line
 - **סדר חדש**: cf-cards-row (סיכום חודשי) עולה מעל cf-detail-row (פירוט תנועות)

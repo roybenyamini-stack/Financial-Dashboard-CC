@@ -2085,9 +2085,12 @@ function cfParseWorkbook(wb) {
     var seenMonths = {};
     for (var col = 0; col <= maxCol; col++) {
       var colHeaderRaw = cellVal(ws, HEADER_ROW, col);
-      if (colHeaderRaw && typeof colHeaderRaw === 'string') {
-        var colHeaderLower = colHeaderRaw.trim().toLowerCase();
-        if (colHeaderLower.indexOf('סיכומים') >= 0 || colHeaderLower.indexOf('summary') >= 0 || colHeaderLower.indexOf('סיכום') >= 0) {
+      // v98.5: Soft matching — מחיל את אותה שרשרת ניקוי שמשמשת לתוויות שורה
+      // (aggressiveClean + normalizeForCompare) כדי לטפל בתווי Unicode בלתי נראים
+      // שExcel מוסיף לתאי טקסט עבריים (RTL marks, non-breaking spaces וכו')
+      if (colHeaderRaw != null) {
+        var colHeaderNorm = normalizeForCompare(aggressiveClean(String(colHeaderRaw))).toLowerCase();
+        if (colHeaderNorm.indexOf('סיכומים') >= 0 || colHeaderNorm.indexOf('summary') >= 0 || colHeaderNorm.indexOf('סיכום') >= 0) {
           // v47.0: סריקת תוויות ישירה לעמודת סיכומים — לא תלויה ב-ROW_MAP
           // v48.0: Data Locking — משיכה ישירה מעמודת סיכומים לפי תוויות מדויקות
           var FC_LABELS = {
@@ -2125,7 +2128,8 @@ function cfParseWorkbook(wb) {
                   var fval = cellVal(ws, sr, col);
                   var fnum = null;
                   if (fval !== null && fval !== undefined) {
-                    var fp = typeof fval === 'number' ? fval : parseFloat(String(fval).replace(/,/g, ''));
+                    // v98.5: הוסף trim לפני parseFloat — מנקה רווחי Unicode שנשארו אחרי aggressiveClean
+                    var fp = typeof fval === 'number' ? fval : parseFloat(String(fval).replace(/,/g, '').trim());
                     if (!isNaN(fp)) fnum = Math.round(fp * 10) / 10;
                   }
                   if (isLast) {
