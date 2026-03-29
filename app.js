@@ -3944,6 +3944,7 @@ function cfUpdateHeader() {
   var elNetLabel = document.getElementById('cf-hdr-net-label');
   var elInc = document.getElementById('cf-hdr-income');
   var elExp = document.getElementById('cf-hdr-exp');
+  var elPL  = document.getElementById('cf-hdr-pl');
 
   // v45.0: label קבוע + כחול תמיד
   if(elNet){ elNet.textContent = Math.round(net).toLocaleString(); elNet.className = 'stat-value'; elNet.style.color = '#60a5fa'; }
@@ -3951,6 +3952,18 @@ function cfUpdateHeader() {
   if(elNetLabel) elNetLabel.textContent = 'תזרים שקלי נטו';
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
+  // v98.1: רווח או הפסד — כחול=חיובי | בורדו=שלילי | אפור=0
+  if (elPL) {
+    var plVal = (m.rows.profit_loss && m.rows.profit_loss.val != null) ? m.rows.profit_loss.val : null;
+    elPL.className = 'stat-value';
+    if (plVal === null) {
+      elPL.textContent = '—';
+      elPL.style.color = '';
+    } else {
+      elPL.textContent = Math.round(plVal).toLocaleString();
+      elPL.style.color = plVal > 0 ? '#4169e1' : plVal < 0 ? '#c0394e' : '#9ca3af';
+    }
+  }
 
   // v27.0: כותרת חכמה — לבן=נוכחי | צהוב=עבר | אדום=עתיד
   var subtitle = document.getElementById('hdr-subtitle');
@@ -4323,6 +4336,8 @@ function cfRenderTable() {
       if (isTot) {
         if      (bl==='income')   vc='#16a34a';
         else if (bl==='expenses') vc='#dc2626';
+        else if (row.key==='profit_loss') // v98.1: כחול=חיובי | בורדו=שלילי | אפור=0
+          vc = val!==null&&val>0?'#4169e1':val!==null&&val<0?'#c0394e':'#9ca3af';
         else if (bl==='cashflow'||bl==='summary'||bl==='dollar')
           vc = val!==null&&val>0?'#16a34a':val!==null&&val<0?'#dc2626':'#9ca3af';
       } else {
