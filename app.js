@@ -3952,16 +3952,23 @@ function cfUpdateHeader() {
   if(elNetLabel) elNetLabel.textContent = 'תזרים שקלי נטו';
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
-  // v98.1: רווח או הפסד — כחול=חיובי | בורדו=שלילי | אפור=0
+  // v98.1/v98.2: רווח או הפסד — כותרת + צבע דינמיים
   if (elPL) {
     var plVal = (m.rows.profit_loss && m.rows.profit_loss.val != null) ? m.rows.profit_loss.val : null;
+    var elPLLabel = document.getElementById('cf-hdr-pl-label');
     elPL.className = 'stat-value';
     if (plVal === null) {
       elPL.textContent = '—';
       elPL.style.color = '';
+      if (elPLLabel) elPLLabel.textContent = 'רווח או הפסד';
+    } else if (plVal < 0) {
+      elPL.textContent = Math.round(plVal).toLocaleString();
+      elPL.style.color = '#c0394e'; // בורדו
+      if (elPLLabel) elPLLabel.textContent = 'הפסד';
     } else {
       elPL.textContent = Math.round(plVal).toLocaleString();
-      elPL.style.color = plVal > 0 ? '#4169e1' : plVal < 0 ? '#c0394e' : '#9ca3af';
+      elPL.style.color = '#4169e1'; // Royal Blue
+      if (elPLLabel) elPLLabel.textContent = 'רווח';
     }
   }
 
