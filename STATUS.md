@@ -1,9 +1,14 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v98.5 — Soft Matching לעמודת "סיכומים" בפארסר (29/03/2026).
+גרסה v98.6 — עדכון טקסטים ואחידות עיצוב לכותרות המקטעים (29/03/2026).
 
 ## שינויים אחרונים (29/03/2026)
+
+### v98.6 – Micro-copy & CSS Consistency
+- **"מבט מצטבר"** → **"תחזית שנתית ומצטבר"** (`index.html`, תווית סטטית)
+- **"🔮 תחזית שנתית — עמודת סיכומים"** → **"פירוט תחזית שנתית"** (`app.js`, cfRenderForecast) — הוסרו: אמוג'י, `color:#8b5cf6`, `font-weight:700`, `margin-bottom:10px`; הוחל עיצוב זהה לשאר התוויות: `font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px`
+- שינויים: `index.html` (כותרת + גרסה), `app.js` (cfRenderForecast)
 
 ### v98.5 – Soft Matching לעמודת "סיכומים" (Robust Parser)
 - **שורש הבעיה**: `colHeaderRaw.trim().toLowerCase()` לא מנקה תווי Unicode בלתי נראים (`\u200F` RTL mark, `\u00A0` non-breaking space וכו') שExcel מוסיף לתאי עברית — גורם ל-indexOf('סיכומים') להיכשל
