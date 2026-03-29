@@ -1,9 +1,17 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v98.3 — חבילת הגנות נגד קריסות אקראיות של גרף התזרים (29/03/2026).
+גרסה v98.4 — ארגון Top-Down + כותרות מקטע + קו תחזית בגרף (29/03/2026).
 
 ## שינויים אחרונים (29/03/2026)
+
+### v98.4 – Top-Down Layout + Micro-labels + Forecast Line
+- **סדר חדש**: cf-cards-row (סיכום חודשי) עולה מעל cf-detail-row (פירוט תנועות)
+- **כותרות מקטע**: 3 תוויות `font-size:10px color:#94a3b8` — "סיכום חודשי" / "פירוט תנועות" / "מבט מצטבר"
+- **"סיכום חודשי"** (`id=cf-label-summary-month`): מוסתר/מוצג יחד עם cf-cards-row בכל הפונקציות הרלוונטיות
+- **padding תחתון**: הצומצם מ-40px ל-16px למניעת scroll
+- **קו הפרדה בגרף** (`cfForecastDividerPlugin`): קו אנכי מקווקו (4px dash) לאחר החודש הנוכחי (`CF_CURRENT_MONTH_ID`) — הפרדת עבר/עתיד
+- שינויים: `index.html` (מבנה + גרסה), `app.js` (cfUpdateCFCards + cfShowNoData + tab switching + cfRenderChart plugin)
 
 ### v98.3 – Chart Crash Protection
 - **`cfSafeArr()`**: פונקציה חדשה — ממפה כל ערך בנתוני הגרף, null/undefined/NaN → 0 לפני העברה ל-Chart.js

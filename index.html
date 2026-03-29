@@ -1,4 +1,4 @@
-<!-- v98.3 -->
+<!-- v98.4 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v98.3</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v98.4</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -813,20 +813,29 @@
 </div>
 <div class="tab-panel" id="tab-overview"><div class="tab-coming-soon"><div class="tcs-icon">🗺️</div><div class="tcs-text">מבט על</div><div class="tcs-sub">בבנייה...</div></div></div>
 <div class="tab-panel active" id="tab-cashflow">
-<div style="padding:16px 20px 40px 20px; font-family:Heebo,sans-serif; direction:rtl;">
+<div style="padding:16px 20px 16px 20px; font-family:Heebo,sans-serif; direction:rtl;">
 
   <!-- KPI placeholder (used as guard in cfInit) -->
   <div id="cf-kpi-row" style="display:none;"></div>
 
-  <!-- v56.0: Layout order: dark chips → light chips → summary bar → forecast → chart -->
+  <!-- v98.4: Layout order: summary → detail → cumulative bar → forecast → chart -->
 
-  <!-- Row 1: Dark Chips — פירוט חודשי -->
-  <div id="cf-detail-row" style="margin-bottom:12px;"></div>
+  <!-- Micro-label: סיכום חודשי (visibility controlled by cfUpdateCFCards) -->
+  <div id="cf-label-summary-month" style="display:none;font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">סיכום חודשי</div>
 
-  <!-- Row 2: White Cards — כרטיסיות לבנות -->
-  <div id="cf-cards-row" style="display:none;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:12px;" class="cards-row"></div>
+  <!-- Row 1: White Cards — כרטיסיות לבנות (סיכום) -->
+  <div id="cf-cards-row" style="display:none;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:8px;" class="cards-row"></div>
 
-  <!-- Row 3: Summary Bar — YTD ושנתי (ירד מטה, מעל הגרף) -->
+  <!-- Micro-label: פירוט תנועות (static) -->
+  <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">פירוט תנועות</div>
+
+  <!-- Row 2: Dark Chips — פירוט חודשי -->
+  <div id="cf-detail-row" style="margin-bottom:8px;"></div>
+
+  <!-- Micro-label: מבט מצטבר (static) -->
+  <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">מבט מצטבר</div>
+
+  <!-- Row 3: Summary Bar — YTD ושנתי (מעל הגרף) -->
   <div id="cf-summary-row" style="margin-bottom:8px;direction:rtl;"></div>
 
   <!-- Forecast Container (hidden by default) — button rendered inside cf-summary-row by JS -->

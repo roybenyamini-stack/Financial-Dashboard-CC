@@ -4040,9 +4040,12 @@ function cfUpdateCFCards() {
     html += '<div style="font-size:11px;color:#9ca3af;">'+m.label+'</div>';
     html += '</div>';
   });
-  // v35: הצג container כשיש תוכן
-  container.style.display = html.trim() ? 'grid' : 'none';
+  // v35: הצג container כשיש תוכן; v98.4: גם תווית הסעיף
+  var _hasCards = !!html.trim();
+  container.style.display = _hasCards ? 'grid' : 'none';
   container.innerHTML = html;
+  var _lbl = document.getElementById('cf-label-summary-month');
+  if (_lbl) _lbl.style.display = _hasCards ? 'block' : 'none';
 }
 
 // v27.0: cfRenderKPI — שורה אחת, ללא כותרות, overflow-x:auto
@@ -4173,9 +4176,46 @@ function cfRenderChart() {
     }];
   }
 
+  // v98.4: Plugin — קו הפרדה מקווקו בין חודש נוכחי לחודשים הבאים
+  var cfForecastDividerPlugin = {
+    id: 'cfForecastDivider',
+    afterDraw: function(chart) {
+      var currentIdx = -1;
+      for (var _pi = 0; _pi < CF_CHART_MONTHS.length; _pi++) {
+        if (CF_CHART_MONTHS[_pi].monthId === CF_CURRENT_MONTH_ID) { currentIdx = _pi; break; }
+      }
+      if (currentIdx < 0) return;
+      var xScale = chart.scales.x;
+      var x;
+      if (currentIdx < CF_CHART_MONTHS.length - 1) {
+        var _x1 = xScale.getPixelForValue(currentIdx);
+        var _x2 = xScale.getPixelForValue(currentIdx + 1);
+        x = (_x1 + _x2) / 2;
+      } else {
+        // קו בקצה הימני של העמודה האחרונה
+        var _bw = CF_CHART_MONTHS.length > 1
+          ? xScale.getPixelForValue(1) - xScale.getPixelForValue(0)
+          : 40;
+        x = xScale.getPixelForValue(currentIdx) + _bw / 2;
+      }
+      var _ctx2 = chart.ctx;
+      _ctx2.save();
+      _ctx2.beginPath();
+      _ctx2.setLineDash([4, 4]);
+      _ctx2.strokeStyle = 'rgba(255,255,255,0.28)';
+      _ctx2.lineWidth = 1.5;
+      _ctx2.moveTo(x, chart.chartArea.top);
+      _ctx2.lineTo(x, chart.chartArea.bottom);
+      _ctx2.stroke();
+      _ctx2.setLineDash([]);
+      _ctx2.restore();
+    }
+  };
+
   cfChartInstance = new Chart(ctx, {
     type: 'bar',
     data: { labels:labels, datasets:datasets },
+    plugins: [cfForecastDividerPlugin],
     options: {
       responsive: false,
       maintainAspectRatio: false,
@@ -4403,9 +4443,11 @@ function cfShowNoData() {
     '<span style="font-size:19px;font-weight:800;color:#d1d5db;margin-top:2px;">0</span>' +
     '</div></div></div>';
 
-  // Row 3 (cf-cards-row): נקה והסתר
+  // Row 3 (cf-cards-row): נקה והסתר; v98.4: הסתר גם תווית
   var cf = document.getElementById('cf-cards-row');
   if (cf) { cf.innerHTML = ''; cf.style.display = 'none'; }
+  var _lbl0 = document.getElementById('cf-label-summary-month');
+  if (_lbl0) _lbl0.style.display = 'none';
 
   // Summary Bar: מוצג תמיד עם 0 + כפתור תחזית
   var sumRow = document.getElementById('cf-summary-row');
@@ -4703,6 +4745,8 @@ function switchTab(id){
   if(invCards) invCards.style.display = isInv ? '' : 'none';
   var cfCards = document.getElementById('cf-cards-row');
   if(cfCards) cfCards.style.display = isCF ? 'grid' : 'none';
+  var cfLblSM = document.getElementById('cf-label-summary-month');
+  if(cfLblSM) cfLblSM.style.display = isCF ? 'block' : 'none';
 
   // Chart section
   var invChart = document.getElementById('inv-chart-section');
