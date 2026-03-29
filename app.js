@@ -4654,7 +4654,7 @@ function cfRenderForecast() {
 
   // v49.0: שורה אחת רציפה — כרטיסיות תזרים בצד שמאל (spacer דוחף אותן שמאלה)
   var html = '<div style="direction:rtl;">';
-  html += '<div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:0.5px;margin-bottom:10px;">🔮 תחזית שנתית — עמודת סיכומים</div>';
+  html += '<div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">פירוט תחזית שנתית</div>';
 
   // v54.0: 3 גושים: הכנסות | קו | הוצאות | קו | תזרים
   var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
