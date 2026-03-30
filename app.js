@@ -64,7 +64,6 @@ const FUNDS = {
   'מיטבשקלית':   { name:'מיטב קרן כספית', cat:'mezuman', data:[..._Z] },
   // ── יעל ──
   'יעלקהש':        { name:'ק״הש – יעל',         cat:'hishtalmut', owner:'yael', liquidity:'age64',  data:[..._Z] },
-  'יעלקהש2':       { name:'ק״הש 2 – יעל',        cat:'hishtalmut', owner:'yael', liquidity:'age64',  data:[..._Z] },
   'יעלגמל':        { name:'גמל – יעל',           cat:'gemel',      owner:'yael', liquidity:'pension', pensionMonthly:true, data:[..._Z] },
   'יעלגמלהשקעה':   { name:'גמל להשקעה – יעל',    cat:'gemel_invest',owner:'yael', liquidity:'now',   data:[..._Z] },
   'יעלפוליסה':     { name:'פוליסת חיסכון – יעל', cat:'harel',      owner:'yael', liquidity:'now',   data:[..._Z] },
@@ -998,14 +997,19 @@ function invMDShowCat(catId) {
     return;
   }
 
-  // בנה כרטיסיות קרנות
+  // בנה כרטיסיות קרנות — הסתר קרנות ריקות (בפרט ביעל)
   var endIdx = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
   var html = '';
+  var activeFunds = [];
   funds.forEach(function(entry) {
     var key  = entry[0], fund = entry[1];
-    var fc   = (typeof FUND_COLORS !== 'undefined' && FUND_COLORS[key]) ? FUND_COLORS[key] : color;
     var ff   = ffFundData(fund.data);
     var val  = ff[endIdx];
+    // הצג רק קרנות עם נתונים בחלון הנוכחי
+    var hasAnyData = fund.data.some(function(v){ return v !== null && v > 0; });
+    if (!hasAnyData) return;
+    activeFunds.push(entry);
+    var fc   = (typeof FUND_COLORS !== 'undefined' && FUND_COLORS[key]) ? FUND_COLORS[key] : color;
     var disp = (val !== null && val !== undefined && val > 0) ? Math.round(val).toLocaleString() : '—';
     var tags = '';
     if (fund.transferred) tags += ' <span class="note note-equity-sold">הועבר</span>';
@@ -1017,7 +1021,7 @@ function invMDShowCat(catId) {
   });
   fundsRow.innerHTML = html;
 
-  funds.forEach(function(entry) {
+  activeFunds.forEach(function(entry) {
     var key = entry[0];
     var el  = document.getElementById('invmd-fc-' + key);
     if (el) el.addEventListener('click', function() { invMDSelectFund(key); });
@@ -2635,8 +2639,18 @@ function loadExcelFileCore(wb) {
         // Strip Unicode directional/bidi marks, non-breaking spaces, then trim
         return String(v||'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\xa0]/g,'').trim();
       }
+
+      // Map Excel liquidity text → internal code (Yael-only)
+      function parseLiqCode(str) {
+        var s = normCell(str).toLowerCase();
+        if (s.includes('קצבה') || s.includes('pension') || s.includes('פנסיה')) return 'pension';
+        if (s.includes('64') || s.includes('פרישה') || s.includes('גיל')) return 'age64';
+        if (s.includes('נזיל') || s.includes('now') || s.includes('מיידי')) return 'now';
+        return null; // unknown — don't override
+      }
+
       function parseYaelFromSheet(rows) {
-        var ownerColIdx = -1, typeColIdx = 0;
+        var ownerColIdx = -1, typeColIdx = 0, nameColIdx = -1, liqColIdx = -1;
 
         // --- Strategy A: find header row containing "שייכות" or "בעלות" ---
         for (var ri = 0; ri < Math.min(rows.length, 15); ri++) {
@@ -2646,7 +2660,9 @@ function loadExcelFileCore(wb) {
           for (var ci = 0; ci < hrow.length; ci++) {
             var cell = normCell(hrow[ci]);
             if (cell.includes('שייכות') || cell.includes('בעלות')) { ownerColIdx = ci; found = true; }
-            if (cell.includes('קטגוריה') || cell.includes('מוצר') || cell.includes('שם קרן')) typeColIdx = ci;
+            if (cell.includes('קטגוריה') || cell.includes('מוצר')) typeColIdx = ci;
+            if (cell.includes('שם קרן') || cell.includes('שם חברה') || cell === 'שם') nameColIdx = ci;
+            if (cell.includes('נזיל') || cell === 'נזילות') liqColIdx = ci;
           }
           if (found) break;
         }
@@ -2671,8 +2687,11 @@ function loadExcelFileCore(wb) {
         if (ownerColIdx < 0) return null; // No owner column detected
 
         // --- Aggregate יעל rows ---
-        var result = { 'יעלקהש': 0, 'יעלגמל': 0, 'יעלגמלהשקעה': 0, 'יעלפוליסה': 0 };
-        var hasData = false;
+        var result   = { 'יעלקהש': 0, 'יעלגמל': 0, 'יעלגמלהשקעה': 0, 'יעלפוליסה': 0 };
+        var names    = {};   // bucket → last seen fund name from Excel
+        var liquidity = {};  // bucket → liquidity code from Excel
+        var hasData  = false;
+
         for (var ri3 = 0; ri3 < rows.length; ri3++) {
           var row = rows[ri3];
           if (!Array.isArray(row) || row.length <= ownerColIdx) continue;
@@ -2681,26 +2700,41 @@ function loadExcelFileCore(wb) {
           // v95.2: Extract "last column with a number" — scan right-to-left, skip owner/liquidity cols
           var val = 0;
           for (var vc = row.length - 1; vc >= 1; vc--) {
-            if (vc === ownerColIdx) continue;
+            if (vc === ownerColIdx || vc === liqColIdx) continue;
             if (typeof row[vc] === 'number' && row[vc] > 0) { val = row[vc]; break; }
           }
           if (val <= 0) continue;
 
-          // Graceful null guard for typeCol
           var typeStr = row.length > typeColIdx ? normCell(row[typeColIdx]) : '';
+          var bucket  = null;
 
           if (typeStr.includes('השתלמות') || typeStr.includes('קה') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
-            result['יעלקהש'] += val;
+            bucket = 'יעלקהש';
           } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
-            result['יעלגמלהשקעה'] += val;
+            bucket = 'יעלגמלהשקעה';
           } else if (typeStr.includes('גמל')) {
-            result['יעלגמל'] += val;
+            bucket = 'יעלגמל';
           } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח') || typeStr.includes('הראל') || typeStr.includes('מגוון')) {
-            result['יעלפוליסה'] += val;
+            bucket = 'יעלפוליסה';
           }
+          if (!bucket) continue;
+
+          result[bucket] += val;
           hasData = true;
+
+          // Read fund name from Excel (Yael-only — don't touch main tab FUNDS names)
+          if (nameColIdx >= 0 && row[nameColIdx]) {
+            var nm = normCell(row[nameColIdx]);
+            if (nm) names[bucket] = nm;
+          }
+          // Read liquidity from Excel (Yael-only)
+          if (liqColIdx >= 0 && row[liqColIdx]) {
+            var lc = parseLiqCode(row[liqColIdx]);
+            if (lc) liquidity[bucket] = lc;
+          }
         }
-        return hasData ? result : null;
+
+        return hasData ? { data: result, names: names, liquidity: liquidity } : null;
       }
 
       // Fill data from sheets
@@ -2732,10 +2766,17 @@ function loadExcelFileCore(wb) {
         // v95.0: Dynamic Yael pass — aggregate rows where שייכות = "יעל"
         var yaelAgg = parseYaelFromSheet(rows);
         if (yaelAgg) {
-          Object.keys(yaelAgg).forEach(function(fk) {
-            if (yaelAgg[fk] > 0 && newFundData[fk] !== undefined) {
-              newFundData[fk][colIdx] = yaelAgg[fk];
+          Object.keys(yaelAgg.data).forEach(function(fk) {
+            if (yaelAgg.data[fk] > 0 && newFundData[fk] !== undefined) {
+              newFundData[fk][colIdx] = yaelAgg.data[fk];
             }
+          });
+          // Apply fund names and liquidity from Excel (Yael-only, last sheet wins)
+          Object.keys(yaelAgg.names).forEach(function(fk) {
+            if (FUNDS[fk]) FUNDS[fk].name = yaelAgg.names[fk];
+          });
+          Object.keys(yaelAgg.liquidity).forEach(function(fk) {
+            if (FUNDS[fk]) FUNDS[fk].liquidity = yaelAgg.liquidity[fk];
           });
         }
       });
