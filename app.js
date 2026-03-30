@@ -190,9 +190,8 @@ function invSetView(mode) {
   } else {
     yaelOnlyCats.forEach(function(cat) {
       var card = document.getElementById('card-' + cat);
-      var sec  = document.getElementById('sec-'  + cat);
+      // sec-* (category sections) stay hidden — Master-Detail replaces them
       if (card) card.style.display = '';
-      if (sec)  sec.style.display  = '';
     });
   }
   rebuildInvTotals();
