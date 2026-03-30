@@ -23,9 +23,9 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 #upload-status { font-size: 11px; color: #94a3b8; }
 
 /* CARDS */
-.cards-row { display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 10px; overflow-x: auto; padding: 2px 0; }
+.cards-row { display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 6px; overflow-x: auto; padding: 2px 0; }
 .card-total { flex-shrink: 0; }
-.card { flex: 1 1 80px; min-width: 80px; }
+.card { flex: 0 0 auto; min-width: 80px; }
 .card-total { background: #1a1a2e; border-radius: 14px; padding: 10px 16px; color: white; cursor: pointer; transition: all 0.18s; display: flex; flex-direction: column; justify-content: center; min-width: 120px; border: 2px solid transparent; }
 .card-total:hover  { background: #0f3460; transform: translateY(-1px); }
 .card-total.active { background: #0f3460; border-color: #7dd3fc; }
@@ -42,13 +42,13 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 .card .card-change.neg { color: #dc2626; }
 
 /* CHART */
-.chart-section { background: #fff; border-radius: 18px; padding: 14px 20px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); width: 100%; box-sizing: border-box; }
+.chart-section { background: #fff; border-radius: 18px; padding: 10px 20px 4px; margin-bottom: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.06); width: 100%; box-sizing: border-box; }
 .chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
 .chart-title    { font-size: 14px; font-weight: 700; color: #1a1a2e; }
 .chart-subtitle { font-size: 11px; color: #94a3b8; margin-top: 0; }
 .active-label { display: inline-flex; align-items: center; gap: 8px; background: #f5f5f5; border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: #333; transition: all 0.25s; }
 .active-label .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--active-color, #1a1a2e); }
-.chart-container { height: 155px; width: 100%; position: relative; }
+.chart-container { height: 185px; width: 100%; position: relative; }
 
 /* chart nav - INSIDE chart section, above chart */
 .chart-nav-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0; }
@@ -332,9 +332,9 @@ body{background:var(--bg,#f0f2f5);}
 
 
 
-.ch-card { background:#f9fafb;border-radius:12px;padding:16px;border:1px solid #e5e7eb;cursor:pointer;transition:transform 0.2s ease, box-shadow 0.2s ease; }
+.ch-card { background:#f9fafb;border-radius:12px;padding:10px 12px;border:1px solid #e5e7eb;cursor:pointer;transition:transform 0.2s ease, box-shadow 0.2s ease; }
 .ch-card.expanded { transform:scale(1.08);box-shadow:0 12px 40px rgba(0,0,0,0.18);z-index:10;position:relative;border-color:#2563eb; }
-.ch-title { font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;text-align:center; }
+.ch-title { font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;text-align:center; }
 .ch-legend { flex:1;font-size:11px;line-height:1.7;color:#374151; }
 .ch-legend-item { display:flex;align-items:center;gap:6px;white-space:nowrap; }
 .ch-legend-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
@@ -364,9 +364,11 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .tv-fund-name-link { cursor: pointer; text-decoration: none; color: inherit; display: block; }
 .tv-fund-name-link:hover { text-decoration: underline; color: #2563eb; }
 
-#inv-master-detail { padding: 4px 20px 24px; }
-.inv-md-cat-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 8px; direction: rtl; text-transform: uppercase; }
-.inv-md-funds-row  { display: flex; flex-wrap: wrap; gap: 8px; direction: rtl; margin-bottom: 14px; }
+#inv-master-detail { padding: 4px 20px 12px; display: none; }
+.inv-md-cat-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 4px; direction: rtl; text-transform: uppercase; }
+.cat-table-btn { background: #f0f4ff; border: 1px solid #c7d7f9; border-radius: 8px; padding: 4px 10px; font-size: 11px; font-family: Heebo,sans-serif; cursor: pointer; color: #2563eb; font-weight: 600; transition: all .15s; white-space: nowrap; direction: rtl; }
+.cat-table-btn:hover { background: #dbeafe; border-color: #93c5fd; }
+.inv-md-funds-row  { display: flex; flex-wrap: wrap; gap: 8px; direction: rtl; margin-bottom: 8px; }
 
 /* כרטיסיית קרן בודדת */
 .inv-md-fund-card  { background: #fff; border-radius: 12px; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-right: 4px solid var(--fc, #2563eb); box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.15s; flex: 0 0 auto; max-width: 220px; }
@@ -379,4 +381,4 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .inv-md-detail-wrap { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
 .inv-md-detail-hdr  { padding: 10px 18px; background: #f8fafc; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; direction: rtl; gap: 12px; }
 .inv-md-detail-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.inv-md-detail-table-wrap { overflow-x: auto; }
+.inv-md-detail-table-wrap { overflow-x: visible; }

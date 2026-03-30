@@ -1,9 +1,44 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v99.0 — שכתוב ממשק טאב השקעות: Master-Detail UI (28/03/2026).
+גרסה v99.8 — Pixel Perfect: יישור עמודות טבלה לגרף, ביטול רווח לבן, תיקון קריטי של State (30/03/2026).
 
-## שינויים אחרונים (28/03/2026)
+## שינויים אחרונים (30/03/2026)
+
+### v99.8 – Pixel Perfect Alignment + Critical Bug Fix
+- **ביטול רווח לבן**: `.chart-section padding-bottom:4px;margin-bottom:0`; הכותרת `(באלפי ש״ח)` עברה לכותרת הטבלה כ-span קטן אפור; עמודה ראשונה הוגדרה כריק (ללא טקסט "ערך (אלפי ש״ח)")
+- **יישור עמודות מדויק**: `yAxisW = chart.chartArea.left` → `colgroup` עמודה ראשונה = רוחב Y-axis; שאר העמודות שוות ב-`calc((100% - yAxisW) / nDataCols)`; `table-layout:fixed;width:100%`
+- **תיקון קריטי (Revert)**: הוסרה שורת `querySelectorAll('[id^="sec-"]')` מ-`switchTab` שגרמה לאיפוס נתונים/פגיעה ב-State. State management תקין: `loadFromLocalStorage()` → `ALL_TOTALS` → `updateDynamicStats()`
+- שינויים: `index.html` (גרסה + modal dimensions), `style.css` (chart-section spacing), `app.js` (invMDSelectFund colgroup + switchTab revert)
+
+### v99.7 – Zero-Scroll UI Polish (4 fixes)
+- **Modal ניתוח**: `width:92vw;max-width:1100px;max-height:85vh;padding:16px 20px`; כותרת ו-gap מוקטנים; donuts: `max-width:160px;max-height:160px`; `.ch-card padding:10px 12px`
+- **הסתרת קטגוריות תחתונות**: CSS `#inv-master-detail { display:none; }` כברירת מחדל; `switchTab` מסתיר Master-Detail בברירת מחדל
+- **צמצום ריווח**: `.chart-section padding:10px 20px 4px;margin-bottom:0`; `.cards-row margin-bottom:6px`; `#tab-investments padding-top:0`
+- **שחזור אחוזים**: inline percentage span בתאי ערך בטבלת פירוט; `overflow:visible`
+- שינויים: `index.html` (modal + גרסה), `style.css` (ch-card + inv-master-detail + chart-section + cards-row), `app.js` (switchTab + invMDSelectFund)
+
+### v99.6 – Pixel Perfect Layout: צמצום ריווח + יישור עמודות
+- **צמצום ריווח אנכי**: `margin-bottom` של `.chart-section` הוקטן מ-14px ל-4px; `padding-top` של `#tab-investments` מ-12px ל-4px; `padding` של `#inv-master-detail` מ-`4px 20px 24px` ל-`0px 20px 16px`
+- **יישור עמודות טבלה לגרף**: `invMDSelectFund` קורא `chart.chartArea.left` לקבלת רוחב אזור Y-axis; מוסיף `<colgroup>` עם עמודה ראשונה בגודל קבוע (`yAxisW px`) ו-13 עמודות נתונים שוות; הטבלה: `table-layout:fixed; width:100%`
+- **CSS**: `.inv-md-detail-table-wrap` שונה מ-`overflow-x:auto` ל-`overflow-x:visible` — הטבלה ממלאת רוחב מלא
+- שינויים: `style.css`, `index.html`, `app.js`
+
+### v99.5 – הסרת HTML סטטי של קטגוריות תחתונות + שחזור אחוז בטבלה
+- **שורש הבעיה**: גושי HTML עם נתונים קשיחים (`sec-arbitrage`, `sec-dira`, `sec-chov`) בתוך `#categories-scroll` הציגו תמיד נתונים גם כאשר ה-container היה אמור להיות מוסתר — הוסרו לחלוטין מה-HTML
+- **אחוז בתא ערך**: `invMDSelectFund` — אחוז שינוי מוצג inline בתוך תא "ערך" עצמו (font-size:9px, ירוק/אדום/אפור לפי כיוון)
+- שינויים: `index.html` (הסרת ~95 שורות), `app.js` (inline pctHtml בשורת ערך)
+
+### v99.1–v99.4 – הסתרת קטגוריות תחתונות (CSS/JS)
+- הוספת `display:none !important` ל-`#categories-scroll` ו-`#cat-scroll-label` ב-CSS
+- הוספת `style="display:none"` inline ב-HTML על `#categories-scroll`
+- `invSetView` — הסרת `sec.style.display = ''` עבור `yaelOnlyCats`
+- `switchTab` — מסתיר `categories-scroll` בכל מעבר לטאב השקעות
+
+### v99.2 – ניווט מתוך Modal טבלת סיכום + אחוז שינוי בטבלה
+- `tableNavToCat(catId)` / `tableNavToFund(fundKey, catId)` — לחיצה על שם קטגוריה/קרן ב-modal סוגרת את ה-modal ומנווטת ל-Master-Detail הרלוונטי
+- `setTimeout(..., 30)` — מאפשר ל-`invMDShowCat` לסיים לבנות כרטיסיות לפני `invMDSelectFund`
+- שינויים: `app.js` (פונקציות ניווט + buildTableView)
 
 ### v99.0 – Master-Detail UI לטאב השקעות
 - **הסתרת categories-scroll הישן**: `#categories-scroll { display:none }` ו-`#cat-scroll-label { display:none !important }` — ה-UI החדש מחליף את פסי הגלילה הישן

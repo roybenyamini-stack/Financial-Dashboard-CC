@@ -981,6 +981,8 @@ function invMDShowCat(catId) {
   panel.style.display = 'block';
   if (detailWrap) detailWrap.style.display = 'none';
   if (catTitle) catTitle.textContent = (CAT_NAMES[catId] || catId) + ' — קרנות';
+  var btnCatTbl = document.getElementById('btn-cat-table');
+  if (btnCatTbl) btnCatTbl.style.display = '';
 
   var color  = CAT_COLORS[catId] || '#2563eb';
   var filter = invFundFilter();
@@ -1044,19 +1046,34 @@ function invMDSelectFund(fundKey) {
   if (!detailWrap || !detailTable) return;
 
   detailWrap.style.display = 'block';
-  if (detailName) { detailName.textContent = fund.name; detailName.style.color = fc; }
+  if (detailName) {
+    detailName.innerHTML = fund.name + ' <span style="font-size:10px;color:#94a3b8;font-weight:400;">(באלפי ש״ח)</span>';
+    detailName.style.color = fc;
+  }
 
   // בניית טבלת פירוט — חלון winStart/WINDOW
   var ff     = ffFundData(fund.data);
   var winEnd = Math.min(winStart + WINDOW, LABELS.length);
 
-  var h = '<table style="direction:ltr;"><thead><tr>';
-  h += '<th style="min-width:140px;text-align:right;direction:rtl;">סעיף</th>';
-  for (var i = winStart; i < winEnd; i++) h += '<th>' + LABELS[i] + '</th>';
+  // רוחב עמודה ראשונה = אזור Y-axis בגרף (לצורך יישור מתחת לגרף)
+  var yAxisW = (chart && chart.chartArea) ? Math.ceil(chart.chartArea.left) : 60;
+  var nDataCols = winEnd - winStart;
+  var colHtml = '<colgroup><col style="width:' + yAxisW + 'px;">';
+  for (var ci = 0; ci < nDataCols; ci++) colHtml += '<col style="width:calc((100% - ' + yAxisW + 'px) / ' + nDataCols + ');">';
+  colHtml += '</colgroup>';
+
+  // תא סגנון: padding מינימלי לעמודות נתונים צרות
+  var tdStyle    = 'padding:5px 4px;text-align:center;overflow:visible;font-size:11px;';
+  // עמודה ראשונה: רוחב קבוע, overflow:hidden כדי לא לשבור table-layout:fixed
+  var tdLblStyle = 'padding:5px 6px;text-align:right;direction:rtl;white-space:nowrap;overflow:hidden;font-size:11px;width:' + yAxisW + 'px;max-width:' + yAxisW + 'px;';
+
+  var h = '<table style="direction:ltr;table-layout:fixed;width:100%;">' + colHtml + '<thead><tr>';
+  h += '<th style="width:' + yAxisW + 'px;max-width:' + yAxisW + 'px;text-align:right;direction:rtl;padding:5px 6px;overflow:hidden;"></th>';
+  for (var i = winStart; i < winEnd; i++) h += '<th style="padding:4px 2px;font-size:11px;text-align:center;">' + LABELS[i] + '</th>';
   h += '</tr></thead><tbody>';
 
   // שורת ערכים + אחוז שינוי חודשי בתוך כל תא
-  h += '<tr><td style="text-align:right;direction:rtl;font-weight:700;color:#1a1a2e;">ערך (אלפי ש״ח)</td>';
+  h += '<tr><td style="' + tdLblStyle + 'font-weight:600;color:#64748b;">ערך</td>';
   for (var i = winStart; i < winEnd; i++) {
     var v    = ff[i];
     var prev = (i > 0) ? ff[i - 1] : null;
@@ -1064,31 +1081,31 @@ function invMDSelectFund(fundKey) {
       var delta = (prev !== null && prev > 0) ? (v - prev) : null;
       var pct   = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
       var pctHtml = pct !== null
-        ? '<br><span style="font-size:9px;' + (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">'
+        ? '<br><span style="font-size:9px;display:inline-block;' + (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">'
           + (delta > 0 ? '+' : '') + pct + '%</span>'
         : '';
-      h += '<td class="val" style="color:' + fc + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
+      h += '<td class="val" style="' + tdStyle + 'color:' + fc + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
     } else {
-      h += '<td class="dash">—</td>';
+      h += '<td class="dash" style="' + tdStyle + '">—</td>';
     }
   }
   h += '</tr>';
 
   // שורת שינוי חודשי + אחוז (לא למזומן)
   if (fund.cat !== 'mezuman') {
-    h += '<tr class="delta-row visible"><td style="text-align:right;direction:rtl;">שינוי חודשי</td>';
+    h += '<tr class="delta-row visible"><td style="' + tdLblStyle + 'color:#64748b;">שינוי</td>';
     for (var i = winStart; i < winEnd; i++) {
       var v    = ff[i];
       var prev = (i > 0) ? ff[i - 1] : null;
       var d    = (v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
-      if (d === null) { h += '<td class="dzer">—</td>'; }
+      if (d === null) { h += '<td class="dzer" style="' + tdStyle + '">—</td>'; }
       else {
         var cls  = d > 0 ? 'dpos' : d < 0 ? 'dneg' : 'dzer';
         var pct  = prev > 0 ? (d / prev * 100).toFixed(1) : null;
         var pctStr = pct !== null
-          ? '<br><span style="font-size:9px;opacity:0.75;">' + (d > 0 ? '+' : '') + pct + '%</span>'
+          ? '<br><span style="font-size:9px;display:inline-block;opacity:0.85;">' + (d > 0 ? '+' : '') + pct + '%</span>'
           : '';
-        h += '<td class="' + cls + ' dval">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
+        h += '<td class="' + cls + ' dval" style="' + tdStyle + '">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
       }
     }
     h += '</tr>';
@@ -3113,6 +3130,8 @@ function navCloseAll() {
   document.querySelectorAll('.category-body.open').forEach(function(b) { b.classList.remove('open'); });
   document.querySelectorAll('.chevron.open').forEach(function(c) { c.classList.remove('open'); });
   document.getElementById('chart-nav-btns').classList.remove('visible');
+  var btnCatTbl = document.getElementById('btn-cat-table');
+  if (btnCatTbl) btnCatTbl.style.display = 'none';
   currentCatContext = null;
 }
 
@@ -3133,29 +3152,27 @@ var cmChartData = null;
 // ---- פתיחת מודאל ----
 var cmOpenedFromTable = false;
 function openCatModal(catId, fromTable) {
+  if (!catId) return;
   cmOpenedFromTable = !!fromTable;
   var btnT = document.getElementById('cm-back-table');
   if (btnT) btnT.classList.toggle('visible', cmOpenedFromTable);
   cmCurrentCat = catId;
   cmCurrentFundKey = null;
   cmFundClickState = 0;
-  var sec = document.getElementById('sec-' + catId);
-  if (!sec) return;
 
-  var color = getComputedStyle(sec).getPropertyValue('--cat-color').trim() || '#2563eb';
-  var colorLight = getComputedStyle(sec).getPropertyValue('--cat-color-light').trim() || '#f0f4ff';
+  // Use CAT_COLORS/CAT_NAMES directly (sec-* elements removed in v99.5)
+  var color = CAT_COLORS[catId] || '#2563eb';
+  var colorLight = color + '22';
   var box = document.getElementById('cat-modal-box');
+  if (!box) return;
   box.style.setProperty('--cm-color', color);
   box.style.setProperty('--cm-color-light', colorLight);
 
-  var hdr = document.getElementById('hdr-' + catId);
-  var iconEl = hdr ? hdr.querySelector('.cat-icon') : null;
-  var nameText = hdr ? (hdr.querySelector('.cat-name') ? hdr.querySelector('.cat-name').textContent : catId) : catId;
-  document.getElementById('cm-icon').textContent = iconEl ? iconEl.textContent : '📊';
+  document.getElementById('cm-icon').textContent = '📊';
   document.getElementById('cm-icon').style.background = colorLight;
   var nameEl = document.getElementById('cm-name');
   nameEl.style.color = color;
-  nameEl.textContent = nameText;
+  nameEl.textContent = CAT_NAMES[catId] || catId;
 
   cmWinStart = Math.max(0, LABELS.length - CM_WINDOW);
   cmCatFundKeys = Object.keys(FUNDS).filter(function(k){ return FUNDS[k].cat === catId; });
