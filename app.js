@@ -3151,15 +3151,22 @@ function buildCatAggTable(catId) {
   var nDataCols = winEnd - winStart;
   var yAxisW    = (chart && chart.chartArea) ? Math.ceil(chart.chartArea.left) : 60;
 
-  // צבירת ערכים לכל חודש
+  // Pre-compute ff arrays once
+  var ffArrays = funds.map(function(e) { return ffFundData(e[1].data); });
+
+  // צבירת ערכים + זיהוי משיכות (קרן שעברה מערך חיובי ל-0 = נמכרה)
   var aggData = [];
+  var aggWithdrawals = []; // סכום שיצא מהתיק (מכירות) בכל חודש
   for (var mi = 0; mi < LABELS.length; mi++) {
-    var total = 0;
-    funds.forEach(function(e) {
-      var ff = ffFundData(e[1].data);
-      total += (ff[mi] || 0);
+    var total = 0, withdrawn = 0;
+    ffArrays.forEach(function(ff) {
+      var v    = ff[mi]   || 0;
+      var prev = mi > 0 ? (ff[mi - 1] || 0) : 0;
+      total += v;
+      if (v === 0 && prev > 0) withdrawn += prev; // קרן נמכרה
     });
     aggData.push(total > 0 ? total : null);
+    aggWithdrawals.push(withdrawn);
   }
 
   // בניית טבלה זהה ל-invMDSelectFund
@@ -3204,18 +3211,22 @@ function buildCatAggTable(catId) {
   }
   h += '</tr>';
 
-  // שורה 3: אחוז שינוי בלבד
+  // שורה 3: אחוז שינוי — מנוטרל ממכירות/משיכות
+  // נוסחה: (שינוי + משיכות) / ערך קודם — מסלק עיוות של קרן שנמכרה
   h += '<tr><td style="' + tdLblStyle + 'color:#64748b;">% שינוי</td>';
   for (var i = winStart; i < winEnd; i++) {
-    var v    = aggData[i];
-    var prev = (i > 0) ? aggData[i - 1] : null;
-    var d    = (v !== null && v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
-    if (d === null) {
+    var v          = aggData[i];
+    var prev       = (i > 0) ? aggData[i - 1] : null;
+    var withdrawal = aggWithdrawals[i] || 0;
+    if (v === null || prev === null || prev <= 0) {
       h += '<td style="' + tdStyle + '">—</td>';
     } else {
-      var pct = (prev > 0) ? (d / prev * 100).toFixed(1) : null;
-      var clr = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8';
-      h += '<td style="' + tdStyle + 'color:' + clr + ';font-weight:600;">' + (pct !== null ? (d > 0 ? '+' : '') + pct + '%' : '—') + '</td>';
+      var rawDelta     = v - prev;
+      var adjustedDelta = rawDelta + withdrawal; // נטרול מכירות
+      var pct          = (adjustedDelta / prev * 100).toFixed(1);
+      var clr          = adjustedDelta > 0 ? '#16a34a' : adjustedDelta < 0 ? '#dc2626' : '#94a3b8';
+      h += '<td style="' + tdStyle + 'color:' + clr + ';font-weight:600;">' +
+           (adjustedDelta >= 0 ? '+' : '') + pct + '%</td>';
     }
   }
   h += '</tr></tbody></table>';
