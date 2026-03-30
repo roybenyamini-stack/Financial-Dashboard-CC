@@ -1,4 +1,4 @@
-<!-- v99.5 -->
+<!-- v100.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v99.5</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v100.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -244,11 +244,14 @@
 </div>
 </div><!-- /top-fixed -->
 
-<div class="tab-panel" id="tab-investments" style="padding-top:12px;">
+<div class="tab-panel" id="tab-investments" style="padding-top:0;">
 
 <!-- MASTER-DETAIL PANEL (v98.4): רמה 1 = כרטיסיות קרנות | רמה 2 = טבלת פירוט קרן -->
 <div id="inv-master-detail" style="display:none;">
-  <div class="inv-md-cat-label" id="inv-md-cat-title">בחר קטגוריה</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;direction:rtl;">
+    <div class="inv-md-cat-label" id="inv-md-cat-title" style="margin-bottom:0;">בחר קטגוריה</div>
+    <button id="btn-cat-table" class="cat-table-btn" onclick="openCatModal(invMDCurrentCat)" style="display:none;">📊 הצג טבלה</button>
+  </div>
   <div class="inv-md-funds-row" id="inv-md-funds-row"></div>
   <div class="inv-md-detail-wrap" id="inv-md-detail-wrap" style="display:none;">
     <div class="inv-md-detail-hdr">
@@ -648,36 +651,36 @@
 
 <!-- CHARTS MODAL -->
 <div id="charts-modal" onclick="if(event.target===this)closeCharts();" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:18px;width:96%;max-width:980px;max-height:90vh;overflow-y:auto;padding:28px 24px;font-family:Heebo,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.25);" dir="rtl">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;border-bottom:1px solid #f0f0f0;padding-bottom:14px;">
-      <span style="font-size:19px;font-weight:800;color:#1a1a2e;">📊 ניתוח תיק השקעות</span>
-      <button onclick="closeCharts()" style="background:#f3f4f6;border:none;font-size:18px;cursor:pointer;color:#6b7280;width:34px;height:34px;border-radius:50%;">✕</button>
+  <div style="background:#fff;border-radius:18px;width:92vw;max-width:1100px;max-height:85vh;overflow-y:auto;padding:16px 20px;font-family:Heebo,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.25);" dir="rtl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #f0f0f0;padding-bottom:10px;">
+      <span style="font-size:17px;font-weight:800;color:#1a1a2e;">📊 ניתוח תיק השקעות</span>
+      <button onclick="closeCharts()" style="background:#f3f4f6;border:none;font-size:18px;cursor:pointer;color:#6b7280;width:32px;height:32px;border-radius:50%;">✕</button>
     </div>
     <!-- v97.1: Roee historical analysis section -->
     <div id="roee-charts-section">
-      <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">תמונת מצב – רועי</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="charts-grid">
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-by-cat" style="max-width:200px;max-height:200px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-equity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-liquidity" style="max-width:200px;max-height:200px;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:12px;align-items:center;"><canvas id="chart-manager" style="max-width:200px;max-height:200px;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">תמונת מצב – רועי</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="charts-grid">
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-by-cat" style="max-width:160px;max-height:160px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-equity" style="max-width:160px;max-height:160px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-liquidity" style="max-width:160px;max-height:160px;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-manager" style="max-width:160px;max-height:160px;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
       </div>
     </div>
     <!-- v97.2: Yael snapshot section inside modal — uses same ch-card style as Roee charts -->
-    <div id="yael-charts-section" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid #f0f0f0;">
-      <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:14px;letter-spacing:0.3px;">תמונת מצב – יעל</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div id="yael-charts-section" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;letter-spacing:0.3px;">תמונת מצב – יעל</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="ch-card" onclick="toggleCard(this)">
           <div class="ch-title">פילוח לפי סוג מוצר</div>
-          <div style="display:flex;gap:12px;align-items:center;">
-            <canvas id="yael-modal-donut-type" style="max-width:200px;max-height:200px;"></canvas>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <canvas id="yael-modal-donut-type" style="max-width:160px;max-height:160px;"></canvas>
             <div id="yael-modal-donut-type-legend" class="ch-legend"></div>
           </div>
         </div>
         <div class="ch-card" onclick="toggleCard(this)">
           <div class="ch-title">פילוח לפי נזילות</div>
-          <div style="display:flex;gap:12px;align-items:center;">
-            <canvas id="yael-modal-donut-liq" style="max-width:200px;max-height:200px;"></canvas>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <canvas id="yael-modal-donut-liq" style="max-width:160px;max-height:160px;"></canvas>
             <div id="yael-modal-donut-liq-legend" class="ch-legend"></div>
           </div>
         </div>
