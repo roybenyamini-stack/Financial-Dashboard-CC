@@ -2634,9 +2634,8 @@ function loadExcelFileCore(wb) {
         newFundData[fk] = new Array(newLabels.length).fill(null);
       });
 
-      // v95.1: Robust Yael row aggregation via שייכות column
+      // v95.1 / v100.7: Yael individual fund rows via שייכות column
       function normCell(v) {
-        // Strip Unicode directional/bidi marks, non-breaking spaces, then trim
         return String(v||'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\xa0]/g,'').trim();
       }
 
@@ -2646,13 +2645,20 @@ function loadExcelFileCore(wb) {
         if (s.includes('קצבה') || s.includes('pension') || s.includes('פנסיה')) return 'pension';
         if (s.includes('64') || s.includes('פרישה') || s.includes('גיל')) return 'age64';
         if (s.includes('נזיל') || s.includes('now') || s.includes('מיידי')) return 'now';
-        return null; // unknown — don't override
+        return null;
       }
 
+      // Generate a stable FUNDS key from fund name (Yael dynamic funds use prefix 'yd_')
+      function yaelKey(fundName, cat) {
+        var slug = normCell(fundName).replace(/\s+/g,'_').replace(/['"״׳]/g,'').slice(0, 25);
+        return 'yd_' + cat + '_' + slug;
+      }
+
+      // v100.7: Returns INDIVIDUAL rows — one per Excel row — instead of aggregating
       function parseYaelFromSheet(rows) {
         var ownerColIdx = -1, typeColIdx = 0, nameColIdx = -1, liqColIdx = -1;
 
-        // --- Strategy A: find header row containing "שייכות" or "בעלות" ---
+        // --- Strategy A: find header row ---
         for (var ri = 0; ri < Math.min(rows.length, 15); ri++) {
           var hrow = rows[ri];
           if (!Array.isArray(hrow)) continue;
@@ -2667,7 +2673,7 @@ function loadExcelFileCore(wb) {
           if (found) break;
         }
 
-        // --- Strategy B: if no header, auto-detect by counting "יעל" in cols 2-6 ---
+        // --- Strategy B: auto-detect owner column ---
         if (ownerColIdx < 0) {
           var hits = {};
           for (var ri2 = 0; ri2 < rows.length; ri2++) {
@@ -2684,20 +2690,16 @@ function loadExcelFileCore(wb) {
           if (bestCol >= 0) ownerColIdx = bestCol;
         }
 
-        if (ownerColIdx < 0) return null; // No owner column detected
+        if (ownerColIdx < 0) return null;
 
-        // --- Aggregate יעל rows ---
-        var result   = { 'יעלקהש': 0, 'יעלגמל': 0, 'יעלגמלהשקעה': 0, 'יעלפוליסה': 0 };
-        var names    = {};   // bucket → last seen fund name from Excel
-        var liquidity = {};  // bucket → liquidity code from Excel
-        var hasData  = false;
+        var yaelRows = []; // one object per Excel row
 
         for (var ri3 = 0; ri3 < rows.length; ri3++) {
           var row = rows[ri3];
           if (!Array.isArray(row) || row.length <= ownerColIdx) continue;
           if (normCell(row[ownerColIdx]) !== 'יעל') continue;
 
-          // v95.2: Extract "last column with a number" — scan right-to-left, skip owner/liquidity cols
+          // Extract value: rightmost number, skip owner/liq columns
           var val = 0;
           for (var vc = row.length - 1; vc >= 1; vc--) {
             if (vc === ownerColIdx || vc === liqColIdx) continue;
@@ -2706,36 +2708,37 @@ function loadExcelFileCore(wb) {
           if (val <= 0) continue;
 
           var typeStr = row.length > typeColIdx ? normCell(row[typeColIdx]) : '';
-          var bucket  = null;
-
+          var cat = null;
           if (typeStr.includes('השתלמות') || typeStr.includes('קה') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
-            bucket = 'יעלקהש';
+            cat = 'hishtalmut';
           } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
-            bucket = 'יעלגמלהשקעה';
+            cat = 'gemel_invest';
           } else if (typeStr.includes('גמל')) {
-            bucket = 'יעלגמל';
+            cat = 'gemel';
           } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח') || typeStr.includes('הראל') || typeStr.includes('מגוון')) {
-            bucket = 'יעלפוליסה';
+            cat = 'harel';
           }
-          if (!bucket) continue;
+          if (!cat) continue;
 
-          result[bucket] += val;
-          hasData = true;
+          var fundName = (nameColIdx >= 0 && row[nameColIdx]) ? normCell(row[nameColIdx]) : null;
+          var liqCode  = (liqColIdx >= 0 && row[liqColIdx])  ? parseLiqCode(row[liqColIdx]) : null;
 
-          // Read fund name from Excel (Yael-only — don't touch main tab FUNDS names)
-          if (nameColIdx >= 0 && row[nameColIdx]) {
-            var nm = normCell(row[nameColIdx]);
-            if (nm) names[bucket] = nm;
-          }
-          // Read liquidity from Excel (Yael-only)
-          if (liqColIdx >= 0 && row[liqColIdx]) {
-            var lc = parseLiqCode(row[liqColIdx]);
-            if (lc) liquidity[bucket] = lc;
-          }
+          // If no fund name column: fall back to static buckets
+          var key = fundName
+            ? yaelKey(fundName, cat)
+            : (cat === 'hishtalmut' ? 'יעלקהש' : cat === 'gemel_invest' ? 'יעלגמלהשקעה' : cat === 'gemel' ? 'יעלגמל' : 'יעלפוליסה');
+
+          var displayName = fundName || (CAT_NAMES[cat] + ' – יעל');
+
+          yaelRows.push({ key: key, name: displayName, cat: cat, liquidity: liqCode, val: val });
         }
 
-        return hasData ? { data: result, names: names, liquidity: liquidity } : null;
+        return yaelRows.length ? yaelRows : null;
       }
+
+      // v100.7: Clean up dynamic Yael entries from previous Excel load
+      Object.keys(FUNDS).forEach(function(fk) { if (fk.startsWith('yd_')) delete FUNDS[fk]; });
+      Object.keys(FUND_COLORS).forEach(function(fk) { if (fk.startsWith('yd_')) delete FUND_COLORS[fk]; });
 
       // Fill data from sheets
       sortedKeys.forEach(function(key, colIdx) {
@@ -2763,21 +2766,38 @@ function loadExcelFileCore(wb) {
           newFundData[fundKey][colIdx] = cellVal;
         });
 
-        // v95.0: Dynamic Yael pass — aggregate rows where שייכות = "יעל"
-        var yaelAgg = parseYaelFromSheet(rows);
-        if (yaelAgg) {
-          Object.keys(yaelAgg.data).forEach(function(fk) {
-            if (yaelAgg.data[fk] > 0 && newFundData[fk] !== undefined) {
-              newFundData[fk][colIdx] = yaelAgg.data[fk];
+        // v100.7: Dynamic Yael pass — individual fund per Excel row
+        var yaelRows = parseYaelFromSheet(rows);
+        if (yaelRows) {
+          var hasDynamic = yaelRows.some(function(r){ return r.key.startsWith('yd_'); });
+
+          yaelRows.forEach(function(row) {
+            // Create FUNDS entry on first encounter
+            if (!FUNDS[row.key]) {
+              var defaultLiq = row.cat === 'gemel' ? 'pension' : row.cat === 'hishtalmut' ? 'age64' : 'now';
+              FUNDS[row.key] = {
+                name: row.name, cat: row.cat, owner: 'yael',
+                liquidity: row.liquidity || defaultLiq,
+                pensionMonthly: (row.liquidity || defaultLiq) === 'pension',
+                data: new Array(newLabels.length).fill(null)
+              };
+              FUND_COLORS[row.key] = '#ec4899';
+              newFundData[row.key] = new Array(newLabels.length).fill(null);
+            } else {
+              // Update name & liquidity from latest sheet
+              FUNDS[row.key].name = row.name;
+              if (row.liquidity) { FUNDS[row.key].liquidity = row.liquidity; FUNDS[row.key].pensionMonthly = row.liquidity === 'pension'; }
             }
+            // Accumulate (same fund name → same key → sums correctly)
+            newFundData[row.key][colIdx] = (newFundData[row.key][colIdx] || 0) + row.val;
           });
-          // Apply fund names and liquidity from Excel (Yael-only, last sheet wins)
-          Object.keys(yaelAgg.names).forEach(function(fk) {
-            if (FUNDS[fk]) FUNDS[fk].name = yaelAgg.names[fk];
-          });
-          Object.keys(yaelAgg.liquidity).forEach(function(fk) {
-            if (FUNDS[fk]) FUNDS[fk].liquidity = yaelAgg.liquidity[fk];
-          });
+
+          // If dynamic keys used, zero out static Yael buckets for this month
+          if (hasDynamic) {
+            ['יעלקהש', 'יעלגמל', 'יעלגמלהשקעה', 'יעלפוליסה'].forEach(function(fk) {
+              if (newFundData[fk]) newFundData[fk][colIdx] = null;
+            });
+          }
         }
       });
 
