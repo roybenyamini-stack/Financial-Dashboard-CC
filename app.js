@@ -1055,12 +1055,22 @@ function invMDSelectFund(fundKey) {
   for (var i = winStart; i < winEnd; i++) h += '<th>' + LABELS[i] + '</th>';
   h += '</tr></thead><tbody>';
 
-  // שורת ערכים
+  // שורת ערכים + אחוז שינוי חודשי בתוך כל תא
   h += '<tr><td style="text-align:right;direction:rtl;font-weight:700;color:#1a1a2e;">ערך (אלפי ש״ח)</td>';
   for (var i = winStart; i < winEnd; i++) {
-    var v = ff[i];
-    if (v > 0) h += '<td class="val" style="color:' + fc + ';">' + Math.round(v).toLocaleString() + '</td>';
-    else        h += '<td class="dash">—</td>';
+    var v    = ff[i];
+    var prev = (i > 0) ? ff[i - 1] : null;
+    if (v > 0) {
+      var delta = (prev !== null && prev > 0) ? (v - prev) : null;
+      var pct   = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
+      var pctHtml = pct !== null
+        ? '<br><span style="font-size:9px;' + (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">'
+          + (delta > 0 ? '+' : '') + pct + '%</span>'
+        : '';
+      h += '<td class="val" style="color:' + fc + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
+    } else {
+      h += '<td class="dash">—</td>';
+    }
   }
   h += '</tr>';
 

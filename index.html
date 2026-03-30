@@ -1,4 +1,4 @@
-<!-- v99.4 -->
+<!-- v99.5 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v99.4</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v99.5</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -617,95 +617,7 @@
 </div>
 
 </div>
-<!-- CATEGORY: ארביטראז׳ ואליו -->
-<div class="category-section" id="sec-arbitrage" style="--cat-color:#0d9488;--cat-color-light:#ccfbf1;--cat-color-ultralight:#f0fdfa">
-  <div class="category-header" id="hdr-arbitrage" onclick="toggleCat('arbitrage'); selectView('arbitrage')">
-    <div class="cat-header-right">
-      <div class="cat-icon">📊</div>
-      <div>
-        <div class="cat-name">ארביטראז׳ ואליו</div>
-        <div class="cat-count">קרן אחת · נמכרה ינו׳ 26</div>
-      </div>
-    </div>
-    <div class="cat-header-left">
-      <div class="cat-total" id="sec-val-arbitrage">0</div>
-      <div class="cat-pct" id="sec-pct-arbitrage"></div>
-      <div class="cat-pct" id="sec-ytd-arbitrage" style="font-size:10px;opacity:0.8;"></div>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;"><button class="cm-zoom-btn" onclick="event.stopPropagation();openCatModal('arbitrage')" title="פתח בחלון">⛶</button><div class="chevron" id="chev-arbitrage">▼</div></div>
-  </div>
-  <div class="category-body" id="body-arbitrage">
-    <table>
-      <thead><tr>
-        <th>קרן</th>
-        <th data-col="0">ינו׳ 25</th><th data-col="1">פבר׳ 25</th><th data-col="2">מרץ 25</th><th data-col="3">אפר׳ 25</th><th data-col="4">מאי 25</th><th data-col="5">יוני 25</th><th data-col="6">יולי 25</th><th data-col="7">אוג׳ 25</th><th data-col="8">ספט׳ 25</th><th data-col="9">אוק׳ 25</th><th data-col="10">נוב׳ 25</th><th data-col="11">דצמ׳ 25</th><th data-col="12">ינו׳ 26</th><th data-col="13">פבר׳ 26</th><th data-col="14">מרץ 26</th>
-      </tr></thead>
-      <tbody>
-        <tr onclick="selectFund('ארביטראזואליו','#7c3aed')" data-fund="ארביטראזואליו">
-          <td>ארביטראז׳ ואליו</td><td data-col="0" class="val">719</td><td data-col="1" class="val">822</td><td data-col="2" class="val">824</td><td data-col="3" class="val">772</td><td data-col="4" class="val">808</td><td data-col="5" class="val">846</td><td data-col="6" class="val">902</td><td data-col="7" class="val">900</td><td data-col="8" class="val">895</td><td data-col="9" class="val">895</td><td data-col="10" class="val">886</td><td data-col="11" class="val">901</td><td data-col="12">0</td><td data-col="13">0</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- CATEGORY: דירה -->
-<div class="category-section" id="sec-dira" style="--cat-color:#78716c;--cat-color-light:#f5f5f4;--cat-color-ultralight:#fafaf9">
-  <div class="category-header" id="hdr-dira" onclick="selectView('dira')" style="cursor:pointer;">
-    <div class="cat-header-right">
-      <div class="cat-icon">🏠</div>
-      <div>
-        <div class="cat-name">דירה</div>
-        <div class="cat-count">ערך קבוע בספרים</div>
-      </div>
-    </div>
-    <div class="cat-header-left">
-      <div class="cat-total" id="sec-val-dira">1,200</div>
-      <div class="cat-pct" id="sec-pct-dira"></div>
-      <div class="cat-pct" id="sec-ytd-dira" style="font-size:10px;opacity:0.8;"></div>
-    </div>
-
-  <button class="cm-zoom-btn" onclick="event.stopPropagation();openCatModal('dira')" title="פתח בחלון" style="margin-right:8px;">⛶</button>
-  </div>
-</div>
-
-<!-- CATEGORY: חוב -->
-<div class="category-section" id="sec-chov" style="--cat-color:#64748b;--cat-color-light:#f1f5f9;--cat-color-ultralight:#f8fafc">
-  <div class="category-header" id="hdr-chov" onclick="toggleCat('chov'); selectView('chov')">
-    <div class="cat-header-right">
-      <div class="cat-icon">📉</div>
-      <div>
-        <div class="cat-name">חוב</div>
-        <div class="cat-count">2 רכיבים · צפוי להתאפס</div>
-      </div>
-    </div>
-    <div class="cat-header-left">
-      <div class="cat-total" id="sec-val-chov" style="color:#ef4444;">1,768 </div>
-      <div class="cat-pct" id="sec-pct-chov"></div>
-      <div class="cat-pct" id="sec-ytd-chov" style="font-size:10px;opacity:0.8;"></div>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;"><button class="cm-zoom-btn" onclick="event.stopPropagation();openCatModal('chov')" title="פתח בחלון">⛶</button><div class="chevron" id="chev-chov">▼</div></div>
-  </div>
-  <div class="category-body" id="body-chov">
-    <table>
-      <thead><tr>
-        <th>רכיב</th>
-        <th data-col="0">ינו׳ 25</th><th data-col="1">פבר׳ 25</th><th data-col="2">מרץ 25</th><th data-col="3">אפר׳ 25</th><th data-col="4">מאי 25</th><th data-col="5">יוני 25</th><th data-col="6">יולי 25</th><th data-col="7">אוג׳ 25</th><th data-col="8">ספט׳ 25</th><th data-col="9">אוק׳ 25</th><th data-col="10">נוב׳ 25</th><th data-col="11">דצמ׳ 25</th><th data-col="12">ינו׳ 26</th><th data-col="13">פבר׳ 26</th><th data-col="14">מרץ 26</th>
-      </tr></thead>
-      <tbody>
-        <tr onclick="selectFund('חובהראל','#64748b')" data-fund="חובהראל">
-          <td>חוב הראל</td><td data-col="0" class="val">195 </td><td data-col="1" class="val">179 </td><td data-col="2" class="val">165 </td><td data-col="3" class="val">150 </td><td data-col="4" class="val">135 </td><td data-col="5" class="val">120 </td><td data-col="6" class="val">105 </td><td data-col="7" class="val">90 </td><td data-col="8" class="val">75 </td><td data-col="9" class="val">60 </td><td data-col="10" class="val">45 </td><td data-col="11" class="val">30 </td><td data-col="12" class="val">15 </td><td data-col="13" class="dzer">0</td>
-        </tr>
-        <tr onclick="selectFund('חובאלטשולר','#64748b')" data-fund="חובאלטשולר">
-          <td>חוב אלטשולר</td><td data-col="0" class="val">1,667 </td><td data-col="1" class="val">1,674 </td><td data-col="2" class="val">1,681 </td><td data-col="3" class="val">1,681 </td><td data-col="4" class="val">1,696 </td><td data-col="5" class="val">1,708 </td><td data-col="6" class="val">1,718 </td><td data-col="7" class="val">1,727 </td><td data-col="8" class="val">1,735 </td><td data-col="9" class="val">1,743 </td><td data-col="10" class="val">1,750 </td><td data-col="11" class="val">1,756 </td><td data-col="12" class="val">1,765 </td><td data-col="13" class="val">1,768 </td><td data-col="14" class="val">—</td>
-        </tr>
-        <tr class="total-row" onclick="selectView('chov')">
-          <td>סה״כ חוב</td><td data-col="0" class="val">1,862 </td><td data-col="1" class="val">1,853 </td><td data-col="2" class="val">1,846 </td><td data-col="3" class="val">1,831 </td><td data-col="4" class="val">1,831 </td><td data-col="5" class="val">1,828 </td><td data-col="6" class="val">1,823 </td><td data-col="7" class="val">1,817 </td><td data-col="8" class="val">1,810 </td><td data-col="9" class="val">1,803 </td><td data-col="10" class="val">1,795 </td><td data-col="11" class="val">1,786 </td><td data-col="12" class="val">1,780 </td><td data-col="13" class="val">1,768 </td><td data-col="14" class="val">—</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<!-- ארביטראז / דירה / חוב הוסרו מה-HTML (v99.5) — מוצגות רק דרך Master-Detail בלחיצה על כרטיסייה -->
 
 
 
