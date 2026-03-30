@@ -63,8 +63,9 @@ const FUNDS = {
   'מזומןדולרי':  { name:'מזומן דולרי $', cat:'mezuman', data:[..._Z] },
   'מיטבשקלית':   { name:'מיטב קרן כספית', cat:'mezuman', data:[..._Z] },
   // ── יעל ──
-  'יעלקהש':        { name:'ק״הש – יעל',         cat:'hishtalmut', owner:'yael', liquidity:'age64', data:[..._Z] },
-  'יעלגמל':        { name:'גמל – יעל',           cat:'gemel',      owner:'yael', liquidity:'age64', data:[..._Z] },
+  'יעלקהש':        { name:'ק״הש – יעל',         cat:'hishtalmut', owner:'yael', liquidity:'age64',  data:[..._Z] },
+  'יעלקהש2':       { name:'ק״הש 2 – יעל',        cat:'hishtalmut', owner:'yael', liquidity:'age64',  data:[..._Z] },
+  'יעלגמל':        { name:'גמל – יעל',           cat:'gemel',      owner:'yael', liquidity:'pension', pensionMonthly:true, data:[..._Z] },
   'יעלגמלהשקעה':   { name:'גמל להשקעה – יעל',    cat:'gemel_invest',owner:'yael', liquidity:'now',   data:[..._Z] },
   'יעלפוליסה':     { name:'פוליסת חיסכון – יעל', cat:'harel',      owner:'yael', liquidity:'now',   data:[..._Z] },
 };
@@ -155,14 +156,16 @@ function renderYaelDonuts() {
   var typeTotal = typeDefs.reduce(function(s,d){ return s+d.val; }, 0);
   makePie('yael-modal-donut-type', 'yael-modal-donut-type-legend', typeDefs, typeTotal);
 
-  // --- Donut 2: by liquidity ---
-  var liqNow   = Math.round(yaelFunds.filter(function(f){ return f.liquidity === 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
-  var liqAge64 = Math.round(yaelFunds.filter(function(f){ return f.liquidity !== 'now'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
+  // --- Donut 2: by liquidity (3 categories) ---
+  var liqNow     = Math.round(yaelFunds.filter(function(f){ return f.liquidity === 'now';     }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
+  var liqAge64   = Math.round(yaelFunds.filter(function(f){ return f.liquidity === 'age64';   }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
+  var liqPension = Math.round(yaelFunds.filter(function(f){ return f.liquidity === 'pension'; }).reduce(function(s,f){ return s+(f.data[endIdx]||0); }, 0));
   var liqDefs = [
-    { label:'נזיל היום',    color:'#4ade80', val: liqNow },
-    { label:'נזיל בגיל 64', color:'#94a3b8', val: liqAge64 },
-  ];
-  var liqTotal = liqNow + liqAge64;
+    { label:'נזיל היום',       color:'#4ade80', val: liqNow },
+    { label:'נזיל בגיל 64',   color:'#94a3b8', val: liqAge64 },
+    { label:'קצבה חודשית',    color:'#a855f7', val: liqPension },
+  ].filter(function(d){ return d.val > 0; });
+  var liqTotal = liqNow + liqAge64 + liqPension;
   makePie('yael-modal-donut-liq', 'yael-modal-donut-liq-legend', liqDefs, liqTotal);
 }
 
