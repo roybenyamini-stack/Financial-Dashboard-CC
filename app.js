@@ -483,7 +483,7 @@ const grandBase0 = cats.reduce((s,c) => {
     .reduce((s, e) => s + e.amt, 0);
   const extWrap = el('hdr-external-wrap');
   if (extWrap) {
-    if (externalAmt > 0) {
+    if (externalAmt > 0 && invViewMode !== 'yael') {
       extWrap.style.display = 'flex';
       el('hdr-external-val').textContent = externalAmt.toLocaleString();
     } else {
