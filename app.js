@@ -4913,13 +4913,30 @@ function switchTab(id){
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
 
-  // v99.1: keep categories-scroll hidden at all times (replaced by Master-Detail)
+  // v99.3: categories-scroll always hidden (Master-Detail replaces it)
   var _catScr = document.getElementById('categories-scroll');
   if (_catScr) _catScr.style.display = 'none';
-  // reset Master-Detail when leaving investments tab
-  if (!isInv) {
+
+  if (isInv) {
+    // switching TO investments: reset to default "all" view → empty area below chart
     var _md = document.getElementById('inv-master-detail');
     if (_md) _md.style.display = 'none';
+    invMDCurrentCat  = null;
+    invMDCurrentFund = null;
+    currentView = 'all';
+    document.querySelectorAll('.card, .card-total').forEach(function(c){ c.classList.remove('active'); });
+    var _cardAll = document.getElementById('card-all');
+    if (_cardAll) _cardAll.classList.add('active');
+    if (invViewMode === 'roee') {
+      hideEmptyChart();
+      updateChart(getFilteredAllTotals ? getFilteredAllTotals() : ALL_TOTALS, '#2563eb', (CAT_NAMES && CAT_NAMES.all) || 'הכל');
+    } else {
+      showEmptyChart();
+    }
+  } else {
+    // leaving investments: hide Master-Detail
+    var _md2 = document.getElementById('inv-master-detail');
+    if (_md2) _md2.style.display = 'none';
     invMDCurrentCat  = null;
     invMDCurrentFund = null;
   }
