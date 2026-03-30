@@ -1079,14 +1079,14 @@ function invMDSelectFund(fundKey) {
   for (var i = winStart; i < winEnd; i++) h += '<th style="padding:4px 2px;font-size:11px;text-align:center;">' + LABELS[i] + '</th>';
   h += '</tr></thead><tbody>';
 
-  // שורת ערכים + אחוז שינוי חודשי בתוך כל תא
+  // שורת ערך + % שינוי inline מתחת (קרן בודדת — קומפקטי)
   h += '<tr><td style="' + tdLblStyle + 'font-weight:600;color:#64748b;">ערך</td>';
   for (var i = winStart; i < winEnd; i++) {
     var v    = ff[i];
     var prev = (i > 0) ? ff[i - 1] : null;
     if (v > 0) {
-      var delta = (prev !== null && prev > 0) ? (v - prev) : null;
-      var pct   = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
+      var delta   = (prev !== null && prev > 0) ? (v - prev) : null;
+      var pct     = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
       var pctHtml = pct !== null
         ? '<br><span style="font-size:9px;display:inline-block;' + (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">'
           + (delta > 0 ? '+' : '') + pct + '%</span>'
@@ -1097,26 +1097,6 @@ function invMDSelectFund(fundKey) {
     }
   }
   h += '</tr>';
-
-  // שורת שינוי חודשי + אחוז (לא למזומן)
-  if (fund.cat !== 'mezuman') {
-    h += '<tr class="delta-row visible"><td style="' + tdLblStyle + 'color:#64748b;">שינוי</td>';
-    for (var i = winStart; i < winEnd; i++) {
-      var v    = ff[i];
-      var prev = (i > 0) ? ff[i - 1] : null;
-      var d    = (v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
-      if (d === null) { h += '<td class="dzer" style="' + tdStyle + '">—</td>'; }
-      else {
-        var cls  = d > 0 ? 'dpos' : d < 0 ? 'dneg' : 'dzer';
-        var pct  = prev > 0 ? (d / prev * 100).toFixed(1) : null;
-        var pctStr = pct !== null
-          ? '<br><span style="font-size:9px;display:inline-block;opacity:0.85;">' + (d > 0 ? '+' : '') + pct + '%</span>'
-          : '';
-        h += '<td class="' + cls + ' dval" style="' + tdStyle + '">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
-      }
-    }
-    h += '</tr>';
-  }
 
   h += '</tbody></table>';
   detailTable.innerHTML = h;
@@ -3198,27 +3178,18 @@ function buildCatAggTable(catId) {
     h += '<th style="padding:4px 2px;font-size:11px;text-align:center;">' + LABELS[i] + '</th>';
   h += '</tr></thead><tbody>';
 
-  // שורת ערך
+  // שורה 1: ערך בלבד (ללא אחוז)
   h += '<tr><td style="' + tdLblStyle + 'font-weight:600;color:#64748b;">ערך</td>';
   for (var i = winStart; i < winEnd; i++) {
-    var v    = aggData[i];
-    var prev = (i > 0) ? aggData[i - 1] : null;
-    if (v !== null && v > 0) {
-      var delta   = (prev !== null && prev > 0) ? (v - prev) : null;
-      var pct     = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
-      var pctHtml = pct !== null
-        ? '<br><span style="font-size:9px;display:inline-block;' +
-          (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">' +
-          (delta > 0 ? '+' : '') + pct + '%</span>'
-        : '';
-      h += '<td style="' + tdStyle + 'color:' + color + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
-    } else {
+    var v = aggData[i];
+    if (v !== null && v > 0)
+      h += '<td style="' + tdStyle + 'color:' + color + ';">' + Math.round(v).toLocaleString() + '</td>';
+    else
       h += '<td style="' + tdStyle + '">—</td>';
-    }
   }
   h += '</tr>';
 
-  // שורת שינוי
+  // שורה 2: שינוי אבסולוטי בלבד (ללא אחוז)
   h += '<tr><td style="' + tdLblStyle + 'color:#64748b;">שינוי</td>';
   for (var i = winStart; i < winEnd; i++) {
     var v    = aggData[i];
@@ -3227,14 +3198,24 @@ function buildCatAggTable(catId) {
     if (d === null) {
       h += '<td style="' + tdStyle + '">—</td>';
     } else {
-      var clr    = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8';
-      var pct    = prev > 0 ? (d / prev * 100).toFixed(1) : null;
-      var pctStr = pct !== null
-        ? '<br><span style="font-size:9px;display:inline-block;opacity:0.85;">' +
-          (d > 0 ? '+' : '') + pct + '%</span>'
-        : '';
-      h += '<td style="' + tdStyle + 'color:' + clr + ';">' +
-           (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
+      var clr = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8';
+      h += '<td style="' + tdStyle + 'color:' + clr + ';">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + '</td>';
+    }
+  }
+  h += '</tr>';
+
+  // שורה 3: אחוז שינוי בלבד
+  h += '<tr><td style="' + tdLblStyle + 'color:#64748b;">% שינוי</td>';
+  for (var i = winStart; i < winEnd; i++) {
+    var v    = aggData[i];
+    var prev = (i > 0) ? aggData[i - 1] : null;
+    var d    = (v !== null && v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
+    if (d === null) {
+      h += '<td style="' + tdStyle + '">—</td>';
+    } else {
+      var pct = (prev > 0) ? (d / prev * 100).toFixed(1) : null;
+      var clr = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8';
+      h += '<td style="' + tdStyle + 'color:' + clr + ';font-weight:600;">' + (pct !== null ? (d > 0 ? '+' : '') + pct + '%' : '—') + '</td>';
     }
   }
   h += '</tr></tbody></table>';
