@@ -484,10 +484,10 @@ const grandBase0 = cats.reduce((s,c) => {
   const extWrap = el('hdr-external-wrap');
   if (extWrap) {
     if (externalAmt > 0 && invViewMode !== 'yael') {
-      extWrap.style.display = 'flex';
+      extWrap.style.visibility = 'visible';
       el('hdr-external-val').textContent = externalAmt.toLocaleString();
     } else {
-      extWrap.style.display = 'none';
+      extWrap.style.visibility = 'hidden';
     }
   }
   // Right stat: measured return %
