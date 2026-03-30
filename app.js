@@ -1065,7 +1065,7 @@ function invMDSelectFund(fundKey) {
   }
   h += '</tr>';
 
-  // שורת שינוי חודשי (לא למזומן)
+  // שורת שינוי חודשי + אחוז (לא למזומן)
   if (fund.cat !== 'mezuman') {
     h += '<tr class="delta-row visible"><td style="text-align:right;direction:rtl;">שינוי חודשי</td>';
     for (var i = winStart; i < winEnd; i++) {
@@ -1074,8 +1074,12 @@ function invMDSelectFund(fundKey) {
       var d    = (v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
       if (d === null) { h += '<td class="dzer">—</td>'; }
       else {
-        var cls = d > 0 ? 'dpos' : d < 0 ? 'dneg' : 'dzer';
-        h += '<td class="' + cls + ' dval">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + '</td>';
+        var cls  = d > 0 ? 'dpos' : d < 0 ? 'dneg' : 'dzer';
+        var pct  = prev > 0 ? (d / prev * 100).toFixed(1) : null;
+        var pctStr = pct !== null
+          ? '<br><span style="font-size:9px;opacity:0.75;">' + (d > 0 ? '+' : '') + pct + '%</span>'
+          : '';
+        h += '<td class="' + cls + ' dval">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
       }
     }
     h += '</tr>';
@@ -3519,6 +3523,18 @@ function closeTableView() {
   document.getElementById('table-modal').style.display = 'none';
 }
 
+// ── ניווט מהטבלה הראשית → Master-Detail (v99.2) ──
+function tableNavToCat(catId) {
+  closeTableView();
+  selectView(catId);
+}
+function tableNavToFund(fundKey, catId) {
+  closeTableView();
+  selectView(catId);
+  // setTimeout מאפשר ל-invMDShowCat לסיים לבנות את הכרטיסיות לפני הבחירה
+  setTimeout(function() { invMDSelectFund(fundKey); }, 30);
+}
+
 function buildTableView() {
   var wrap = document.getElementById('tv-wrap');
   var lastLabel = LABELS[LABELS.length - 1] || '';
@@ -3560,16 +3576,13 @@ function buildTableView() {
     });
 
     // Category header row (above all fund rows) – clickable if catId exists
-    var rowStyle = sec.catId
-      ? 'background:'+sec.color+';cursor:pointer;'
-      : 'background:'+sec.color+';';
-    var rowClick = sec.catId
-      ? ' onclick="closeTableView();openCatModal(\'' + sec.catId + '\', true);"'
-      : '';
+    var rowStyle = 'background:'+sec.color+';';
+    var catClass = sec.catId ? ' class="tv-cat-row-link"' : '';
+    var catClick = sec.catId ? ' onclick="tableNavToCat(\''+sec.catId+'\');"' : '';
     var rowLabel = sec.catId
       ? '<span style="opacity:0.4;font-size:10px;margin-left:4px;">&#x2197;</span> '+sec.label
       : sec.label;
-    h += '<tr style="'+rowStyle+'"'+rowClick+'>';
+    h += '<tr style="'+rowStyle+'"'+catClass+catClick+'>';
     h += '<td colspan="6" style="padding:7px 12px;font-weight:700;font-size:12px;color:#1f2937;letter-spacing:0.03em;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;">'+rowLabel+'</td>';
     h += '</tr>';
 
@@ -3597,8 +3610,11 @@ function buildTableView() {
         if (/כספי/.test(st)) sb += '&nbsp;<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:0 4px;font-size:10px;">כספי</span>';
       }
 
+      var fundClick = sec.catId ? ' onclick="tableNavToFund(\''+r.fk+'\',\''+sec.catId+'\');"' : '';
       h += '<tr style="background:'+zebra+';border-bottom:1px solid #e5e7eb;'+rowOpacity+'">';
-      h += '<td style="padding:7px 12px;color:#374151;font-size:13px;text-align:left;border-left:3px solid '+sec.color+';">'+r.f.name+'</td>';
+      h += '<td style="padding:7px 12px;color:#374151;font-size:13px;text-align:left;border-left:3px solid '+sec.color+';">'
+         + (sec.catId ? '<span class="tv-fund-name-link"'+fundClick+'>'+r.f.name+'</span>' : r.f.name)
+         + '</td>';
       h += '<td style="padding:7px 10px;text-align:right;font-weight:500;color:'+valColor+';font-variant-numeric:tabular-nums;">'+r.val.toLocaleString('he-IL')+'</td>';
       h += '<td style="padding:7px 8px;text-align:right;font-size:11px;color:#6b7280;">'+(r.meta.liquid||'')+'</td>';
       h += '<td style="padding:7px 8px;text-align:right;">'+sb+'</td>';
