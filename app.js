@@ -3149,19 +3149,99 @@ var cmWinStart = 0;
 var CM_WINDOW = 13;
 var cmChartData = null;
 
+// ---- בניית טבלת ציר-זמן מצטברת לקטגוריה (v100.1) ----
+function buildCatAggTable(catId) {
+  var color  = CAT_COLORS[catId] || '#2563eb';
+  var filter = invFundFilter();
+  var funds  = Object.entries(FUNDS).filter(function(e) {
+    return e[1].cat === catId && filter(e[1]);
+  });
+
+  var winEnd    = Math.min(winStart + WINDOW, LABELS.length);
+  var nDataCols = winEnd - winStart;
+  var yAxisW    = (chart && chart.chartArea) ? Math.ceil(chart.chartArea.left) : 60;
+
+  // צבירת ערכים לכל חודש
+  var aggData = [];
+  for (var mi = 0; mi < LABELS.length; mi++) {
+    var total = 0;
+    funds.forEach(function(e) {
+      var ff = ffFundData(e[1].data);
+      total += (ff[mi] || 0);
+    });
+    aggData.push(total > 0 ? total : null);
+  }
+
+  // בניית טבלה זהה ל-invMDSelectFund
+  var colHtml = '<colgroup><col style="width:' + yAxisW + 'px;">';
+  for (var ci = 0; ci < nDataCols; ci++)
+    colHtml += '<col style="width:calc((100% - ' + yAxisW + 'px) / ' + nDataCols + ');">';
+  colHtml += '</colgroup>';
+
+  var tdStyle    = 'padding:5px 4px;text-align:center;overflow:visible;font-size:11px;';
+  var tdLblStyle = 'padding:5px 6px;text-align:right;direction:rtl;white-space:nowrap;overflow:hidden;font-size:11px;width:' + yAxisW + 'px;max-width:' + yAxisW + 'px;';
+
+  var h = '<table style="direction:ltr;table-layout:fixed;width:100%;font-family:Heebo,sans-serif;">'
+        + colHtml + '<thead><tr>';
+  h += '<th style="width:' + yAxisW + 'px;max-width:' + yAxisW + 'px;text-align:right;direction:rtl;padding:5px 6px;overflow:hidden;"></th>';
+  for (var i = winStart; i < winEnd; i++)
+    h += '<th style="padding:4px 2px;font-size:11px;text-align:center;">' + LABELS[i] + '</th>';
+  h += '</tr></thead><tbody>';
+
+  // שורת ערך
+  h += '<tr><td style="' + tdLblStyle + 'font-weight:600;color:#64748b;">ערך</td>';
+  for (var i = winStart; i < winEnd; i++) {
+    var v    = aggData[i];
+    var prev = (i > 0) ? aggData[i - 1] : null;
+    if (v !== null && v > 0) {
+      var delta   = (prev !== null && prev > 0) ? (v - prev) : null;
+      var pct     = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
+      var pctHtml = pct !== null
+        ? '<br><span style="font-size:9px;display:inline-block;' +
+          (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">' +
+          (delta > 0 ? '+' : '') + pct + '%</span>'
+        : '';
+      h += '<td style="' + tdStyle + 'color:' + color + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
+    } else {
+      h += '<td style="' + tdStyle + '">—</td>';
+    }
+  }
+  h += '</tr>';
+
+  // שורת שינוי
+  h += '<tr><td style="' + tdLblStyle + 'color:#64748b;">שינוי</td>';
+  for (var i = winStart; i < winEnd; i++) {
+    var v    = aggData[i];
+    var prev = (i > 0) ? aggData[i - 1] : null;
+    var d    = (v !== null && v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
+    if (d === null) {
+      h += '<td style="' + tdStyle + '">—</td>';
+    } else {
+      var clr    = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8';
+      var pct    = prev > 0 ? (d / prev * 100).toFixed(1) : null;
+      var pctStr = pct !== null
+        ? '<br><span style="font-size:9px;display:inline-block;opacity:0.85;">' +
+          (d > 0 ? '+' : '') + pct + '%</span>'
+        : '';
+      h += '<td style="' + tdStyle + 'color:' + clr + ';">' +
+           (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + pctStr + '</td>';
+    }
+  }
+  h += '</tr></tbody></table>';
+  return h;
+}
+
 // ---- פתיחת מודאל ----
 var cmOpenedFromTable = false;
 function openCatModal(catId, fromTable) {
   if (!catId) return;
   cmOpenedFromTable = !!fromTable;
-  var btnT = document.getElementById('cm-back-table');
-  if (btnT) btnT.classList.toggle('visible', cmOpenedFromTable);
   cmCurrentCat = catId;
   cmCurrentFundKey = null;
   cmFundClickState = 0;
 
   // Use CAT_COLORS/CAT_NAMES directly (sec-* elements removed in v99.5)
-  var color = CAT_COLORS[catId] || '#2563eb';
+  var color      = CAT_COLORS[catId] || '#2563eb';
   var colorLight = color + '22';
   var box = document.getElementById('cat-modal-box');
   if (!box) return;
@@ -3172,17 +3252,27 @@ function openCatModal(catId, fromTable) {
   document.getElementById('cm-icon').style.background = colorLight;
   var nameEl = document.getElementById('cm-name');
   nameEl.style.color = color;
-  nameEl.textContent = CAT_NAMES[catId] || catId;
+  nameEl.textContent = (CAT_NAMES[catId] || catId) + ' <span style="font-size:11px;font-weight:400;color:#94a3b8;">(באלפי ש״ח)</span>';
 
   cmWinStart = Math.max(0, LABELS.length - CM_WINDOW);
-  cmCatFundKeys = Object.keys(FUNDS).filter(function(k){ return FUNDS[k].cat === catId; });
 
-  // סטטיסטיקות קטגוריה
+  // הסתר כפתורי ניווט שאינם רלוונטיים
+  var btnBack  = document.getElementById('cm-back');
+  var btnBackT = document.getElementById('cm-back-table');
+  if (btnBack)  btnBack.classList.remove('visible');
+  if (btnBackT) btnBackT.classList.remove('visible');
+
+  // סטטיסטיקות קטגוריה בכותרת
   cmSetCatStats(catId);
 
-  // בנה רשימה ותצוגה
-  cmBuildList(catId, color);
-  cmShowList();
+  // הצג טבלת ציר-זמן מצטברת בגוף המודאל
+  var body = document.getElementById('cm-body');
+  if (body) {
+    body.innerHTML =
+      '<div style="padding:12px 20px 16px;overflow-x:auto;direction:ltr;">' +
+        buildCatAggTable(catId) +
+      '</div>';
+  }
 
   document.getElementById('cat-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
