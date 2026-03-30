@@ -200,22 +200,15 @@ function invSetView(mode) {
   updateTableCells();
   updateDynamicStats();
   if (typeof currentView !== 'undefined') selectView(currentView || 'all');
-  // v97.1: visibility of categories table + table button state
+  // v99.1: categories-scroll replaced by Master-Detail — always hidden
   var catLabel = document.getElementById('cat-scroll-label');
   var catScr   = document.getElementById('categories-scroll');
   var tableBtn = document.getElementById('inv-table-btn');
+  if (catScr)   catScr.style.display   = 'none';
+  if (catLabel) catLabel.style.display = 'none';
   if (mode === 'yael') {
-    if (catScr)   catScr.style.display   = 'none';
-    if (catLabel) catLabel.style.display = 'none';
     if (tableBtn) { tableBtn.disabled = true; tableBtn.style.opacity = '0.35'; tableBtn.style.cursor = 'not-allowed'; }
-  } else if (mode === 'all') {
-    if (catScr)   catScr.style.display   = '';
-    if (catLabel) catLabel.style.display = '';
-    if (tableBtn) { tableBtn.disabled = false; tableBtn.style.opacity = ''; tableBtn.style.cursor = 'pointer'; }
   } else {
-    // roee
-    if (catScr)   catScr.style.display   = '';
-    if (catLabel) catLabel.style.display = 'none';
     if (tableBtn) { tableBtn.disabled = false; tableBtn.style.opacity = ''; tableBtn.style.cursor = 'pointer'; }
   }
 }
@@ -4903,6 +4896,17 @@ function switchTab(id){
   document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isInv ? '' : 'none'; });
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
+
+  // v99.1: keep categories-scroll hidden at all times (replaced by Master-Detail)
+  var _catScr = document.getElementById('categories-scroll');
+  if (_catScr) _catScr.style.display = 'none';
+  // reset Master-Detail when leaving investments tab
+  if (!isInv) {
+    var _md = document.getElementById('inv-master-detail');
+    if (_md) _md.style.display = 'none';
+    invMDCurrentCat  = null;
+    invMDCurrentFund = null;
+  }
 
   // v28.0: סגור חלוני צ'אט פתוחים בעת מעבר בין טאבים
   if (cfChatOpen)  { cfChatOpen  = false; var _cfcp  = document.getElementById('cf-cp');  if(_cfcp)  _cfcp.style.display='none'; }
