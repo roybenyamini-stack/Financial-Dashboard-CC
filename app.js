@@ -2654,32 +2654,31 @@ function loadExcelFileCore(wb) {
         return 'yd_' + cat + '_' + slug;
       }
 
-      // v100.7: Returns INDIVIDUAL rows — one per Excel row — instead of aggregating
+      // v100.8: Returns INDIVIDUAL rows — one per Excel row — instead of aggregating
       function parseYaelFromSheet(rows) {
-        var ownerColIdx = -1, typeColIdx = 0, nameColIdx = -1, liqColIdx = -1;
+        var ownerColIdx = -1, nameColIdx = -1, liqColIdx = -1;
 
-        // --- Strategy A: find header row ---
+        // --- Strategy A: find header row (broad matching) ---
         for (var ri = 0; ri < Math.min(rows.length, 15); ri++) {
           var hrow = rows[ri];
           if (!Array.isArray(hrow)) continue;
           var found = false;
           for (var ci = 0; ci < hrow.length; ci++) {
             var cell = normCell(hrow[ci]);
-            if (cell.includes('שייכות') || cell.includes('בעלות')) { ownerColIdx = ci; found = true; }
-            if (cell.includes('קטגוריה') || cell.includes('מוצר')) typeColIdx = ci;
-            if (cell.includes('שם קרן') || cell.includes('שם חברה') || cell === 'שם') nameColIdx = ci;
-            if (cell.includes('נזיל') || cell === 'נזילות') liqColIdx = ci;
+            if (cell.includes('שייכות') || cell.includes('בעלות') || cell.includes('owner')) { ownerColIdx = ci; found = true; }
+            if (cell.includes('שם') && !cell.includes('שייכות')) nameColIdx = ci; // any column with "שם"
+            if (cell.includes('נזיל') || cell.includes('נזילות') || cell.includes('liquidity')) liqColIdx = ci;
           }
           if (found) break;
         }
 
-        // --- Strategy B: auto-detect owner column ---
+        // --- Strategy B: auto-detect owner column by "יעל" frequency ---
         if (ownerColIdx < 0) {
           var hits = {};
           for (var ri2 = 0; ri2 < rows.length; ri2++) {
             var r2 = rows[ri2];
             if (!Array.isArray(r2)) continue;
-            for (var ci2 = 2; ci2 <= Math.min(r2.length - 1, 20); ci2++) {
+            for (var ci2 = 1; ci2 <= Math.min(r2.length - 1, 20); ci2++) {
               if (normCell(r2[ci2]) === 'יעל') hits[ci2] = (hits[ci2]||0) + 1;
             }
           }
@@ -2692,6 +2691,11 @@ function loadExcelFileCore(wb) {
 
         if (ownerColIdx < 0) return null;
 
+        // If still no name column: default to col 0 (same as ANCHOR_MAP — asset name is always first)
+        if (nameColIdx < 0) nameColIdx = 0;
+        // If still no type column: scan all text columns for category keywords
+        // (handled per-row below if typeColIdx is -1)
+
         var yaelRows = []; // one object per Excel row
 
         for (var ri3 = 0; ri3 < rows.length; ri3++) {
@@ -2699,38 +2703,37 @@ function loadExcelFileCore(wb) {
           if (!Array.isArray(row) || row.length <= ownerColIdx) continue;
           if (normCell(row[ownerColIdx]) !== 'יעל') continue;
 
-          // Extract value: rightmost number, skip owner/liq columns
+          // Extract value: rightmost number, skip text-likely columns
           var val = 0;
           for (var vc = row.length - 1; vc >= 1; vc--) {
-            if (vc === ownerColIdx || vc === liqColIdx) continue;
+            if (vc === ownerColIdx || vc === liqColIdx || vc === nameColIdx) continue;
             if (typeof row[vc] === 'number' && row[vc] > 0) { val = row[vc]; break; }
           }
           if (val <= 0) continue;
 
-          var typeStr = row.length > typeColIdx ? normCell(row[typeColIdx]) : '';
+          // Determine category: scan all text cells in this row
           var cat = null;
-          if (typeStr.includes('השתלמות') || typeStr.includes('קה') || typeStr.includes('ק"הש') || typeStr.includes("קה'ש")) {
-            cat = 'hishtalmut';
-          } else if (typeStr.includes('גמל להשקעה') || typeStr.includes('גמל-להשקעה')) {
-            cat = 'gemel_invest';
-          } else if (typeStr.includes('גמל')) {
-            cat = 'gemel';
-          } else if (typeStr.includes('פוליסה') || typeStr.includes('חיסכון') || typeStr.includes('ביטוח') || typeStr.includes('הראל') || typeStr.includes('מגוון')) {
-            cat = 'harel';
+          for (var sc = 0; sc < row.length; sc++) {
+            if (sc === ownerColIdx || sc === liqColIdx || typeof row[sc] !== 'string') continue;
+            var s = normCell(row[sc]);
+            if (s.includes('השתלמות') || s.includes('ק"הש') || s.includes("קה'ש") || (s.includes('קה') && !s.includes('גמל'))) {
+              cat = 'hishtalmut'; break;
+            }
+            if (s.includes('גמל להשקעה') || s.includes('גמל-להשקעה')) { cat = 'gemel_invest'; break; }
+            if (s.includes('גמל')) { cat = 'gemel'; break; }
+            if (s.includes('פוליסה') || s.includes('חיסכון') || s.includes('ביטוח') || s.includes('מגוון')) { cat = 'harel'; break; }
           }
           if (!cat) continue;
 
-          var fundName = (nameColIdx >= 0 && row[nameColIdx]) ? normCell(row[nameColIdx]) : null;
-          var liqCode  = (liqColIdx >= 0 && row[liqColIdx])  ? parseLiqCode(row[liqColIdx]) : null;
+          // Fund name: use nameCol (col 0 by default)
+          var fundName = row[nameColIdx] ? normCell(row[nameColIdx]) : null;
+          // Skip rows where the "name" cell is the owner value itself or a category keyword
+          if (!fundName || fundName === 'יעל') continue;
 
-          // If no fund name column: fall back to static buckets
-          var key = fundName
-            ? yaelKey(fundName, cat)
-            : (cat === 'hishtalmut' ? 'יעלקהש' : cat === 'gemel_invest' ? 'יעלגמלהשקעה' : cat === 'gemel' ? 'יעלגמל' : 'יעלפוליסה');
+          var liqCode = (liqColIdx >= 0 && row[liqColIdx]) ? parseLiqCode(row[liqColIdx]) : null;
+          var key     = yaelKey(fundName, cat);
 
-          var displayName = fundName || (CAT_NAMES[cat] + ' – יעל');
-
-          yaelRows.push({ key: key, name: displayName, cat: cat, liquidity: liqCode, val: val });
+          yaelRows.push({ key: key, name: fundName, cat: cat, liquidity: liqCode, val: val });
         }
 
         return yaelRows.length ? yaelRows : null;
