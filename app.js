@@ -972,17 +972,16 @@ function invMDShowCat(catId) {
   invMDCurrentCat  = catId;
   invMDCurrentFund = null;
 
-  var panel      = document.getElementById('inv-master-detail');
-  var fundsRow   = document.getElementById('inv-md-funds-row');
-  var catTitle   = document.getElementById('inv-md-cat-title');
-  var detailWrap = document.getElementById('inv-md-detail-wrap');
+  var panel       = document.getElementById('inv-master-detail');
+  var fundsRow    = document.getElementById('inv-md-funds-row');
+  var catTitle    = document.getElementById('inv-md-cat-title');
+  var detailWrap  = document.getElementById('inv-md-detail-wrap');
+  var detailName  = document.getElementById('inv-md-detail-name');
+  var detailTable = document.getElementById('inv-md-detail-table');
   if (!panel || !fundsRow) return;
 
   panel.style.display = 'block';
-  if (detailWrap) detailWrap.style.display = 'none';
   if (catTitle) catTitle.textContent = (CAT_NAMES[catId] || catId) + ' — קרנות';
-  var btnCatTbl = document.getElementById('btn-cat-table');
-  if (btnCatTbl) btnCatTbl.style.display = '';
 
   var color  = CAT_COLORS[catId] || '#2563eb';
   var filter = invFundFilter();
@@ -992,37 +991,45 @@ function invMDShowCat(catId) {
 
   if (!funds.length) {
     fundsRow.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0;direction:rtl;">לא נמצאו קרנות</div>';
+    if (detailWrap) detailWrap.style.display = 'none';
     return;
   }
 
+  // בנה כרטיסיות קרנות
   var endIdx = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
   var html = '';
-
   funds.forEach(function(entry) {
     var key  = entry[0], fund = entry[1];
     var fc   = (typeof FUND_COLORS !== 'undefined' && FUND_COLORS[key]) ? FUND_COLORS[key] : color;
     var ff   = ffFundData(fund.data);
     var val  = ff[endIdx];
     var disp = (val !== null && val !== undefined && val > 0) ? Math.round(val).toLocaleString() : '—';
-
     var tags = '';
     if (fund.transferred) tags += ' <span class="note note-equity-sold">הועבר</span>';
     if (fund.owner === 'yael') tags += ' <span class="note note-yael">יעל</span>';
-
     html += '<div class="inv-md-fund-card" id="invmd-fc-' + key + '" style="--fc:' + fc + ';">';
     html += '<div class="mdf-name">' + fund.name + tags + '</div>';
     html += '<div class="mdf-val">' + disp + '</div>';
     html += '</div>';
   });
-
   fundsRow.innerHTML = html;
 
-  // הוסף event listeners (מונע בעיות עם מפתחות עבריים ב-onclick attribute)
   funds.forEach(function(entry) {
     var key = entry[0];
     var el  = document.getElementById('invmd-fc-' + key);
     if (el) el.addEventListener('click', function() { invMDSelectFund(key); });
   });
+
+  // הצג טבלה מצטברת של הקטגוריה — בדיוק כמו טבלת קרן בודדת
+  if (detailWrap && detailTable) {
+    if (detailName) {
+      detailName.innerHTML = (CAT_NAMES[catId] || catId) +
+        ' <span style="font-size:10px;color:#94a3b8;font-weight:400;">(באלפי ש״ח)</span>';
+      detailName.style.color = color;
+    }
+    detailTable.innerHTML = buildCatAggTable(catId);
+    detailWrap.style.display = 'block';
+  }
 }
 
 // ── Master-Detail: רמה 2 — לחיצה על קרן ספציפית (v98.4) ──
@@ -1123,11 +1130,16 @@ function invMDSelectFund(fundKey) {
 
 // ── Master-Detail: סגירת פאנל פירוט (v98.4) ──
 function invMDCloseDetail() {
+  var wasFund = invMDCurrentFund;
   invMDCurrentFund = null;
-  var detailWrap = document.getElementById('inv-md-detail-wrap');
-  if (detailWrap) detailWrap.style.display = 'none';
   document.querySelectorAll('.inv-md-fund-card').forEach(function(el) { el.classList.remove('md-active'); });
-  if (invMDCurrentCat) selectView(invMDCurrentCat);
+  if (wasFund && invMDCurrentCat) {
+    // חזרה מקרן → הצג טבלת קטגוריה
+    selectView(invMDCurrentCat);
+  } else {
+    // סגירת תצוגת קטגוריה → חזרה ל"הכל"
+    navCloseAll();
+  }
 }
 
 function toggleCat(id) {
@@ -3130,8 +3142,6 @@ function navCloseAll() {
   document.querySelectorAll('.category-body.open').forEach(function(b) { b.classList.remove('open'); });
   document.querySelectorAll('.chevron.open').forEach(function(c) { c.classList.remove('open'); });
   document.getElementById('chart-nav-btns').classList.remove('visible');
-  var btnCatTbl = document.getElementById('btn-cat-table');
-  if (btnCatTbl) btnCatTbl.style.display = 'none';
   currentCatContext = null;
 }
 

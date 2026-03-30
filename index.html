@@ -1,4 +1,4 @@
-<!-- v100.1 -->
+<!-- v100.2 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v100.1</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v100.2</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -248,10 +248,7 @@
 
 <!-- MASTER-DETAIL PANEL (v98.4): רמה 1 = כרטיסיות קרנות | רמה 2 = טבלת פירוט קרן -->
 <div id="inv-master-detail" style="display:none;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;direction:rtl;">
-    <div class="inv-md-cat-label" id="inv-md-cat-title" style="margin-bottom:0;">בחר קטגוריה</div>
-    <button id="btn-cat-table" class="cat-table-btn" onclick="openCatModal(invMDCurrentCat)" style="display:none;">📊 הצג טבלה</button>
-  </div>
+  <div class="inv-md-cat-label" id="inv-md-cat-title">בחר קטגוריה</div>
   <div class="inv-md-funds-row" id="inv-md-funds-row"></div>
   <div class="inv-md-detail-wrap" id="inv-md-detail-wrap" style="display:none;">
     <div class="inv-md-detail-hdr">
