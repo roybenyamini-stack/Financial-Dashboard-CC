@@ -104,6 +104,10 @@ const FUND_COLORS = {
 
 // ── Family View (v94.0) ──
 var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
+
+// ── Master-Detail State (v98.4) ──
+var invMDCurrentCat  = null;
+var invMDCurrentFund = null;
 function invFundFilter() {
   if (invViewMode === 'roee') return function(f) { return !f.owner || f.owner === 'roee'; };
   if (invViewMode === 'yael') return function(f) { return f.owner === 'yael'; };
@@ -876,9 +880,16 @@ function selectView(cat) {
     } else {
       updateChart(getFilteredAllTotals(), '#2563eb', CAT_NAMES.all);
     }
+    // v98.4: הסתר Master-Detail בעת חזרה ל"כל"
+    var _mdp = document.getElementById('inv-master-detail');
+    if (_mdp) _mdp.style.display = 'none';
+    invMDCurrentCat  = null;
+    invMDCurrentFund = null;
   } else {
     hideEmptyChart();
     updateChart(CAT_CHART_TOTALS[cat] || CAT_TOTALS[cat], CAT_COLORS[cat], CAT_NAMES[cat]);
+    // v98.4: הצג רשימת קרנות לקטגוריה שנבחרה
+    invMDShowCat(cat);
   }
   updateNavButtons();
 }
@@ -962,6 +973,138 @@ function selectFund(fundKey, color) {
   document.querySelectorAll('.card, .card-total').forEach(c => c.classList.remove('active'));
   updateChart(fund.data.map(v => v ?? NaN), color, fund.name);
   updateActiveTags(fundKey);
+}
+
+// ── Master-Detail: רמה 1 — הצג רשימת קרנות לקטגוריה (v98.4) ──
+function invMDShowCat(catId) {
+  invMDCurrentCat  = catId;
+  invMDCurrentFund = null;
+
+  var panel      = document.getElementById('inv-master-detail');
+  var fundsRow   = document.getElementById('inv-md-funds-row');
+  var catTitle   = document.getElementById('inv-md-cat-title');
+  var detailWrap = document.getElementById('inv-md-detail-wrap');
+  if (!panel || !fundsRow) return;
+
+  panel.style.display = 'block';
+  if (detailWrap) detailWrap.style.display = 'none';
+  if (catTitle) catTitle.textContent = (CAT_NAMES[catId] || catId) + ' — קרנות';
+
+  var color  = CAT_COLORS[catId] || '#2563eb';
+  var filter = invFundFilter();
+  var funds  = Object.entries(FUNDS).filter(function(e) {
+    return e[1].cat === catId && filter(e[1]);
+  });
+
+  if (!funds.length) {
+    fundsRow.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0;direction:rtl;">לא נמצאו קרנות</div>';
+    return;
+  }
+
+  var endIdx = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
+  var html = '';
+
+  funds.forEach(function(entry) {
+    var key  = entry[0], fund = entry[1];
+    var fc   = (typeof FUND_COLORS !== 'undefined' && FUND_COLORS[key]) ? FUND_COLORS[key] : color;
+    var ff   = ffFundData(fund.data);
+    var val  = ff[endIdx];
+    var disp = (val !== null && val !== undefined && val > 0) ? Math.round(val).toLocaleString() : '—';
+
+    var tags = '';
+    if (fund.transferred) tags += ' <span class="note note-equity-sold">הועבר</span>';
+    if (fund.owner === 'yael') tags += ' <span class="note note-yael">יעל</span>';
+
+    html += '<div class="inv-md-fund-card" id="invmd-fc-' + key + '" style="--fc:' + fc + ';">';
+    html += '<div class="mdf-name">' + fund.name + tags + '</div>';
+    html += '<div class="mdf-val">' + disp + '</div>';
+    html += '</div>';
+  });
+
+  fundsRow.innerHTML = html;
+
+  // הוסף event listeners (מונע בעיות עם מפתחות עבריים ב-onclick attribute)
+  funds.forEach(function(entry) {
+    var key = entry[0];
+    var el  = document.getElementById('invmd-fc-' + key);
+    if (el) el.addEventListener('click', function() { invMDSelectFund(key); });
+  });
+}
+
+// ── Master-Detail: רמה 2 — לחיצה על קרן ספציפית (v98.4) ──
+function invMDSelectFund(fundKey) {
+  invMDCurrentFund = fundKey;
+  var fund = FUNDS[fundKey];
+  if (!fund) return;
+
+  var fc = (typeof FUND_COLORS !== 'undefined' && FUND_COLORS[fundKey])
+    ? FUND_COLORS[fundKey] : (CAT_COLORS[fund.cat] || '#2563eb');
+
+  // הדגשת הכרטיסייה הנבחרת
+  document.querySelectorAll('.inv-md-fund-card').forEach(function(el) { el.classList.remove('md-active'); });
+  var card = document.getElementById('invmd-fc-' + fundKey);
+  if (card) card.classList.add('md-active');
+
+  // פאנל פירוט
+  var detailWrap  = document.getElementById('inv-md-detail-wrap');
+  var detailName  = document.getElementById('inv-md-detail-name');
+  var detailTable = document.getElementById('inv-md-detail-table');
+  if (!detailWrap || !detailTable) return;
+
+  detailWrap.style.display = 'block';
+  if (detailName) { detailName.textContent = fund.name; detailName.style.color = fc; }
+
+  // בניית טבלת פירוט — חלון winStart/WINDOW
+  var ff     = ffFundData(fund.data);
+  var winEnd = Math.min(winStart + WINDOW, LABELS.length);
+
+  var h = '<table style="direction:ltr;"><thead><tr>';
+  h += '<th style="min-width:140px;text-align:right;direction:rtl;">סעיף</th>';
+  for (var i = winStart; i < winEnd; i++) h += '<th>' + LABELS[i] + '</th>';
+  h += '</tr></thead><tbody>';
+
+  // שורת ערכים
+  h += '<tr><td style="text-align:right;direction:rtl;font-weight:700;color:#1a1a2e;">ערך (אלפי ש״ח)</td>';
+  for (var i = winStart; i < winEnd; i++) {
+    var v = ff[i];
+    if (v > 0) h += '<td class="val" style="color:' + fc + ';">' + Math.round(v).toLocaleString() + '</td>';
+    else        h += '<td class="dash">—</td>';
+  }
+  h += '</tr>';
+
+  // שורת שינוי חודשי (לא למזומן)
+  if (fund.cat !== 'mezuman') {
+    h += '<tr class="delta-row visible"><td style="text-align:right;direction:rtl;">שינוי חודשי</td>';
+    for (var i = winStart; i < winEnd; i++) {
+      var v    = ff[i];
+      var prev = (i > 0) ? ff[i - 1] : null;
+      var d    = (v > 0 && prev !== null && prev > 0) ? (v - prev) : null;
+      if (d === null) { h += '<td class="dzer">—</td>'; }
+      else {
+        var cls = d > 0 ? 'dpos' : d < 0 ? 'dneg' : 'dzer';
+        h += '<td class="' + cls + ' dval">' + (d > 0 ? '+' : '') + Math.round(d).toLocaleString() + '</td>';
+      }
+    }
+    h += '</tr>';
+  }
+
+  h += '</tbody></table>';
+  detailTable.innerHTML = h;
+
+  // גלילה עדינה לפאנל
+  setTimeout(function() { detailWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+
+  // עדכון גרף ראשי לקרן שנבחרה
+  selectFund(fundKey, fc);
+}
+
+// ── Master-Detail: סגירת פאנל פירוט (v98.4) ──
+function invMDCloseDetail() {
+  invMDCurrentFund = null;
+  var detailWrap = document.getElementById('inv-md-detail-wrap');
+  if (detailWrap) detailWrap.style.display = 'none';
+  document.querySelectorAll('.inv-md-fund-card').forEach(function(el) { el.classList.remove('md-active'); });
+  if (invMDCurrentCat) selectView(invMDCurrentCat);
 }
 
 function toggleCat(id) {

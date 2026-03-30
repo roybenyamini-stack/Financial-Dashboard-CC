@@ -23,7 +23,9 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 #upload-status { font-size: 11px; color: #94a3b8; }
 
 /* CARDS */
-.cards-row { display: grid; grid-template-columns: auto repeat(9, 1fr); gap: 10px; margin-bottom: 10px; }
+.cards-row { display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 10px; overflow-x: auto; padding: 2px 0; }
+.card-total { flex-shrink: 0; }
+.card { flex: 1 1 80px; min-width: 80px; }
 .card-total { background: #1a1a2e; border-radius: 14px; padding: 10px 16px; color: white; cursor: pointer; transition: all 0.18s; display: flex; flex-direction: column; justify-content: center; min-width: 120px; border: 2px solid transparent; }
 .card-total:hover  { background: #0f3460; transform: translateY(-1px); }
 .card-total.active { background: #0f3460; border-color: #7dd3fc; }
@@ -350,3 +352,25 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 #login-btn { width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-family:Heebo,sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:background 0.2s; }
 #login-btn:hover { background:#1d4ed8; }
 #login-err { color:#f87171;font-size:13px;margin-top:12px;min-height:18px; }
+
+/* ── INVESTMENT TAB: MASTER-DETAIL PANEL (v98.4) ── */
+/* קטגוריות הגלילה מוסתרות — Master-Detail מחליף */
+#categories-scroll { display: none; }
+#cat-scroll-label  { display: none !important; }
+
+#inv-master-detail { padding: 4px 20px 24px; }
+.inv-md-cat-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 8px; direction: rtl; text-transform: uppercase; }
+.inv-md-funds-row  { display: flex; flex-wrap: wrap; gap: 8px; direction: rtl; margin-bottom: 14px; }
+
+/* כרטיסיית קרן בודדת */
+.inv-md-fund-card  { background: #fff; border-radius: 12px; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-right: 4px solid var(--fc, #2563eb); box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.15s; flex: 0 0 auto; max-width: 220px; }
+.inv-md-fund-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
+.inv-md-fund-card.md-active { border-color: var(--fc, #2563eb); background: #f8faff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.inv-md-fund-card .mdf-name { font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 5px; direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+.inv-md-fund-card .mdf-val  { font-size: 16px; font-weight: 800; color: var(--fc, #2563eb); }
+
+/* פאנל פירוט קרן */
+.inv-md-detail-wrap { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+.inv-md-detail-hdr  { padding: 10px 18px; background: #f8fafc; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; direction: rtl; gap: 12px; }
+.inv-md-detail-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.inv-md-detail-table-wrap { overflow-x: auto; }

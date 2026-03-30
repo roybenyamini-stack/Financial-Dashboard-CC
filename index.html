@@ -1,4 +1,4 @@
-<!-- v98.6 -->
+<!-- v99.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v98.6</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v99.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -174,6 +174,21 @@
     <div class="card-value" id="card-val-meitav">639</div>
     <div class="card-change pos" id="card-chg-meitav">▲ +13.2%</div>
   </div>
+  <div class="card" style="--cat-color:#0d9488;--cat-color-alpha:#0d948820" id="card-arbitrage" onclick="selectView('arbitrage')">
+    <div class="card-label">ארביטראז׳</div>
+    <div class="card-value" id="card-val-arbitrage">0</div>
+    <div class="card-change" id="card-chg-arbitrage"></div>
+  </div>
+  <div class="card" style="--cat-color:#78716c;--cat-color-alpha:#78716c20" id="card-dira" onclick="selectView('dira')">
+    <div class="card-label">דירה</div>
+    <div class="card-value" id="card-val-dira">1,200</div>
+    <div class="card-change" id="card-chg-dira"></div>
+  </div>
+  <div class="card" style="--cat-color:#64748b;--cat-color-alpha:#64748b20" id="card-chov" onclick="selectView('chov')">
+    <div class="card-label">חוב</div>
+    <div class="card-value" id="card-val-chov">1,768</div>
+    <div class="card-change" id="card-chg-chov"></div>
+  </div>
 </div>
 <!-- CHART -->
 <div class="chart-section" id="inv-chart-section" style="display:none;">
@@ -231,6 +246,18 @@
 
 <div class="tab-panel" id="tab-investments" style="padding-top:12px;">
 
+<!-- MASTER-DETAIL PANEL (v98.4): רמה 1 = כרטיסיות קרנות | רמה 2 = טבלת פירוט קרן -->
+<div id="inv-master-detail" style="display:none;">
+  <div class="inv-md-cat-label" id="inv-md-cat-title">בחר קטגוריה</div>
+  <div class="inv-md-funds-row" id="inv-md-funds-row"></div>
+  <div class="inv-md-detail-wrap" id="inv-md-detail-wrap" style="display:none;">
+    <div class="inv-md-detail-hdr">
+      <div class="inv-md-detail-name" id="inv-md-detail-name">—</div>
+      <button onclick="invMDCloseDetail()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;line-height:1;padding:2px 6px;">✕</button>
+    </div>
+    <div class="inv-md-detail-table-wrap" id="inv-md-detail-table"></div>
+  </div>
+</div>
 
 <!-- NOTES MODAL -->
 <div id="notes-modal" onclick="if(event.target===this)closeNotes();" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">

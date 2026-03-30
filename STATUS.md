@@ -1,9 +1,21 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v98.6 — עדכון טקסטים ואחידות עיצוב לכותרות המקטעים (29/03/2026).
+גרסה v99.0 — שכתוב ממשק טאב השקעות: Master-Detail UI (28/03/2026).
 
-## שינויים אחרונים (29/03/2026)
+## שינויים אחרונים (28/03/2026)
+
+### v99.0 – Master-Detail UI לטאב השקעות
+- **הסתרת categories-scroll הישן**: `#categories-scroll { display:none }` ו-`#cat-scroll-label { display:none !important }` — ה-UI החדש מחליף את פסי הגלילה הישן
+- **כרטיסיות קטגוריה** (`#inv-cards-row`): הוספת 3 כרטיסיות חדשות — ארביטראז', דירה, חוב
+- **פאנל Master-Detail** (`#inv-master-detail`): מסתיר/מוצג לפי קטגוריה נבחרת; מכיל:
+  - שורת כרטיסיות קרנות (`#inv-md-funds-row`) — border צבעוני לפי קטגוריה
+  - פאנל פירוט קרן (`#inv-md-detail-wrap`) — טבלת ערכים חודשיים + כפתור סגירה
+- **State**: `invMDCurrentCat` / `invMDCurrentFund` — מנהלים רמה 1 ורמה 2
+- **פונקציות חדשות**: `invMDShowCat(catId)` / `invMDSelectFund(fundKey)` / `invMDCloseDetail()`
+- **selectView()**: מפעיל `invMDShowCat(cat)` בבחירת קטגוריה; מסתיר את הפאנל ב-'all'
+- **CSS**: `.cards-row` → `flex + overflow-x:auto` (במקום grid); עיצוב מלא ל-`.inv-md-*`
+- שינויים: `index.html` (מבנה + גרסה), `app.js` (state + פונקציות + selectView), `style.css` (flex cards + Master-Detail styles)
 
 ### v98.6 – Micro-copy & CSS Consistency
 - **"מבט מצטבר"** → **"תחזית שנתית ומצטבר"** (`index.html`, תווית סטטית)
