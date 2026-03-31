@@ -6159,7 +6159,7 @@ function pensionSaveToStorage() {
 // =============================================
 
 var simInited  = false;
-var SIM_VIEW   = 'combined'; // 'roy' | 'yael' | 'combined'
+var SIM_VIEW   = 'roy'; // 'roy' | 'yael' | 'combined'
 var SIM_RATE   = 4;          // % annual interest
 var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
 var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
@@ -6183,24 +6183,56 @@ function simFmtNIS(v) {
 }
 
 // ── Data Helpers ─────────────────────────────
+
+// v102.1: helper — read raw fund arrays from localStorage (includes yd_* dynamic keys)
+function simLoadLSFunds() {
+  try {
+    var raw = localStorage.getItem('dashboard_v15_data');
+    if (!raw) return {};
+    var p = JSON.parse(raw);
+    return (p && p.funds) ? p.funds : {};
+  } catch(e) { return {}; }
+}
+
 function simGetYaelCapital() {
-  // Sum Yael liquid assets — exclude pensionMonthly (קצבה חודשית)
+  // v102.1: also scan yd_* dynamic keys from localStorage (not restored to FUNDS on reload)
+  var lsFunds = simLoadLSFunds();
   var total = 0;
+  var counted = {};
+
+  // Static Yael keys in FUNDS (restored by loadFromLocalStorage)
   Object.keys(FUNDS).forEach(function(k) {
     var f = FUNDS[k];
     if (!f || f.owner !== 'yael') return;
-    if (f.pensionMonthly) return;
-    var latest = null;
+    if (f.pensionMonthly) return; // exclude קצבה חודשית
+    counted[k] = true;
     for (var i = (f.data||[]).length-1; i>=0; i--) {
-      if (f.data[i] !== null && f.data[i] !== undefined) { latest = f.data[i]; break; }
+      if (f.data[i] !== null && f.data[i] !== undefined && f.data[i] > 0) {
+        total += f.data[i]; break;
+      }
     }
-    if (latest !== null) total += latest;
   });
+
+  // Dynamic yd_* Yael keys from localStorage (absent from FUNDS after page reload)
+  Object.keys(lsFunds).forEach(function(k) {
+    if (!k.startsWith('yd_')) return;
+    if (counted[k]) return; // already counted from live FUNDS
+    // Exclude pension-monthly funds: yd_gemel_* (not gemel_invest) = pension by default
+    if (k.indexOf('_gemel_') >= 0 && k.indexOf('_gemel_inv') < 0) return;
+    var d = lsFunds[k] || [];
+    for (var i = d.length-1; i>=0; i--) {
+      if (d[i] !== null && d[i] !== undefined && d[i] > 0) {
+        total += d[i]; break;
+      }
+    }
+  });
+
   return total; // K
 }
 
 function simGetRoyCapital() {
-  // Sum Roy liquid assets — exclude Yael, dira (apartment), pensionMonthly
+  // Sum Roy liquid assets: all non-Yael, non-dira, non-pensionMonthly funds
+  // chov (debt) is subtracted (stored as positive, represents liability)
   var total = 0;
   Object.keys(FUNDS).forEach(function(k) {
     var f = FUNDS[k];
@@ -6208,22 +6240,24 @@ function simGetRoyCapital() {
     if (f.owner === 'yael') return;
     if (f.pensionMonthly) return;
     if (f.cat === 'dira') return;
-    var latest = null;
     for (var i = (f.data||[]).length-1; i>=0; i--) {
-      if (f.data[i] !== null && f.data[i] !== undefined) { latest = f.data[i]; break; }
+      if (f.data[i] !== null && f.data[i] !== undefined) {
+        total += (f.cat === 'chov') ? -f.data[i] : f.data[i];
+        break;
+      }
     }
-    if (latest !== null) total += latest;
   });
   return total; // K
 }
 
 function simGetCurrentSalary() {
-  // CF_DATA values are in thousands → return NIS
-  if (!CF_DATA || !CF_DATA.length) return 0;
+  // CF_DATA values stored in thousands of NIS → return NIS
+  if (!CF_DATA || !CF_DATA.length) { console.log('[SIM] CF_DATA is empty — load cash-flow Excel first'); return 0; }
   for (var i = CF_DATA.length-1; i>=0; i--) {
     var r = CF_DATA[i].rows;
     if (r && r.salary && r.salary.val !== null && r.salary.val !== undefined) return r.salary.val * 1000;
   }
+  console.log('[SIM] salary row not found in CF_DATA');
   return 0;
 }
 
@@ -6233,15 +6267,16 @@ function simGetCurrentExpenses() {
     var r = CF_DATA[i].rows;
     if (r && r.total_exp && r.total_exp.val !== null && r.total_exp.val !== undefined) return r.total_exp.val * 1000;
   }
+  console.log('[SIM] total_exp row not found in CF_DATA');
   return 0;
 }
 
 function simGetRoyPension() {
   // Sum expectedPension for Roy's pension assets (NIS/month)
+  // PENSION_ASSETS.owner values use Hebrew: 'רועי' or 'יעל'
   if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
   return PENSION_ASSETS.reduce(function(s, a) {
     if (a.owner === 'יעל') return s;
-    if (a.pensionMonthly) return s; // those are Yael's current pensions
     return s + (a.expectedPension || 0);
   }, 0);
 }
@@ -6513,7 +6548,7 @@ function simRenderEvents() {
   }
 
   // Init toggle states
-  PENSION_EVENTS.forEach(function(ev, idx) {
+  PENSION_EVENTS.forEach(function(_, idx) {
     if (SIM_EVENTS_ON[idx] === undefined) SIM_EVENTS_ON[idx] = true;
   });
 
@@ -6582,20 +6617,38 @@ function simSetInstructor(s) {
 
 // ── Init ──────────────────────────────────────
 function simInit() {
-  // Set expense default from real data
-  var expenses = simGetCurrentExpenses();
-  if (expenses > 0) {
-    SIM_TARGET_EXP = expenses;
-    var expSlider = document.getElementById('sim-exp-slider');
-    if (expSlider) expSlider.value = SIM_TARGET_EXP;
-    var expVal = document.getElementById('sim-exp-val');
-    if (expVal) expVal.textContent = simFmtNIS(SIM_TARGET_EXP);
-  } else {
-    // Default fallback
-    SIM_TARGET_EXP = 58000;
-    var expValFb = document.getElementById('sim-exp-val');
-    if (expValFb) expValFb.textContent = simFmtNIS(SIM_TARGET_EXP);
+  // v102.1: Load pension data from localStorage regardless of whether pension tab was opened
+  if (!PENSION_EVENTS || !PENSION_EVENTS.length) {
+    try {
+      var pnsRaw = localStorage.getItem('dashboard_pension_data');
+      if (pnsRaw) {
+        var pnsSaved = JSON.parse(pnsRaw);
+        if (pnsSaved) {
+          if (pnsSaved.events && pnsSaved.events.length) PENSION_EVENTS = pnsSaved.events;
+          if (pnsSaved.assets && pnsSaved.assets.length && !PENSION_ASSETS.length) PENSION_ASSETS = pnsSaved.assets;
+        }
+      }
+    } catch(e) { console.warn('[SIM] pension localStorage error:', e); }
   }
+
+  // Diagnostics — open browser console to debug zero-capital issues
+  var _royK  = simGetRoyCapital();
+  var _yaelK = simGetYaelCapital();
+  var _sal   = simGetCurrentSalary();
+  var _exp   = simGetCurrentExpenses();
+  console.log('[SIM v102.1] Roy capital:', _royK, 'K | Yael capital:', _yaelK, 'K');
+  console.log('[SIM v102.1] CF_DATA entries:', CF_DATA ? CF_DATA.length : 0, '| Salary:', _sal, '₪ | Expenses:', _exp, '₪');
+  console.log('[SIM v102.1] Pension assets:', PENSION_ASSETS ? PENSION_ASSETS.length : 0, '| Pension events:', PENSION_EVENTS ? PENSION_EVENTS.length : 0);
+  console.log('[SIM v102.1] ALL_TOTALS latest:', ALL_TOTALS && ALL_TOTALS.length ? Math.round(ALL_TOTALS[ALL_TOTALS.length-1]) : 'empty');
+  if (_royK === 0) console.warn('[SIM] Roy capital = 0 — asset Excel may not be loaded. Check FUNDS:', Object.keys(FUNDS).filter(function(k){ var f=FUNDS[k]; return f && !f.owner && f.cat !== 'dira'; }).length, 'Roy funds found');
+  if (_sal === 0)  console.warn('[SIM] Salary = 0 — cash-flow Excel may not be loaded');
+
+  // Set expense default from real CF_DATA or fallback
+  SIM_TARGET_EXP = (_exp > 0) ? _exp : 58000;
+  var expSlider = document.getElementById('sim-exp-slider');
+  if (expSlider) expSlider.value = SIM_TARGET_EXP;
+  var expValEl = document.getElementById('sim-exp-val');
+  if (expValEl) expValEl.textContent = simFmtNIS(SIM_TARGET_EXP);
 
   simRenderKPI();
   simRenderEvents();
