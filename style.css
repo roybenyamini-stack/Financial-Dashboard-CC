@@ -382,3 +382,91 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .inv-md-detail-hdr  { padding: 10px 18px; background: #f8fafc; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; direction: rtl; gap: 12px; }
 .inv-md-detail-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
 .inv-md-detail-table-wrap { overflow-x: visible; }
+
+/* =============================================
+   SIMULATOR TAB — v102.0
+   ============================================= */
+.sim-wrap { padding: 12px 20px 48px; direction: rtl; max-width: 1200px; margin: 0 auto; }
+
+/* Control Panel */
+.sim-controls-panel {
+  background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
+  padding: 16px 20px; margin-bottom: 12px;
+  display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-start;
+}
+.sim-ctrl-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 190px; }
+.sim-ctrl-label { font-size: 11px; font-weight: 700; color: #6b7280; letter-spacing: 0.3px; white-space: nowrap; }
+.sim-ctrl-val { color: #1a1a2e; font-weight: 800; }
+.sim-view-toggle { display: flex; gap: 6px; }
+.sim-view-btn {
+  background: #f0f4ff; border: 1px solid #c7d7f9; border-radius: 8px;
+  padding: 6px 14px; font-size: 12px; font-family: Heebo, sans-serif;
+  cursor: pointer; color: #2563eb; font-weight: 600; transition: all 0.15s;
+}
+.sim-view-btn:hover { background: #dbeafe; }
+.sim-view-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.sim-slider { width: 100%; height: 4px; cursor: pointer; accent-color: #2563eb; }
+.sim-slider-bounds { display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; }
+
+/* KPI Row */
+.sim-kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.sim-kpi-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 10px 14px; flex: 1; min-width: 100px; text-align: center;
+}
+.sim-kpi-label { font-size: 10px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; margin-bottom: 3px; }
+.sim-kpi-val { font-size: 17px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
+.sim-kpi-val.blue  { color: #2563eb; }
+.sim-kpi-val.pink  { color: #ec4899; }
+.sim-kpi-val.green { color: #16a34a; }
+.sim-kpi-val.red   { color: #dc2626; }
+.sim-kpi-sub { font-size: 9px; color: #d1d5db; margin-top: 2px; }
+
+/* Phase Legend */
+.sim-phase-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.sim-phase-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.sim-phase-badge.phase1 { background: rgba(59,130,246,0.11); color: #1d4ed8; }
+.sim-phase-badge.phase2 { background: rgba(245,158,11,0.11); color: #b45309; }
+.sim-phase-badge.phase3 { background: rgba(34,197,94,0.11); color: #15803d; }
+
+/* Chart Section */
+.sim-chart-section {
+  background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
+  padding: 16px 20px; margin-bottom: 12px;
+}
+
+/* Events Section */
+.sim-events-section {
+  background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
+  padding: 16px 20px; margin-bottom: 20px;
+}
+.sim-section-title {
+  font-size: 10px; font-weight: 700; color: #94a3b8;
+  letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 12px;
+}
+.sim-events-empty { font-size: 13px; color: #9ca3af; text-align: center; padding: 16px; }
+.sim-event-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid #f3f4f6;
+  font-size: 13px; direction: rtl; transition: opacity 0.2s;
+}
+.sim-event-row:last-child { border-bottom: none; }
+.sim-event-row.sim-ev-off { opacity: 0.35; }
+.sim-ev-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+.sim-ev-switch input { opacity: 0; width: 0; height: 0; }
+.sim-ev-rail {
+  position: absolute; inset: 0; background: #d1d5db;
+  border-radius: 20px; cursor: pointer; transition: background 0.2s;
+}
+.sim-ev-rail::before {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s;
+}
+.sim-ev-switch input:checked + .sim-ev-rail { background: #2563eb; }
+.sim-ev-switch input:checked + .sim-ev-rail::before { transform: translateX(16px); }
+.sim-ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sim-ev-date { color: #6b7280; font-size: 12px; flex-shrink: 0; direction: ltr; }
+.sim-ev-label { flex: 1; color: #1a1a2e; font-weight: 500; }
+.sim-ev-amt { font-weight: 700; flex-shrink: 0; }
+.sim-ev-amt.pos { color: #16a34a; }
+.sim-ev-amt.neg { color: #dc2626; }

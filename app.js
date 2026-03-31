@@ -5072,14 +5072,17 @@ function switchTab(id){
   var isCF  = (id === 'cashflow');
   var isInv = (id === 'investments');
   var isPns = (id === 'pension');
+  var isSim = (id === 'simulator');
 
-  // Header stats: only for investments tab
+  // Header stats
   var invStats = document.getElementById('inv-header-stats');
   if(invStats) invStats.style.display = isInv ? '' : 'none';
   var cfStats = document.getElementById('cf-header-stats');
   if(cfStats) cfStats.style.display = isCF ? 'flex' : 'none';
   var pnsStats = document.getElementById('pns-header-stats');
   if(pnsStats) pnsStats.style.display = isPns ? 'flex' : 'none';
+  var simStats = document.getElementById('sim-header-stats');
+  if(simStats) simStats.style.display = isSim ? 'flex' : 'none';
 
   // Cards row
   var invCards = document.getElementById('inv-cards-row');
@@ -5097,6 +5100,7 @@ function switchTab(id){
   document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isInv ? '' : 'none'; });
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
+  document.querySelectorAll('.sim-only-btn').forEach(function(b){ b.style.display = isSim ? 'flex' : 'none'; });
 
   // v99.3: categories-scroll always hidden (Master-Detail replaces it)
   var _catScr = document.getElementById('categories-scroll');
@@ -5133,6 +5137,7 @@ function switchTab(id){
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
+  if(isSim && !simInited){ simInited=true; setTimeout(simInit,80); }
 }
 
 // חיבור כפתור העדכון ל-fileInput
@@ -6147,4 +6152,452 @@ function pensionSaveToStorage() {
       assets: PENSION_ASSETS, events: PENSION_EVENTS, ni: PENSION_NI
     }));
   } catch(e) {}
+}
+
+// =============================================
+// SIMULATOR TAB v102.0
+// =============================================
+
+var simInited  = false;
+var SIM_VIEW   = 'combined'; // 'roy' | 'yael' | 'combined'
+var SIM_RATE   = 4;          // % annual interest
+var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
+var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
+var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
+var simChartObj = null;
+
+// Phase boundaries
+var SIM_P1_START = { y:2026, m:3 };
+var SIM_P2_START = { y:2027, m:9 };
+var SIM_P3_START = { y:2029, m:9 };
+var SIM_END      = { y:2060, m:12 };
+
+// ── Formatters ──────────────────────────────
+function simFmtK(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—K';
+  return Math.round(v).toLocaleString() + 'K';
+}
+function simFmtNIS(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Math.round(v).toLocaleString() + ' ₪';
+}
+
+// ── Data Helpers ─────────────────────────────
+function simGetYaelCapital() {
+  // Sum Yael liquid assets — exclude pensionMonthly (קצבה חודשית)
+  var total = 0;
+  Object.keys(FUNDS).forEach(function(k) {
+    var f = FUNDS[k];
+    if (!f || f.owner !== 'yael') return;
+    if (f.pensionMonthly) return;
+    var latest = null;
+    for (var i = (f.data||[]).length-1; i>=0; i--) {
+      if (f.data[i] !== null && f.data[i] !== undefined) { latest = f.data[i]; break; }
+    }
+    if (latest !== null) total += latest;
+  });
+  return total; // K
+}
+
+function simGetRoyCapital() {
+  // Sum Roy liquid assets — exclude Yael, dira (apartment), pensionMonthly
+  var total = 0;
+  Object.keys(FUNDS).forEach(function(k) {
+    var f = FUNDS[k];
+    if (!f) return;
+    if (f.owner === 'yael') return;
+    if (f.pensionMonthly) return;
+    if (f.cat === 'dira') return;
+    var latest = null;
+    for (var i = (f.data||[]).length-1; i>=0; i--) {
+      if (f.data[i] !== null && f.data[i] !== undefined) { latest = f.data[i]; break; }
+    }
+    if (latest !== null) total += latest;
+  });
+  return total; // K
+}
+
+function simGetCurrentSalary() {
+  // CF_DATA values are in thousands → return NIS
+  if (!CF_DATA || !CF_DATA.length) return 0;
+  for (var i = CF_DATA.length-1; i>=0; i--) {
+    var r = CF_DATA[i].rows;
+    if (r && r.salary && r.salary.val !== null && r.salary.val !== undefined) return r.salary.val * 1000;
+  }
+  return 0;
+}
+
+function simGetCurrentExpenses() {
+  if (!CF_DATA || !CF_DATA.length) return 0;
+  for (var i = CF_DATA.length-1; i>=0; i--) {
+    var r = CF_DATA[i].rows;
+    if (r && r.total_exp && r.total_exp.val !== null && r.total_exp.val !== undefined) return r.total_exp.val * 1000;
+  }
+  return 0;
+}
+
+function simGetRoyPension() {
+  // Sum expectedPension for Roy's pension assets (NIS/month)
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    if (a.pensionMonthly) return s; // those are Yael's current pensions
+    return s + (a.expectedPension || 0);
+  }, 0);
+}
+
+// ── Month index helpers ───────────────────────
+// Index 0 = March 2026 (SIM_P1_START)
+function simMonthIdx(y, m) {
+  return (y - SIM_P1_START.y) * 12 + (m - SIM_P1_START.m);
+}
+function simIdxToYM(idx) {
+  var total = idx + (SIM_P1_START.y * 12 + SIM_P1_START.m - 1);
+  var y = Math.floor(total / 12);
+  var m = total % 12 + 1;
+  return { y: y, m: m };
+}
+
+// ── Projection Engine ─────────────────────────
+function simRunEngine() {
+  var royCapital  = simGetRoyCapital();
+  var yaelCapital = simGetYaelCapital();
+
+  var monthlyRate   = Math.pow(1 + SIM_RATE / 100, 1/12) - 1;
+  var currentSalary = simGetCurrentSalary();   // NIS/month
+  var targetExp     = SIM_TARGET_EXP;          // NIS/month
+  var instructorSal = SIM_INSTRUCTOR_SAL;      // NIS/month
+  var royPension    = simGetRoyPension();       // NIS/month
+
+  var phase2Idx = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
+  var phase3Idx = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
+  var totalMonths   = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
+
+  // Pre-process lump-sum events by month index
+  var eventsByMonth = {};
+  if (PENSION_EVENTS && PENSION_EVENTS.length) {
+    PENSION_EVENTS.forEach(function(ev, idx) {
+      if (SIM_EVENTS_ON[idx] === false) return;
+      if (!ev.date) return;
+      var dp = ev.date.split('-');
+      if (dp.length < 3) return;
+      var mIdx = simMonthIdx(parseInt(dp[0]), parseInt(dp[1]));
+      if (mIdx < 0 || mIdx >= totalMonths) return;
+      if (!eventsByMonth[mIdx]) eventsByMonth[mIdx] = 0;
+      // Events stored in NIS — divide by 1000 for K
+      eventsByMonth[mIdx] += (ev.amount || 0) / 1000;
+    });
+  }
+
+  var labels = [], royData = [], yaelData = [];
+
+  for (var i = 0; i < totalMonths; i++) {
+    var ym = simIdxToYM(i);
+
+    // Compound interest on both capitals
+    royCapital  *= (1 + monthlyRate);
+    yaelCapital *= (1 + monthlyRate);
+
+    // Roy phase delta
+    if (i < phase2Idx) {
+      // Phase 1: current salary
+      royCapital += (currentSalary - targetExp) / 1000;
+    } else if (i < phase3Idx) {
+      // Phase 2: instructor salary
+      royCapital += (instructorSal - targetExp) / 1000;
+    } else {
+      // Phase 3: pension — deduct monthly deficit if expense > pension
+      var deficit = (targetExp - royPension) / 1000;
+      royCapital -= deficit;
+      // Lump sum events
+      if (eventsByMonth[i]) royCapital += eventsByMonth[i];
+    }
+
+    // Yael capital only grows via interest (no monthly salary contribution)
+
+    // Store yearly data points (end-of-December each year, or last point)
+    if (ym.m === 12 || i === totalMonths - 1) {
+      labels.push(String(ym.y));
+      royData.push(Math.max(0, Math.round(royCapital)));
+      yaelData.push(Math.max(0, Math.round(yaelCapital)));
+    }
+  }
+
+  return { labels: labels, royData: royData, yaelData: yaelData,
+           phase1EndLabel: String(SIM_P2_START.y - 1),
+           phase2EndLabel: String(SIM_P3_START.y - 1) };
+}
+
+// ── Background Shading Plugin ─────────────────
+var simBgPlugin = {
+  id: 'simBg',
+  beforeDraw: function(chart) {
+    var ctx = chart.ctx;
+    var ca  = chart.chartArea;
+    if (!ca) return;
+    var labels = chart.data.labels;
+    if (!labels || !labels.length) return;
+    var xScale = chart.scales.x;
+    var i2027 = labels.indexOf('2027');
+    var i2029 = labels.indexOf('2029');
+    var x0   = ca.left;
+    var x1   = (i2027 >= 0) ? xScale.getPixelForValue(i2027) : ca.left + ca.width * 0.05;
+    var x2   = (i2029 >= 0) ? xScale.getPixelForValue(i2029) : ca.left + ca.width * 0.10;
+    var xEnd = ca.right;
+    // Phase 1 — blue
+    ctx.fillStyle = 'rgba(59,130,246,0.07)';
+    ctx.fillRect(x0, ca.top, x1 - x0, ca.height);
+    // Phase 2 — amber
+    ctx.fillStyle = 'rgba(245,158,11,0.07)';
+    ctx.fillRect(x1, ca.top, x2 - x1, ca.height);
+    // Phase 3 — green
+    ctx.fillStyle = 'rgba(34,197,94,0.06)';
+    ctx.fillRect(x2, ca.top, xEnd - x2, ca.height);
+  }
+};
+
+// ── Chart Rendering ───────────────────────────
+function simRenderChart(result) {
+  var wrap = document.getElementById('sim-chart-wrap');
+  if (!wrap) return;
+  // Re-mount canvas each render
+  var old = document.getElementById('sim-chart');
+  if (old) old.parentNode.removeChild(old);
+  var canvas = document.createElement('canvas');
+  canvas.id = 'sim-chart';
+  wrap.appendChild(canvas);
+
+  var datasets = [];
+  var _yaelRaw = result.yaelData;
+
+  if (SIM_VIEW === 'roy') {
+    datasets = [{
+      label: 'רועי',
+      data: result.royData,
+      borderColor: '#2563eb',
+      backgroundColor: 'rgba(37,99,235,0.18)',
+      fill: 'origin',
+      tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+    }];
+  } else if (SIM_VIEW === 'yael') {
+    datasets = [{
+      label: 'יעל',
+      data: result.yaelData,
+      borderColor: '#ec4899',
+      backgroundColor: 'rgba(236,72,153,0.18)',
+      fill: 'origin',
+      tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+    }];
+  } else {
+    // Combined — Yael dataset uses cumulative (Roy+Yael) for stacking
+    var combinedTop = result.royData.map(function(r, i) { return r + _yaelRaw[i]; });
+    datasets = [
+      {
+        label: 'רועי',
+        data: result.royData,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.22)',
+        fill: 'origin',
+        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+      },
+      {
+        label: 'יעל',
+        data: combinedTop,
+        borderColor: '#ec4899',
+        backgroundColor: 'rgba(236,72,153,0.18)',
+        fill: '-1', // fill between this line and the Roy line
+        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+      }
+    ];
+  }
+
+  simChartObj = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    plugins: [simBgPlugin],
+    data: { labels: result.labels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          ticks: {
+            font: { family: 'Heebo', size: 10 },
+            color: '#9ca3af',
+            maxTicksLimit: 20,
+            maxRotation: 0
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        },
+        y: {
+          ticks: {
+            callback: function(v) { return v.toLocaleString() + 'K'; },
+            font: { family: 'Heebo', size: 10 },
+            color: '#9ca3af'
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { font: { family: 'Heebo', size: 12 }, color: '#374151' }
+        },
+        tooltip: {
+          rtl: true,
+          textDirection: 'rtl',
+          titleFont: { family: 'Heebo' },
+          bodyFont: { family: 'Heebo' },
+          callbacks: {
+            label: function(ctx) {
+              var v;
+              if (SIM_VIEW === 'combined' && ctx.datasetIndex === 1) {
+                // Show Yael's individual value, not cumulative
+                v = _yaelRaw[ctx.dataIndex];
+              } else {
+                v = ctx.parsed.y;
+              }
+              return ' ' + ctx.dataset.label + ': ' + (v || 0).toLocaleString() + 'K';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── KPI Rendering ─────────────────────────────
+function simRenderKPI() {
+  var royCapital  = simGetRoyCapital();
+  var yaelCapital = simGetYaelCapital();
+  var salary      = simGetCurrentSalary();
+  var expenses    = simGetCurrentExpenses();
+  var delta       = salary - expenses;
+  var pension     = simGetRoyPension();
+
+  function el(id) { return document.getElementById(id); }
+
+  if (el('sim-kpi-roy-now'))  el('sim-kpi-roy-now').textContent  = simFmtK(royCapital);
+  if (el('sim-kpi-yael-now')) el('sim-kpi-yael-now').textContent = simFmtK(yaelCapital);
+  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent = simFmtK(royCapital + yaelCapital);
+  if (el('sim-kpi-salary'))   el('sim-kpi-salary').textContent   = simFmtNIS(salary);
+  if (el('sim-kpi-exp'))      el('sim-kpi-exp').textContent      = simFmtNIS(expenses);
+  var deltaEl = el('sim-kpi-delta');
+  if (deltaEl) {
+    deltaEl.textContent = simFmtNIS(delta);
+    deltaEl.style.color = delta >= 0 ? '#16a34a' : '#dc2626';
+  }
+  if (el('sim-kpi-pension'))  el('sim-kpi-pension').textContent  = pension > 0 ? simFmtNIS(pension) : '—';
+
+  // Header stats
+  if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = simFmtK(royCapital);
+  if (el('sim-hdr-yael'))     el('sim-hdr-yael').textContent     = simFmtK(yaelCapital);
+  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent = simFmtK(royCapital + yaelCapital);
+  var hdrDelta = el('sim-hdr-delta');
+  if (hdrDelta) {
+    hdrDelta.textContent = simFmtNIS(delta);
+    hdrDelta.style.color = delta >= 0 ? '#4ade80' : '#f87171';
+  }
+}
+
+// ── Events Ledger ─────────────────────────────
+function simRenderEvents() {
+  var section = document.getElementById('sim-events-section');
+  var list    = document.getElementById('sim-events-list');
+  if (!list) return;
+
+  if (!PENSION_EVENTS || !PENSION_EVENTS.length) {
+    list.innerHTML = '<div class="sim-events-empty">אין אירועים. טען קובץ פנסיה כדי לצפות באירועים ולשלוט בהם.</div>';
+    if (section) section.style.display = '';
+    return;
+  }
+
+  // Init toggle states
+  PENSION_EVENTS.forEach(function(ev, idx) {
+    if (SIM_EVENTS_ON[idx] === undefined) SIM_EVENTS_ON[idx] = true;
+  });
+
+  var sorted = PENSION_EVENTS.map(function(ev, idx) { return { ev: ev, idx: idx }; })
+    .sort(function(a, b) { return (a.ev.date || '').localeCompare(b.ev.date || ''); });
+
+  list.innerHTML = sorted.map(function(item) {
+    var ev  = item.ev, idx = item.idx;
+    var on  = SIM_EVENTS_ON[idx] !== false;
+    var dp  = (ev.date || '').split('-');
+    var dateDisp = dp.length === 3 ? dp[2]+'/'+dp[1]+'/'+dp[0] : (ev.date || '');
+    var pos = (ev.amount || 0) > 0;
+    var amtStr = (pos ? '+' : '') + Math.round(Math.abs(ev.amount || 0)).toLocaleString() + ' ₪';
+    var dotColor = ev.type === 'expense' ? '#dc2626' : ev.type === 'transfer' ? '#3b82f6' : '#16a34a';
+    return '<div class="sim-event-row' + (on ? '' : ' sim-ev-off') + '">' +
+      '<label class="sim-ev-switch">' +
+        '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="simToggleEvent(' + idx + ',this.checked)">' +
+        '<span class="sim-ev-rail"></span>' +
+      '</label>' +
+      '<span class="sim-ev-dot" style="background:' + dotColor + '"></span>' +
+      '<span class="sim-ev-date">' + dateDisp + '</span>' +
+      '<span class="sim-ev-label">' + (ev.label || '—') + '</span>' +
+      '<span class="sim-ev-amt ' + (pos ? 'pos' : 'neg') + '">' + amtStr + '</span>' +
+    '</div>';
+  }).join('');
+
+  if (section) section.style.display = '';
+}
+
+function simToggleEvent(idx, checked) {
+  SIM_EVENTS_ON[idx] = !!checked;
+  simRenderEvents();
+  simRenderChart(simRunEngine());
+}
+
+// ── Controls ──────────────────────────────────
+function simSetView(v) {
+  SIM_VIEW = v;
+  ['roy', 'yael', 'combined'].forEach(function(n) {
+    var btn = document.getElementById('sim-btn-' + n);
+    if (btn) btn.classList.toggle('active', n === v);
+  });
+  simRenderChart(simRunEngine());
+}
+
+function simSetRate(r) {
+  SIM_RATE = parseFloat(r);
+  var el = document.getElementById('sim-rate-val');
+  if (el) el.textContent = SIM_RATE + '%';
+  simRenderChart(simRunEngine());
+}
+
+function simSetExpense(e) {
+  SIM_TARGET_EXP = parseFloat(e);
+  var el = document.getElementById('sim-exp-val');
+  if (el) el.textContent = simFmtNIS(SIM_TARGET_EXP);
+  simRenderChart(simRunEngine());
+}
+
+function simSetInstructor(s) {
+  SIM_INSTRUCTOR_SAL = parseFloat(s);
+  var el = document.getElementById('sim-instr-val');
+  if (el) el.textContent = simFmtNIS(SIM_INSTRUCTOR_SAL);
+  simRenderChart(simRunEngine());
+}
+
+// ── Init ──────────────────────────────────────
+function simInit() {
+  // Set expense default from real data
+  var expenses = simGetCurrentExpenses();
+  if (expenses > 0) {
+    SIM_TARGET_EXP = expenses;
+    var expSlider = document.getElementById('sim-exp-slider');
+    if (expSlider) expSlider.value = SIM_TARGET_EXP;
+    var expVal = document.getElementById('sim-exp-val');
+    if (expVal) expVal.textContent = simFmtNIS(SIM_TARGET_EXP);
+  } else {
+    // Default fallback
+    SIM_TARGET_EXP = 58000;
+    var expValFb = document.getElementById('sim-exp-val');
+    if (expValFb) expValFb.textContent = simFmtNIS(SIM_TARGET_EXP);
+  }
+
+  simRenderKPI();
+  simRenderEvents();
+  simRenderChart(simRunEngine());
 }

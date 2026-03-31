@@ -1,4 +1,4 @@
-<!-- v101.1 -->
+<!-- v102.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v101.1</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v102.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -90,6 +90,31 @@
   <div id="pns-header-stats" class="header-stats" style="display:none;margin-left:40px;">
     <div id="pns-snap-stats" style="display:contents;"></div>
     <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
+  </div>
+  <div id="sim-header-stats" class="header-stats" style="display:none;">
+    <div class="stat-item">
+      <div class="stat-label">הון רועי</div>
+      <div class="stat-value" id="sim-hdr-roy" style="color:#93c5fd;">—K</div>
+      <div class="stat-change">אלפי ₪</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">הון יעל</div>
+      <div class="stat-value" id="sim-hdr-yael" style="color:#f9a8d4;">—K</div>
+      <div class="stat-change">אלפי ₪</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">הון משותף</div>
+      <div class="stat-value green" id="sim-hdr-combined">—K</div>
+      <div class="stat-change">אלפי ₪</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">דלתא חודשי</div>
+      <div class="stat-value" id="sim-hdr-delta">—</div>
+      <div class="stat-change">₪ / חודש</div>
+    </div>
   </div>
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
     <div style="display:flex; align-items:center; gap:8px;">
@@ -966,7 +991,95 @@
   </div><!-- /pns-wrap -->
 </div>
 <div class="tab-panel" id="tab-market"><div class="tab-coming-soon"><div class="tcs-icon">📈</div><div class="tcs-text">ניתוח שוק ומסחר</div><div class="tcs-sub">בבנייה...</div></div></div>
-<div class="tab-panel" id="tab-simulator"><div class="tab-coming-soon"><div class="tcs-icon">🧮</div><div class="tcs-text">סימולטור פיננסי</div><div class="tcs-sub">בבנייה...</div></div></div>
+<div class="tab-panel" id="tab-simulator">
+  <div class="sim-wrap">
+
+    <!-- ── Control Panel ── -->
+    <div class="sim-controls-panel">
+      <div class="sim-ctrl-group">
+        <div class="sim-ctrl-label">תצוגה</div>
+        <div class="sim-view-toggle">
+          <button class="sim-view-btn active" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+          <button class="sim-view-btn" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+          <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
+        </div>
+      </div>
+      <div class="sim-ctrl-group">
+        <div class="sim-ctrl-label">ריבית שנתית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
+        <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
+        <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
+      </div>
+      <div class="sim-ctrl-group">
+        <div class="sim-ctrl-label">הוצאה חודשית יעד: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
+        <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
+        <div class="sim-slider-bounds"><span>20,000 ₪</span><span>130,000 ₪</span></div>
+      </div>
+      <div class="sim-ctrl-group">
+        <div class="sim-ctrl-label">משכורת מדריך (שלב 2): <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
+        <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+        <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
+      </div>
+    </div>
+
+    <!-- ── KPI Cards ── -->
+    <div class="sim-kpi-row" id="sim-kpi-row">
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">הון רועי (כיום)</div>
+        <div class="sim-kpi-val blue" id="sim-kpi-roy-now">—K</div>
+        <div class="sim-kpi-sub">אלפי ₪</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">הון יעל (כיום)</div>
+        <div class="sim-kpi-val pink" id="sim-kpi-yael-now">—K</div>
+        <div class="sim-kpi-sub">אלפי ₪</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">הון משותף</div>
+        <div class="sim-kpi-val" id="sim-kpi-combined">—K</div>
+        <div class="sim-kpi-sub">אלפי ₪</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">משכורת נוכחית</div>
+        <div class="sim-kpi-val green" id="sim-kpi-salary">—</div>
+        <div class="sim-kpi-sub">₪ / חודש</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">הוצאה נוכחית</div>
+        <div class="sim-kpi-val red" id="sim-kpi-exp">—</div>
+        <div class="sim-kpi-sub">₪ / חודש</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">דלתא חודשי</div>
+        <div class="sim-kpi-val" id="sim-kpi-delta">—</div>
+        <div class="sim-kpi-sub">₪ / חודש</div>
+      </div>
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label">קצבת רועי (פנסיה)</div>
+        <div class="sim-kpi-val" id="sim-kpi-pension">—</div>
+        <div class="sim-kpi-sub">₪ / חודש</div>
+      </div>
+    </div>
+
+    <!-- ── Phase Legend ── -->
+    <div class="sim-phase-legend">
+      <span class="sim-phase-badge phase1">שלב 1 — משכורת נוכחית (מרץ 2026 – אוג׳ 2027)</span>
+      <span class="sim-phase-badge phase2">שלב 2 — משכורת מדריך (ספט׳ 2027 – אוג׳ 2029)</span>
+      <span class="sim-phase-badge phase3">שלב 3 — פנסיה (מספט׳ 2029 ואילך)</span>
+    </div>
+
+    <!-- ── Mountain Chart ── -->
+    <div class="sim-chart-section">
+      <div id="sim-chart-wrap" style="position:relative;height:340px;"></div>
+    </div>
+
+    <!-- ── Events Ledger ── -->
+    <div class="sim-events-section" id="sim-events-section">
+      <div class="sim-section-title">אירועים פיננסיים — מענקים ותשלומים חד-פעמיים</div>
+      <div id="sim-events-list"></div>
+    </div>
+
+  </div>
+</div>
 
 <!-- CF CHAT PANEL v31.0 — structure & CSS identical to investments #cp -->
 <div id="cf-cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
