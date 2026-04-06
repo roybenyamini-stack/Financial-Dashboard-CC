@@ -5216,7 +5216,7 @@ var pnsLegacyChart  = null;
 var pnsTimelineChart = null;
 var pnsViewMode      = 'mine';
 var pnsNetMonthly    = 0;
-var pnsExcludeHarel  = false;
+var pnsExcludeHarel  = true; // v102.3: default = ללא הראל
 var PNS_SHEET_KEY   = 'ביטוח חיים ופנסיה';
 // Israel 2025 approximate tax ceilings
 var PNS_MONTHLY_EXEMPT = 9430;   // פטור חודשי (ישן — לא בשימוש בנוסחת הסל)
@@ -5285,7 +5285,6 @@ function pensionRender() {
   pensionRenderCards();
   pensionRenderLumpsums();
   pensionRenderTaxLab();
-  pnsRetirementYieldChange(pnsRetirementYield); // v102.2
   pensionRenderLegacy();
 }
 
@@ -5849,11 +5848,13 @@ function pensionSliderChange(val) {
   // עיגול הון: פנים ריק ממספרים — הנתון מוצג מתחת לעיגול (v78.0)
   var capTotalEl = document.getElementById('pns-cap-total');
   if (capTotalEl) capTotalEl.textContent = totalAccum > 0 ? 'סך הון פטור: ' + pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
-  // v102.2: Net economic value of capital exemption assuming 35% marginal tax
+  // v102.2/v102.3: Net economic value — linked dynamically to tax method dropdown
   var capNetEl = document.getElementById('pns-cap-net-val');
   if (capNetEl) {
-    var netEconVal = capitalExempt * 0.35;
-    capNetEl.textContent = (totalAccum > 0 && capitalExempt > 0) ? 'חיסכון מס (35%): ' + pnsFmtK(Math.round(netEconVal)) + ' ₪' : '';
+    var _netTaxRate = (taxMethod === '31') ? 0.31 : (taxMethod === '47') ? 0.47 : 0.35; // auto → 35%
+    var _netTaxPct  = Math.round(_netTaxRate * 100);
+    var netEconVal  = capitalExempt * _netTaxRate;
+    capNetEl.textContent = (totalAccum > 0 && capitalExempt > 0) ? 'חיסכון מס (' + _netTaxPct + '%): ' + pnsFmtK(Math.round(netEconVal)) + ' ₪' : '';
   }
 
   // עיגול קצבה: מציג חיסכון מס (דלתא) בלבד (v79.0 — הוסרה שורת נטו מהעיגול)
@@ -6277,7 +6278,7 @@ function pensionSaveToStorage() {
 // =============================================
 
 var simInited  = false;
-var SIM_VIEW   = 'combined'; // 'roy' | 'yael' | 'combined' — v102.2: default to stacked view
+var SIM_VIEW   = 'roy'; // 'roy' | 'yael' | 'combined' — v102.3: back to Roy default
 var SIM_RATE   = 4;          // % annual interest
 var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
 var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
@@ -6771,4 +6772,5 @@ function simInit() {
   simRenderKPI();
   simRenderEvents();
   simRenderChart(simRunEngine());
+  pnsRetirementYieldChange(pnsRetirementYield); // v102.3: init slider in simulator
 }
