@@ -282,7 +282,7 @@ body{background:var(--bg,#f0f2f5);}
 .pns-card-rows { display:flex; flex-direction:column; gap:5px; }
 .pns-card-row  { display:flex; justify-content:space-between; align-items:baseline; }
 .pns-card-lbl  { font-size:10px; color:#9ca3af; }
-.pns-card-num  { font-size:13px; font-weight:700; color:#1a1a2e; }
+.pns-card-num  { font-size:17px; font-weight:800; color:#1a1a2e; }
 .pns-card-num.green { color:#16a34a; }
 .pns-card-num.red   { color:#dc2626; }
 .pns-card-expiry   { font-size:10px; color:#94a3b8; margin-top:8px; padding-top:8px; border-top:1px solid #f3f4f6; }
@@ -433,6 +433,7 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .sim-chart-section {
   background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
   padding: 16px 20px; margin-bottom: 12px;
+  overflow: hidden; /* v102.2: prevent chart overflow on MacBooks */
 }
 
 /* Events Section */

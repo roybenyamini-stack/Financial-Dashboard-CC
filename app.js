@@ -2766,6 +2766,21 @@ function loadExcelFileCore(wb) {
           if (!anchorId) return;
           var fundKey = ANCHOR_TO_FUND[anchorId];
           if (!fundKey || !newFundData[fundKey]) return;
+          // v102.2: Outlier protection — detect NIS→K data entry errors
+          // If a fund value jumps by more than 20x vs previous, assume entered in NIS instead of K
+          var _prevFundVal = null;
+          for (var _pi = colIdx - 1; _pi >= 0; _pi--) {
+            if (newFundData[fundKey][_pi] !== null && newFundData[fundKey][_pi] > 0) {
+              _prevFundVal = newFundData[fundKey][_pi]; break;
+            }
+          }
+          if (_prevFundVal !== null && _prevFundVal > 0 && cellVal > _prevFundVal * 20) {
+            var _norm = cellVal / 1000;
+            if (_norm >= _prevFundVal * 0.1 && _norm <= _prevFundVal * 5) cellVal = _norm;
+          } else if (_prevFundVal === null && cellVal > 50000) {
+            // New fund with first value > 50,000K (50M NIS) — likely entered in NIS
+            cellVal = cellVal / 1000;
+          }
           newFundData[fundKey][colIdx] = cellVal;
         });
 
@@ -4959,9 +4974,38 @@ function cfRenderForecast() {
     return maxY;
   })();
   var f = CF_FORECAST_BY_YEAR[_fcDisplayYear] || null;
+  // v102.2: Interpolate from monthly averages when no Excel forecast is available
   if (!f) {
-    panel.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:20px;font-size:13px;">לא נמצאה עמודת \'סיכומים\' לשנת ' + _fcDisplayYear + ' באקסל</div>';
-    return;
+    var _interpMonths = CF_DATA.filter(function(m) {
+      return m.year === _fcDisplayYear && m.rows &&
+        (cfCalcIncome(m.rows) > 0 || cfCalcExp(m.rows) > 0);
+    });
+    if (_interpMonths.length === 0) {
+      panel.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:20px;font-size:13px;">אין נתונים לשנת ' + _fcDisplayYear + '</div>';
+      return;
+    }
+    var _n = _interpMonths.length;
+    function _avgAnn(field) {
+      var sum = 0, cnt = 0;
+      _interpMonths.forEach(function(m) { var v = m.rows[field] && m.rows[field].val; if (v != null) { sum += v; cnt++; } });
+      return cnt > 0 ? (sum / cnt) * 12 : null;
+    }
+    f = {
+      salary:      _avgAnn('salary'),
+      rent_income: _avgAnn('rent_income'),
+      visa:        _avgAnn('visa'),
+      cash_exp:    _avgAnn('cash_exp'),
+      loans:       _avgAnn('loans'),
+      yotam:       _avgAnn('yotam'),
+      other_exp:   _avgAnn('other_exp'),
+      yotam_usd:   _avgAnn('yotam_usd'),
+      net_cashflow: _avgAnn('net_cashflow'),
+      profit_loss:  _avgAnn('profit_loss'),
+      cashflow_total: _avgAnn('delta')
+    };
+    // Mark as interpolated so note can be shown
+    f._interpolated = true;
+    f._interpCount = _n;
   }
 
   // v47.0: Zero Noise — הצג כרטיסייה רק אם val != 0 && val != null
@@ -4991,7 +5035,10 @@ function cfRenderForecast() {
 
   // v49.0: שורה אחת רציפה — כרטיסיות תזרים בצד שמאל (spacer דוחף אותן שמאלה)
   var html = '<div style="direction:rtl;">';
-  html += '<div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">פירוט תחזית שנתית</div>';
+  var _titleLabel = f._interpolated
+    ? 'תחזית שנתית — אומדן מ-' + f._interpCount + ' חודשים'
+    : 'פירוט תחזית שנתית';
+  html += '<div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">' + _titleLabel + '</div>';
 
   // v54.0: 3 גושים: הכנסות | קו | הוצאות | קו | תזרים
   var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
@@ -5238,6 +5285,7 @@ function pensionRender() {
   pensionRenderCards();
   pensionRenderLumpsums();
   pensionRenderTaxLab();
+  pnsRetirementYieldChange(pnsRetirementYield); // v102.2
   pensionRenderLegacy();
 }
 
@@ -5801,6 +5849,12 @@ function pensionSliderChange(val) {
   // עיגול הון: פנים ריק ממספרים — הנתון מוצג מתחת לעיגול (v78.0)
   var capTotalEl = document.getElementById('pns-cap-total');
   if (capTotalEl) capTotalEl.textContent = totalAccum > 0 ? 'סך הון פטור: ' + pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
+  // v102.2: Net economic value of capital exemption assuming 35% marginal tax
+  var capNetEl = document.getElementById('pns-cap-net-val');
+  if (capNetEl) {
+    var netEconVal = capitalExempt * 0.35;
+    capNetEl.textContent = (totalAccum > 0 && capitalExempt > 0) ? 'חיסכון מס (35%): ' + pnsFmtK(Math.round(netEconVal)) + ' ₪' : '';
+  }
 
   // עיגול קצבה: מציג חיסכון מס (דלתא) בלבד (v79.0 — הוסרה שורת נטו מהעיגול)
   var circPenVal = document.getElementById('pns-circle-pen-val');
@@ -5818,6 +5872,70 @@ function pensionBasketChange(val) {
   if (inp) inp.value = pnsExemptBasket;
   var sliderEl = document.getElementById('pns-tax-slider');
   pensionSliderChange(sliderEl ? sliderEl.value : pensionTaxSliderVal);
+}
+
+// ---------- WORKING MONEY IN RETIREMENT (v102.2) ----------
+var pnsRetirementYield = 3; // % annual default
+
+function pnsRetirementYieldChange(val) {
+  pnsRetirementYield = parseFloat(val) || 0;
+  var labelEl = document.getElementById('pns-ret-yield-val');
+  if (labelEl) labelEl.textContent = pnsRetirementYield.toFixed(1) + '%';
+  var sliderEl = document.getElementById('pns-ret-yield-slider');
+  if (sliderEl) sliderEl.style.setProperty('--pns-val', (pnsRetirementYield / 6 * 100) + '%');
+
+  var resultEl = document.getElementById('pns-ret-yield-result');
+  if (!resultEl) return;
+
+  // Executive Insurance = הראל or פניקס policies with accumulation + expected pension
+  var execAssets = PENSION_ASSETS.filter(function(a) {
+    return (a.provider && (a.provider.indexOf('\u05d4\u05e8\u05d0\u05dc') >= 0 || a.provider.indexOf('\u05e4\u05e0\u05d9\u05e7\u05e1') >= 0))
+      && (a.accumulation || 0) > 0 && (a.expectedPension || 0) > 0;
+  });
+
+  var totalCapital = execAssets.reduce(function(s,a){ return s + (a.accumulation||0); }, 0);
+  var totalPension = execAssets.reduce(function(s,a){ return s + (a.expectedPension||0); }, 0);
+
+  if (!totalCapital || !totalPension) {
+    resultEl.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:8px 0;">טען נתוני פנסיה (הראל/פניקס) כדי לחשב</div>';
+    return;
+  }
+
+  var monthlyRate = pnsRetirementYield / 100 / 12;
+  var yearsStr;
+  if (monthlyRate <= 0) {
+    var yrs = totalCapital / (totalPension * 12);
+    yearsStr = isFinite(yrs) ? Math.round(yrs) + ' שנים' : '\u221e';
+  } else {
+    var factor = totalCapital * monthlyRate / totalPension;
+    if (factor >= 1) {
+      yearsStr = '\u221e — לא יתרוקן';
+    } else {
+      var months = -Math.log(1 - factor) / Math.log(1 + monthlyRate);
+      yearsStr = Math.round(months / 12) + ' שנים';
+    }
+  }
+  var monthlyYieldIncome = totalCapital * monthlyRate;
+
+  resultEl.innerHTML =
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">' +
+    '<div style="background:#f0fdf4;border-radius:8px;padding:8px 14px;border-right:3px solid #16a34a;">' +
+      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d4\u05d5\u05df \u05d1\u05d9\u05d8\u05d5\u05d7\u05d9</div>' +
+      '<div style="font-size:16px;font-weight:800;color:#1a1a2e;">' + pnsFmtK(totalCapital) + ' \u20aa</div>' +
+    '</div>' +
+    '<div style="background:#eff6ff;border-radius:8px;padding:8px 14px;border-right:3px solid #3b82f6;">' +
+      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05e7\u05e6\u05d1\u05d4 \u05d7\u05d5\u05d3\u05e9\u05d9\u05ea</div>' +
+      '<div style="font-size:16px;font-weight:800;color:#2563eb;">' + pnsFmt(totalPension) + ' \u20aa</div>' +
+    '</div>' +
+    (monthlyRate > 0 ? '<div style="background:#fefce8;border-radius:8px;padding:8px 14px;border-right:3px solid #ca8a04;">' +
+      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d4\u05db\u05e0\u05e1\u05d4 \u05de\u05ea\u05e9\u05d5\u05d0\u05d4</div>' +
+      '<div style="font-size:16px;font-weight:800;color:#92400e;">' + pnsFmt(Math.round(monthlyYieldIncome)) + ' \u20aa/\u05d7\u05d5\u05d3\u05e9</div>' +
+    '</div>' : '') +
+    '<div style="background:#ede9fe;border-radius:8px;padding:8px 14px;border-right:3px solid #8b5cf6;">' +
+      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d9\u05d7\u05d6\u05d9\u05e7 \u05e2\u05d3</div>' +
+      '<div style="font-size:16px;font-weight:800;color:#7c3aed;">' + yearsStr + '</div>' +
+    '</div>' +
+    '</div>';
 }
 
 // ---------- LEGACY / PIE ----------
@@ -6159,7 +6277,7 @@ function pensionSaveToStorage() {
 // =============================================
 
 var simInited  = false;
-var SIM_VIEW   = 'roy'; // 'roy' | 'yael' | 'combined'
+var SIM_VIEW   = 'combined'; // 'roy' | 'yael' | 'combined' — v102.2: default to stacked view
 var SIM_RATE   = 4;          // % annual interest
 var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
 var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
@@ -6170,7 +6288,7 @@ var simChartObj = null;
 var SIM_P1_START = { y:2026, m:3 };
 var SIM_P2_START = { y:2027, m:9 };
 var SIM_P3_START = { y:2029, m:9 };
-var SIM_END      = { y:2060, m:12 };
+var SIM_END      = { y:2080, m:12 }; // v102.2: extended to age ~90
 
 // ── Formatters ──────────────────────────────
 function simFmtK(v) {
