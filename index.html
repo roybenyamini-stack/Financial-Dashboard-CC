@@ -1,4 +1,4 @@
-<!-- v103.1 -->
+<!-- v103.2 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.1</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.2</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -805,16 +805,20 @@
   <!-- Forecast Container (hidden by default) — button rendered inside cf-summary-row by JS -->
   <div id="cf-detailed-forecast" style="display:none;background:#0d1b2e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border:1px solid rgba(139,92,246,0.2);direction:rtl;"></div>
 
-  <!-- v103.1: Sandbox — collapsed by default, JS toggled -->
-  <div style="margin-bottom:8px;">
-    <button id="sb-toggle-btn" onclick="cfSandboxToggle()" style="padding:5px 14px;border-radius:20px;border:1px solid rgba(139,92,246,0.4);background:transparent;color:#94a3b8;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;letter-spacing:0.3px;">🧪 Sandbox — ארועים זמניים</button>
-  </div>
+  <!-- v103.2: Sandbox panel — toggle button rendered by JS next to forecast btn -->
   <div id="cf-sandbox-panel" style="display:none;margin-bottom:8px;background:#0d1b2e;border-radius:12px;border:1px solid rgba(139,92,246,0.25);padding:12px 16px 14px;direction:rtl;">
-    <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:10px;">ארועים זמניים לסימולציה — לא נשמרים ברענון</div>
+    <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:10px;">סימולטור אירועים — לא נשמרים ברענון</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
       <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:10px;color:#64748b;">סכום (K ₪, שלילי = הוצאה)</label>
-        <input id="sb-amount" type="number" placeholder="לדוגמה: 50 או -30" style="width:130px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
+        <label style="font-size:10px;color:#64748b;">סוג פעולה</label>
+        <select id="sb-type" style="padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;">
+          <option value="income">הכנסה ➕</option>
+          <option value="expense">הוצאה ➖</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:#64748b;">סכום (K ₪)</label>
+        <input id="sb-amount" type="number" min="0" placeholder="לדוגמה: 50" style="width:110px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:10px;color:#64748b;">שנה</label>
@@ -836,6 +840,7 @@
       <button onclick="cfSandboxAdd()" style="padding:6px 14px;border-radius:20px;border:none;background:#7c3aed;color:white;font-weight:700;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">הוסף</button>
       <button onclick="cfSandboxReset()" style="padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#94a3b8;font-weight:700;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">נקה הכל</button>
     </div>
+    <div id="sb-err" style="display:none;margin-top:6px;font-size:11px;color:#f87171;font-weight:600;"></div>
     <div id="sb-event-list" style="margin-top:8px;"><span style="color:#94a3b8;font-size:11px;">אין אירועים</span></div>
   </div>
 
@@ -1030,7 +1035,7 @@
   <div class="sim-wrap">
 
     <!-- ── Control Panel ── -->
-    <div class="sim-controls-panel">
+    <div class="sim-controls-panel sim-controls-row" style="display:none;">
       <div class="sim-ctrl-group">
         <div class="sim-ctrl-label">תצוגה</div>
         <div class="sim-view-toggle">
@@ -1054,7 +1059,7 @@
         <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
         <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
       </div>
-      <!-- v103.1: Harel toggle — affects Phase 3 pension income -->
+      <!-- v103.2: Harel toggle — affects Phase 3 pension income -->
       <div class="sim-ctrl-group">
         <div class="sim-ctrl-label">הראל בפנסיה (שלב 3)</div>
         <div class="sim-view-toggle">
@@ -1072,8 +1077,14 @@
       </div>
     </div>
 
+    <!-- v103.2: Empty state message (shown before any Excel upload) -->
+    <div id="sim-empty-msg" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;text-align:center;">
+      <div style="font-size:40px;opacity:0.25;">📊</div>
+      <div style="font-size:15px;color:#64748b;font-weight:600;max-width:420px;line-height:1.6;">אין נתונים להצגה.<br>אנא העלה את קבצי הנתונים כדי להתחיל בסימולציה.</div>
+    </div>
+
     <!-- ── KPI Cards ── -->
-    <div class="sim-kpi-row" id="sim-kpi-row">
+    <div class="sim-kpi-row" id="sim-kpi-row" style="display:none;">
       <div class="sim-kpi-card">
         <div class="sim-kpi-label">הון רועי (כיום)</div>
         <div class="sim-kpi-val blue" id="sim-kpi-roy-now">—K</div>
@@ -1117,14 +1128,14 @@
     </div>
 
     <!-- ── Phase Legend ── -->
-    <div class="sim-phase-legend">
+    <div class="sim-phase-legend" style="display:none;">
       <span class="sim-phase-badge phase1">שלב 1 — משכורת נוכחית (מרץ 2026 – אוג׳ 2027)</span>
       <span class="sim-phase-badge phase2">שלב 2 — משכורת מדריך (ספט׳ 2027 – אוג׳ 2029)</span>
       <span class="sim-phase-badge phase3">שלב 3 — פנסיה (מספט׳ 2029 ואילך)</span>
     </div>
 
     <!-- ── Mountain Chart ── -->
-    <div class="sim-chart-section">
+    <div class="sim-chart-section" style="display:none;">
       <div id="sim-chart-wrap" style="position:relative;height:340px;width:100%;overflow:hidden;"></div>
     </div>
 
