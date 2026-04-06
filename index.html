@@ -1,4 +1,4 @@
-<!-- v102.2 -->
+<!-- v102.3 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -30,14 +30,14 @@
   <button class="tab-btn active" onclick="switchTab('cashflow')" id="tabn-cashflow">תזרים שוטף</button>
   <button class="tab-btn" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
   <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
-  <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
+  <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
 </div>
 <div class="header">
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v102.2</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v102.3</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -949,22 +949,6 @@
         </div>
       </div>
 
-      <!-- 7. WORKING MONEY IN RETIREMENT (v102.2) -->
-      <div id="pns-ret-yield-section" style="background:#fff;border-radius:14px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <div class="pns-section-title" style="margin-bottom:0;font-size:12px;">💰 כסף עובד בפרישה</div>
-          <span class="pns-info-icon" title="חישוב כמה זמן ההון בביטוח מנהלים (הראל/פניקס) יחזיק מעמד תוך כדי תשלום קצבה, בהנחת תשואה שנתית על היתרה">ℹ️</span>
-        </div>
-        <div class="pns-slider-section">
-          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">תשואת יתרה בפרישה: <span id="pns-ret-yield-val" style="color:#2563eb;">3.0%</span></div>
-          <input type="range" id="pns-ret-yield-slider" class="pns-slider" min="0" max="6" step="0.5" value="3"
-            oninput="pnsRetirementYieldChange(this.value)"
-            style="--pns-val:50%;">
-          <div class="sim-slider-bounds" style="font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;margin-top:4px;"><span>0%</span><span>6%</span></div>
-        </div>
-        <div id="pns-ret-yield-result" style="margin-top:10px;"></div>
-      </div>
-
       <!-- 8. LEGACY / INHERITANCE -->
       <div id="pns-legacy-section" style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -1016,9 +1000,9 @@
       <div class="sim-ctrl-group">
         <div class="sim-ctrl-label">תצוגה</div>
         <div class="sim-view-toggle">
-          <button class="sim-view-btn" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+          <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
           <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-          <button class="sim-view-btn active" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+          <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
         </div>
       </div>
       <div class="sim-ctrl-group">
@@ -1035,6 +1019,14 @@
         <div class="sim-ctrl-label">משכורת מדריך (שלב 2): <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
         <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
         <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
+      </div>
+      <!-- v102.3: תשואת יתרה בפרישה — moved from pension tab -->
+      <div class="sim-ctrl-group" style="min-width:220px;">
+        <div class="sim-ctrl-label">תשואת יתרה בפרישה (ביטוח מנהלים): <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
+        <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
+          oninput="pnsRetirementYieldChange(this.value)">
+        <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
+        <div id="pns-ret-yield-result" style="margin-top:8px;"></div>
       </div>
     </div>
 
