@@ -938,13 +938,10 @@ function selectFund(fundKey, color) {
     deltaRow.setAttribute('data-delta', fundKey);
 
     // Label cell
-    // v103.0: determine row label from Column K of most recent month
+    // v103.1: determine row label from Column K — scan any month for 'תלוש' keyword
     var _colKArr = FUND_COL_K[fundKey] || [];
-    var _colKLatest = null;
-    for (var _cki = _colKArr.length - 1; _cki >= 0; _cki--) {
-      if (_colKArr[_cki] !== null && _colKArr[_cki] !== undefined) { _colKLatest = _colKArr[_cki]; break; }
-    }
-    var _rowLabel = (_colKLatest === 'תלוש') ? 'גידול בהון' : 'שינוי חודשי';
+    var _hasTalush = _colKArr.some(function(v) { return typeof v === 'string' && v.indexOf('תלוש') >= 0; });
+    var _rowLabel = _hasTalush ? 'גידול בהון' : 'תשואה';
     const labelTd = document.createElement('td');
     labelTd.textContent = _rowLabel;
     deltaRow.appendChild(labelTd);
@@ -953,7 +950,6 @@ function selectFund(fundKey, color) {
     fund.data.forEach((v, i) => {
       const td = document.createElement('td');
       td.setAttribute('data-col', i);
-      // Check visibility
       if (i < winStart || i > winStart + WINDOW - 1) td.style.display = 'none';
 
       if (i === 0 || v === null) {
@@ -964,24 +960,28 @@ function selectFund(fundKey, color) {
         else {
           const delta = v - prev;
           const colKVal = (i < _colKArr.length) ? _colKArr[i] : null;
-          const isTalush = (typeof colKVal === 'string' && colKVal.includes('תלוש'));
-          const isDeposit = (typeof colKVal === 'number' && colKVal !== 0);
+          const isTalush = (typeof colKVal === 'string' && colKVal.indexOf('תלוש') >= 0);
+          // colKVal as number = deposit (+) or withdrawal (-) in K
+          const isMovement = (typeof colKVal === 'number' && colKVal !== 0);
+
           if (isTalush) {
-            // גידול בהון — just show absolute change
+            // גידול בהון — absolute change only, no yield %
             const cls = delta > 0 ? 'dpos' : (delta < 0 ? 'dneg' : 'dzer');
-            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${delta.toFixed(1)}</span>`;
-          } else if (isDeposit) {
-            // הפקדה/משיכה — subtract deposit to get net yield
+            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${Math.round(delta).toLocaleString()}</span>`;
+          } else if (isMovement) {
+            // v103.1: net yield after deposit/withdrawal
+            // Net return = delta - movement (movement is already signed: + deposit, - withdrawal)
             const netDelta = delta - colKVal;
-            const netPct = (netDelta / prev * 100).toFixed(1);
-            const cls = netDelta >= 0 ? 'dpos' : 'dneg';
-            const depSign = colKVal > 0 ? '+' : '';
-            td.innerHTML = `<span class="${cls}">${netDelta >= 0 ? '+' : ''}${netPct}%</span><br><span style="font-size:9px;color:#94a3b8">הפקדה: ${depSign}${colKVal.toFixed(1)}</span>`;
+            const netPct = prev > 0 ? (netDelta / prev * 100).toFixed(1) : '0.0';
+            const cls = parseFloat(netPct) >= 0 ? 'dpos' : 'dneg';
+            const movAbs = Math.abs(Math.round(colKVal)).toLocaleString();
+            const movLabel = colKVal < 0 ? 'משיכה' : 'הפקדה';
+            td.innerHTML = `<span class="${cls}">${parseFloat(netPct) >= 0 ? '+' : ''}${netPct}%</span><br><span style="font-size:9px;color:#94a3b8">${movLabel}: ${movAbs}</span>`;
           } else {
-            // normal yield
+            // normal yield %
             const pct = (delta / prev * 100).toFixed(1);
             const cls = delta > 0 ? 'dpos' : (delta < 0 ? 'dneg' : 'dzer');
-            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${delta.toFixed(1)}</span><br><span class="${cls}">${pct}%</span>`;
+            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${pct}%</span>`;
           }
         }
       }
@@ -2746,12 +2746,21 @@ function loadExcelFileCore(wb) {
           }
           newFundData[fundKey][colIdx] = cellVal;
 
-          // v103.0: Column K (index 10) — deposit/talush metadata
-          var _colKRaw = row[10];
-          if (_colKRaw !== null && _colKRaw !== undefined && _colKRaw !== '') {
+          // v103.1: Column K (index 10) — deposit/talush metadata
+          // row is sparse — access col 10 safely; also try col indices 9 and 10 since Excel col K can be 0-based 10
+          var _colKRaw = (row.length > 10) ? row[10] : null;
+          if (_colKRaw === null || _colKRaw === undefined || _colKRaw === '') _colKRaw = null;
+          if (_colKRaw !== null) {
             if (!FUND_COL_K[fundKey]) FUND_COL_K[fundKey] = new Array(newLabels.length).fill(null);
-            var _colKNorm = (typeof _colKRaw === 'string') ? _colKRaw.trim() : _colKRaw;
-            FUND_COL_K[fundKey][colIdx] = _colKNorm;
+            var _colKNorm;
+            if (typeof _colKRaw === 'string') {
+              _colKNorm = _colKRaw.trim();
+            } else if (typeof _colKRaw === 'number') {
+              _colKNorm = _colKRaw; // keep as number (deposit/withdrawal amount in K)
+            } else {
+              _colKNorm = null;
+            }
+            if (_colKNorm !== null) FUND_COL_K[fundKey][colIdx] = _colKNorm;
           }
         });
 
@@ -3832,17 +3841,27 @@ var CF_SELECTED_MONTH_ID = null; // v18.3: חודש שנבחר ידנית ע"י 
 // v103.0: Sandbox — אירועים זמניים לסימולציה בלבד (לא נשמרים)
 var CF_SANDBOX_EVENTS = []; // [{ amount: K, year, month, label }]
 
+function cfSandboxToggle() {
+  var panel = document.getElementById('cf-sandbox-panel');
+  var btn   = document.getElementById('sb-toggle-btn');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.style.borderColor = isOpen ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.9)';
+}
+
 function cfSandboxAdd() {
   var amtEl = document.getElementById('sb-amount');
   var yrEl  = document.getElementById('sb-year');
   var moEl  = document.getElementById('sb-month');
   var lblEl = document.getElementById('sb-label');
   if (!amtEl || !yrEl || !moEl) return;
-  var amt  = parseFloat(amtEl.value);
-  var yr   = parseInt(yrEl.value);
-  var mo   = parseInt(moEl.value);
-  var lbl  = lblEl ? lblEl.value.trim() : '';
-  if (!amt || !yr || !mo) return;
+  // v103.1: parse strictly — reject empty/NaN
+  var amt = parseFloat(amtEl.value);
+  var yr  = parseInt(yrEl.value);
+  var mo  = parseInt(moEl.value);
+  if (isNaN(amt) || amt === 0 || isNaN(yr) || isNaN(mo)) return;
+  var lbl = lblEl ? lblEl.value.trim() : '';
   CF_SANDBOX_EVENTS.push({ amount: amt, year: yr, month: mo, label: lbl || (amt > 0 ? 'הכנסה זמנית' : 'הוצאה זמנית') });
   amtEl.value = ''; if (lblEl) lblEl.value = '';
   cfSandboxRender();
@@ -3855,17 +3874,23 @@ function cfSandboxRemove(idx) {
   cfRenderChart();
 }
 
+function cfSandboxReset() {
+  CF_SANDBOX_EVENTS.length = 0;
+  cfSandboxRender();
+  cfRenderChart();
+}
+
 function cfSandboxRender() {
   var list = document.getElementById('sb-event-list');
   if (!list) return;
   if (!CF_SANDBOX_EVENTS.length) { list.innerHTML = '<span style="color:#94a3b8;font-size:11px;">אין אירועים</span>'; return; }
-  var CF_HEB_MONTHS_SHORT = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+  var _HEB = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
   list.innerHTML = CF_SANDBOX_EVENTS.map(function(ev, i) {
     var color = ev.amount >= 0 ? '#4ade80' : '#f87171';
-    var sign  = ev.amount >= 0 ? '+' : '';
+    var sign  = ev.amount > 0 ? '+' : '';
     return '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
       '<span style="font-size:11px;color:' + color + ';font-weight:700;">' + sign + ev.amount.toLocaleString() + 'K</span>' +
-      '<span style="font-size:11px;color:#cbd5e1;">' + CF_HEB_MONTHS_SHORT[ev.month-1] + ' ' + String(ev.year).slice(2) + '</span>' +
+      '<span style="font-size:11px;color:#cbd5e1;">' + _HEB[ev.month-1] + '\' ' + String(ev.year).slice(2) + '</span>' +
       '<span style="font-size:11px;color:#94a3b8;">' + ev.label + '</span>' +
       '<button onclick="cfSandboxRemove(' + i + ')" style="margin-right:auto;background:transparent;border:none;color:#64748b;cursor:pointer;font-size:12px;padding:0 4px;">✕</button>' +
       '</div>';
@@ -4503,13 +4528,15 @@ function cfRenderChart() {
       expYotam.push(yotamV);
       expCharig.push(charigV);
     });
-    // v103.0: Sandbox events — build per-month array
+    // v103.1: Sandbox events — use 0 (not null) so stacked chart doesn't break
     var sandboxData = months.map(function(m) {
       var sum = 0;
       CF_SANDBOX_EVENTS.forEach(function(ev) {
-        if (ev.year === m.year && ev.month === m.month) sum += ev.amount;
+        if (ev.year === m.year && ev.month === m.month) {
+          sum += (typeof ev.amount === 'number' && !isNaN(ev.amount)) ? ev.amount : 0;
+        }
       });
-      return sum || null;
+      return sum; // always a number — Chart.js stacked bar requires numeric data
     });
     var hasSandbox = CF_SANDBOX_EVENTS.length > 0;
     datasets = [
@@ -6564,15 +6591,16 @@ function simRenderChart(result) {
   var _yaelRaw = result.yaelData;
 
   if (SIM_VIEW === 'roy') {
-    // v103.0: Stacked area — הון פנסיוני (bottom) + השקעות (top)
-    var penTop = result.royPensionData;
+    // v103.1: Stacked area — monochromatic blue tones
+    // Bottom layer: הון פנסיוני (deep blue/navy), Top layer: השקעות (light azure)
+    var penTop   = result.royPensionData;
     var totalTop = result.royData; // pension + liquid = total
     datasets = [
       {
         label: 'הון פנסיוני',
         data: penTop,
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245,158,11,0.30)',
+        borderColor: '#1e40af',
+        backgroundColor: 'rgba(30,64,175,0.45)',
         fill: 'origin',
         tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 2
@@ -6580,9 +6608,9 @@ function simRenderChart(result) {
       {
         label: 'השקעות',
         data: totalTop,
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37,99,235,0.20)',
-        fill: '-1', // fill between this and pension line
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.25)',
+        fill: '-1', // fill between total line and pension line
         tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
         order: 1
       }
@@ -6681,12 +6709,13 @@ function simRenderChart(result) {
 function simRenderKPI() {
   var royCapital  = simGetRoyCapital();
   var yaelCapital = simGetYaelCapital();
-  // v102.4: use cached salary (avoids zero when CF_DATA temporarily unavailable)
   var rawSal  = simGetCurrentSalary();
   var salary  = (rawSal > 0) ? rawSal : SIM_CURRENT_SALARY;
-  var expenses = SIM_TARGET_EXP; // always reflects the slider value, never 0
+  var expenses = SIM_TARGET_EXP;
   var delta    = salary - expenses;
   var pension  = simGetRoyPension();
+  // v103.1: pension accumulation — show 0K when no data (never show ghost)
+  var penAccumK = simGetRoyPensionAccum() / 1000;
 
   function el(id) { return document.getElementById(id); }
 
@@ -6700,7 +6729,9 @@ function simRenderKPI() {
     deltaEl.textContent = simFmtNIS(delta);
     deltaEl.style.color = delta >= 0 ? '#16a34a' : '#dc2626';
   }
-  if (el('sim-kpi-pension'))  el('sim-kpi-pension').textContent  = pension > 0 ? simFmtNIS(pension) : '—';
+  if (el('sim-kpi-pension'))    el('sim-kpi-pension').textContent    = pension > 0 ? simFmtNIS(pension) : '—';
+  // v103.1: always display, shows 0K before upload (no ghost data)
+  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = penAccumK > 0 ? simFmtK(penAccumK) : '0K';
 
   // Header stats
   if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = simFmtK(royCapital);
