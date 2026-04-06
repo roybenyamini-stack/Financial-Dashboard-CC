@@ -757,7 +757,28 @@ function updateChartStats(data, viewCat) {
       ytdStartVal = ALL_TOTALS[janIdx] || 0;
     }
     if(ytdStartVal > 0 && ytdEndVal > 0) {
-      const ytd = ((ytdEndVal - ytdStartVal) / ytdStartVal * 100).toFixed(1);
+      // v103.4: Column K netting for YTD calc
+      var _ytdKMov = 0;
+      if (viewCat && viewCat !== 'all' && !currentFund) {
+        const _excl = EXCLUDE_FROM_PCT[viewCat] || [];
+        Object.entries(FUNDS).forEach(function(e) {
+          var k=e[0], f=e[1];
+          if (f.cat !== viewCat || _excl.includes(k) || !(f.data[endIdx2] > 0)) return;
+          var colK = FUND_COL_K[k] || [];
+          for (var ki = janIdx+1; ki <= endIdx2; ki++) {
+            var kv = ki < colK.length ? colK[ki] : null;
+            if (typeof kv === 'number' && !isNaN(kv)) _ytdKMov += kv;
+          }
+        });
+      } else if (currentFund && FUNDS[currentFund]) {
+        var _ck = FUND_COL_K[currentFund] || [];
+        for (var ki = janIdx+1; ki <= endIdx2; ki++) {
+          var kv2 = ki < _ck.length ? _ck[ki] : null;
+          if (typeof kv2 === 'number' && !isNaN(kv2)) _ytdKMov += kv2;
+        }
+      }
+      const ytdNet = (ytdEndVal - ytdStartVal) - _ytdKMov;
+      const ytd = (ytdNet / ytdStartVal * 100).toFixed(1);
       ytdEl.textContent = Math.abs(parseFloat(ytd)).toFixed(1) + '%';
       ytdEl.style.color = parseFloat(ytd) >= 0 ? '#16a34a' : '#ef4444';
     } else {
@@ -2439,6 +2460,7 @@ function smartUploadRouter(input) {
           }
           // v102.5: עדכן סימולטור עם נתוני שכר/הוצאות מהקובץ החדש
           if (simInited) simRefresh();
+          cfSandboxInitDefaults(); // v103.4: set default date to next future month
           if(status) {
             var lastM = newData[newData.length - 1];
             var inc = Math.round(cfCalcIncome(lastM.rows)); // v43: חישוב דינמי
@@ -3936,8 +3958,27 @@ function cfSandboxRemove(idx) {
 
 function cfSandboxReset() {
   CF_SANDBOX_EVENTS.length = 0;
+  var amtEl2 = document.getElementById('sb-amount');
+  var lblEl2 = document.getElementById('sb-label');
+  if (amtEl2) amtEl2.value = '';
+  if (lblEl2) lblEl2.value = '';
   cfSandboxRender();
   cfRenderChart();
+}
+
+// v103.4: Set sandbox default date to first future month after last real CF data
+function cfSandboxInitDefaults() {
+  if (!CF_DATA || !CF_DATA.length) return;
+  var lastIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
+  var lastM = CF_DATA[lastIdx];
+  if (!lastM) return;
+  var nextMo = (lastM.month || 1) + 1;
+  var nextYr = lastM.year || new Date().getFullYear();
+  if (nextMo > 12) { nextMo = 1; nextYr++; }
+  var yrEl = document.getElementById('sb-year');
+  var moEl = document.getElementById('sb-month');
+  if (yrEl) { yrEl.value = nextYr; yrEl.min = nextYr; }
+  if (moEl) moEl.value = nextMo;
 }
 
 function cfSandboxRender() {
@@ -4935,7 +4976,7 @@ function cfShowNoData() {
     sh += '<div style="font-size:13px;font-weight:700;color:#22d3ee;white-space:nowrap;line-height:1.6;flex-shrink:0;">YTD<br><span style="font-size:11px;color:rgba(255,255,255,0.25);">—</span></div>';
     sh += _D; sh += _z('הכנסות'); sh += _z('הוצאות'); sh += _z('נטו');
     sh += _BD;
-    sh += '<div style="display:flex;flex-direction:column;justify-content:center;align-self:stretch;flex-shrink:0;">';
+    sh += '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center;align-self:stretch;flex-shrink:0;">';
     sh += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
     sh += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
     sh += '</div></div>';
@@ -5044,9 +5085,9 @@ function cfRenderSummary() {
   html += cellSmall('\u05d4\u05d5\u05e6\u05f3$', Math.abs(ytdExpUsd), '#fca5a5');
   html += cellSmall('\u05e1\u05da$', ytdTotUsd, ytdTotUsdCol);
 
-  // v47.0: כפתורי תחזית וסימולטור — בצד שמאל, עיצוב כפתורי Header, יישור אנכי למרכז
+  // v103.4: כפתורי תחזית וסימולטור — באותה שורה אופקית
   html += BDIV;
-  html += '<div style="display:flex;flex-direction:column;gap:4px;justify-content:center;align-self:stretch;flex-shrink:0;">';
+  html += '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center;align-self:stretch;flex-shrink:0;">';
   html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
   html += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
   html += '</div>';
@@ -6496,12 +6537,11 @@ function simGetCurrentExpenses() {
 }
 
 function simGetRoyPension() {
-  // v102.4: respects SIM_HAREL_MODE — excludes הראל/פניקס assets when 'without'
+  // v103.4: Phoenix always included as Layer 2; Harel tracked separately as Layer 3
   if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
   return PENSION_ASSETS.reduce(function(s, a) {
     if (a.owner === 'יעל') return s;
-    if (SIM_HAREL_MODE === 'without' && a.provider &&
-        (a.provider.indexOf('\u05d4\u05e8\u05d0\u05dc') >= 0 || a.provider.indexOf('\u05e4\u05e0\u05d9\u05e7\u05e1') >= 0)) return s;
+    if (a.provider && a.provider.indexOf('הראל') >= 0) return s; // Harel → Layer 3
     return s + (a.expectedPension || 0);
   }, 0);
 }
@@ -6521,6 +6561,32 @@ function simGetRoyMonthlyPremium() {
   return PENSION_ASSETS.reduce(function(s, a) {
     if (a.owner === 'יעל') return s;
     return s + (a.lastPremium || 0);
+  }, 0);
+}
+
+// v103.4: Harel-specific helpers for 3-layer chart
+function simGetRoyHarelAccum() {
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    if (a.provider && a.provider.indexOf('הראל') >= 0) return s + (a.accumulation || 0);
+    return s;
+  }, 0);
+}
+function simGetRoyHarelPension() {
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    if (a.provider && a.provider.indexOf('הראל') >= 0) return s + (a.expectedPension || 0);
+    return s;
+  }, 0);
+}
+function simGetRoyHarelPremium() {
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    if (a.provider && a.provider.indexOf('הראל') >= 0) return s + (a.lastPremium || 0);
+    return s;
   }, 0);
 }
 
@@ -6548,24 +6614,32 @@ function simIdxToYM(idx) {
 
 // ── Projection Engine ─────────────────────────
 function simRunEngine() {
-  // v103.0: split Roy into liquid investments + pension capital
-  var royLiquid    = simGetRoyCapital();            // K — liquid investments
-  var royPensionCap = simGetRoyPensionAccum() / 1000; // K — pension/insurance accumulation
-  var royMonthlyPremium = simGetRoyMonthlyPremium();  // NIS/month — ongoing pension deposits
-  var yaelCapital  = simGetYaelCapital();
+  // v103.4: 3-layer split — liquid / phoenix / harel; filter isolation for Roy-only view
+  var royLiquid        = simGetRoyCapital();                   // K — liquid investments (Layer 1)
+  var totalPenK        = simGetRoyPensionAccum() / 1000;       // K — total pension accumulation
+  var harelK           = simGetRoyHarelAccum() / 1000;         // K — Harel portion
+  var royPhoenixCap    = totalPenK - harelK;                   // K — Layer 2: Phoenix/regular pension
+  var royHarelCap      = harelK;                               // K — Layer 3: Harel insurance (הון לירושה)
+  var totalPremium     = simGetRoyMonthlyPremium();            // NIS/month
+  var harelPremium     = simGetRoyHarelPremium();              // NIS/month
+  var phoenixPremium   = totalPremium - harelPremium;          // NIS/month
+  // v103.4: filter isolation — Yael zeroed in Roy-only view
+  var yaelCapital      = (SIM_VIEW === 'roy') ? 0 : simGetYaelCapital();
 
   var monthlyRate      = SIM_RATE / 100 / 12;
   var retYieldMonthly  = pnsRetirementYield / 100 / 12;
-  var currentSalary = simGetCurrentSalary();   // NIS/month
-  var targetExp     = SIM_TARGET_EXP;          // NIS/month
-  var instructorSal = SIM_INSTRUCTOR_SAL;      // NIS/month
-  var royPension    = simGetRoyPension();       // NIS/month (drawn in Phase 3)
+  var currentSalary    = simGetCurrentSalary();
+  var targetExp        = SIM_TARGET_EXP;
+  var instructorSal    = SIM_INSTRUCTOR_SAL;
+  var royPhoenixPension = simGetRoyPension();        // NIS/month — always drawn in Phase 3 (Layer 2)
+  var royHarelPension   = simGetRoyHarelPension();   // NIS/month — drawn only if mode='with' (Layer 3)
+  // Total pension income hitting liquid in Phase 3
+  var totalPensionIncome = royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0);
 
-  var phase2Idx = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
-  var phase3Idx = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
-  var totalMonths   = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
+  var phase2Idx   = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
+  var phase3Idx   = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
+  var totalMonths = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
 
-  // Pre-process lump-sum events by month index
   var eventsByMonth = {};
   if (PENSION_EVENTS && PENSION_EVENTS.length) {
     PENSION_EVENTS.forEach(function(ev, idx) {
@@ -6580,52 +6654,64 @@ function simRunEngine() {
     });
   }
 
-  var labels = [], royData = [], yaelData = [], royLiquidData = [], royPensionData = [];
+  var labels = [], royData = [], yaelData = [], royLiquidData = [], royPhoenixData = [], royHarelData = [];
 
   for (var i = 0; i < totalMonths; i++) {
     var ym = simIdxToYM(i);
 
-    // ── Pension capital ──
+    // ── Layer 2: Phoenix pension capital ──
     if (i < phase3Idx) {
-      // Phase 1&2: compound + monthly deposits (premiums)
-      royPensionCap *= (1 + monthlyRate);
-      royPensionCap += royMonthlyPremium / 1000;
+      royPhoenixCap *= (1 + monthlyRate);
+      royPhoenixCap += phoenixPremium / 1000;
     } else {
-      // Phase 3: compound at post-retirement yield, draw monthly pension
-      royPensionCap *= (1 + retYieldMonthly);
-      royPensionCap -= royPension / 1000;
-      if (royPensionCap < 0) royPensionCap = 0;
+      royPhoenixCap *= (1 + retYieldMonthly);
+      royPhoenixCap -= royPhoenixPension / 1000;
+      if (royPhoenixCap < 0) royPhoenixCap = 0;
     }
 
-    // ── Liquid capital ──
+    // ── Layer 3: Harel insurance capital (הון לירושה) ──
+    if (i < phase3Idx) {
+      royHarelCap *= (1 + monthlyRate);
+      royHarelCap += harelPremium / 1000;
+    } else {
+      royHarelCap *= (1 + retYieldMonthly);
+      if (SIM_HAREL_MODE === 'with') {
+        // ToggleD "עם הראל": draw monthly pension from this layer too
+        royHarelCap -= royHarelPension / 1000;
+        if (royHarelCap < 0) royHarelCap = 0;
+      }
+      // 'without' (default): Harel compounds as inheritance capital — no withdrawals
+    }
+
+    // ── Layer 1: Liquid investments ──
     royLiquid *= (1 + monthlyRate);
     if (i < phase2Idx) {
-      // Phase 1: save salary surplus
       royLiquid += (currentSalary - targetExp) / 1000;
     } else if (i < phase3Idx) {
-      // Phase 2: instructor salary surplus
       royLiquid += (instructorSal - targetExp) / 1000;
     } else {
-      // Phase 3: pension income - expenses flows to/from liquid
-      royLiquid += (royPension - targetExp) / 1000;
+      royLiquid += (totalPensionIncome - targetExp) / 1000;
       if (eventsByMonth[i]) royLiquid += eventsByMonth[i];
     }
 
     yaelCapital *= (1 + monthlyRate);
 
-    // Store yearly data points (end-of-December each year, or last point)
     if (ym.m === 12 || i === totalMonths - 1) {
-      var liqVal  = Math.max(0, Math.round(royLiquid));
-      var penVal  = Math.max(0, Math.round(royPensionCap));
+      var liqVal = Math.max(0, Math.round(royLiquid));
+      var phxVal = Math.max(0, Math.round(royPhoenixCap));
+      var hrlVal = Math.max(0, Math.round(royHarelCap));
       labels.push(String(ym.y));
       royLiquidData.push(liqVal);
-      royPensionData.push(penVal);
-      royData.push(liqVal + penVal);
+      royPhoenixData.push(phxVal);
+      royHarelData.push(hrlVal);
+      royData.push(liqVal + phxVal + hrlVal);
       yaelData.push(Math.max(0, Math.round(yaelCapital)));
     }
   }
 
-  return { labels: labels, royData: royData, royLiquidData: royLiquidData, royPensionData: royPensionData, yaelData: yaelData,
+  return { labels: labels, royData: royData,
+           royLiquidData: royLiquidData, royPhoenixData: royPhoenixData, royHarelData: royHarelData,
+           yaelData: yaelData,
            phase1EndLabel: String(SIM_P2_START.y - 1),
            phase2EndLabel: String(SIM_P3_START.y - 1) };
 }
@@ -6673,27 +6759,40 @@ function simRenderChart(result) {
   var _yaelRaw = result.yaelData;
 
   if (SIM_VIEW === 'roy') {
-    // v103.1: Stacked area — monochromatic blue tones
-    // Bottom layer: הון פנסיוני (deep blue/navy), Top layer: השקעות (light azure)
-    var penTop   = result.royPensionData;
-    var totalTop = result.royData; // pension + liquid = total
+    // v103.4: 3-layer stacked area — Layer1=השקעות, Layer2=הון פנסיוני, Layer3=הון לירושה
+    var liq = result.royLiquidData;
+    var phx = result.royPhoenixData;
+    var hrl = result.royHarelData;
+    // cumulative tops for stacking
+    var liqTop = liq;
+    var phxTop = liq.map(function(v, i) { return v + phx[i]; });
+    var hrlTop = liq.map(function(v, i) { return v + phx[i] + hrl[i]; });
     datasets = [
       {
-        label: 'הון פנסיוני',
-        data: penTop,
+        label: 'השקעות',
+        data: liqTop,
         borderColor: '#1e40af',
         backgroundColor: 'rgba(30,64,175,0.45)',
         fill: 'origin',
         tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        order: 3
+      },
+      {
+        label: 'הון פנסיוני',
+        data: phxTop,
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.25)',
+        fill: '-1',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 2
       },
       {
-        label: 'השקעות',
-        data: totalTop,
-        borderColor: '#60a5fa',
-        backgroundColor: 'rgba(96,165,250,0.25)',
-        fill: '-1', // fill between total line and pension line
-        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+        label: 'הון לירושה',
+        data: hrlTop,
+        borderColor: '#34d399',
+        backgroundColor: 'rgba(52,211,153,0.20)',
+        fill: '-1',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 1
       }
     ];
@@ -6770,11 +6869,14 @@ function simRenderChart(result) {
             label: function(ctx) {
               var v;
               if (SIM_VIEW === 'combined' && ctx.datasetIndex === 1) {
-                // Show Yael's individual value, not cumulative
                 v = _yaelRaw[ctx.dataIndex];
-              } else if (SIM_VIEW === 'roy' && ctx.datasetIndex === 1) {
-                // "השקעות" layer — show only liquid portion (total minus pension)
-                v = result.royLiquidData[ctx.dataIndex];
+              } else if (SIM_VIEW === 'roy') {
+                // Show individual layer value (not cumulative top)
+                var di = ctx.dataIndex;
+                if (ctx.datasetIndex === 0) v = result.royLiquidData[di];
+                else if (ctx.datasetIndex === 1) v = result.royPhoenixData[di];
+                else if (ctx.datasetIndex === 2) v = result.royHarelData[di];
+                else v = ctx.parsed.y;
               } else {
                 v = ctx.parsed.y;
               }
@@ -6801,9 +6903,11 @@ function simRenderKPI() {
 
   function el(id) { return document.getElementById(id); }
 
+  // v103.4: filter isolation — zero out Yael KPIs when view=Roy only
+  var _showYael = (SIM_VIEW !== 'roy');
   if (el('sim-kpi-roy-now'))  el('sim-kpi-roy-now').textContent  = simFmtK(royCapital);
-  if (el('sim-kpi-yael-now')) el('sim-kpi-yael-now').textContent = simFmtK(yaelCapital);
-  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent = simFmtK(royCapital + yaelCapital);
+  if (el('sim-kpi-yael-now')) el('sim-kpi-yael-now').textContent = _showYael ? simFmtK(yaelCapital) : '—';
+  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent = _showYael ? simFmtK(royCapital + yaelCapital) : simFmtK(royCapital);
   if (el('sim-kpi-salary'))   el('sim-kpi-salary').textContent   = simFmtNIS(salary);
   if (el('sim-kpi-exp'))      el('sim-kpi-exp').textContent      = simFmtNIS(expenses);
   var deltaEl = el('sim-kpi-delta');
@@ -6811,14 +6915,16 @@ function simRenderKPI() {
     deltaEl.textContent = simFmtNIS(delta);
     deltaEl.style.color = delta >= 0 ? '#16a34a' : '#dc2626';
   }
-  if (el('sim-kpi-pension'))    el('sim-kpi-pension').textContent    = pension > 0 ? simFmtNIS(pension) : '—';
+  // v103.4: pension KPI includes Harel if mode='with'
+  var totalPension = pension + (SIM_HAREL_MODE === 'with' ? simGetRoyHarelPension() : 0);
+  if (el('sim-kpi-pension'))    el('sim-kpi-pension').textContent    = totalPension > 0 ? simFmtNIS(totalPension) : '—';
   // v103.1: always display, shows 0K before upload (no ghost data)
   if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = penAccumK > 0 ? simFmtK(penAccumK) : '—';
 
-  // Header stats
+  // Header stats — v103.4: filter isolation
   if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = simFmtK(royCapital);
-  if (el('sim-hdr-yael'))     el('sim-hdr-yael').textContent     = simFmtK(yaelCapital);
-  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent = simFmtK(royCapital + yaelCapital);
+  if (el('sim-hdr-yael'))     el('sim-hdr-yael').textContent     = _showYael ? simFmtK(yaelCapital) : '—';
+  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent = _showYael ? simFmtK(royCapital + yaelCapital) : simFmtK(royCapital);
   var hdrDelta = el('sim-hdr-delta');
   if (hdrDelta) {
     hdrDelta.textContent = simFmtNIS(delta);
