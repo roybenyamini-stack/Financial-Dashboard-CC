@@ -1133,18 +1133,36 @@ function invMDSelectFund(fundKey) {
   for (var i = winStart; i < winEnd; i++) h += '<th style="padding:4px 2px;font-size:11px;text-align:center;">' + LABELS[i] + '</th>';
   h += '</tr></thead><tbody>';
 
-  // שורת ערך + % שינוי inline מתחת (קרן בודדת — קומפקטי)
+  // שורת ערך + % שינוי inline מתחת (קרן בודדת — קומפקטי) v103.3: Column K netting
   h += '<tr><td style="' + tdLblStyle + 'font-weight:600;color:#64748b;">ערך</td>';
+  var _mdColK = FUND_COL_K[fundKey] || [];
   for (var i = winStart; i < winEnd; i++) {
     var v    = ff[i];
     var prev = (i > 0) ? ff[i - 1] : null;
     if (v > 0) {
-      var delta   = (prev !== null && prev > 0) ? (v - prev) : null;
-      var pct     = (delta !== null && prev > 0) ? (delta / prev * 100).toFixed(1) : null;
-      var pctHtml = pct !== null
-        ? '<br><span style="font-size:9px;display:inline-block;' + (delta > 0 ? 'color:#16a34a' : delta < 0 ? 'color:#dc2626' : 'color:#94a3b8') + ';">'
-          + (delta > 0 ? '+' : '') + pct + '%</span>'
-        : '';
+      var delta    = (prev !== null && prev > 0) ? (v - prev) : null;
+      var kv       = (i < _mdColK.length) ? _mdColK[i] : null;
+      var isTlsh   = (typeof kv === 'string' && kv.indexOf('תלוש') >= 0);
+      var isMov    = (typeof kv === 'number' && kv !== 0);
+      var pctHtml  = '';
+      if (delta !== null && prev > 0) {
+        if (isTlsh) {
+          var clr2 = delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#94a3b8';
+          pctHtml = '<br><span style="font-size:9px;display:inline-block;color:' + clr2 + ';">' + (delta > 0 ? '+' : '') + Math.round(delta).toLocaleString() + '</span>';
+        } else if (isMov) {
+          var netD = delta - kv;
+          var pct2 = (netD / prev * 100).toFixed(1);
+          var clr2 = parseFloat(pct2) >= 0 ? '#16a34a' : '#dc2626';
+          var mAbs = Math.abs(Math.round(kv)).toLocaleString();
+          var mLbl = kv < 0 ? 'משיכה' : 'הפקדה';
+          pctHtml = '<br><span style="font-size:9px;display:inline-block;color:' + clr2 + ';">' + (parseFloat(pct2) >= 0 ? '+' : '') + pct2 + '%</span>' +
+                    '<br><span style="font-size:8px;color:#94a3b8">' + mLbl + ': ' + mAbs + '</span>';
+        } else {
+          var pct2 = (delta / prev * 100).toFixed(1);
+          var clr2 = delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#94a3b8';
+          pctHtml = '<br><span style="font-size:9px;display:inline-block;color:' + clr2 + ';">' + (delta > 0 ? '+' : '') + pct2 + '%</span>';
+        }
+      }
       h += '<td class="val" style="' + tdStyle + 'color:' + fc + ';">' + Math.round(v).toLocaleString() + pctHtml + '</td>';
     } else {
       h += '<td class="dash" style="' + tdStyle + '">—</td>';
@@ -3238,19 +3256,20 @@ function buildCatAggTable(catId) {
   // Pre-compute ff arrays once
   var ffArrays = funds.map(function(e) { return ffFundData(e[1].data); });
 
-  // צבירת ערכים + זיהוי משיכות (קרן שעברה מערך חיובי ל-0 = נמכרה)
+  // v103.3: צבירת ערכים + Column K netting (מחליף mechanism של "קרן נמכרה")
   var aggData = [];
-  var aggWithdrawals = []; // סכום שיצא מהתיק (מכירות) בכל חודש
+  var aggColKMovements = []; // סכום תנועות Column K בכל חודש לכל הקרנות בקטגוריה
   for (var mi = 0; mi < LABELS.length; mi++) {
-    var total = 0, withdrawn = 0;
-    ffArrays.forEach(function(ff) {
-      var v    = ff[mi]   || 0;
-      var prev = mi > 0 ? (ff[mi - 1] || 0) : 0;
-      total += v;
-      if (v === 0 && prev > 0) withdrawn += prev; // קרן נמכרה
+    var total = 0, colKTotal = 0;
+    funds.forEach(function(e, fi) {
+      var ff = ffArrays[fi];
+      total += ff[mi] || 0;
+      var colK = FUND_COL_K[e[0]] || [];
+      var kv = (mi < colK.length) ? colK[mi] : null;
+      if (typeof kv === 'number' && !isNaN(kv)) colKTotal += kv;
     });
     aggData.push(total > 0 ? total : null);
-    aggWithdrawals.push(withdrawn);
+    aggColKMovements.push(colKTotal);
   }
 
   // בניית טבלה זהה ל-invMDSelectFund
@@ -3295,20 +3314,19 @@ function buildCatAggTable(catId) {
   }
   h += '</tr>';
 
-  // שורה 3: אחוז שינוי — מנוטרל ממכירות/משיכות
-  // נוסחה: (שינוי + משיכות) / ערך קודם — מסלק עיוות של קרן שנמכרה
+  // שורה 3: אחוז שינוי — v103.3: Column K netting במקום mechanism מכירות
   h += '<tr><td style="' + tdLblStyle + 'color:#64748b;">% שינוי</td>';
   for (var i = winStart; i < winEnd; i++) {
-    var v          = aggData[i];
-    var prev       = (i > 0) ? aggData[i - 1] : null;
-    var withdrawal = aggWithdrawals[i] || 0;
+    var v    = aggData[i];
+    var prev = (i > 0) ? aggData[i - 1] : null;
     if (v === null || prev === null || prev <= 0) {
       h += '<td style="' + tdStyle + '">—</td>';
     } else {
-      var rawDelta     = v - prev;
-      var adjustedDelta = rawDelta + withdrawal; // נטרול מכירות
-      var pct          = (adjustedDelta / prev * 100).toFixed(1);
-      var clr          = adjustedDelta > 0 ? '#16a34a' : adjustedDelta < 0 ? '#dc2626' : '#94a3b8';
+      var rawDelta      = v - prev;
+      var colKMov       = aggColKMovements[i] || 0;
+      var adjustedDelta = rawDelta - colKMov; // v103.3: נטרול תנועות Column K
+      var pct           = (adjustedDelta / prev * 100).toFixed(1);
+      var clr           = adjustedDelta > 0 ? '#16a34a' : adjustedDelta < 0 ? '#dc2626' : '#94a3b8';
       h += '<td style="' + tdStyle + 'color:' + clr + ';font-weight:600;">' +
            (adjustedDelta >= 0 ? '+' : '') + pct + '%</td>';
     }
@@ -5026,10 +5044,11 @@ function cfRenderSummary() {
   html += cellSmall('\u05d4\u05d5\u05e6\u05f3$', Math.abs(ytdExpUsd), '#fca5a5');
   html += cellSmall('\u05e1\u05da$', ytdTotUsd, ytdTotUsdCol);
 
-  // v47.0: כפתור תחזית — בצד שמאל, עיצוב כפתורי Header, יישור אנכי למרכז
+  // v47.0: כפתורי תחזית וסימולטור — בצד שמאל, עיצוב כפתורי Header, יישור אנכי למרכז
   html += BDIV;
-  html += '<div style="display:flex;flex-direction:column;justify-content:center;align-self:stretch;flex-shrink:0;">';
+  html += '<div style="display:flex;flex-direction:column;gap:4px;justify-content:center;align-self:stretch;flex-shrink:0;">';
   html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
+  html += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
   html += '</div>';
 
   html += '</div>';
@@ -6406,7 +6425,7 @@ var SIM_END      = { y:2080, m:12 }; // v102.2: extended to age ~90
 
 // ── Formatters ──────────────────────────────
 function simFmtK(v) {
-  if (v === null || v === undefined || isNaN(v)) return '—K';
+  if (v === null || v === undefined || isNaN(v)) return '—';
   return Math.round(v).toLocaleString() + 'K';
 }
 function simFmtNIS(v) {
@@ -6794,7 +6813,7 @@ function simRenderKPI() {
   }
   if (el('sim-kpi-pension'))    el('sim-kpi-pension').textContent    = pension > 0 ? simFmtNIS(pension) : '—';
   // v103.1: always display, shows 0K before upload (no ghost data)
-  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = penAccumK > 0 ? simFmtK(penAccumK) : '0K';
+  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = penAccumK > 0 ? simFmtK(penAccumK) : '—';
 
   // Header stats
   if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = simFmtK(royCapital);
