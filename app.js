@@ -527,31 +527,51 @@ const grandBase0 = cats.reduce((s,c) => {
       if(el('sec-pct-'+cat)) { el('sec-pct-'+cat).textContent=''; el('sec-pct-'+cat).className='cat-pct'; }
       return;
     }
-    // Dynamic base: only funds active (>0) at endIdx
+    // v103.2: Column K-netted yield for category cards
+    // Sum net return = Σ(endVal - startVal - colK_movements) over the window
+    // Base = Σ startVal (only active funds)
     const excl = EXCLUDE_FROM_PCT[cat] || [];
-    const dynamicBase = Object.entries(FUNDS)
-      .filter(([k,f]) => f.cat===cat && !excl.includes(k) && (f.data[endIdx]||0) > 0)
-      .reduce((s,[,f]) => s + (f.data[startIdx]||0), 0);
+    const activeFunds = Object.entries(FUNDS)
+      .filter(([k,f]) => f.cat===cat && !excl.includes(k) && (f.data[endIdx]||0) > 0 && invFilter(f));
+    const dynamicBase = activeFunds.reduce((s,[,f]) => s + (f.data[startIdx]||0), 0);
     if (dynamicBase === 0) return;
-    const pct = ((catMeasured[cat] - dynamicBase) / dynamicBase * 100).toFixed(1);
+    // Compute net delta: subtract Column K movements accumulated over window
+    const netDelta = activeFunds.reduce((s,[k,f]) => {
+      const rawDelta = (f.data[endIdx]||0) - (f.data[startIdx]||0);
+      // Sum Column K values over the window [startIdx+1 .. endIdx]
+      var kMovements = 0;
+      var colK = FUND_COL_K[k] || [];
+      for (var _ki = startIdx + 1; _ki <= endIdx; _ki++) {
+        var kv = (_ki < colK.length) ? colK[_ki] : null;
+        if (typeof kv === 'number' && !isNaN(kv)) kMovements += kv;
+      }
+      return s + rawDelta - kMovements;
+    }, 0);
+    const pct = (netDelta / dynamicBase * 100).toFixed(1);
     const arrow = pct >= 0 ? '▲' : '▼';
     if(el('card-chg-'+cat)) el('card-chg-'+cat).textContent = arrow + ' ' + pct + '%';
     if(el('sec-pct-'+cat)) {
       el('sec-pct-'+cat).textContent = pct + '%';
       el('sec-pct-'+cat).className = 'cat-pct ' + (parseFloat(pct) >= 0 ? 'pos' : 'neg');
     }
-    // YTD: Jan 2026 to endIdx
+    // YTD: Jan 2026 to endIdx — v103.2: Column K-netted
     const janIdx = LABELS.findIndex(l => l.includes('ינו') && l.includes('26'));
     if(el('sec-ytd-'+cat) && janIdx >= 0 && endIdx >= janIdx) {
       const excl2 = EXCLUDE_FROM_PCT[cat] || [];
-      const ytdEnd = Object.entries(FUNDS)
-        .filter(([k,f]) => f.cat===cat && !excl2.includes(k) && (f.data[endIdx]||0) > 0)
-        .reduce((s,[,f]) => s+(f.data[endIdx]||0), 0);
-      const ytdStart = Object.entries(FUNDS)
-        .filter(([k,f]) => f.cat===cat && !excl2.includes(k) && (f.data[endIdx]||0) > 0)
-        .reduce((s,[,f]) => s+(f.data[janIdx]||0), 0);
+      const ytdFunds = Object.entries(FUNDS)
+        .filter(([k,f]) => f.cat===cat && !excl2.includes(k) && (f.data[endIdx]||0) > 0 && invFilter(f));
+      const ytdStart = ytdFunds.reduce((s,[,f]) => s+(f.data[janIdx]||0), 0);
       if(ytdStart > 0) {
-        const ytd = ((ytdEnd - ytdStart) / ytdStart * 100).toFixed(1);
+        const ytdNetDelta = ytdFunds.reduce((s,[k,f]) => {
+          const rawD = (f.data[endIdx]||0) - (f.data[janIdx]||0);
+          var km = 0; var colK = FUND_COL_K[k] || [];
+          for (var _yi = janIdx + 1; _yi <= endIdx; _yi++) {
+            var kv = (_yi < colK.length) ? colK[_yi] : null;
+            if (typeof kv === 'number' && !isNaN(kv)) km += kv;
+          }
+          return s + rawD - km;
+        }, 0);
+        const ytd = (ytdNetDelta / ytdStart * 100).toFixed(1);
         el('sec-ytd-'+cat).textContent = ytd + '% YTD';
         el('sec-ytd-'+cat).className = 'cat-pct ' + (parseFloat(ytd) >= 0 ? 'pos' : 'neg');
       } else {
@@ -3847,22 +3867,44 @@ function cfSandboxToggle() {
   if (!panel) return;
   var isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
-  if (btn) btn.style.borderColor = isOpen ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.9)';
+  if (btn) {
+    btn.style.background = isOpen ? 'rgba(255,255,255,0.08)' : 'rgba(139,92,246,0.25)';
+    btn.style.borderColor = isOpen ? 'rgba(255,255,255,0.2)' : 'rgba(139,92,246,0.8)';
+  }
 }
 
 function cfSandboxAdd() {
-  var amtEl = document.getElementById('sb-amount');
-  var yrEl  = document.getElementById('sb-year');
-  var moEl  = document.getElementById('sb-month');
-  var lblEl = document.getElementById('sb-label');
+  var amtEl  = document.getElementById('sb-amount');
+  var yrEl   = document.getElementById('sb-year');
+  var moEl   = document.getElementById('sb-month');
+  var lblEl  = document.getElementById('sb-label');
+  var typeEl = document.getElementById('sb-type');
   if (!amtEl || !yrEl || !moEl) return;
-  // v103.1: parse strictly — reject empty/NaN
-  var amt = parseFloat(amtEl.value);
-  var yr  = parseInt(yrEl.value);
-  var mo  = parseInt(moEl.value);
-  if (isNaN(amt) || amt === 0 || isNaN(yr) || isNaN(mo)) return;
+  var absAmt = parseFloat(amtEl.value);
+  var yr     = parseInt(yrEl.value);
+  var mo     = parseInt(moEl.value);
+  if (isNaN(absAmt) || absAmt <= 0 || isNaN(yr) || isNaN(mo)) return;
+
+  // v103.2: type selector handles sign — no negative numbers needed
+  var isExpense = typeEl && typeEl.value === 'expense';
+  var amt = isExpense ? -absAmt : absAmt;
+
+  // v103.2: time-travel block — reject entries before last actual CF month
+  if (CF_DATA && CF_DATA.length > 0) {
+    var lastReal = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
+    if (lastReal) {
+      var lastY = lastReal.year, lastM = lastReal.month;
+      if (yr < lastY || (yr === lastY && mo <= lastM)) {
+        var errEl = document.getElementById('sb-err');
+        if (errEl) { errEl.textContent = '⚠️ לא ניתן להוסיף ארוע לפני ' + lastReal.label; errEl.style.display = 'block'; }
+        setTimeout(function() { if (errEl) errEl.style.display = 'none'; }, 3000);
+        return;
+      }
+    }
+  }
+
   var lbl = lblEl ? lblEl.value.trim() : '';
-  CF_SANDBOX_EVENTS.push({ amount: amt, year: yr, month: mo, label: lbl || (amt > 0 ? 'הכנסה זמנית' : 'הוצאה זמנית') });
+  CF_SANDBOX_EVENTS.push({ amount: amt, year: yr, month: mo, label: lbl || (isExpense ? 'הוצאה זמנית' : 'הכנסה זמנית') });
   amtEl.value = ''; if (lblEl) lblEl.value = '';
   cfSandboxRender();
   cfRenderChart();
@@ -4546,7 +4588,20 @@ function cfRenderChart() {
       { label:'חריג',  data:cfSafeArr(expCharig), backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
     ];
     if (hasSandbox) {
-      datasets.push({ label:'ארוע זמני', data:sandboxData, backgroundColor:'rgba(139,92,246,0.85)', borderRadius:4, stack:'income' });
+      // v103.2: build per-month label map for tooltip
+      var _sbLabelMap = {};
+      months.forEach(function(m, mi) {
+        var evs = CF_SANDBOX_EVENTS.filter(function(ev) { return ev.year === m.year && ev.month === m.month; });
+        if (evs.length) _sbLabelMap[mi] = evs.map(function(ev) { return ev.label; }).join(', ');
+      });
+      datasets.push({
+        label: 'ארוע זמני',
+        data: sandboxData,
+        backgroundColor: 'rgba(139,92,246,0.85)',
+        borderRadius: 4,
+        stack: 'income',
+        _sbLabelMap: _sbLabelMap  // custom prop for tooltip
+      });
     }
   } else {
     // ytd: מצטבר לפי cfGetNetVal (total_income - total_exp)
@@ -4635,8 +4690,15 @@ function cfRenderChart() {
               return CF_CHART_MONTHS[idx] ? CF_CHART_MONTHS[idx].label : labels[idx];
             },
             label: function(item) {
-              var datasetLabel = item.dataset.label || '';
               var val = item.raw;
+              if (!val && val !== 0) return '';
+              // v103.2: sandbox dataset — show event description from _sbLabelMap
+              if (item.dataset._sbLabelMap) {
+                var evLbl = item.dataset._sbLabelMap[item.dataIndex];
+                var dispLbl = evLbl || (val >= 0 ? 'הכנסה זמנית' : 'הוצאה זמנית');
+                return dispLbl + ': ' + (val > 0 ? '+' : '') + Math.round(val).toLocaleString();
+              }
+              var datasetLabel = item.dataset.label || '';
               return datasetLabel + ': ' + Math.round(val).toLocaleString();
             },
             afterBody: function(items) {
@@ -4857,6 +4919,7 @@ function cfShowNoData() {
     sh += _BD;
     sh += '<div style="display:flex;flex-direction:column;justify-content:center;align-self:stretch;flex-shrink:0;">';
     sh += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
+    sh += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
     sh += '</div></div>';
     sumRow.innerHTML = sh;
     cfSyncForecastBtn();
@@ -6824,9 +6887,38 @@ function simSetInstructor(s) {
   simRenderChart(simRunEngine());
 }
 
+// v103.2: Show/hide simulator content based on data availability
+function simCheckEmpty() {
+  var hasData = (simGetRoyCapital() > 0 || simGetYaelCapital() > 0 ||
+                 simGetRoyPensionAccum() > 0 || (CF_DATA && CF_DATA.length > 0));
+  var kpiRow   = document.getElementById('sim-kpi-row');
+  var chartSec = document.getElementById('sim-chart-wrap') ? document.getElementById('sim-chart-wrap').parentElement : null;
+  var phaseLeg = document.querySelector('.sim-phase-legend');
+  var emptyMsg = document.getElementById('sim-empty-msg');
+  var ctrlRow  = document.querySelector('.sim-controls-row');
+
+  if (hasData) {
+    if (kpiRow)   kpiRow.style.display   = '';
+    if (chartSec) chartSec.style.display = '';
+    if (phaseLeg) phaseLeg.style.display = '';
+    if (ctrlRow)  ctrlRow.style.display  = '';
+    if (emptyMsg) emptyMsg.style.display = 'none';
+  } else {
+    if (kpiRow)   kpiRow.style.display   = 'none';
+    if (chartSec) chartSec.style.display = 'none';
+    if (phaseLeg) phaseLeg.style.display = 'none';
+    if (ctrlRow)  ctrlRow.style.display  = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'flex';
+  }
+  return hasData;
+}
+
 // ── Init ──────────────────────────────────────
 function simInit() {
   // v102.5: Stateless — pension data already in PENSION_ASSETS/PENSION_EVENTS if Excel was uploaded
+
+  // v103.2: show empty state if no data loaded yet
+  if (!simCheckEmpty()) return;
 
   // Diagnostics — open browser console to debug zero-capital issues
   var _royK  = simGetRoyCapital();
@@ -6858,6 +6950,9 @@ function simInit() {
 // v102.5: Re-read live data after Excel upload and re-render simulator
 function simRefresh() {
   if (!simInited) return;
+  // v103.2: if first upload — show content and run full init instead
+  var hadData = simCheckEmpty();
+  if (!hadData) { simInit(); return; }
   var _sal = simGetCurrentSalary();
   var _exp = simGetCurrentExpenses();
   if (_sal > 0) SIM_CURRENT_SALARY = _sal;
