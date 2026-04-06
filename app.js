@@ -720,7 +720,19 @@ function updateChartStats(data, viewCat) {
         .filter(([k,f]) => f.cat===viewCat && !excl.includes(k) && (f.data[endIdx]||0) > 0)
         .reduce((s,[,f]) => s+(f.data[startIdx]||0), 0);
       if(measuredStart > 0) {
-        const ret = ((measuredEnd - measuredStart) / measuredStart * 100).toFixed(1);
+        // v103.6: Column K netting for trailing window return
+        var _retKMov = 0;
+        Object.entries(FUNDS).forEach(function(e) {
+          var k=e[0], f=e[1];
+          if (f.cat !== viewCat || excl.includes(k) || !(f.data[endIdx] > 0)) return;
+          var colK = FUND_COL_K[k] || [];
+          for (var ki = startIdx+1; ki <= endIdx; ki++) {
+            var kv = ki < colK.length ? colK[ki] : null;
+            if (typeof kv === 'number' && !isNaN(kv)) _retKMov += kv;
+          }
+        });
+        const retNet = (measuredEnd - measuredStart) - _retKMov;
+        const ret = (retNet / measuredStart * 100).toFixed(1);
         returnEl.textContent = Math.abs(parseFloat(ret)).toFixed(1) + '%';
         returnEl.style.color = ret >= 0 ? '#16a34a' : '#ef4444';
       } else { returnEl.textContent = '—'; }
@@ -3984,6 +3996,23 @@ function cfSandboxInitDefaults() {
   // Store min allowed month for JS-level enforcement
   if (yrEl) yrEl.setAttribute('data-min-yr', curYr);
   if (moEl) moEl.setAttribute('data-min-mo-at-min-yr', curMo);
+  // v103.6: disable past month options
+  cfSandboxUpdateMonthOpts();
+}
+
+// v103.6: disable month <select> options that are before the minimum allowed month
+function cfSandboxUpdateMonthOpts() {
+  var yrEl = document.getElementById('sb-year');
+  var moEl = document.getElementById('sb-month');
+  if (!yrEl || !moEl) return;
+  var minYr = parseInt(yrEl.getAttribute('data-min-yr')) || parseInt(yrEl.min) || new Date().getFullYear();
+  var minMo = parseInt(moEl.getAttribute('data-min-mo-at-min-yr')) || 1;
+  var selYr = parseInt(yrEl.value) || minYr;
+  moEl.querySelectorAll('option').forEach(function(opt) {
+    opt.disabled = (selYr === minYr && parseInt(opt.value) < minMo);
+  });
+  // If currently selected month is now disabled, jump to minMo
+  if (selYr === minYr && parseInt(moEl.value) < minMo) moEl.value = minMo;
 }
 
 function cfSandboxRender() {
@@ -4686,6 +4715,10 @@ function cfRenderChart() {
     months.forEach(function(m){
       var v = cfGetNetVal(m);
       s += (v !== null ? v : 0);
+      // v103.6: include sandbox events in cumulative chart
+      CF_SANDBOX_EVENTS.forEach(function(ev) {
+        if (ev.year === m.year && ev.month === m.month) s += (ev.amount || 0);
+      });
       cum.push(s);
     });
     var safeCum = cfSafeArr(cum);
@@ -6829,24 +6862,46 @@ function simRenderChart(result) {
       tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
     }];
   } else {
-    // Combined — Yael dataset uses cumulative (Roy+Yael) for stacking
-    var combinedTop = result.royData.map(function(r, i) { return r + _yaelRaw[i]; });
+    // v103.6: Combined — 4-layer stacked: Roy(liquid, phoenix, harel) + Yael
+    var _cLiq = result.royLiquidData;
+    var _cPhx = result.royPhoenixData;
+    var _cHrl = result.royHarelData;
+    var _cLiqTop = _cLiq;
+    var _cPhxTop = _cLiq.map(function(v, i) { return v + _cPhx[i]; });
+    var _cHrlTop = _cLiq.map(function(v, i) { return v + _cPhx[i] + _cHrl[i]; });
+    var _cYaelTop = _cHrlTop.map(function(v, i) { return v + _yaelRaw[i]; });
     datasets = [
       {
-        label: 'רועי',
-        data: result.royData,
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37,99,235,0.22)',
+        label: 'השקעות (רועי)',
+        data: _cLiqTop,
+        borderColor: '#1e40af',
+        backgroundColor: 'rgba(30,64,175,0.35)',
         fill: 'origin',
-        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 4
+      },
+      {
+        label: 'הון פנסיוני (רועי)',
+        data: _cPhxTop,
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.20)',
+        fill: '-1',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 3
+      },
+      {
+        label: 'הון לירושה (רועי)',
+        data: _cHrlTop,
+        borderColor: '#34d399',
+        backgroundColor: 'rgba(52,211,153,0.16)',
+        fill: '-1',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 2
       },
       {
         label: 'יעל',
-        data: combinedTop,
+        data: _cYaelTop,
         borderColor: '#ec4899',
-        backgroundColor: 'rgba(236,72,153,0.18)',
-        fill: '-1', // fill between this line and the Roy line
-        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+        backgroundColor: 'rgba(236,72,153,0.14)',
+        fill: '-1',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 1
       }
     ];
   }
@@ -6891,11 +6946,16 @@ function simRenderChart(result) {
           callbacks: {
             label: function(ctx) {
               var v;
-              if (SIM_VIEW === 'combined' && ctx.datasetIndex === 1) {
-                v = _yaelRaw[ctx.dataIndex];
+              var di = ctx.dataIndex;
+              if (SIM_VIEW === 'combined') {
+                // v103.6: 4-layer combined — show individual values per layer
+                if (ctx.datasetIndex === 0) v = result.royLiquidData[di];
+                else if (ctx.datasetIndex === 1) v = result.royPhoenixData[di];
+                else if (ctx.datasetIndex === 2) v = result.royHarelData[di];
+                else if (ctx.datasetIndex === 3) v = _yaelRaw[di];
+                else v = ctx.parsed.y;
               } else if (SIM_VIEW === 'roy') {
                 // Show individual layer value (not cumulative top)
-                var di = ctx.dataIndex;
                 if (ctx.datasetIndex === 0) v = result.royLiquidData[di];
                 else if (ctx.datasetIndex === 1) v = result.royPhoenixData[di];
                 else if (ctx.datasetIndex === 2) v = result.royHarelData[di];
