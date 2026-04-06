@@ -102,6 +102,9 @@ const FUND_COLORS = {
   'יעלפוליסה':     '#ec4899',
 };
 
+// v103.0: Column K metadata — per fund per month ('תלוש' | number | null)
+var FUND_COL_K = {};
+
 // ── Family View (v94.0) ──
 var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
 
@@ -935,8 +938,15 @@ function selectFund(fundKey, color) {
     deltaRow.setAttribute('data-delta', fundKey);
 
     // Label cell
+    // v103.0: determine row label from Column K of most recent month
+    var _colKArr = FUND_COL_K[fundKey] || [];
+    var _colKLatest = null;
+    for (var _cki = _colKArr.length - 1; _cki >= 0; _cki--) {
+      if (_colKArr[_cki] !== null && _colKArr[_cki] !== undefined) { _colKLatest = _colKArr[_cki]; break; }
+    }
+    var _rowLabel = (_colKLatest === 'תלוש') ? 'גידול בהון' : 'שינוי חודשי';
     const labelTd = document.createElement('td');
-    labelTd.textContent = 'שינוי חודשי';
+    labelTd.textContent = _rowLabel;
     deltaRow.appendChild(labelTd);
 
     // Delta cells for each month
@@ -953,9 +963,26 @@ function selectFund(fundKey, color) {
         if (prev === null || prev === 0) { td.textContent = '—'; }
         else {
           const delta = v - prev;
-          const pct = (delta / prev * 100).toFixed(1);
-          const cls = delta > 0 ? 'dpos' : (delta < 0 ? 'dneg' : 'dzer');
-          td.innerHTML = `<span class="${cls} dval">${delta}</span><br><span class="${cls}">${pct}%</span>`;
+          const colKVal = (i < _colKArr.length) ? _colKArr[i] : null;
+          const isTalush = (typeof colKVal === 'string' && colKVal.includes('תלוש'));
+          const isDeposit = (typeof colKVal === 'number' && colKVal !== 0);
+          if (isTalush) {
+            // גידול בהון — just show absolute change
+            const cls = delta > 0 ? 'dpos' : (delta < 0 ? 'dneg' : 'dzer');
+            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${delta.toFixed(1)}</span>`;
+          } else if (isDeposit) {
+            // הפקדה/משיכה — subtract deposit to get net yield
+            const netDelta = delta - colKVal;
+            const netPct = (netDelta / prev * 100).toFixed(1);
+            const cls = netDelta >= 0 ? 'dpos' : 'dneg';
+            const depSign = colKVal > 0 ? '+' : '';
+            td.innerHTML = `<span class="${cls}">${netDelta >= 0 ? '+' : ''}${netPct}%</span><br><span style="font-size:9px;color:#94a3b8">הפקדה: ${depSign}${colKVal.toFixed(1)}</span>`;
+          } else {
+            // normal yield
+            const pct = (delta / prev * 100).toFixed(1);
+            const cls = delta > 0 ? 'dpos' : (delta < 0 ? 'dneg' : 'dzer');
+            td.innerHTML = `<span class="${cls} dval">${delta > 0 ? '+' : ''}${delta.toFixed(1)}</span><br><span class="${cls}">${pct}%</span>`;
+          }
         }
       }
       deltaRow.appendChild(td);
@@ -2676,6 +2703,8 @@ function loadExcelFileCore(wb) {
       // v100.7: Clean up dynamic Yael entries from previous Excel load
       Object.keys(FUNDS).forEach(function(fk) { if (fk.startsWith('yd_')) delete FUNDS[fk]; });
       Object.keys(FUND_COLORS).forEach(function(fk) { if (fk.startsWith('yd_')) delete FUND_COLORS[fk]; });
+      // v103.0: Reset column K metadata
+      Object.keys(FUND_COL_K).forEach(function(fk) { delete FUND_COL_K[fk]; });
 
       // Fill data from sheets
       sortedKeys.forEach(function(key, colIdx) {
@@ -2716,6 +2745,14 @@ function loadExcelFileCore(wb) {
             cellVal = cellVal / 1000;
           }
           newFundData[fundKey][colIdx] = cellVal;
+
+          // v103.0: Column K (index 10) — deposit/talush metadata
+          var _colKRaw = row[10];
+          if (_colKRaw !== null && _colKRaw !== undefined && _colKRaw !== '') {
+            if (!FUND_COL_K[fundKey]) FUND_COL_K[fundKey] = new Array(newLabels.length).fill(null);
+            var _colKNorm = (typeof _colKRaw === 'string') ? _colKRaw.trim() : _colKRaw;
+            FUND_COL_K[fundKey][colIdx] = _colKNorm;
+          }
         });
 
         // v100.7: Dynamic Yael pass — individual fund per Excel row
@@ -3792,6 +3829,49 @@ var CF_DATA = [];
 var CF_CURRENT_MONTH_ID = null; // monthId ברירת מחדל — החודש המלא האחרון (לפני החודש הנוכחי)
 var CF_SELECTED_MONTH_ID = null; // v18.3: חודש שנבחר ידנית ע"י המשתמש
 
+// v103.0: Sandbox — אירועים זמניים לסימולציה בלבד (לא נשמרים)
+var CF_SANDBOX_EVENTS = []; // [{ amount: K, year, month, label }]
+
+function cfSandboxAdd() {
+  var amtEl = document.getElementById('sb-amount');
+  var yrEl  = document.getElementById('sb-year');
+  var moEl  = document.getElementById('sb-month');
+  var lblEl = document.getElementById('sb-label');
+  if (!amtEl || !yrEl || !moEl) return;
+  var amt  = parseFloat(amtEl.value);
+  var yr   = parseInt(yrEl.value);
+  var mo   = parseInt(moEl.value);
+  var lbl  = lblEl ? lblEl.value.trim() : '';
+  if (!amt || !yr || !mo) return;
+  CF_SANDBOX_EVENTS.push({ amount: amt, year: yr, month: mo, label: lbl || (amt > 0 ? 'הכנסה זמנית' : 'הוצאה זמנית') });
+  amtEl.value = ''; if (lblEl) lblEl.value = '';
+  cfSandboxRender();
+  cfRenderChart();
+}
+
+function cfSandboxRemove(idx) {
+  CF_SANDBOX_EVENTS.splice(idx, 1);
+  cfSandboxRender();
+  cfRenderChart();
+}
+
+function cfSandboxRender() {
+  var list = document.getElementById('sb-event-list');
+  if (!list) return;
+  if (!CF_SANDBOX_EVENTS.length) { list.innerHTML = '<span style="color:#94a3b8;font-size:11px;">אין אירועים</span>'; return; }
+  var CF_HEB_MONTHS_SHORT = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+  list.innerHTML = CF_SANDBOX_EVENTS.map(function(ev, i) {
+    var color = ev.amount >= 0 ? '#4ade80' : '#f87171';
+    var sign  = ev.amount >= 0 ? '+' : '';
+    return '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
+      '<span style="font-size:11px;color:' + color + ';font-weight:700;">' + sign + ev.amount.toLocaleString() + 'K</span>' +
+      '<span style="font-size:11px;color:#cbd5e1;">' + CF_HEB_MONTHS_SHORT[ev.month-1] + ' ' + String(ev.year).slice(2) + '</span>' +
+      '<span style="font-size:11px;color:#94a3b8;">' + ev.label + '</span>' +
+      '<button onclick="cfSandboxRemove(' + i + ')" style="margin-right:auto;background:transparent;border:none;color:#64748b;cursor:pointer;font-size:12px;padding:0 4px;">✕</button>' +
+      '</div>';
+  }).join('');
+}
+
 function saveCFToLocalStorage() {
   // v102.5: Stateless — no data persistence between sessions
 }
@@ -4423,12 +4503,24 @@ function cfRenderChart() {
       expYotam.push(yotamV);
       expCharig.push(charigV);
     });
+    // v103.0: Sandbox events — build per-month array
+    var sandboxData = months.map(function(m) {
+      var sum = 0;
+      CF_SANDBOX_EVENTS.forEach(function(ev) {
+        if (ev.year === m.year && ev.month === m.month) sum += ev.amount;
+      });
+      return sum || null;
+    });
+    var hasSandbox = CF_SANDBOX_EVENTS.length > 0;
     datasets = [
       { label:'הכנסות', data:cfSafeArr(months.map(function(m){ return cfCalcIncome(m.rows); })), backgroundColor:'rgba(34,197,94,0.85)',  borderRadius:4, stack:'income' },
       { label:'שוטף',  data:cfSafeArr(expShoter), backgroundColor:'rgba(239,68,68,0.85)',  borderRadius:0, stack:'exp' },
       { label:'יותם',  data:cfSafeArr(expYotam),  backgroundColor:'rgba(249,115,22,0.85)', borderRadius:0, stack:'exp' },
       { label:'חריג',  data:cfSafeArr(expCharig), backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
     ];
+    if (hasSandbox) {
+      datasets.push({ label:'ארוע זמני', data:sandboxData, backgroundColor:'rgba(139,92,246,0.85)', borderRadius:4, stack:'income' });
+    }
   } else {
     // ytd: מצטבר לפי cfGetNetVal (total_income - total_exp)
     var cum = [], s = 0;
@@ -6305,6 +6397,24 @@ function simGetRoyPension() {
   }, 0);
 }
 
+// v103.0: Total pension accumulation for Roy (all providers) — returns NIS
+function simGetRoyPensionAccum() {
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    return s + (a.accumulation || 0);
+  }, 0);
+}
+
+// v103.0: Total monthly premium for Roy — returns NIS/month
+function simGetRoyMonthlyPremium() {
+  if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
+  return PENSION_ASSETS.reduce(function(s, a) {
+    if (a.owner === 'יעל') return s;
+    return s + (a.lastPremium || 0);
+  }, 0);
+}
+
 function simSetHarelMode(mode) {
   SIM_HAREL_MODE = mode;
   ['with', 'without'].forEach(function(n) {
@@ -6329,17 +6439,18 @@ function simIdxToYM(idx) {
 
 // ── Projection Engine ─────────────────────────
 function simRunEngine() {
-  var royCapital  = simGetRoyCapital();
-  var yaelCapital = simGetYaelCapital();
+  // v103.0: split Roy into liquid investments + pension capital
+  var royLiquid    = simGetRoyCapital();            // K — liquid investments
+  var royPensionCap = simGetRoyPensionAccum() / 1000; // K — pension/insurance accumulation
+  var royMonthlyPremium = simGetRoyMonthlyPremium();  // NIS/month — ongoing pension deposits
+  var yaelCapital  = simGetYaelCapital();
 
-  // v102.4: use Rate/12 for monthly compounding (cleaner linear formula)
   var monthlyRate      = SIM_RATE / 100 / 12;
-  // v102.4: post-retirement yield adds extra monthly return in Phase 3
   var retYieldMonthly  = pnsRetirementYield / 100 / 12;
   var currentSalary = simGetCurrentSalary();   // NIS/month
   var targetExp     = SIM_TARGET_EXP;          // NIS/month
   var instructorSal = SIM_INSTRUCTOR_SAL;      // NIS/month
-  var royPension    = simGetRoyPension();       // NIS/month
+  var royPension    = simGetRoyPension();       // NIS/month (drawn in Phase 3)
 
   var phase2Idx = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
   var phase3Idx = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
@@ -6356,47 +6467,56 @@ function simRunEngine() {
       var mIdx = simMonthIdx(parseInt(dp[0]), parseInt(dp[1]));
       if (mIdx < 0 || mIdx >= totalMonths) return;
       if (!eventsByMonth[mIdx]) eventsByMonth[mIdx] = 0;
-      // Events stored in NIS — divide by 1000 for K
       eventsByMonth[mIdx] += (ev.amount || 0) / 1000;
     });
   }
 
-  var labels = [], royData = [], yaelData = [];
+  var labels = [], royData = [], yaelData = [], royLiquidData = [], royPensionData = [];
 
   for (var i = 0; i < totalMonths; i++) {
     var ym = simIdxToYM(i);
 
-    // Compound interest: Phase 3 adds post-retirement yield on top of base rate (v102.4)
-    var effectiveMonthlyRate = (i >= phase3Idx) ? monthlyRate + retYieldMonthly : monthlyRate;
-    royCapital  *= (1 + effectiveMonthlyRate);
-    yaelCapital *= (1 + monthlyRate);
-
-    // Roy phase delta
-    if (i < phase2Idx) {
-      // Phase 1: current salary
-      royCapital += (currentSalary - targetExp) / 1000;
-    } else if (i < phase3Idx) {
-      // Phase 2: instructor salary
-      royCapital += (instructorSal - targetExp) / 1000;
+    // ── Pension capital ──
+    if (i < phase3Idx) {
+      // Phase 1&2: compound + monthly deposits (premiums)
+      royPensionCap *= (1 + monthlyRate);
+      royPensionCap += royMonthlyPremium / 1000;
     } else {
-      // Phase 3: pension — deduct monthly deficit if expense > pension
-      var deficit = (targetExp - royPension) / 1000;
-      royCapital -= deficit;
-      // Lump sum events
-      if (eventsByMonth[i]) royCapital += eventsByMonth[i];
+      // Phase 3: compound at post-retirement yield, draw monthly pension
+      royPensionCap *= (1 + retYieldMonthly);
+      royPensionCap -= royPension / 1000;
+      if (royPensionCap < 0) royPensionCap = 0;
     }
 
-    // Yael capital only grows via interest (no monthly salary contribution)
+    // ── Liquid capital ──
+    royLiquid *= (1 + monthlyRate);
+    if (i < phase2Idx) {
+      // Phase 1: save salary surplus
+      royLiquid += (currentSalary - targetExp) / 1000;
+    } else if (i < phase3Idx) {
+      // Phase 2: instructor salary surplus
+      royLiquid += (instructorSal - targetExp) / 1000;
+    } else {
+      // Phase 3: pension income - expenses flows to/from liquid
+      royLiquid += (royPension - targetExp) / 1000;
+      if (eventsByMonth[i]) royLiquid += eventsByMonth[i];
+    }
+
+    yaelCapital *= (1 + monthlyRate);
 
     // Store yearly data points (end-of-December each year, or last point)
     if (ym.m === 12 || i === totalMonths - 1) {
+      var liqVal  = Math.max(0, Math.round(royLiquid));
+      var penVal  = Math.max(0, Math.round(royPensionCap));
       labels.push(String(ym.y));
-      royData.push(Math.max(0, Math.round(royCapital)));
+      royLiquidData.push(liqVal);
+      royPensionData.push(penVal);
+      royData.push(liqVal + penVal);
       yaelData.push(Math.max(0, Math.round(yaelCapital)));
     }
   }
 
-  return { labels: labels, royData: royData, yaelData: yaelData,
+  return { labels: labels, royData: royData, royLiquidData: royLiquidData, royPensionData: royPensionData, yaelData: yaelData,
            phase1EndLabel: String(SIM_P2_START.y - 1),
            phase2EndLabel: String(SIM_P3_START.y - 1) };
 }
@@ -6444,14 +6564,29 @@ function simRenderChart(result) {
   var _yaelRaw = result.yaelData;
 
   if (SIM_VIEW === 'roy') {
-    datasets = [{
-      label: 'רועי',
-      data: result.royData,
-      borderColor: '#2563eb',
-      backgroundColor: 'rgba(37,99,235,0.18)',
-      fill: 'origin',
-      tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
-    }];
+    // v103.0: Stacked area — הון פנסיוני (bottom) + השקעות (top)
+    var penTop = result.royPensionData;
+    var totalTop = result.royData; // pension + liquid = total
+    datasets = [
+      {
+        label: 'הון פנסיוני',
+        data: penTop,
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245,158,11,0.30)',
+        fill: 'origin',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        order: 2
+      },
+      {
+        label: 'השקעות',
+        data: totalTop,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.20)',
+        fill: '-1', // fill between this and pension line
+        tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+        order: 1
+      }
+    ];
   } else if (SIM_VIEW === 'yael') {
     datasets = [{
       label: 'יעל',
@@ -6527,6 +6662,9 @@ function simRenderChart(result) {
               if (SIM_VIEW === 'combined' && ctx.datasetIndex === 1) {
                 // Show Yael's individual value, not cumulative
                 v = _yaelRaw[ctx.dataIndex];
+              } else if (SIM_VIEW === 'roy' && ctx.datasetIndex === 1) {
+                // "השקעות" layer — show only liquid portion (total minus pension)
+                v = result.royLiquidData[ctx.dataIndex];
               } else {
                 v = ctx.parsed.y;
               }
