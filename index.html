@@ -1,4 +1,4 @@
-<!-- v103.4 -->
+<!-- v103.5 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.4</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.5</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -94,19 +94,19 @@
   <div id="sim-header-stats" class="header-stats" style="display:none;">
     <div class="stat-item">
       <div class="stat-label">הון רועי</div>
-      <div class="stat-value" id="sim-hdr-roy" style="color:#93c5fd;">—K</div>
+      <div class="stat-value" id="sim-hdr-roy" style="color:#93c5fd;">—</div>
       <div class="stat-change">אלפי ₪</div>
     </div>
     <div class="divider"></div>
     <div class="stat-item">
       <div class="stat-label">הון יעל</div>
-      <div class="stat-value" id="sim-hdr-yael" style="color:#f9a8d4;">—K</div>
+      <div class="stat-value" id="sim-hdr-yael" style="color:#f9a8d4;">—</div>
       <div class="stat-change">אלפי ₪</div>
     </div>
     <div class="divider"></div>
     <div class="stat-item">
       <div class="stat-label">הון משותף</div>
-      <div class="stat-value green" id="sim-hdr-combined">—K</div>
+      <div class="stat-value green" id="sim-hdr-combined">—</div>
       <div class="stat-change">אלפי ₪</div>
     </div>
     <div class="divider"></div>
@@ -1034,46 +1034,50 @@
 <div class="tab-panel" id="tab-simulator">
   <div class="sim-wrap">
 
-    <!-- ── Control Panel ── -->
-    <div class="sim-controls-panel sim-controls-row" style="display:none;">
-      <div class="sim-ctrl-group">
-        <div class="sim-ctrl-label">תצוגה</div>
-        <div class="sim-view-toggle">
-          <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
-          <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-          <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+    <!-- ── Control Panel v103.5: toggle row + 4-slider row ── -->
+    <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:column;gap:12px;">
+      <!-- Row 1: View toggle + Harel toggle in same horizontal line -->
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+        <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
+          <div class="sim-ctrl-label">תצוגה</div>
+          <div class="sim-view-toggle">
+            <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+            <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
+            <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+          </div>
+        </div>
+        <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
+          <div class="sim-ctrl-label">הון לירושה (הראל) — שלב 3</div>
+          <div class="sim-view-toggle">
+            <button class="sim-view-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם פנסיית הראל</button>
+            <button class="sim-view-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא פנסיית הראל</button>
+          </div>
         </div>
       </div>
-      <div class="sim-ctrl-group">
-        <div class="sim-ctrl-label">ריבית שנתית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
-        <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
-        <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
-      </div>
-      <div class="sim-ctrl-group">
-        <div class="sim-ctrl-label">הוצאה חודשית יעד: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
-        <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
-        <div class="sim-slider-bounds"><span>20,000 ₪</span><span>130,000 ₪</span></div>
-      </div>
-      <div class="sim-ctrl-group">
-        <div class="sim-ctrl-label">משכורת מדריך (שלב 2): <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
-        <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
-        <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
-      </div>
-      <!-- v103.4: Harel toggle — Layer 3 (הון לירושה): compound-only vs pension-draw -->
-      <div class="sim-ctrl-group">
-        <div class="sim-ctrl-label">הון לירושה (הראל) בשלב 3</div>
-        <div class="sim-view-toggle">
-          <button class="sim-view-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם פנסיית הראל</button>
-          <button class="sim-view-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא פנסיית הראל</button>
+      <!-- Row 2: All 4 sliders equally spaced -->
+      <div style="display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-start;">
+        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
+          <div class="sim-ctrl-label">ריבית שנתית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
+          <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
+          <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
         </div>
-      </div>
-      <!-- v102.3: תשואת יתרה בפרישה — moved from pension tab -->
-      <div class="sim-ctrl-group" style="min-width:220px;">
-        <div class="sim-ctrl-label">תשואת יתרה בפרישה (ביטוח מנהלים): <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
-        <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
-          oninput="pnsRetirementYieldChange(this.value)">
-        <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
-        <div id="pns-ret-yield-result" style="margin-top:8px;"></div>
+        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
+          <div class="sim-ctrl-label">הוצאה חודשית יעד: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
+          <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
+          <div class="sim-slider-bounds"><span>20,000 ₪</span><span>130,000 ₪</span></div>
+        </div>
+        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
+          <div class="sim-ctrl-label">משכורת מדריך (שלב 2): <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
+          <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+          <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
+        </div>
+        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
+          <div class="sim-ctrl-label">תשואת יתרה בפרישה: <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
+          <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
+            oninput="pnsRetirementYieldChange(this.value)">
+          <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
+          <div id="pns-ret-yield-result" style="margin-top:4px;"></div>
+        </div>
       </div>
     </div>
 

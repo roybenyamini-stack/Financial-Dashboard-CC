@@ -3934,7 +3934,7 @@ function cfSandboxAdd() {
     var lastReal = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
     if (lastReal) {
       var lastY = lastReal.year, lastM = lastReal.month;
-      if (yr < lastY || (yr === lastY && mo <= lastM)) {
+      if (yr < lastY || (yr === lastY && mo < lastM)) {
         var errEl = document.getElementById('sb-err');
         if (errEl) { errEl.textContent = '⚠️ לא ניתן להוסיף ארוע לפני ' + lastReal.label; errEl.style.display = 'block'; }
         setTimeout(function() { if (errEl) errEl.style.display = 'none'; }, 3000);
@@ -3960,25 +3960,30 @@ function cfSandboxReset() {
   CF_SANDBOX_EVENTS.length = 0;
   var amtEl2 = document.getElementById('sb-amount');
   var lblEl2 = document.getElementById('sb-label');
+  var typEl2 = document.getElementById('sb-type');
   if (amtEl2) amtEl2.value = '';
   if (lblEl2) lblEl2.value = '';
+  if (typEl2) typEl2.value = 'expense';
+  cfSandboxInitDefaults(); // v103.5: restore date to current Excel month
   cfSandboxRender();
   cfRenderChart();
 }
 
-// v103.4: Set sandbox default date to first future month after last real CF data
+// v103.5: Set sandbox default date to CURRENT (last real) Excel month; block past months
 function cfSandboxInitDefaults() {
   if (!CF_DATA || !CF_DATA.length) return;
   var lastIdx = cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1;
   var lastM = CF_DATA[lastIdx];
   if (!lastM) return;
-  var nextMo = (lastM.month || 1) + 1;
-  var nextYr = lastM.year || new Date().getFullYear();
-  if (nextMo > 12) { nextMo = 1; nextYr++; }
+  var curMo = lastM.month || 1;
+  var curYr = lastM.year || new Date().getFullYear();
   var yrEl = document.getElementById('sb-year');
   var moEl = document.getElementById('sb-month');
-  if (yrEl) { yrEl.value = nextYr; yrEl.min = nextYr; }
-  if (moEl) moEl.value = nextMo;
+  if (yrEl) { yrEl.value = curYr; yrEl.min = curYr; }
+  if (moEl) moEl.value = curMo;
+  // Store min allowed month for JS-level enforcement
+  if (yrEl) yrEl.setAttribute('data-min-yr', curYr);
+  if (moEl) moEl.setAttribute('data-min-mo-at-min-yr', curMo);
 }
 
 function cfSandboxRender() {
@@ -4591,7 +4596,7 @@ function cfRenderChart() {
   var chartW = months.length * COL_W + YAXIS_W;
 
   // קבע רוחב מדויק למניעת מתיחת עמודות
-  var CHART_H = 242;
+  var CHART_H = 265; // v103.5: extra height for x-axis labels
   var wrap = document.getElementById('cf-chart-wrap');
   if (wrap) {
     wrap.style.width     = chartW + 'px';
@@ -4629,15 +4634,20 @@ function cfRenderChart() {
       expYotam.push(yotamV);
       expCharig.push(charigV);
     });
-    // v103.1: Sandbox events — use 0 (not null) so stacked chart doesn't break
-    var sandboxData = months.map(function(m) {
-      var sum = 0;
+    // v103.5: Sandbox events — split income (dark green on income stack) / expense (burgundy on exp stack)
+    var sandboxIncome = months.map(function(m) {
+      var s = 0;
       CF_SANDBOX_EVENTS.forEach(function(ev) {
-        if (ev.year === m.year && ev.month === m.month) {
-          sum += (typeof ev.amount === 'number' && !isNaN(ev.amount)) ? ev.amount : 0;
-        }
+        if (ev.year === m.year && ev.month === m.month && typeof ev.amount === 'number' && ev.amount > 0) s += ev.amount;
       });
-      return sum; // always a number — Chart.js stacked bar requires numeric data
+      return s;
+    });
+    var sandboxExpense = months.map(function(m) {
+      var s = 0;
+      CF_SANDBOX_EVENTS.forEach(function(ev) {
+        if (ev.year === m.year && ev.month === m.month && typeof ev.amount === 'number' && ev.amount < 0) s += Math.abs(ev.amount);
+      });
+      return s;
     });
     var hasSandbox = CF_SANDBOX_EVENTS.length > 0;
     datasets = [
@@ -4647,19 +4657,27 @@ function cfRenderChart() {
       { label:'חריג',  data:cfSafeArr(expCharig), backgroundColor:'rgba(234,179,8,0.85)',  borderRadius:4, stack:'exp' },
     ];
     if (hasSandbox) {
-      // v103.2: build per-month label map for tooltip
-      var _sbLabelMap = {};
+      // v103.5: build per-month label maps for income and expense events
+      var _sbIncLblMap = {}, _sbExpLblMap = {};
       months.forEach(function(m, mi) {
-        var evs = CF_SANDBOX_EVENTS.filter(function(ev) { return ev.year === m.year && ev.month === m.month; });
-        if (evs.length) _sbLabelMap[mi] = evs.map(function(ev) { return ev.label; }).join(', ');
+        var incEvs = CF_SANDBOX_EVENTS.filter(function(ev) { return ev.year === m.year && ev.month === m.month && ev.amount > 0; });
+        var expEvs = CF_SANDBOX_EVENTS.filter(function(ev) { return ev.year === m.year && ev.month === m.month && ev.amount < 0; });
+        if (incEvs.length) _sbIncLblMap[mi] = incEvs.map(function(ev) { return ev.label; }).join(', ');
+        if (expEvs.length) _sbExpLblMap[mi] = expEvs.map(function(ev) { return ev.label; }).join(', ');
       });
       datasets.push({
-        label: 'ארוע זמני',
-        data: sandboxData,
-        backgroundColor: 'rgba(139,92,246,0.85)',
-        borderRadius: 4,
-        stack: 'income',
-        _sbLabelMap: _sbLabelMap  // custom prop for tooltip
+        label: 'הכנסה זמנית',
+        data: sandboxIncome,
+        backgroundColor: 'rgba(21,128,61,0.9)',   // dark green — on top of income bar
+        borderRadius: 4, stack: 'income',
+        _sbLabelMap: _sbIncLblMap
+      });
+      datasets.push({
+        label: 'הוצאה זמנית',
+        data: sandboxExpense,
+        backgroundColor: 'rgba(136,19,55,0.9)',   // burgundy — on top of expense bar
+        borderRadius: 4, stack: 'exp',
+        _sbLabelMap: _sbExpLblMap
       });
     }
   } else {
@@ -4776,9 +4794,10 @@ function cfRenderChart() {
       scales: {
         x: {
           stacked: isMonthly,
-          display: false,
+          display: true,
           offset: true,
           grid:  { display:false },
+          ticks: { font:{ size:9, family:'Heebo,sans-serif' }, color:'#9ca3af', maxRotation:45, minRotation:0, maxTicksLimit:24 },
           barPercentage:    0.7,
           categoryPercentage: 1.0
         },
@@ -4978,7 +4997,7 @@ function cfShowNoData() {
     sh += _BD;
     sh += '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center;align-self:stretch;flex-shrink:0;">';
     sh += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
-    sh += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
+    sh += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.35);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
     sh += '</div></div>';
     sumRow.innerHTML = sh;
     cfSyncForecastBtn();
@@ -5089,7 +5108,7 @@ function cfRenderSummary() {
   html += BDIV;
   html += '<div style="display:flex;flex-direction:row;gap:6px;flex-wrap:wrap;align-items:center;align-self:stretch;flex-shrink:0;">';
   html += '<button onclick="cfToggleForecast()" id="cf-forecast-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🔮 הצג תחזית</button>';
-  html += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
+  html += '<button onclick="cfSandboxToggle()" id="sb-toggle-btn" style="display:flex;cursor:pointer;align-items:center;gap:6px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.35);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;white-space:nowrap;">🧪 סימולטור</button>';
   html += '</div>';
 
   html += '</div>';
@@ -6664,8 +6683,11 @@ function simRunEngine() {
       royPhoenixCap *= (1 + monthlyRate);
       royPhoenixCap += phoenixPremium / 1000;
     } else {
+      // v103.5: sustainable withdrawal — compound first, then draw at most the monthly yield
+      // so the principal is preserved and the layer never depletes prematurely
       royPhoenixCap *= (1 + retYieldMonthly);
-      royPhoenixCap -= royPhoenixPension / 1000;
+      var _phxDraw = Math.min(royPhoenixPension / 1000, royPhoenixCap * retYieldMonthly);
+      royPhoenixCap -= _phxDraw;
       if (royPhoenixCap < 0) royPhoenixCap = 0;
     }
 
@@ -6674,10 +6696,11 @@ function simRunEngine() {
       royHarelCap *= (1 + monthlyRate);
       royHarelCap += harelPremium / 1000;
     } else {
+      // v103.5: same sustainable withdrawal model for Harel if mode='with'
       royHarelCap *= (1 + retYieldMonthly);
       if (SIM_HAREL_MODE === 'with') {
-        // ToggleD "עם הראל": draw monthly pension from this layer too
-        royHarelCap -= royHarelPension / 1000;
+        var _hrlDraw = Math.min(royHarelPension / 1000, royHarelCap * retYieldMonthly);
+        royHarelCap -= _hrlDraw;
         if (royHarelCap < 0) royHarelCap = 0;
       }
       // 'without' (default): Harel compounds as inheritance capital — no withdrawals
