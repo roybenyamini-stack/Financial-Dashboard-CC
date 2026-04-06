@@ -5763,7 +5763,24 @@ function pensionRenderTaxLab() {
   pensionSliderChange(pensionTaxSliderVal);
 }
 
-// מנוע מס הכנסה חודשי ישראלי — מדרגות 2025 + נקודות זיכוי (v75.0)
+// v102.4: מחזיר את שיעור המס השולי (המדרגה הגבוהה ביותר) לפי הכנסה ברוטו חודשית 2026
+function pnsGetMarginalRate(grossMonthly) {
+  var brackets = [
+    { up: 7010, rate: 0.10 },
+    { up: 10060, rate: 0.14 },
+    { up: 16150, rate: 0.20 },
+    { up: 22440, rate: 0.31 },
+    { up: 46690, rate: 0.35 },
+    { up: 60130, rate: 0.47 },
+    { up: Infinity, rate: 0.50 }
+  ];
+  for (var _bi = brackets.length - 1; _bi >= 0; _bi--) {
+    if (grossMonthly > (_bi > 0 ? brackets[_bi - 1].up : 0)) return brackets[_bi].rate;
+  }
+  return 0.10;
+}
+
+// מנוע מס הכנסה חודשי ישראלי — מדרגות 2026 + נקודות זיכוי
 function pnsCalcTax(gross) {
   var brackets = [
     { up: 7010,      rate: 0.10 },
@@ -5848,13 +5865,19 @@ function pensionSliderChange(val) {
   // עיגול הון: פנים ריק ממספרים — הנתון מוצג מתחת לעיגול (v78.0)
   var capTotalEl = document.getElementById('pns-cap-total');
   if (capTotalEl) capTotalEl.textContent = totalAccum > 0 ? 'סך הון פטור: ' + pnsFmtK(Math.round(capitalExempt)) + ' ₪' : '—';
-  // v102.2/v102.3: Net economic value — linked dynamically to tax method dropdown
+  // v102.4: Net economic value — uses actual marginal rate when 'auto' selected
   var capNetEl = document.getElementById('pns-cap-net-val');
   if (capNetEl) {
-    var _netTaxRate = (taxMethod === '31') ? 0.31 : (taxMethod === '47') ? 0.47 : 0.35; // auto → 35%
-    var _netTaxPct  = Math.round(_netTaxRate * 100);
-    var netEconVal  = capitalExempt * _netTaxRate;
-    capNetEl.textContent = (totalAccum > 0 && capitalExempt > 0) ? 'חיסכון מס (' + _netTaxPct + '%): ' + pnsFmtK(Math.round(netEconVal)) + ' ₪' : '';
+    var _netTaxRate;
+    if (taxMethod === '31')       _netTaxRate = 0.31;
+    else if (taxMethod === '35')  _netTaxRate = 0.35;
+    else if (taxMethod === '47')  _netTaxRate = 0.47;
+    else _netTaxRate = pnsGetMarginalRate(taxableMonthly); // auto → actual marginal bracket
+    var _netTaxPct = Math.round(_netTaxRate * 100);
+    var netEconVal = capitalExempt * _netTaxRate;
+    capNetEl.textContent = (totalAccum > 0 && capitalExempt > 0)
+      ? 'חיסכון מס (לפי מדרגת מס ' + _netTaxPct + '%): ' + pnsFmtK(Math.round(netEconVal)) + ' ₪'
+      : '';
   }
 
   // עיגול קצבה: מציג חיסכון מס (דלתא) בלבד (v79.0 — הוסרה שורת נטו מהעיגול)
@@ -6284,6 +6307,8 @@ var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
 var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
 var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
 var simChartObj = null;
+var SIM_CURRENT_SALARY = 0; // v102.4: cached from CF_DATA on init
+var SIM_HAREL_MODE = 'without'; // v102.4: 'with' | 'without' — syncs with pension default
 
 // Phase boundaries
 var SIM_P1_START = { y:2026, m:3 };
@@ -6391,13 +6416,24 @@ function simGetCurrentExpenses() {
 }
 
 function simGetRoyPension() {
-  // Sum expectedPension for Roy's pension assets (NIS/month)
-  // PENSION_ASSETS.owner values use Hebrew: 'רועי' or 'יעל'
+  // v102.4: respects SIM_HAREL_MODE — excludes הראל/פניקס assets when 'without'
   if (!PENSION_ASSETS || !PENSION_ASSETS.length) return 0;
   return PENSION_ASSETS.reduce(function(s, a) {
     if (a.owner === 'יעל') return s;
+    if (SIM_HAREL_MODE === 'without' && a.provider &&
+        (a.provider.indexOf('\u05d4\u05e8\u05d0\u05dc') >= 0 || a.provider.indexOf('\u05e4\u05e0\u05d9\u05e7\u05e1') >= 0)) return s;
     return s + (a.expectedPension || 0);
   }, 0);
+}
+
+function simSetHarelMode(mode) {
+  SIM_HAREL_MODE = mode;
+  ['with', 'without'].forEach(function(n) {
+    var btn = document.getElementById('sim-btn-harel-' + n);
+    if (btn) btn.classList.toggle('active', n === mode);
+  });
+  simRenderKPI();
+  simRenderChart(simRunEngine());
 }
 
 // ── Month index helpers ───────────────────────
@@ -6417,7 +6453,10 @@ function simRunEngine() {
   var royCapital  = simGetRoyCapital();
   var yaelCapital = simGetYaelCapital();
 
-  var monthlyRate   = Math.pow(1 + SIM_RATE / 100, 1/12) - 1;
+  // v102.4: use Rate/12 for monthly compounding (cleaner linear formula)
+  var monthlyRate      = SIM_RATE / 100 / 12;
+  // v102.4: post-retirement yield adds extra monthly return in Phase 3
+  var retYieldMonthly  = pnsRetirementYield / 100 / 12;
   var currentSalary = simGetCurrentSalary();   // NIS/month
   var targetExp     = SIM_TARGET_EXP;          // NIS/month
   var instructorSal = SIM_INSTRUCTOR_SAL;      // NIS/month
@@ -6448,8 +6487,9 @@ function simRunEngine() {
   for (var i = 0; i < totalMonths; i++) {
     var ym = simIdxToYM(i);
 
-    // Compound interest on both capitals
-    royCapital  *= (1 + monthlyRate);
+    // Compound interest: Phase 3 adds post-retirement yield on top of base rate (v102.4)
+    var effectiveMonthlyRate = (i >= phase3Idx) ? monthlyRate + retYieldMonthly : monthlyRate;
+    royCapital  *= (1 + effectiveMonthlyRate);
     yaelCapital *= (1 + monthlyRate);
 
     // Roy phase delta
@@ -6624,10 +6664,12 @@ function simRenderChart(result) {
 function simRenderKPI() {
   var royCapital  = simGetRoyCapital();
   var yaelCapital = simGetYaelCapital();
-  var salary      = simGetCurrentSalary();
-  var expenses    = simGetCurrentExpenses();
-  var delta       = salary - expenses;
-  var pension     = simGetRoyPension();
+  // v102.4: use cached salary (avoids zero when CF_DATA temporarily unavailable)
+  var rawSal  = simGetCurrentSalary();
+  var salary  = (rawSal > 0) ? rawSal : SIM_CURRENT_SALARY;
+  var expenses = SIM_TARGET_EXP; // always reflects the slider value, never 0
+  var delta    = salary - expenses;
+  var pension  = simGetRoyPension();
 
   function el(id) { return document.getElementById(id); }
 
@@ -6762,8 +6804,10 @@ function simInit() {
   if (_royK === 0) console.warn('[SIM] Roy capital = 0 — asset Excel may not be loaded. Check FUNDS:', Object.keys(FUNDS).filter(function(k){ var f=FUNDS[k]; return f && !f.owner && f.cat !== 'dira'; }).length, 'Roy funds found');
   if (_sal === 0)  console.warn('[SIM] Salary = 0 — cash-flow Excel may not be loaded');
 
+  // v102.4: cache salary so KPIs show correct values even when CF_DATA re-queried returns 0
+  SIM_CURRENT_SALARY = (_sal > 0) ? _sal : SIM_CURRENT_SALARY;
   // Set expense default from real CF_DATA or fallback
-  SIM_TARGET_EXP = (_exp > 0) ? _exp : 58000;
+  SIM_TARGET_EXP = (_exp > 0) ? _exp : (SIM_TARGET_EXP > 0 ? SIM_TARGET_EXP : 58000);
   var expSlider = document.getElementById('sim-exp-slider');
   if (expSlider) expSlider.value = SIM_TARGET_EXP;
   var expValEl = document.getElementById('sim-exp-val');
