@@ -1,4 +1,4 @@
-<!-- v103.5 -->
+<!-- v103.6 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.5</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.6</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -822,7 +822,7 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:10px;color:#64748b;">שנה</label>
-        <input id="sb-year" type="number" min="2025" max="2035" value="2026" style="width:70px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
+        <input id="sb-year" type="number" min="2025" max="2035" value="2026" oninput="cfSandboxUpdateMonthOpts()" style="width:70px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:10px;color:#64748b;">חודש</label>
@@ -1034,50 +1034,44 @@
 <div class="tab-panel" id="tab-simulator">
   <div class="sim-wrap">
 
-    <!-- ── Control Panel v103.5: toggle row + 4-slider row ── -->
-    <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:column;gap:12px;">
-      <!-- Row 1: View toggle + Harel toggle in same horizontal line -->
-      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
-        <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
-          <div class="sim-ctrl-label">תצוגה</div>
-          <div class="sim-view-toggle">
-            <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
-            <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-            <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
-          </div>
-        </div>
-        <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
-          <div class="sim-ctrl-label">הון לירושה (הראל) — שלב 3</div>
-          <div class="sim-view-toggle">
-            <button class="sim-view-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם פנסיית הראל</button>
-            <button class="sim-view-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא פנסיית הראל</button>
-          </div>
+    <!-- ── Control Panel v103.6: single compact row — all toggles + all sliders ── -->
+    <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:row;flex-wrap:wrap;gap:10px 18px;align-items:flex-start;">
+      <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
+        <div class="sim-ctrl-label">תצוגה</div>
+        <div class="sim-view-toggle">
+          <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+          <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
+          <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
         </div>
       </div>
-      <!-- Row 2: All 4 sliders equally spaced -->
-      <div style="display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-start;">
-        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
-          <div class="sim-ctrl-label">ריבית שנתית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
-          <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
-          <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
+      <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
+        <div class="sim-ctrl-label">הראל</div>
+        <div class="sim-view-toggle">
+          <button class="sim-view-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם הראל</button>
+          <button class="sim-view-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא הראל</button>
         </div>
-        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
-          <div class="sim-ctrl-label">הוצאה חודשית יעד: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
-          <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
-          <div class="sim-slider-bounds"><span>20,000 ₪</span><span>130,000 ₪</span></div>
-        </div>
-        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
-          <div class="sim-ctrl-label">משכורת מדריך (שלב 2): <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
-          <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
-          <div class="sim-slider-bounds"><span>5,000 ₪</span><span>60,000 ₪</span></div>
-        </div>
-        <div class="sim-ctrl-group" style="flex:1;min-width:160px;">
-          <div class="sim-ctrl-label">תשואת יתרה בפרישה: <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
-          <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
-            oninput="pnsRetirementYieldChange(this.value)">
-          <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
-          <div id="pns-ret-yield-result" style="margin-top:4px;"></div>
-        </div>
+      </div>
+      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+        <div class="sim-ctrl-label">ריבית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
+        <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
+        <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
+      </div>
+      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+        <div class="sim-ctrl-label">הוצאה חודשית: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
+        <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
+        <div class="sim-slider-bounds"><span>20K ₪</span><span>130K ₪</span></div>
+      </div>
+      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+        <div class="sim-ctrl-label">משכורת מדריך: <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
+        <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+        <div class="sim-slider-bounds"><span>5K ₪</span><span>60K ₪</span></div>
+      </div>
+      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+        <div class="sim-ctrl-label">תשואת פרישה: <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
+        <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
+          oninput="pnsRetirementYieldChange(this.value)">
+        <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
+        <div id="pns-ret-yield-result" style="margin-top:4px;"></div>
       </div>
     </div>
 
