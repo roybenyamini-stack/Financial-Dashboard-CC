@@ -1137,45 +1137,12 @@ function toggleCat(id) {
 }
 
 function saveToLocalStorage() {
-  try {
-    const payload = {
-      labels: LABELS,
-      funds: {}
-    };
-    Object.entries(FUNDS).forEach(([k, f]) => { payload.funds[k] = f.data; });
-    localStorage.setItem('dashboard_v15_data', JSON.stringify(payload));
-  } catch(e) { console.warn('שמירה נכשלה:', e); }
+  // v102.5: Stateless — no data persistence between sessions
 }
 
 function loadFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem('dashboard_v15_data');
-    if (!raw) return false;
-    const payload = JSON.parse(raw);
-    if (!payload.labels || !payload.funds) return false;
-    // Restore LABELS
-    LABELS.length = 0;
-    payload.labels.forEach(l => LABELS.push(l));
-    // Restore FUNDS data
-    Object.entries(payload.funds).forEach(([k, data]) => {
-      if (FUNDS[k]) FUNDS[k].data = data;
-    });
-    // Recalculate totals
-    Object.keys(CAT_TOTALS).forEach(cat => { CAT_TOTALS[cat].length = 0; });
-    LABELS.forEach((_, i) => {
-      Object.entries(CAT_TOTALS).forEach(([cat, arr]) => {
-        const vals = Object.values(FUNDS).filter(f => f.cat===cat).map(f => f.data[i]||0);
-        arr.push(vals.reduce((a,b)=>a+b,0));
-      });
-    });
-    ALL_TOTALS.length = 0;
-    LABELS.forEach((_, i) => {
-      let t = 0;
-      Object.entries(CAT_TOTALS).forEach(([cat, arr]) => { t += cat === 'chov' ? -(arr[i]||0) : (arr[i]||0); });
-      ALL_TOTALS.push(t);
-    });
-    return true;
-  } catch(e) { console.warn('טעינה נכשלה:', e); return false; }
+  // v102.5: Stateless — always start fresh
+  return false;
 }
 
 function updateTableCells() {
@@ -1355,7 +1322,7 @@ function editNote(i) {
 }
 
 function saveNotesToStorage() {
-  try { localStorage.setItem('dashboard_v15_notes', JSON.stringify(NOTES)); } catch(e) {}
+  // v102.5: Stateless — notes come from Excel only
 }
 
 function loadNotesFromExcel(workbook) {
@@ -1440,17 +1407,7 @@ function loadNotesFromExcel(workbook) {
 }
 
 function loadNotesFromStorage() {
-  try {
-    const raw = localStorage.getItem('dashboard_v15_notes');
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    // Merge: saved notes first, then built-in notes not already present
-    const savedTitles = new Set(saved.map(n => n.date + n.title));
-    const builtIn = NOTES.filter(n => !savedTitles.has(n.date + n.title));
-    NOTES.length = 0;
-    saved.forEach(n => NOTES.push(n));
-    builtIn.forEach(n => NOTES.push(n));
-  } catch(e) {}
+  // v102.5: Stateless — notes come from Excel only
 }
 
 function openNotes() {
@@ -1549,27 +1506,7 @@ function markNoteMonths() {
 
 // ===== END NOTES SYSTEM =====
 
-// Init – load last saved data if available
-if (loadFromLocalStorage()) {
-  winStart = Math.max(0, LABELS.length - WINDOW);
-  // Update table headers
-  document.querySelectorAll('th[data-col]').forEach(th => {
-    const col = parseInt(th.getAttribute('data-col'));
-    if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
-  });
-  updateTableCells();
-  // v96.4: rebuild chart series + card stats from restored data (CAT_CHART_TOTALS was built before data loaded)
-  rebuildInvTotals();
-  CAT_CHART_TOTALS = buildCatChartTotals();
-  updateDynamicStats();
-  // Refresh chart with loaded data
-  currentData = ALL_TOTALS;
-  const w = getWindow(ALL_TOTALS);
-  chart.data.labels = w.labels;
-  chart.data.datasets[0].data = w.data;
-  chart.update();
-}
-loadNotesFromStorage();
+// v102.5: Stateless — no startup data load from localStorage
 document.getElementById('card-all').classList.add('active');
 updateNavButtons();
 updateChartStats(currentData, currentView);
@@ -2378,11 +2315,7 @@ function smartUploadRouter(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      // v19.2: ניקוי זיכרון אגרסיבי — דף נקי בכל טעינת אקסל
-      // v59.0: שמירת נתוני פנסיה לפני הניקוי — הם לא קשורים לקובץ הנוכחי
-      var _pnsBackup = localStorage.getItem('dashboard_pension_data');
-      localStorage.clear();
-      if (_pnsBackup) localStorage.setItem('dashboard_pension_data', _pnsBackup);
+      // v102.5: Stateless — no localStorage cleanup needed; reset runtime state only
       CF_DATA = [];
       var data = new Uint8Array(e.target.result);
       var wb = XLSX.read(data, {type:'array', cellDates:true});
@@ -2401,6 +2334,8 @@ function smartUploadRouter(input) {
           } else {
             pensionInited = false;
           }
+          // v102.5: עדכן סימולטור עם נתוני פנסיה מהקובץ החדש
+          if (simInited) simRefresh();
         } else {
           if (status) { status.textContent = '⚠️ לא נמצאו נתוני פנסיה בגיליון'; setTimeout(function(){ status.textContent=''; }, 5000); }
         }
@@ -2430,8 +2365,6 @@ function smartUploadRouter(input) {
             Object.keys(_diagM.rows).forEach(function(k) { _tableRows[k] = _diagM.rows[k]; });
             console.table(_tableRows);
           }
-          localStorage.setItem('dashboard_cf_version', '58.0');
-          saveCFToLocalStorage();
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
           var cfPanel = document.getElementById('tab-cashflow');
@@ -2439,6 +2372,8 @@ function smartUploadRouter(input) {
             // הצג את טאב התזרים ורנדר
             switchTab('cashflow');
           }
+          // v102.5: עדכן סימולטור עם נתוני שכר/הוצאות מהקובץ החדש
+          if (simInited) simRefresh();
           if(status) {
             var lastM = newData[newData.length - 1];
             var inc = Math.round(cfCalcIncome(lastM.rows)); // v43: חישוב דינמי
@@ -2449,7 +2384,6 @@ function smartUploadRouter(input) {
         } else {
           // פיענוח נכשל — נקה נתונים ישנים כדי לא להציג mock
           CF_DATA = [];
-          localStorage.removeItem('dashboard_cf_data');
           cfInited = false;
           var cfPanel2 = document.getElementById('tab-cashflow');
           if (cfPanel2) { switchTab('cashflow'); } // יציג מסך "אין נתונים"
@@ -2858,7 +2792,6 @@ function loadExcelFileCore(wb) {
       // Refresh table cells and header stats from updated FUNDS data
       updateTableCells();
       updateDynamicStats();
-      saveToLocalStorage();
       markNoteMonths();
 
       // Refresh UI – reset currentData so chart picks up new arrays
@@ -2869,7 +2802,10 @@ function loadExcelFileCore(wb) {
       status.textContent = '✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים';
       status.style.color = '#4ade80';
       setTimeout(function(){ status.style.color = ''; }, 5000);
-      
+
+      // v102.5: עדכן סימולטור עם הון רועי/יעל מהקובץ החדש
+      if (simInited) simRefresh();
+
     } catch(err) {
       status.textContent = 'שגיאה: ' + err.message;
       status.style.color = '#f87171';
@@ -3857,37 +3793,15 @@ var CF_CURRENT_MONTH_ID = null; // monthId ברירת מחדל — החודש ה
 var CF_SELECTED_MONTH_ID = null; // v18.3: חודש שנבחר ידנית ע"י המשתמש
 
 function saveCFToLocalStorage() {
-  try {
-    localStorage.setItem('dashboard_cf_data', JSON.stringify(CF_DATA));
-  } catch(e) { console.warn('שמירת תזרים נכשלה:', e); }
+  // v102.5: Stateless — no data persistence between sessions
 }
 
 function loadCFFromLocalStorage() {
-  try {
-    // v56.0: קבל כל גרסה >= 41 — בדיקת גרסה מחמירה גרמה לאיבוד נתונים בכל upgrade
-    var savedVer = localStorage.getItem('dashboard_cf_version');
-    if (!savedVer || parseFloat(savedVer) < 41) {
-      localStorage.removeItem('dashboard_cf_data');
-      localStorage.setItem('dashboard_cf_version', '58.0');
-      return false;
-    }
-    var raw = localStorage.getItem('dashboard_cf_data');
-    if (!raw) return false;
-    var data = JSON.parse(raw);
-    if (!Array.isArray(data) || data.length === 0) return false;
-    // נתונים ישנים (לפני v16.88) חסרים שדה monthId — דחה ונקה
-    if (!data[0] || !data[0].monthId) {
-      localStorage.removeItem('dashboard_cf_data');
-      return false;
-    }
-    CF_DATA = data;
-    CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(CF_DATA);
-    return true;
-  } catch(e) { return false; }
+  // v102.5: Stateless — always start fresh
+  return false;
 }
 
-// טען נתוני תזרים שמורים מיד עם אתחול הדף
-loadCFFromLocalStorage();
+// v102.5: Stateless — no startup load from localStorage
 
 var cfPrivacyOn = false;
 var cfChartInstance = null;
@@ -5256,12 +5170,8 @@ function pnsFmtK(n) {
 }
 
 function pensionInit() {
-  var saved = null;
-  try { var raw = localStorage.getItem('dashboard_pension_data'); if (raw) saved = JSON.parse(raw); } catch(e) {}
-  if (saved && saved.assets && saved.assets.length > 0) {
-    PENSION_ASSETS = saved.assets;
-    PENSION_EVENTS = saved.events || [];
-    PENSION_NI     = saved.ni    || { single: 0, couple: 0 };
+  // v102.5: Stateless — always show empty state; data loaded from Excel only
+  if (PENSION_ASSETS && PENSION_ASSETS.length > 0) {
     pensionRender();
   } else {
     pensionShowEmpty();
@@ -6289,11 +6199,7 @@ function pensionParseWorkbook(wb, sheetName) {
 }
 
 function pensionSaveToStorage() {
-  try {
-    localStorage.setItem('dashboard_pension_data', JSON.stringify({
-      assets: PENSION_ASSETS, events: PENSION_EVENTS, ni: PENSION_NI
-    }));
-  } catch(e) {}
+  // v102.5: Stateless — no data persistence between sessions
 }
 
 // =============================================
@@ -6328,49 +6234,22 @@ function simFmtNIS(v) {
 
 // ── Data Helpers ─────────────────────────────
 
-// v102.1: helper — read raw fund arrays from localStorage (includes yd_* dynamic keys)
-function simLoadLSFunds() {
-  try {
-    var raw = localStorage.getItem('dashboard_v15_data');
-    if (!raw) return {};
-    var p = JSON.parse(raw);
-    return (p && p.funds) ? p.funds : {};
-  } catch(e) { return {}; }
-}
+// v102.5: Stateless — simLoadLSFunds removed (no localStorage)
+function simLoadLSFunds() { return {}; }
 
 function simGetYaelCapital() {
-  // v102.1: also scan yd_* dynamic keys from localStorage (not restored to FUNDS on reload)
-  var lsFunds = simLoadLSFunds();
+  // v102.5: read only from live FUNDS (no localStorage fallback needed)
   var total = 0;
-  var counted = {};
-
-  // Static Yael keys in FUNDS (restored by loadFromLocalStorage)
   Object.keys(FUNDS).forEach(function(k) {
     var f = FUNDS[k];
     if (!f || f.owner !== 'yael') return;
     if (f.pensionMonthly) return; // exclude קצבה חודשית
-    counted[k] = true;
     for (var i = (f.data||[]).length-1; i>=0; i--) {
       if (f.data[i] !== null && f.data[i] !== undefined && f.data[i] > 0) {
         total += f.data[i]; break;
       }
     }
   });
-
-  // Dynamic yd_* Yael keys from localStorage (absent from FUNDS after page reload)
-  Object.keys(lsFunds).forEach(function(k) {
-    if (!k.startsWith('yd_')) return;
-    if (counted[k]) return; // already counted from live FUNDS
-    // Exclude pension-monthly funds: yd_gemel_* (not gemel_invest) = pension by default
-    if (k.indexOf('_gemel_') >= 0 && k.indexOf('_gemel_inv') < 0) return;
-    var d = lsFunds[k] || [];
-    for (var i = d.length-1; i>=0; i--) {
-      if (d[i] !== null && d[i] !== undefined && d[i] > 0) {
-        total += d[i]; break;
-      }
-    }
-  });
-
   return total; // K
 }
 
@@ -6778,19 +6657,7 @@ function simSetInstructor(s) {
 
 // ── Init ──────────────────────────────────────
 function simInit() {
-  // v102.1: Load pension data from localStorage regardless of whether pension tab was opened
-  if (!PENSION_EVENTS || !PENSION_EVENTS.length) {
-    try {
-      var pnsRaw = localStorage.getItem('dashboard_pension_data');
-      if (pnsRaw) {
-        var pnsSaved = JSON.parse(pnsRaw);
-        if (pnsSaved) {
-          if (pnsSaved.events && pnsSaved.events.length) PENSION_EVENTS = pnsSaved.events;
-          if (pnsSaved.assets && pnsSaved.assets.length && !PENSION_ASSETS.length) PENSION_ASSETS = pnsSaved.assets;
-        }
-      }
-    } catch(e) { console.warn('[SIM] pension localStorage error:', e); }
-  }
+  // v102.5: Stateless — pension data already in PENSION_ASSETS/PENSION_EVENTS if Excel was uploaded
 
   // Diagnostics — open browser console to debug zero-capital issues
   var _royK  = simGetRoyCapital();
@@ -6817,4 +6684,21 @@ function simInit() {
   simRenderEvents();
   simRenderChart(simRunEngine());
   pnsRetirementYieldChange(pnsRetirementYield); // v102.3: init slider in simulator
+}
+
+// v102.5: Re-read live data after Excel upload and re-render simulator
+function simRefresh() {
+  if (!simInited) return;
+  var _sal = simGetCurrentSalary();
+  var _exp = simGetCurrentExpenses();
+  if (_sal > 0) SIM_CURRENT_SALARY = _sal;
+  if (_exp > 0) {
+    SIM_TARGET_EXP = _exp;
+    var expSlider = document.getElementById('sim-exp-slider');
+    if (expSlider) expSlider.value = SIM_TARGET_EXP;
+    var expValEl = document.getElementById('sim-exp-val');
+    if (expValEl) expValEl.textContent = simFmtNIS(SIM_TARGET_EXP);
+  }
+  simRenderKPI();
+  simRenderChart(simRunEngine());
 }
