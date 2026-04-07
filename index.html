@@ -1,4 +1,4 @@
-<!-- v103.6 -->
+<!-- v103.8 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,8 +37,8 @@
   <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.6</span></h1>
-      <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;">מציג: פבר׳ 26</p>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.8</span></h1>
+      <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
       <div class="stat-item">
@@ -69,13 +69,13 @@
   <div class="header-stats" id="inv-header-stats" style="display:none;">
     <div class="stat-item">
       <div class="stat-label">סה״כ נכסים</div>
-      <div class="stat-value" id="hdr-total">14,964</div>
+      <div class="stat-value" id="hdr-total">—</div>
       <div class="stat-change">אלפי ש״ח</div>
     </div>
     <div class="divider"></div>
     <div class="stat-item">
       <div class="stat-label">שינוי כולל</div>
-      <div class="stat-value green" id="hdr-change-val">4,036</div>
+      <div class="stat-value green" id="hdr-change-val">—</div>
       <div id="hdr-external-wrap" style="visibility:hidden; display:flex; flex-direction:column; gap:2px; font-size:11px; color:white;">
         <span style="color:white;">🔄 הכרות/העברות: <span id="hdr-external-val" style="color:#fbbf24; font-weight:600;"></span></span>
       </div>
@@ -83,8 +83,8 @@
     <div class="divider"></div>
     <div class="stat-item">
       <div class="stat-label">תשואה מנוטרלת</div>
-      <div class="stat-value green" id="hdr-ret-val">25.4%</div>
-      <div class="stat-change" id="hdr-ret-range">ינו׳ 2025 – פבר׳ 26</div>
+      <div class="stat-value green" id="hdr-ret-val">—</div>
+      <div class="stat-change" id="hdr-ret-range">—</div>
     </div>
   </div>
   <div id="pns-header-stats" class="header-stats" style="display:none;margin-left:40px;">
@@ -157,6 +157,18 @@
       <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
       <button id="inv-table-btn" class="inv-only-btn" onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
       <span class="inv-only-btn" onclick="toggleChat()" style="cursor:pointer; color:white; font-size:22px; opacity:0.85;" title="צ׳אט">💬</span>
+      <!-- simulator view toggles — v103.8: moved to header -->
+      <div class="sim-only-btn" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
+        <button class="pns-ni-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+        <button class="pns-ni-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
+        <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+      </div>
+      <div class="sim-only-btn" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
+        <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
+        <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
+      </div>
     </div>
     <span id="excel-status" style="color:rgba(255,255,255,0.85); font-size:11px; min-height:16px; display:block;"></span>
   </div>
@@ -166,52 +178,52 @@
 <div class="cards-row" id="inv-cards-row" style="display:none;">
   <div class="card-total active" id="card-all" onclick="selectView('all')">
     <div class="label">סה״כ</div>
-    <div class="value" id="card-val-all">14,964</div>
-    <div class="change" id="card-chg-all">+14.7% נמדד</div>
+    <div class="value" id="card-val-all">—</div>
+    <div class="change" id="card-chg-all">—</div>
   </div>
   <div class="card" style="--cat-color:#0891b2;--cat-color-alpha:#0891b220" id="card-mezuman" onclick="selectView('mezuman')">
     <div class="card-label">מזומן</div>
-    <div class="card-value" id="card-val-mezuman">1,105</div>
+    <div class="card-value" id="card-val-mezuman">—</div>
     <div class="card-change" id="card-chg-mezuman"></div>
   </div>
   <div class="card" style="--cat-color:#dc2626;--cat-color-alpha:#dc262620" id="card-hishtalmut" onclick="selectView('hishtalmut')">
     <div class="card-label">קרנות השתלמות</div>
-    <div class="card-value" id="card-val-hishtalmut">4,606</div>
-    <div class="card-change pos" id="card-chg-hishtalmut">▲ +16.9%</div>
+    <div class="card-value" id="card-val-hishtalmut">—</div>
+    <div class="card-change" id="card-chg-hishtalmut"></div>
   </div>
   <div class="card" style="--cat-color:#b45309;--cat-color-alpha:#b4530920" id="card-gemel" onclick="selectView('gemel')">
     <div class="card-label">קופות גמל</div>
-    <div class="card-value" id="card-val-gemel">1,730</div>
-    <div class="card-change pos" id="card-chg-gemel">▲ +17.6%</div>
+    <div class="card-value" id="card-val-gemel">—</div>
+    <div class="card-change" id="card-chg-gemel"></div>
   </div>
   <div class="card" style="--cat-color:#9f1239;--cat-color-alpha:#9f123920" id="card-gemel_invest" onclick="selectView('gemel_invest')">
     <div class="card-label">גמל להשקעה</div>
-    <div class="card-value" id="card-val-gemel_invest">902</div>
-    <div class="card-change pos" id="card-chg-gemel_invest">▲ +21.8%</div>
+    <div class="card-value" id="card-val-gemel_invest">—</div>
+    <div class="card-change" id="card-chg-gemel_invest"></div>
   </div>
   <div class="card" style="--cat-color:#a16207;--cat-color-alpha:#a1620720" id="card-harel" onclick="selectView('harel')">
     <div class="card-label" id="harel-card-label">פוליסות חיסכון</div>
-    <div class="card-value" id="card-val-harel">7,126</div>
-    <div class="card-change pos" id="card-chg-harel">▲ +15.9%</div>
+    <div class="card-value" id="card-val-harel">—</div>
+    <div class="card-change" id="card-chg-harel"></div>
   </div>
   <div class="card" style="--cat-color:#7c3aed;--cat-color-alpha:#7c3aed20" id="card-meitav" onclick="selectView('meitav')">
     <div class="card-label">מיטב</div>
-    <div class="card-value" id="card-val-meitav">639</div>
-    <div class="card-change pos" id="card-chg-meitav">▲ +13.2%</div>
+    <div class="card-value" id="card-val-meitav">—</div>
+    <div class="card-change" id="card-chg-meitav"></div>
   </div>
   <div class="card" style="--cat-color:#0d9488;--cat-color-alpha:#0d948820" id="card-arbitrage" onclick="selectView('arbitrage')">
     <div class="card-label">ארביטראז׳</div>
-    <div class="card-value" id="card-val-arbitrage">0</div>
+    <div class="card-value" id="card-val-arbitrage">—</div>
     <div class="card-change" id="card-chg-arbitrage"></div>
   </div>
   <div class="card" style="--cat-color:#78716c;--cat-color-alpha:#78716c20" id="card-dira" onclick="selectView('dira')">
     <div class="card-label">דירה</div>
-    <div class="card-value" id="card-val-dira">1,200</div>
+    <div class="card-value" id="card-val-dira">—</div>
     <div class="card-change" id="card-chg-dira"></div>
   </div>
   <div class="card" style="--cat-color:#64748b;--cat-color-alpha:#64748b20" id="card-chov" onclick="selectView('chov')">
     <div class="card-label">חוב</div>
-    <div class="card-value" id="card-val-chov">1,768</div>
+    <div class="card-value" id="card-val-chov">—</div>
     <div class="card-change" id="card-chg-chov"></div>
   </div>
 </div>
@@ -870,7 +882,7 @@
       <div id="cf-inner-wrap" style="position:relative;display:inline-block;">
 
         <!-- Chart canvas — width set precisely by JS (includes Y axis width) -->
-        <div id="cf-chart-wrap" style="height:242px;min-height:242px;overflow:hidden;" dir="ltr">
+        <div id="cf-chart-wrap" style="height:242px;min-height:242px;max-height:350px;overflow:hidden;" dir="ltr">
           <canvas id="cf-chart" style="display:block;height:100%;"></canvas>
         </div>
 
@@ -1034,39 +1046,24 @@
 <div class="tab-panel" id="tab-simulator">
   <div class="sim-wrap">
 
-    <!-- ── Control Panel v103.6: single compact row — all toggles + all sliders ── -->
+    <!-- ── Control Panel v103.8: sliders only — toggles moved to header ── -->
     <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:row;flex-wrap:wrap;gap:10px 18px;align-items:flex-start;">
-      <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
-        <div class="sim-ctrl-label">תצוגה</div>
-        <div class="sim-view-toggle">
-          <button class="sim-view-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
-          <button class="sim-view-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-          <button class="sim-view-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
-        </div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:0 0 auto;min-width:0;">
-        <div class="sim-ctrl-label">הראל</div>
-        <div class="sim-view-toggle">
-          <button class="sim-view-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם הראל</button>
-          <button class="sim-view-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא הראל</button>
-        </div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
         <div class="sim-ctrl-label">ריבית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
         <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
         <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
       </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
         <div class="sim-ctrl-label">הוצאה חודשית: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
         <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
         <div class="sim-slider-bounds"><span>20K ₪</span><span>130K ₪</span></div>
       </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
         <div class="sim-ctrl-label">משכורת מדריך: <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
         <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
         <div class="sim-slider-bounds"><span>5K ₪</span><span>60K ₪</span></div>
       </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:140px;">
+      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
         <div class="sim-ctrl-label">תשואת פרישה: <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
         <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
           oninput="pnsRetirementYieldChange(this.value)">

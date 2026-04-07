@@ -388,31 +388,34 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
    ============================================= */
 .sim-wrap { padding: 12px 20px 48px; direction: rtl; max-width: 1200px; margin: 0 auto; }
 
-/* Control Panel */
+/* Control Panel — v103.7: flex-wrap enabled so sliders don't squish on narrow screens */
 .sim-controls-panel {
   background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
   padding: 16px 20px; margin-bottom: 12px;
-  display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-start;
+  display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-start;
 }
-.sim-ctrl-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 190px; }
+/* v103.7: slider groups wrap gracefully — min-width 150px prevents squishing */
+.sim-ctrl-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
 .sim-ctrl-label { font-size: 11px; font-weight: 700; color: #6b7280; letter-spacing: 0.3px; white-space: nowrap; }
 .sim-ctrl-val { color: #1a1a2e; font-weight: 800; }
-.sim-view-toggle { display: flex; gap: 6px; }
+.sim-view-toggle { display: flex; gap: 5px; }
+/* v103.7: sim toggle buttons styled to match pension pns-ni-btn — pill shape, consistent theme */
 .sim-view-btn {
-  background: #f0f4ff; border: 1px solid #c7d7f9; border-radius: 8px;
-  padding: 6px 14px; font-size: 12px; font-family: Heebo, sans-serif;
-  cursor: pointer; color: #2563eb; font-weight: 600; transition: all 0.15s;
+  background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 20px;
+  padding: 5px 14px; font-size: 11px; font-family: Heebo, sans-serif;
+  cursor: pointer; color: #4f46e5; font-weight: 600; transition: all 0.15s;
+  white-space: nowrap;
 }
-.sim-view-btn:hover { background: #dbeafe; }
-.sim-view-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-.sim-slider { width: 100%; height: 4px; cursor: pointer; accent-color: #2563eb; }
+.sim-view-btn:hover { background: #e0e7ff; border-color: #a5b4fc; }
+.sim-view-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; font-weight: 700; }
+.sim-slider { width: 100%; height: 4px; cursor: pointer; accent-color: #2563eb; min-width: 150px; }
 .sim-slider-bounds { display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; }
 
-/* KPI Row */
-.sim-kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+/* KPI Row — v103.8: horizontal single-row layout */
+.sim-kpi-row { display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; overflow-x: auto; }
 .sim-kpi-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
-  padding: 10px 14px; flex: 1; min-width: 100px; text-align: center;
+  padding: 10px 14px; flex: 1; min-width: 80px; text-align: center;
 }
 .sim-kpi-label { font-size: 10px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; margin-bottom: 3px; }
 .sim-kpi-val { font-size: 17px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }

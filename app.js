@@ -426,9 +426,11 @@ function updateDynamicStats() {
   const filteredFunds = Object.values(FUNDS).filter(invFilter);
   // v97.1: find endIdx using only the funds visible in current view
   while (endIdx > 0 && filteredFunds.every(f => f.data[endIdx] === null || f.data[endIdx] === undefined)) endIdx--;
+  // v103.7: check if there is ANY real data — if not, show clean empty state
+  const hasAnyData = filteredFunds.some(f => f.data.some(v => v !== null && v !== undefined && v > 0));
   const cats = ['mezuman','hishtalmut','gemel','gemel_invest','harel','meitav','arbitrage','dira','chov'];
   const el = id => document.getElementById(id);
-  const endLabel = LABELS[endIdx];
+  const endLabel = hasAnyData ? LABELS[endIdx] : null;
 
   const catTotals = {}, catMeasured = {};
   cats.forEach(cat => {
@@ -467,6 +469,24 @@ const grandBase0 = cats.reduce((s,c) => {
     : (grandMeasured > 0 ? '—' : '0.0');
   const grandDiff = grandTotal - grandBase0;
 
+  // v103.7: clean empty state — no data loaded yet
+  if (!hasAnyData) {
+    if(el('hdr-total'))      el('hdr-total').textContent = '—';
+    if(el('hdr-change-val')){ el('hdr-change-val').textContent = '—'; el('hdr-change-val').style.color = '#94a3b8'; }
+    if(el('hdr-ret-val'))  { el('hdr-ret-val').textContent = '—'; el('hdr-ret-val').style.color = '#94a3b8'; }
+    if(el('hdr-ret-range'))  el('hdr-ret-range').textContent = '—';
+    const headerSub0 = document.getElementById('hdr-subtitle');
+    if(headerSub0) headerSub0.textContent = '';
+    if(el('hdr-external-wrap')) el('hdr-external-wrap').style.visibility = 'hidden';
+    cats.forEach(cat => {
+      if(el('card-val-'+cat)) el('card-val-'+cat).textContent = '—';
+      if(el('card-chg-'+cat)){ el('card-chg-'+cat).textContent = ''; el('card-chg-'+cat).className = 'card-change'; }
+    });
+    if(el('card-val-all')) el('card-val-all').textContent = '—';
+    if(el('card-chg-all')){ el('card-chg-all').textContent = '—'; el('card-chg-all').style.color = '#94a3b8'; }
+    return;
+  }
+
   if(el('hdr-total')) el('hdr-total').textContent = '' + Math.round(grandTotal).toLocaleString();
   // Middle stat: total change + breakdown
   if(el('hdr-change-val')) {
@@ -503,10 +523,10 @@ const grandBase0 = cats.reduce((s,c) => {
       el('hdr-ret-val').style.color = parseFloat(grandPct)<0 ? '#ef4444' : '#4ade80';
     }
   }
-  if(el('hdr-ret-range')) el('hdr-ret-range').textContent = startLabel + ' – ' + endLabel;
-  // Subtitle in red
+  if(el('hdr-ret-range')) el('hdr-ret-range').textContent = (startLabel && endLabel) ? startLabel + ' – ' + endLabel : '—';
+  // Subtitle showing current month
   const headerSub = document.getElementById('hdr-subtitle');
-  if(headerSub) { headerSub.textContent = 'מציג: ' + endLabel; }
+  if(headerSub) { headerSub.textContent = endLabel ? 'מציג: ' + endLabel : ''; }
 
   if(el('card-val-all')) el('card-val-all').textContent = '' + Math.round(grandTotal).toLocaleString();
   if(el('card-chg-all')) {
@@ -3430,16 +3450,46 @@ function cmSetCatStats(catId) {
   gEl.className = 'cm-stat-val ' + (growth >= 0 ? 'pos' : 'neg');
   var excl = (typeof EXCLUDE_FROM_PCT !== 'undefined' && EXCLUDE_FROM_PCT[catId]) ? EXCLUDE_FROM_PCT[catId] : [];
   var endIdx = cmWinStart + wData.length - 1;
-  var measEnd = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; }).reduce(function(s,e){ return s+(e[1].data[endIdx]||0); },0);
-  var measStart = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; }).reduce(function(s,e){ return s+(e[1].data[cmWinStart]||0); },0);
+  var retActiveFunds = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; });
+  var measEnd   = retActiveFunds.reduce(function(s,e){ return s+(e[1].data[endIdx]||0); },0);
+  var measStart = retActiveFunds.reduce(function(s,e){ return s+(e[1].data[cmWinStart]||0); },0);
   var retEl = document.getElementById('cm-ret');
-  if (measStart > 0) { var ret = ((measEnd-measStart)/measStart*100).toFixed(1); retEl.textContent=Math.abs(parseFloat(ret)).toFixed(1)+'%'; retEl.className='cm-stat-val '+(parseFloat(ret)>=0?'pos':'neg'); }
+  if (measStart > 0) {
+    // v103.7: Column K netting for window return
+    var _cmRetKMov = 0;
+    retActiveFunds.forEach(function(e) {
+      var k = e[0];
+      var colK = FUND_COL_K[k] || [];
+      for (var _rki = cmWinStart + 1; _rki <= endIdx; _rki++) {
+        var rkv = (_rki < colK.length) ? colK[_rki] : null;
+        if (typeof rkv === 'number' && !isNaN(rkv)) _cmRetKMov += rkv;
+      }
+    });
+    var retNetDelta = (measEnd - measStart) - _cmRetKMov;
+    var ret = (retNetDelta / measStart * 100).toFixed(1);
+    retEl.textContent=Math.abs(parseFloat(ret)).toFixed(1)+'%'; retEl.className='cm-stat-val '+(parseFloat(ret)>=0?'pos':'neg');
+  }
   var janIdx = LABELS.findIndex(function(l){ return l.indexOf('ינ') >= 0 && l.indexOf('26') >= 0; });
   var ytdEl = document.getElementById('cm-ytd');
   if (janIdx >= 0 && endIdx >= janIdx) {
-    var ytdEnd = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; }).reduce(function(s,e){ return s+(e[1].data[endIdx]||0); },0);
-    var ytdStart = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; }).reduce(function(s,e){ return s+(e[1].data[janIdx]||0); },0);
-    if (ytdStart > 0 && ytdEnd > 0) { var ytd=((ytdEnd-ytdStart)/ytdStart*100).toFixed(1); ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg'); }
+    var ytdActiveFunds = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; });
+    var ytdEnd   = ytdActiveFunds.reduce(function(s,e){ return s+(e[1].data[endIdx]||0); },0);
+    var ytdStart = ytdActiveFunds.reduce(function(s,e){ return s+(e[1].data[janIdx]||0); },0);
+    if (ytdStart > 0 && ytdEnd > 0) {
+      // v103.7: Column K netting — same formula as updateDynamicStats
+      var _cmYtdKMov = 0;
+      ytdActiveFunds.forEach(function(e) {
+        var k = e[0];
+        var colK = FUND_COL_K[k] || [];
+        for (var _ki = janIdx + 1; _ki <= endIdx; _ki++) {
+          var kv = (_ki < colK.length) ? colK[_ki] : null;
+          if (typeof kv === 'number' && !isNaN(kv)) _cmYtdKMov += kv;
+        }
+      });
+      var ytdNetDelta = (ytdEnd - ytdStart) - _cmYtdKMov;
+      var ytd = (ytdNetDelta / ytdStart * 100).toFixed(1);
+      ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg');
+    }
   }
 }
 
@@ -3460,9 +3510,17 @@ function cmSetFundStats(fundKey) {
   var janIdx = LABELS.findIndex(function(l){ return l.indexOf('ינ') >= 0 && l.indexOf('26') >= 0; });
   var endIdx = Math.min(cmWinStart + CM_WINDOW - 1, LABELS.length - 1);
   var ytdEl = document.getElementById('cm-ytd');
-  var decIdx = janIdx >= 1 ? janIdx - 1 : -1;
-  if (decIdx >= 0 && endIdx >= janIdx && ff[decIdx] > 0 && ff[endIdx] > 0) {
-    var ytd=((ff[endIdx]-ff[decIdx])/ff[decIdx]*100).toFixed(1); ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg');
+  if (janIdx >= 0 && endIdx >= janIdx && ff[janIdx] > 0 && ff[endIdx] > 0) {
+    // v103.7: Column K netting for single fund YTD — same formula as updateChartStats
+    var _cmFundKMov = 0;
+    var _cmFundColK = FUND_COL_K[fundKey] || [];
+    for (var _fki = janIdx + 1; _fki <= endIdx; _fki++) {
+      var _fkv = (_fki < _cmFundColK.length) ? _cmFundColK[_fki] : null;
+      if (typeof _fkv === 'number' && !isNaN(_fkv)) _cmFundKMov += _fkv;
+    }
+    var _fundYtdNet = (ff[endIdx] - ff[janIdx]) - _cmFundKMov;
+    var ytd = (_fundYtdNet / ff[janIdx] * 100).toFixed(1);
+    ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg');
   } else { ytdEl.textContent='—'; ytdEl.className='cm-stat-val'; }
 }
 
@@ -3960,12 +4018,18 @@ function cfSandboxAdd() {
   amtEl.value = ''; if (lblEl) lblEl.value = '';
   cfSandboxRender();
   cfRenderChart();
+  // v103.7: refresh forecast panel if open
+  var _fpSb = document.getElementById('cf-detailed-forecast');
+  if (_fpSb && _fpSb.style.display !== 'none') cfRenderForecast();
 }
 
 function cfSandboxRemove(idx) {
   CF_SANDBOX_EVENTS.splice(idx, 1);
   cfSandboxRender();
   cfRenderChart();
+  // v103.7: refresh forecast panel if open
+  var _fpRm = document.getElementById('cf-detailed-forecast');
+  if (_fpRm && _fpRm.style.display !== 'none') cfRenderForecast();
 }
 
 function cfSandboxReset() {
@@ -3979,6 +4043,9 @@ function cfSandboxReset() {
   cfSandboxInitDefaults(); // v103.5: restore date to current Excel month
   cfSandboxRender();
   cfRenderChart();
+  // v103.7: refresh forecast panel if open
+  var _fpRst = document.getElementById('cf-detailed-forecast');
+  if (_fpRst && _fpRst.style.display !== 'none') cfRenderForecast();
 }
 
 // v103.5: Set sandbox default date to CURRENT (last real) Excel month; block past months
@@ -4633,6 +4700,7 @@ function cfRenderChart() {
     wrap.style.maxWidth  = chartW + 'px';
     wrap.style.height    = CHART_H + 'px';
     wrap.style.minHeight = CHART_H + 'px'; // v98.3: מניעת קריסת גובה
+    wrap.style.maxHeight = '350px'; // v103.8: cap YTD chart height
     wrap.style.flex      = 'none';
   }
 
@@ -4711,6 +4779,17 @@ function cfRenderChart() {
     }
   } else {
     // ytd: מצטבר לפי cfGetNetVal (total_income - total_exp)
+    // v103.7: calculate base cumulative (no sandbox) to lock Y-axis range
+    var cumBase = [], sBase = 0;
+    months.forEach(function(m){
+      var v = cfGetNetVal(m);
+      sBase += (v !== null ? v : 0);
+      cumBase.push(sBase);
+    });
+    var baseSafeCum = cfSafeArr(cumBase);
+    var baseMin = Math.min.apply(null, baseSafeCum);
+    var baseMax = Math.max.apply(null, baseSafeCum);
+
     var cum = [], s = 0;
     months.forEach(function(m){
       var v = cfGetNetVal(m);
@@ -4722,12 +4801,22 @@ function cfRenderChart() {
       cum.push(s);
     });
     var safeCum = cfSafeArr(cum);
+    // v103.7: Y-axis locked to base range — only expands if sandbox pushes beyond
+    var sandboxMin = Math.min.apply(null, safeCum);
+    var sandboxMax = Math.max.apply(null, safeCum);
+    var ytdAxisMin = Math.min(baseMin, sandboxMin);
+    var ytdAxisMax = Math.max(baseMax, sandboxMax);
+    // add 10% padding to locked range so bars don't touch top/bottom
+    var ytdPad = (ytdAxisMax - ytdAxisMin) * 0.12 || 50;
     datasets = [{
       label:'מצטבר', data:safeCum,
       backgroundColor:safeCum.map(function(v){ return v>=0?'rgba(34,197,94,0.85)':'rgba(239,68,68,0.85)'; }),
       borderRadius:3,
       maxBarThickness: 34  // v23.0: אחיד עם רוחב עמודות בגרף חודשי
     }];
+    // store for use in scales section below
+    window._cfYtdAxisMin = ytdAxisMin - ytdPad;
+    window._cfYtdAxisMax = ytdAxisMax + ytdPad;
   }
 
   // v98.4: Plugin — קו הפרדה מקווקו בין חודש נוכחי לחודשים הבאים
@@ -4838,6 +4927,9 @@ function cfRenderChart() {
           stacked: isMonthly,
           display: true,
           position: 'left',
+          // v103.7: lock Y-axis to base data range when YTD chart; prevents sandbox from jumping scale
+          min: (!isMonthly && window._cfYtdAxisMin !== undefined) ? window._cfYtdAxisMin : undefined,
+          max: (!isMonthly && window._cfYtdAxisMax !== undefined) ? window._cfYtdAxisMax : undefined,
           grid: { color: 'rgba(0,0,0,0.04)' },
           ticks: {
             font: { size:10, family:'Heebo,sans-serif' },
@@ -5241,6 +5333,16 @@ function cfRenderForecast() {
       '</div>';
   }
 
+  // v103.7: Calculate sandbox net impact for Annual Forecast
+  var _sbAnnualNet = 0;
+  if (CF_SANDBOX_EVENTS && CF_SANDBOX_EVENTS.length > 0) {
+    CF_SANDBOX_EVENTS.forEach(function(ev) {
+      if (ev.year === _fcDisplayYear) {
+        _sbAnnualNet += (ev.amount || 0);
+      }
+    });
+  }
+
   // v49.0: שורה אחת רציפה — כרטיסיות תזרים בצד שמאל (spacer דוחף אותן שמאלה)
   var html = '<div style="direction:rtl;">';
   var _titleLabel = f._interpolated
@@ -5271,6 +5373,17 @@ function cfRenderForecast() {
   html += bottomCard('תזרים שוטף',     cashTotal, '#6366f1');
   html += bottomCard('רווח / הפסד',    netVal,    netColor);
   html += '</div>';
+
+  // v103.7: Sandbox net impact row — shown only when there are sandbox events for this year
+  if (_sbAnnualNet !== 0) {
+    var _sbColor = _sbAnnualNet >= 0 ? '#8b5cf6' : '#dc2626';
+    var _sbSign  = _sbAnnualNet > 0 ? '+' : '';
+    html += '<div style="margin-top:8px;padding:8px 14px;border-radius:9px;background:rgba(139,92,246,0.08);border:1px dashed rgba(139,92,246,0.35);display:flex;align-items:center;gap:10px;direction:rtl;">';
+    html += '<span style="font-size:10px;color:#8b5cf6;font-weight:700;">⚡ השפעת אירועים זמניים</span>';
+    html += '<span style="font-size:15px;font-weight:800;color:' + _sbColor + ';">' + _sbSign + Math.round(_sbAnnualNet).toLocaleString() + ' K</span>';
+    html += '<span style="font-size:10px;color:#94a3b8;">(סכום נטו של ' + CF_SANDBOX_EVENTS.filter(function(ev){ return ev.year === _fcDisplayYear; }).length + ' אירועים)</span>';
+    html += '</div>';
+  }
 
   html += '</div>';
   panel.innerHTML = html;
@@ -7071,6 +7184,7 @@ function simSetView(v) {
     var btn = document.getElementById('sim-btn-' + n);
     if (btn) btn.classList.toggle('active', n === v);
   });
+  simRenderKPI(); // v103.8: update KPI cards (zero out Yael when roy-only)
   simRenderChart(simRunEngine());
 }
 
