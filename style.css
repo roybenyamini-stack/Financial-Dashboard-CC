@@ -411,11 +411,11 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .sim-slider { width: 100%; height: 4px; cursor: pointer; accent-color: #2563eb; min-width: 150px; }
 .sim-slider-bounds { display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; }
 
-/* KPI Row — v103.8: horizontal single-row layout */
-.sim-kpi-row { display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; overflow-x: auto; }
+/* KPI Row — v103.9: strict horizontal single-row layout */
+.sim-kpi-row { display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; gap: 12px; margin-bottom: 10px; overflow-x: auto; width: 100%; }
 .sim-kpi-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
-  padding: 10px 14px; flex: 1; min-width: 80px; text-align: center;
+  padding: 10px 14px; flex: 1; min-width: 0; text-align: center;
 }
 .sim-kpi-label { font-size: 10px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; margin-bottom: 3px; }
 .sim-kpi-val { font-size: 17px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }

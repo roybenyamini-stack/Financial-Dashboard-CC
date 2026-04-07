@@ -233,13 +233,31 @@ function ffFundData(data) {
 }
 
 // CAT_CHART_TOTALS: forward-fill each fund BEFORE summing category
+// v103.10: subtract cumulative Column K deposits from each balance point → organic growth curve
 function buildCatChartTotals() {
   var filterFn = invFundFilter();
   const totals = { mezuman:[], chov:[], arbitrage:[], dira:[], hishtalmut:[], gemel:[], gemel_invest:[], harel:[], meitav:[] };
+  const lastIdx = LABELS.length - 1;
   Object.entries(totals).forEach(([cat, arr]) => {
-    const funds = Object.values(FUNDS).filter(f => f.cat===cat && filterFn(f));
-    const ffed = funds.map(f => ffFundData(f.data));
-    LABELS.forEach((_, i) => { arr.push(ffed.reduce((s,fd) => s+(fd[i]||0), 0)); });
+    // v103.10-Investments-v2: exclude funds with 0 forward-filled balance at latest index (inactive/closed funds)
+    const fundEntries = Object.entries(FUNDS).filter(([,f]) => {
+      if (f.cat !== cat || !filterFn(f)) return false;
+      const ffLast = ffFundData(f.data);
+      return (ffLast[lastIdx] || 0) > 0;
+    });
+    const ffed = fundEntries.map(([,f]) => ffFundData(f.data));
+    var cumulativeK = 0; // running sum of Column K deposits across all months for organic netting
+    LABELS.forEach((_, i) => {
+      // Accumulate Column K deposits made in month i
+      fundEntries.forEach(([k]) => {
+        var colK = FUND_COL_K[k] || [];
+        var kv = (i < colK.length) ? colK[i] : null;
+        if (typeof kv === 'number' && !isNaN(kv)) cumulativeK += kv;
+      });
+      var rawTotal = ffed.reduce((s, fd) => s + (fd[i]||0), 0);
+      // Organic balance = raw balance minus all cumulative deposits to date
+      arr.push(rawTotal > 0 ? Math.max(0, rawTotal - cumulativeK) : 0);
+    });
   });
   return totals;
 }
@@ -757,9 +775,20 @@ function updateChartStats(data, viewCat) {
         returnEl.style.color = ret >= 0 ? '#16a34a' : '#ef4444';
       } else { returnEl.textContent = '—'; }
     } else if(first > 0) {
-      const ret = ((last - first) / first * 100).toFixed(1);
+      // v103.9-FIXED: apply Column K netting for single fund window return (same as category view)
+      var _singleRetKMov = 0;
+      if (currentFund && FUNDS[currentFund]) {
+        var _singleColK = FUND_COL_K[currentFund] || [];
+        var _singleEnd = winStart + w.data.length - 1;
+        for (var _ski = winStart + 1; _ski <= _singleEnd; _ski++) {
+          var _skv = (_ski < _singleColK.length) ? _singleColK[_ski] : null;
+          if (typeof _skv === 'number' && !isNaN(_skv)) _singleRetKMov += _skv;
+        }
+      }
+      var _singleNetDelta = (last - first) - _singleRetKMov;
+      const ret = (_singleNetDelta / first * 100).toFixed(1);
       returnEl.textContent = Math.abs(parseFloat(ret)).toFixed(1) + '%';
-      returnEl.style.color = ret >= 0 ? '#16a34a' : '#ef4444';
+      returnEl.style.color = parseFloat(ret) >= 0 ? '#16a34a' : '#ef4444';
     } else { returnEl.textContent = '—'; }
   }
   // YTD calculation
@@ -3449,7 +3478,8 @@ function cmSetCatStats(catId) {
   gEl.textContent = Math.abs(Math.round(growth)).toLocaleString();
   gEl.className = 'cm-stat-val ' + (growth >= 0 ? 'pos' : 'neg');
   var excl = (typeof EXCLUDE_FROM_PCT !== 'undefined' && EXCLUDE_FROM_PCT[catId]) ? EXCLUDE_FROM_PCT[catId] : [];
-  var endIdx = cmWinStart + wData.length - 1;
+  // v103.10-Investments-v2: use actual last index (not filtered wData length) so inactive funds are excluded
+  var endIdx = Math.min(cmWinStart + CM_WINDOW - 1, LABELS.length - 1);
   var retActiveFunds = Object.entries(FUNDS).filter(function(e){ return e[1].cat===catId && !excl.includes(e[0]) && (e[1].data[endIdx]||0)>0; });
   var measEnd   = retActiveFunds.reduce(function(s,e){ return s+(e[1].data[endIdx]||0); },0);
   var measStart = retActiveFunds.reduce(function(s,e){ return s+(e[1].data[cmWinStart]||0); },0);
@@ -3486,7 +3516,8 @@ function cmSetCatStats(catId) {
           if (typeof kv === 'number' && !isNaN(kv)) _cmYtdKMov += kv;
         }
       });
-      var ytdNetDelta = (ytdEnd - ytdStart) - _cmYtdKMov;
+      var _adjustedYtdEnd = ytdEnd - _cmYtdKMov; // v103.9-FIXED: subtract cumulative K deposits from balance before computing organic %
+      var ytdNetDelta = _adjustedYtdEnd - ytdStart;
       var ytd = (ytdNetDelta / ytdStart * 100).toFixed(1);
       ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg');
     }
@@ -3506,9 +3537,20 @@ function cmSetFundStats(fundKey) {
   gEl.textContent = Math.abs(Math.round(growth)).toLocaleString();
   gEl.className = 'cm-stat-val ' + (growth >= 0 ? 'pos' : 'neg');
   var retEl = document.getElementById('cm-ret');
-  if (first > 0) { var ret=((last-first)/first*100).toFixed(1); retEl.textContent=Math.abs(parseFloat(ret)).toFixed(1)+'%'; retEl.className='cm-stat-val '+(parseFloat(ret)>=0?'pos':'neg'); }
-  var janIdx = LABELS.findIndex(function(l){ return l.indexOf('ינ') >= 0 && l.indexOf('26') >= 0; });
   var endIdx = Math.min(cmWinStart + CM_WINDOW - 1, LABELS.length - 1);
+  if (first > 0) {
+    // v103.9: Column K netting for window return — same formula as cmSetCatStats
+    var _cmFundRetKMov = 0;
+    var _cmFundRetColK = FUND_COL_K[fundKey] || [];
+    for (var _rfki = cmWinStart + 1; _rfki <= endIdx; _rfki++) {
+      var _rfkv = (_rfki < _cmFundRetColK.length) ? _cmFundRetColK[_rfki] : null;
+      if (typeof _rfkv === 'number' && !isNaN(_rfkv)) _cmFundRetKMov += _rfkv;
+    }
+    var _fundRetNet = (last - first) - _cmFundRetKMov;
+    var ret = (_fundRetNet / first * 100).toFixed(1);
+    retEl.textContent=Math.abs(parseFloat(ret)).toFixed(1)+'%'; retEl.className='cm-stat-val '+(parseFloat(ret)>=0?'pos':'neg');
+  }
+  var janIdx = LABELS.findIndex(function(l){ return l.indexOf('ינ') >= 0 && l.indexOf('26') >= 0; });
   var ytdEl = document.getElementById('cm-ytd');
   if (janIdx >= 0 && endIdx >= janIdx && ff[janIdx] > 0 && ff[endIdx] > 0) {
     // v103.7: Column K netting for single fund YTD — same formula as updateChartStats
@@ -3518,7 +3560,8 @@ function cmSetFundStats(fundKey) {
       var _fkv = (_fki < _cmFundColK.length) ? _cmFundColK[_fki] : null;
       if (typeof _fkv === 'number' && !isNaN(_fkv)) _cmFundKMov += _fkv;
     }
-    var _fundYtdNet = (ff[endIdx] - ff[janIdx]) - _cmFundKMov;
+    var _adjustedFundEnd = ff[endIdx] - _cmFundKMov; // v103.9-FIXED: subtract cumulative K deposits from balance before computing organic %
+    var _fundYtdNet = _adjustedFundEnd - ff[janIdx];
     var ytd = (_fundYtdNet / ff[janIdx] * 100).toFixed(1);
     ytdEl.textContent=Math.abs(parseFloat(ytd)).toFixed(1)+'%'; ytdEl.className='cm-stat-val '+(parseFloat(ytd)>=0?'pos':'neg');
   } else { ytdEl.textContent='—'; ytdEl.className='cm-stat-val'; }
@@ -4513,6 +4556,15 @@ function cfUpdateHeader() {
             (m.rows.rent_income&&m.rows.rent_income.val!=null?m.rows.rent_income.val:0);
   // v40.0: הוצאות = ערך ישיר מ-'סה"כ הוצאות שקלי' (total_exp); fallback: חישוב מרכיבים
   var exp = (m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : cfCalcExp(m.rows);
+  // v103.10: add current-month sandbox events to header YTD cards
+  if (CF_SANDBOX_EVENTS && CF_SANDBOX_EVENTS.length > 0) {
+    CF_SANDBOX_EVENTS.forEach(function(ev) {
+      if (ev.year === m.year && ev.month === m.month) {
+        if ((ev.amount || 0) > 0) inc += ev.amount;
+        else exp += Math.abs(ev.amount || 0);
+      }
+    });
+  }
   // v45.0: נטו שקלי בלבד — ללא profit_loss מהאקסל (עלול לכלול דולרים)
   var net = inc - exp;
 
@@ -4700,7 +4752,7 @@ function cfRenderChart() {
     wrap.style.maxWidth  = chartW + 'px';
     wrap.style.height    = CHART_H + 'px';
     wrap.style.minHeight = CHART_H + 'px'; // v98.3: מניעת קריסת גובה
-    wrap.style.maxHeight = '350px'; // v103.8: cap YTD chart height
+    wrap.style.maxHeight = '350px'; // v103.9-FIXED: cap YTD chart height
     wrap.style.flex      = 'none';
   }
 
@@ -5319,11 +5371,25 @@ function cfRenderForecast() {
       '</div>';
   }
 
+  // v103.10: Split sandbox by type — income (green) vs expense (red), all shown as absolute values
+  var sandboxIncomeAnn = 0, sandboxExpenseAnn = 0;
+  if (CF_SANDBOX_EVENTS && CF_SANDBOX_EVENTS.length > 0) {
+    CF_SANDBOX_EVENTS.forEach(function(ev) {
+      if (ev.year === _fcDisplayYear) {
+        if ((ev.amount || 0) > 0) sandboxIncomeAnn += ev.amount;
+        else sandboxExpenseAnn += Math.abs(ev.amount || 0);
+      }
+    });
+  }
+  var sandboxNetTotal = sandboxIncomeAnn - sandboxExpenseAnn; // net: income adds, expense subtracts
+
   // v48.0: יותם ושונות — כרטיסיות נפרדות במגירה (כדי לראות 62 ו-11 בנפרד)
   var netVal     = f.profit_loss;
   var netCash    = f.net_cashflow;
   var cashTotal  = f.cashflow_total;
-  var netColor   = (netVal != null && netVal >= 0) ? '#16a34a' : '#dc2626';
+  // v103.10: sandbox net correctly increases/decreases the annual P&L
+  var netValWithSandbox = (netVal != null) ? netVal + sandboxNetTotal : (sandboxNetTotal !== 0 ? sandboxNetTotal : null);
+  var netColor   = (netValWithSandbox != null && netValWithSandbox >= 0) ? '#16a34a' : '#dc2626';
 
   function bottomCard(label, val, color) {
     if (val == null || val === 0) return '';
@@ -5331,16 +5397,6 @@ function cfRenderForecast() {
       '<div style="font-size:10px;color:#9ca3af;font-weight:600;margin-bottom:2px;white-space:nowrap;">' + label + '</div>' +
       '<div style="font-size:18px;font-weight:800;color:' + color + ';white-space:nowrap;">' + Math.round(val).toLocaleString() + '</div>' +
       '</div>';
-  }
-
-  // v103.7: Calculate sandbox net impact for Annual Forecast
-  var _sbAnnualNet = 0;
-  if (CF_SANDBOX_EVENTS && CF_SANDBOX_EVENTS.length > 0) {
-    CF_SANDBOX_EVENTS.forEach(function(ev) {
-      if (ev.year === _fcDisplayYear) {
-        _sbAnnualNet += (ev.amount || 0);
-      }
-    });
   }
 
   // v49.0: שורה אחת רציפה — כרטיסיות תזרים בצד שמאל (spacer דוחף אותן שמאלה)
@@ -5353,9 +5409,11 @@ function cfRenderForecast() {
   // v54.0: 3 גושים: הכנסות | קו | הוצאות | קו | תזרים
   var FDIV = '<div style="width:1px;background:rgba(255,255,255,0.1);align-self:stretch;margin:0 10px;flex-shrink:0;"></div>';
   html += '<div style="display:flex;flex-wrap:nowrap;gap:8px;align-items:flex-start;overflow-x:auto;">';
-  // גוש 1: הכנסות
+  // גוש 1: הכנסות (כולל הכנסות sandbox בירוק)
   html += card('משכורת שקלית', f.salary, '#16a34a');
   html += card('שכר דירה', f.rent_income, '#0891b2');
+  // v103.10: sandbox income card inside income group — green, absolute value
+  if (sandboxIncomeAnn > 0) html += card('הכנסות זמניות', sandboxIncomeAnn, '#16a34a');
   // קו מפריד: הכנסות | הוצאות
   html += FDIV;
   // גוש 2: הוצאות (ערכים גולמיים ישירות מסיכומים — ללא sum/reduce)
@@ -5364,6 +5422,8 @@ function cfRenderForecast() {
   html += card('הלוואות', f.loans    != null ? Math.abs(f.loans)    : null, '#b45309');
   html += card('יותם',    f.yotam     != null ? Math.abs(f.yotam)     : null, '#ea580c');
   html += card('שונות',   f.other_exp != null ? Math.abs(f.other_exp): null, '#ca8a04');
+  // v103.10: sandbox expense card — last in expense group, red, absolute value (no negative sign)
+  if (sandboxExpenseAnn > 0) html += card('הוצאות זמניות', sandboxExpenseAnn, '#dc2626');
   // v58.0: יותם $ — כרטיסיית רפרנס דולרית, הכי שמאל בגוש ההוצאות (Zero Noise)
   html += card('יותם $',  f.yotam_usd != null ? Math.abs(f.yotam_usd): null, '#ea580c');
   // קו מפריד: הוצאות | תזרים
@@ -5371,19 +5431,7 @@ function cfRenderForecast() {
   // גוש 3: תזרים — ישירות מסיכומים, ללא חישוב
   html += bottomCard('תזרים שקלי נטו', netCash,   '#3b82f6');
   html += bottomCard('תזרים שוטף',     cashTotal, '#6366f1');
-  html += bottomCard('רווח / הפסד',    netVal,    netColor);
-  html += '</div>';
-
-  // v103.7: Sandbox net impact row — shown only when there are sandbox events for this year
-  if (_sbAnnualNet !== 0) {
-    var _sbColor = _sbAnnualNet >= 0 ? '#8b5cf6' : '#dc2626';
-    var _sbSign  = _sbAnnualNet > 0 ? '+' : '';
-    html += '<div style="margin-top:8px;padding:8px 14px;border-radius:9px;background:rgba(139,92,246,0.08);border:1px dashed rgba(139,92,246,0.35);display:flex;align-items:center;gap:10px;direction:rtl;">';
-    html += '<span style="font-size:10px;color:#8b5cf6;font-weight:700;">⚡ השפעת אירועים זמניים</span>';
-    html += '<span style="font-size:15px;font-weight:800;color:' + _sbColor + ';">' + _sbSign + Math.round(_sbAnnualNet).toLocaleString() + ' K</span>';
-    html += '<span style="font-size:10px;color:#94a3b8;">(סכום נטו של ' + CF_SANDBOX_EVENTS.filter(function(ev){ return ev.year === _fcDisplayYear; }).length + ' אירועים)</span>';
-    html += '</div>';
-  }
+  html += bottomCard('רווח / הפסד',    netValWithSandbox, netColor);
 
   html += '</div>';
   panel.innerHTML = html;
@@ -6629,6 +6677,10 @@ var SIM_P2_START = { y:2027, m:9 };
 var SIM_P3_START = { y:2029, m:9 };
 var SIM_END      = { y:2080, m:12 }; // v102.2: extended to age ~90
 
+// v103.10: birth years for age calculations and data isolation
+var SIM_ROY_BIRTH  = 1962;
+var SIM_YAEL_BIRTH = 1968;
+
 // ── Formatters ──────────────────────────────
 function simFmtK(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
@@ -7039,6 +7091,8 @@ function simRenderChart(result) {
           grid: { color: 'rgba(0,0,0,0.04)' }
         },
         y: {
+          min: 0,
+          grace: '5%', // v103.10: fixed 5% buffer above max so Harel toggle is visually impactful
           ticks: {
             callback: function(v) { return v.toLocaleString() + 'K'; },
             font: { family: 'Heebo', size: 10 },
@@ -7099,32 +7153,50 @@ function simRenderKPI() {
 
   function el(id) { return document.getElementById(id); }
 
-  // v103.4: filter isolation — zero out Yael KPIs when view=Roy only
+  // v103.10: strict view isolation — hide opposing person's data completely
   var _showYael = (SIM_VIEW !== 'roy');
-  if (el('sim-kpi-roy-now'))  el('sim-kpi-roy-now').textContent  = simFmtK(royCapital);
+  var _showRoy  = (SIM_VIEW !== 'yael');
+  // Capital KPIs
+  if (el('sim-kpi-roy-now'))  el('sim-kpi-roy-now').textContent  = _showRoy ? simFmtK(royCapital) : '—';
   if (el('sim-kpi-yael-now')) el('sim-kpi-yael-now').textContent = _showYael ? simFmtK(yaelCapital) : '—';
-  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent = _showYael ? simFmtK(royCapital + yaelCapital) : simFmtK(royCapital);
-  if (el('sim-kpi-salary'))   el('sim-kpi-salary').textContent   = simFmtNIS(salary);
-  if (el('sim-kpi-exp'))      el('sim-kpi-exp').textContent      = simFmtNIS(expenses);
+  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent =
+    (SIM_VIEW === 'roy') ? simFmtK(royCapital) :
+    (SIM_VIEW === 'yael') ? simFmtK(yaelCapital) :
+    simFmtK(royCapital + yaelCapital);
+  // Operational KPIs — Roy-specific: hide in Yael view
+  if (el('sim-kpi-salary'))   el('sim-kpi-salary').textContent   = _showRoy ? simFmtNIS(salary)   : '—';
+  if (el('sim-kpi-exp'))      el('sim-kpi-exp').textContent      = _showRoy ? simFmtNIS(expenses)  : '—';
   var deltaEl = el('sim-kpi-delta');
   if (deltaEl) {
-    deltaEl.textContent = simFmtNIS(delta);
-    deltaEl.style.color = delta >= 0 ? '#16a34a' : '#dc2626';
+    if (_showRoy) {
+      deltaEl.textContent = simFmtNIS(delta);
+      deltaEl.style.color = delta >= 0 ? '#16a34a' : '#dc2626';
+    } else {
+      deltaEl.textContent = '—';
+      deltaEl.style.color = '';
+    }
   }
   // v103.4: pension KPI includes Harel if mode='with'
   var totalPension = pension + (SIM_HAREL_MODE === 'with' ? simGetRoyHarelPension() : 0);
-  if (el('sim-kpi-pension'))    el('sim-kpi-pension').textContent    = totalPension > 0 ? simFmtNIS(totalPension) : '—';
-  // v103.1: always display, shows 0K before upload (no ghost data)
-  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = penAccumK > 0 ? simFmtK(penAccumK) : '—';
+  if (el('sim-kpi-pension'))   el('sim-kpi-pension').textContent  = (_showRoy && totalPension > 0) ? simFmtNIS(totalPension) : '—';
+  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = (_showRoy && penAccumK > 0)   ? simFmtK(penAccumK)      : '—';
 
-  // Header stats — v103.4: filter isolation
-  if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = simFmtK(royCapital);
+  // Header stats — v103.10: full view isolation
+  if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = _showRoy ? simFmtK(royCapital) : '—';
   if (el('sim-hdr-yael'))     el('sim-hdr-yael').textContent     = _showYael ? simFmtK(yaelCapital) : '—';
-  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent = _showYael ? simFmtK(royCapital + yaelCapital) : simFmtK(royCapital);
+  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent =
+    (SIM_VIEW === 'roy') ? simFmtK(royCapital) :
+    (SIM_VIEW === 'yael') ? simFmtK(yaelCapital) :
+    simFmtK(royCapital + yaelCapital);
   var hdrDelta = el('sim-hdr-delta');
   if (hdrDelta) {
-    hdrDelta.textContent = simFmtNIS(delta);
-    hdrDelta.style.color = delta >= 0 ? '#4ade80' : '#f87171';
+    if (_showRoy) {
+      hdrDelta.textContent = simFmtNIS(delta);
+      hdrDelta.style.color = delta >= 0 ? '#4ade80' : '#f87171';
+    } else {
+      hdrDelta.textContent = '—';
+      hdrDelta.style.color = '';
+    }
   }
 }
 
@@ -7184,7 +7256,7 @@ function simSetView(v) {
     var btn = document.getElementById('sim-btn-' + n);
     if (btn) btn.classList.toggle('active', n === v);
   });
-  simRenderKPI(); // v103.8: update KPI cards (zero out Yael when roy-only)
+  simRenderKPI(); // v103.9-FIXED: update KPI cards (zero out Yael when roy-only)
   simRenderChart(simRunEngine());
 }
 
@@ -7192,6 +7264,32 @@ function simSetRate(r) {
   SIM_RATE = parseFloat(r);
   var el = document.getElementById('sim-rate-val');
   if (el) el.textContent = SIM_RATE + '%';
+  simRenderChart(simRunEngine());
+}
+
+// v103.10: Phase boundary sliders — user can adjust when each phase starts
+function simSetP2Year(y) {
+  var yr = parseInt(y);
+  if (isNaN(yr)) return;
+  SIM_P2_START.y = Math.max(SIM_P1_START.y, Math.min(yr, SIM_P3_START.y - 1));
+  var sl = document.getElementById('sim-p2-slider');
+  var inp = document.getElementById('sim-p2-year-input');
+  if (sl) sl.value = SIM_P2_START.y;
+  if (inp) inp.value = SIM_P2_START.y;
+  var lbl = document.getElementById('sim-p2-label');
+  if (lbl) lbl.textContent = SIM_P2_START.y;
+  simRenderChart(simRunEngine());
+}
+function simSetP3Year(y) {
+  var yr = parseInt(y);
+  if (isNaN(yr)) return;
+  SIM_P3_START.y = Math.max(SIM_P2_START.y + 1, Math.min(yr, SIM_END.y - 1));
+  var sl = document.getElementById('sim-p3-slider');
+  var inp = document.getElementById('sim-p3-year-input');
+  if (sl) sl.value = SIM_P3_START.y;
+  if (inp) inp.value = SIM_P3_START.y;
+  var lbl = document.getElementById('sim-p3-label');
+  if (lbl) lbl.textContent = SIM_P3_START.y;
   simRenderChart(simRunEngine());
 }
 
@@ -7213,24 +7311,30 @@ function simSetInstructor(s) {
 function simCheckEmpty() {
   var hasData = (simGetRoyCapital() > 0 || simGetYaelCapital() > 0 ||
                  simGetRoyPensionAccum() > 0 || (CF_DATA && CF_DATA.length > 0));
-  var kpiRow   = document.getElementById('sim-kpi-row');
-  var chartSec = document.getElementById('sim-chart-wrap') ? document.getElementById('sim-chart-wrap').parentElement : null;
-  var phaseLeg = document.querySelector('.sim-phase-legend');
-  var emptyMsg = document.getElementById('sim-empty-msg');
-  var ctrlRow  = document.querySelector('.sim-controls-row');
+  var kpiRow      = document.getElementById('sim-kpi-row');
+  var kpiInfoGrd  = document.getElementById('sim-kpi-info-grid');
+  var kpiLbl      = document.getElementById('sim-kpi-section-label');
+  var chartSec    = document.getElementById('sim-chart-wrap') ? document.getElementById('sim-chart-wrap').parentElement : null;
+  var phaseSl     = document.getElementById('sim-phase-sliders'); // v103.10: phase boundary sliders
+  var emptyMsg    = document.getElementById('sim-empty-msg');
+  var ctrlRow     = document.querySelector('.sim-controls-row');
 
   if (hasData) {
-    if (kpiRow)   kpiRow.style.display   = '';
-    if (chartSec) chartSec.style.display = '';
-    if (phaseLeg) phaseLeg.style.display = '';
-    if (ctrlRow)  ctrlRow.style.display  = '';
-    if (emptyMsg) emptyMsg.style.display = 'none';
+    if (kpiRow)     kpiRow.style.display     = 'flex';
+    if (kpiInfoGrd) kpiInfoGrd.style.display = 'grid';
+    if (kpiLbl)     kpiLbl.style.display     = 'block';
+    if (chartSec)   chartSec.style.display   = '';
+    if (phaseSl)    phaseSl.style.display    = 'flex';
+    if (ctrlRow)    ctrlRow.style.display    = '';
+    if (emptyMsg)   emptyMsg.style.display   = 'none';
   } else {
-    if (kpiRow)   kpiRow.style.display   = 'none';
-    if (chartSec) chartSec.style.display = 'none';
-    if (phaseLeg) phaseLeg.style.display = 'none';
-    if (ctrlRow)  ctrlRow.style.display  = 'none';
-    if (emptyMsg) emptyMsg.style.display = 'flex';
+    if (kpiRow)     kpiRow.style.display     = 'none';
+    if (kpiInfoGrd) kpiInfoGrd.style.display = 'none';
+    if (kpiLbl)     kpiLbl.style.display     = 'none';
+    if (chartSec)   chartSec.style.display   = 'none';
+    if (phaseSl)    phaseSl.style.display    = 'none';
+    if (ctrlRow)    ctrlRow.style.display    = 'none';
+    if (emptyMsg)   emptyMsg.style.display   = 'flex';
   }
   return hasData;
 }
