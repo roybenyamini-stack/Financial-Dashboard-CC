@@ -1,4 +1,4 @@
-<!-- v103.10-Investments-v2 -->
+<!-- v103.43 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -34,10 +34,10 @@
   <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
 </div>
 <div class="header">
-  <!-- Title + CF stats are a single group — always adjacent at right in RTL flex -->
+  <!-- Title + CF stats: adjacent RTL group — do NOT add other tab stats here -->
   <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;">v103.10-Investments-v2</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v103.43</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;">
@@ -91,32 +91,34 @@
     <div id="pns-snap-stats" style="display:contents;"></div>
     <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
   </div>
-  <div id="sim-header-stats" class="header-stats" style="display:none;">
-    <div class="stat-item">
-      <div class="stat-label">הון רועי</div>
-      <div class="stat-value" id="sim-hdr-roy" style="color:#93c5fd;">—</div>
-      <div class="stat-change">אלפי ₪</div>
+  <!-- v103.43: 4-metric simulator header KPIs — הון השקעות פעיל in M; others bare K + sub-label -->
+  <div id="sim-header-stats" class="header-stats" style="display:none;direction:rtl;gap:24px;padding:0 20px;">
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">הון השקעות פעיל</div>
+      <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
+      <!-- v103.37: sub-label מיליון ש״ח to align with other KPIs -->
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ש״ח</div>
     </div>
     <div class="divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">הון יעל</div>
-      <div class="stat-value" id="sim-hdr-yael" style="color:#f9a8d4;">—</div>
-      <div class="stat-change">אלפי ₪</div>
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">הכנסה פנויה</div>
+      <div class="stat-value" id="sim-hdr-monthly-income" style="color:#60a5fa;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
     <div class="divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">הון משותף</div>
-      <div class="stat-value green" id="sim-hdr-combined">—</div>
-      <div class="stat-change">אלפי ₪</div>
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">תזרים נטו</div>
+      <div class="stat-value" id="sim-hdr-monthly-accum" style="color:#fbbf24;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
     <div class="divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">דלתא חודשי</div>
-      <div class="stat-value" id="sim-hdr-delta">—</div>
-      <div class="stat-change">₪ / חודש</div>
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">צבירה כוללת</div>
+      <div class="stat-value" id="sim-hdr-total-accum" style="color:#a78bfa;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
   </div>
-  <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+  <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; margin-right:auto;">
     <div style="display:flex; align-items:center; gap:8px;">
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
       <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
@@ -168,6 +170,13 @@
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
         <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
         <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
+      </div>
+      <!-- v103.36: Target Age control — prominent in header near sim title -->
+      <div class="sim-only-btn" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 12px;height:34px;flex-shrink:0;direction:rtl;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;">גיל יעד:</span>
+        <input type="number" id="sim-target-age-input" min="60" max="100" value="67"
+          oninput="simSetTargetAge(this.value)"
+          style="width:42px;padding:3px 5px;border-radius:5px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:12px;font-family:Heebo,sans-serif;color:white;outline:none;text-align:center;-webkit-appearance:textfield;-moz-appearance:textfield;appearance:textfield;font-weight:700;">
       </div>
       <span class="sim-only-btn" onclick="toggleChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI">💬</span>
     </div>
@@ -1053,112 +1062,154 @@
       <div style="font-size:15px;color:#64748b;font-weight:600;max-width:420px;line-height:1.6;">אין נתונים להצגה.<br>אנא העלה את קבצי הנתונים כדי להתחיל בסימולציה.</div>
     </div>
 
-    <!-- ── KPI Cards ── -->
-    <div id="sim-kpi-section-label" style="display:none;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">נתוני בסיס לסימולציה:</div>
-    <div class="sim-kpi-row" id="sim-kpi-row" style="display:none;">
+    <!-- ── Wealth KPI Cards (v103.14-sim-ui: 3 cards — הון נוכחי) ── -->
+    <div id="sim-kpi-section-label" style="display:none;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">הון נוכחי</div>
+    <div class="sim-kpi-row" id="sim-kpi-row" style="display:none;grid-template-columns:repeat(4,1fr);">
       <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון רועי (כיום)</div>
-        <div class="sim-kpi-val blue" id="sim-kpi-roy-now">—</div>
-        <div class="sim-kpi-sub">אלפי ₪</div>
+        <div class="sim-kpi-label">הון השקעות פעיל</div>
+        <div class="sim-kpi-val blue" id="sim-kpi-inv-now">—</div>
+        <div class="sim-kpi-sub" id="sim-kpi-inv-sub">מיליון ש״ח</div>
       </div>
       <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון יעל (כיום)</div>
-        <div class="sim-kpi-val pink" id="sim-kpi-yael-now">—</div>
-        <div class="sim-kpi-sub">אלפי ₪</div>
+        <div class="sim-kpi-label">הון פנסיוני</div>
+        <div class="sim-kpi-val" style="color:#34d399;" id="sim-kpi-pen-now">—</div>
+        <div class="sim-kpi-sub">מיליון ש״ח</div>
+      </div>
+      <!-- v103.43: נדל״ן KPI card — terracotta color, wired to simGetRoyRealEstate() -->
+      <div class="sim-kpi-card">
+        <div class="sim-kpi-label" style="color:#c2956c;">נדל״ן</div>
+        <div class="sim-kpi-val" style="color:#c2956c;" id="sim-kpi-re-now">—</div>
+        <div class="sim-kpi-sub">מיליון ש״ח</div>
       </div>
       <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון משותף</div>
-        <div class="sim-kpi-val" id="sim-kpi-combined">—</div>
-        <div class="sim-kpi-sub">אלפי ₪</div>
-      </div>
-      <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון ביטוחי (כיום)</div>
-        <div class="sim-kpi-val blue" id="sim-kpi-pen-accum">—</div>
-        <div class="sim-kpi-sub">אלפי ₪</div>
-      </div>
-    </div>
-    <!-- v103.10: 4 bottom info cards — strictly horizontal 4-column grid -->
-    <div id="sim-kpi-info-grid" style="display:none;grid-template-columns:repeat(4,1fr);gap:16px;width:100%;margin-bottom:10px;">
-      <div class="sim-kpi-card">
-        <div class="sim-kpi-label">משכורת נוכחית</div>
-        <div class="sim-kpi-val green" id="sim-kpi-salary">—</div>
-        <div class="sim-kpi-sub">₪ / חודש</div>
-      </div>
-      <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הוצאה נוכחית</div>
-        <div class="sim-kpi-val red" id="sim-kpi-exp">—</div>
-        <div class="sim-kpi-sub">₪ / חודש</div>
-      </div>
-      <div class="sim-kpi-card">
-        <div class="sim-kpi-label">דלתא חודשי</div>
-        <div class="sim-kpi-val" id="sim-kpi-delta">—</div>
-        <div class="sim-kpi-sub">₪ / חודש</div>
-      </div>
-      <div class="sim-kpi-card">
-        <div class="sim-kpi-label">קצבת רועי (פנסיה)</div>
-        <div class="sim-kpi-val" id="sim-kpi-pension">—</div>
-        <div class="sim-kpi-sub">₪ / חודש</div>
+        <div class="sim-kpi-label">סה״כ הון</div>
+        <div class="sim-kpi-val green" id="sim-kpi-total-now">—</div>
+        <div class="sim-kpi-sub">מיליון ש״ח</div>
       </div>
     </div>
 
-    <!-- ── Control Panel v103.10: sliders only — toggles moved to header ── -->
-    <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:column;gap:8px;align-items:stretch;">
-      <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:6px;">בחר תרחיש סימולציה:</div>
-      <div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:10px 18px;align-items:flex-start;">
-      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
-        <div class="sim-ctrl-label">ריבית: <span id="sim-rate-val" class="sim-ctrl-val">4%</span></div>
-        <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
-        <div class="sim-slider-bounds"><span>1%</span><span>10%</span></div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
-        <div class="sim-ctrl-label">הוצאה חודשית: <span id="sim-exp-val" class="sim-ctrl-val">—</span></div>
-        <input type="range" id="sim-exp-slider" class="sim-slider" min="20000" max="130000" step="1000" value="58000" oninput="simSetExpense(this.value)">
-        <div class="sim-slider-bounds"><span>20K ₪</span><span>130K ₪</span></div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
-        <div class="sim-ctrl-label">משכורת מדריך: <span id="sim-instr-val" class="sim-ctrl-val">20,000 ₪</span></div>
-        <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
-        <div class="sim-slider-bounds"><span>5K ₪</span><span>60K ₪</span></div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:150px;">
-        <div class="sim-ctrl-label">תשואת פרישה: <span id="pns-ret-yield-val" class="sim-ctrl-val">3.0%</span></div>
-        <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3"
-          oninput="pnsRetirementYieldChange(this.value)">
-        <div class="sim-slider-bounds"><span>0%</span><span>6%</span></div>
-        <div id="pns-ret-yield-result" style="margin-top:4px;"></div>
-      </div>
-      </div><!-- /sliders row -->
-    </div><!-- /sim-controls-panel -->
-
-    <!-- ── Phase Sliders (v103.10) ── -->
-    <div id="sim-phase-sliders" style="display:none;flex-direction:row;flex-wrap:wrap;gap:10px 24px;background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-      <div style="width:100%;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:4px;">גבולות שלבים — גרור לעדכון הגרף:</div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:200px;">
-        <div class="sim-ctrl-label">שלב 2 — משכורת מדריך מ: <span id="sim-p2-label">2027</span>
-          <input type="number" id="sim-p2-year-input" min="2026" max="2040" value="2027" oninput="simSetP2Year(this.value)"
-            style="width:60px;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:white;padding:2px 6px;font-size:13px;font-family:Heebo,sans-serif;margin-right:6px;"></div>
-        <input type="range" id="sim-p2-slider" class="sim-slider" min="2026" max="2040" step="1" value="2027" oninput="simSetP2Year(this.value)">
-        <div class="sim-slider-bounds"><span>2026</span><span>2040</span></div>
-      </div>
-      <div class="sim-ctrl-group" style="flex:1;min-width:200px;">
-        <div class="sim-ctrl-label">שלב 3 — פנסיה מ: <span id="sim-p3-label">2029</span>
-          <input type="number" id="sim-p3-year-input" min="2027" max="2060" value="2029" oninput="simSetP3Year(this.value)"
-            style="width:60px;background:#0f0f23;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:white;padding:2px 6px;font-size:13px;font-family:Heebo,sans-serif;margin-right:6px;"></div>
-        <input type="range" id="sim-p3-slider" class="sim-slider" min="2027" max="2060" step="1" value="2029" oninput="simSetP3Year(this.value)">
-        <div class="sim-slider-bounds"><span>2027</span><span>2060</span></div>
-      </div>
-    </div>
-
-    <!-- ── Mountain Chart ── -->
+    <!-- ── Mountain Chart (v103.31: X-axis toggle + Scale selector + Target age) ── -->
     <div class="sim-chart-section" style="display:none;">
-      <div id="sim-chart-wrap" style="position:relative;height:340px;width:100%;overflow:hidden;"></div>
+      <div style="position:relative;">
+        <!-- Left overlay: X-axis mode toggles -->
+        <div style="position:absolute;top:6px;left:8px;z-index:5;display:flex;align-items:center;gap:4px;">
+          <button id="sim-xaxis-year" onclick="simSetXAxisMode('year')" style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שנה</button>
+          <button id="sim-xaxis-age" onclick="simSetXAxisMode('age')" style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">גיל</button>
+          <button id="sim-xaxis-both" onclick="simSetXAxisMode('both')" style="padding:2px 9px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שניהם</button>
+        </div>
+        <!-- Right overlay: Scale selector + Zoom (v103.40) -->
+        <div style="position:absolute;top:4px;right:8px;z-index:5;display:flex;align-items:center;gap:6px;direction:rtl;">
+          <span style="font-size:9px;color:#6b7280;font-family:Heebo,sans-serif;">סקאלה:</span>
+          <select id="sim-yscale-select" onchange="simSetYScale(this.value)"
+            style="padding:2px 6px;border-radius:6px;border:1px solid rgba(0,0,0,0.18);background:rgba(255,255,255,0.92);font-size:9px;font-family:Heebo,sans-serif;color:#374151;cursor:pointer;outline:none;">
+            <option value="40000">40M</option>
+            <option value="60000" selected>60M</option>
+            <option value="80000">80M</option>
+            <option value="100000">100M</option>
+            <option value="120000">120M</option>
+          </select>
+          <span style="font-size:9px;color:rgba(107,114,128,0.5);margin:0 1px;">|</span>
+          <span style="font-size:9px;color:#6b7280;font-family:Heebo,sans-serif;">זום:</span>
+          <button id="sim-zoom-full"       onclick="simSetZoom('full')"       style="padding:2px 7px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
+          <button id="sim-zoom-retirement" onclick="simSetZoom('retirement')" style="padding:2px 7px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">פרישה</button>
+          <button id="sim-zoom-decade"     onclick="simSetZoom('decade')"     style="padding:2px 7px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">טווח</button>
+          <button onclick="simToggleZoomSettings()" title="הגדרות טווח זום" style="padding:2px 5px;border-radius:20px;border:1px solid rgba(0,0,0,0.15);background:rgba(0,0,0,0.04);color:#6b7280;font-size:10px;cursor:pointer;font-family:Heebo,sans-serif;line-height:1;">⚙</button>
+        </div>
+        <!-- v103.43: Zoom settings popover -->
+        <!-- v103.43: Zoom settings — only custom decade range (retirement hardcoded 2029-2033) -->
+        <div id="sim-zoom-settings" style="display:none;position:absolute;top:28px;right:8px;background:white;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.12);z-index:50;direction:rtl;font-family:Heebo,sans-serif;font-size:11px;min-width:200px;">
+          <div style="font-weight:700;color:#374151;margin-bottom:8px;">⚙ טווח תצוגה מותאם</div>
+          <div style="display:grid;grid-template-columns:auto 62px;gap:4px 8px;align-items:center;color:#6b7280;">
+            <span>טווח — שנת התחלה:</span>
+            <input type="number" id="zoom-dec-start" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2029" oninput="simApplyZoomSettings()">
+            <span>טווח — שנת סיום:</span>
+            <input type="number" id="zoom-dec-end" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2039" oninput="simApplyZoomSettings()">
+          </div>
+          <div style="font-size:9px;color:#9ca3af;margin-top:4px;">כפתור "פרישה" מציג תמיד 2029–2033</div>
+          <div style="margin-top:8px;text-align:left;"><button onclick="document.getElementById('sim-zoom-settings').style.display='none'" style="padding:2px 10px;border-radius:4px;border:1px solid #d1d5db;background:#f9fafb;font-size:10px;cursor:pointer;font-family:Heebo,sans-serif;">סגור</button></div>
+        </div>
+        <div id="sim-chart-wrap" style="position:relative;height:340px;width:100%;overflow:hidden;"></div>
+      </div>
     </div>
 
-    <!-- ── Events Ledger ── -->
-    <div class="sim-events-section" id="sim-events-section">
-      <div class="sim-section-title">אירועים פיננסיים — מענקים ותשלומים חד-פעמיים</div>
-      <div id="sim-events-list"></div>
+    <!-- ── v103.38: Financial Events Timeline — directly below chart ── -->
+    <div id="sim-timeline-section" style="display:none;margin-top:2px;padding:8px 12px 4px;background:rgba(248,250,252,0.7);border-radius:0 0 8px 8px;border-top:1px solid rgba(0,0,0,0.06);">
+      <div style="display:flex;align-items:center;justify-content:space-between;direction:rtl;margin-bottom:6px;">
+        <div style="font-size:11px;color:#6b7280;font-weight:700;font-family:Heebo,sans-serif;letter-spacing:0.3px;">ציר אירועים פיננסיים</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button onclick="simClearAllUserEvents()" style="padding:2px 8px;border-radius:20px;border:1px solid rgba(100,116,139,0.35);background:rgba(100,116,139,0.08);color:#64748b;font-size:9px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">נקה אירועי סימולציה</button>
+          <button onclick="simShowAddEventModal()" style="padding:2px 10px;border-radius:20px;border:1.5px solid #6366f1;background:rgba(99,102,241,0.08);color:#4f46e5;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">+ הוסף אירוע</button>
+        </div>
+      </div>
+      <div id="sim-timeline"></div>
+      <div style="display:flex;gap:12px;margin-top:4px;direction:rtl;font-size:8px;color:#9ca3af;font-family:Heebo,sans-serif;flex-wrap:wrap;">
+        <span><span style="display:inline-block;width:8px;height:8px;background:#60a5fa;transform:rotate(45deg);margin-left:3px;"></span>השקעה</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#34d399;transform:rotate(45deg);margin-left:3px;"></span>הכנסה</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#f87171;transform:rotate(45deg);margin-left:3px;"></span>הוצאה</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#9ca3af;transform:rotate(45deg);margin-left:3px;"></span>תזכורת</span>
+      </div>
     </div>
+
+    <!-- ── v103.36: Sliders moved to bottom of page ── -->
+    <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:column;gap:6px;align-items:stretch;">
+      <div style="display:flex;align-items:center;justify-content:space-between;direction:rtl;margin-bottom:2px;">
+        <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;">תרחיש סימולציה:</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px 10px;align-items:start;direction:rtl;">
+        <!-- 1 (rightmost) — הכנסה כמדריך -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">הכנסה כמדריך</div>
+          <input type="number" id="sim-instr-num" class="sim-num-input" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+          <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+          <div class="sim-slider-bounds"><span>60K ₪</span><span>5K ₪</span></div>
+        </div>
+        <!-- 2 — הכנסה קבועה -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">הכנסה קבועה (פנסיה, שכ״ד וכו')</div>
+          <input type="number" id="sim-pension-monthly-num" class="sim-num-input" min="5000" max="80000" step="1000" value="35000" oninput="simSetPensionMonthly(this.value)">
+          <input type="range" id="sim-pension-monthly-slider" class="sim-slider" min="5000" max="80000" step="1000" value="35000" oninput="simSetPensionMonthly(this.value)">
+          <div class="sim-slider-bounds"><span>80K ₪</span><span>5K ₪</span></div>
+        </div>
+        <!-- 3 — הוצאה חודשית -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">הוצאה חודשית</div>
+          <input type="number" id="sim-exp-num" class="sim-num-input" min="10000" max="60000" step="1000" value="30000" oninput="simSetExpense(this.value)">
+          <input type="range" id="sim-exp-slider" class="sim-slider" min="10000" max="60000" step="1000" value="30000" oninput="simSetExpense(this.value)">
+          <div class="sim-slider-bounds"><span>60K ₪</span><span>10K ₪</span></div>
+        </div>
+        <!-- 4 — תשואת הון השקעות -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">תשואת הון השקעות</div>
+          <input type="number" id="sim-rate-num" class="sim-num-input" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
+          <input type="range" id="sim-rate-slider" class="sim-slider" min="1" max="10" step="0.5" value="4" oninput="simSetRate(this.value)">
+          <div class="sim-slider-bounds"><span>10%</span><span>1%</span></div>
+        </div>
+        <!-- 5 — תשואת הון פנסיוני -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">תשואת הון פנסיוני</div>
+          <input type="number" id="pns-ret-yield-num" class="sim-num-input" min="0" max="6" step="0.5" value="3" oninput="pnsRetirementYieldChange(this.value)">
+          <input type="range" id="pns-ret-yield-slider" class="sim-slider" min="0" max="6" step="0.5" value="3" oninput="pnsRetirementYieldChange(this.value)">
+          <div class="sim-slider-bounds"><span>6%</span><span>0%</span></div>
+        </div>
+        <!-- 6 — אינפלציה -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">אינפלציה</div>
+          <input type="number" id="sim-inflation-num" class="sim-num-input" min="0" max="6" step="0.5" value="2.5" oninput="simSetInflation(this.value)">
+          <input type="range" id="sim-inflation-slider" class="sim-slider" min="0" max="6" step="0.5" value="2.5" oninput="simSetInflation(this.value)">
+          <div class="sim-slider-bounds"><span>6%</span><span>0%</span></div>
+        </div>
+        <!-- 7 (leftmost) — עליית ערך נדל״ן -->
+        <div class="sim-ctrl-group">
+          <div class="sim-ctrl-label">עליית ערך נדל״ן שנתית (%)</div>
+          <input type="number" id="sim-re-growth-num" class="sim-num-input" min="0" max="8" step="0.5" value="2.5" oninput="simSetREGrowth(this.value)">
+          <input type="range" id="sim-re-growth-slider" class="sim-slider" min="0" max="8" step="0.5" value="2.5" oninput="simSetREGrowth(this.value)">
+          <div class="sim-slider-bounds"><span>8%</span><span>0%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- anchors for simCheckEmpty -->
+    <div id="sim-phase-sliders" style="display:none;"></div>
 
   </div>
 </div>
@@ -1190,6 +1241,100 @@
     <button onclick="sendPnsChat()" style="background:#4ade80;color:#0f0f23;border:none;border-radius:8px;padding:8px 12px;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;cursor:pointer;">שלח</button>
   </div>
 </div>
+
+<!-- ── v103.39: Add / Edit Event Modal ── -->
+<div id="sim-add-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.55);padding:26px 30px 22px;min-width:380px;max-width:94vw;direction:rtl;font-family:Heebo,sans-serif;border:1px solid rgba(255,255,255,0.1);">
+    <div id="sim-ev-modal-title" style="font-size:16px;font-weight:800;color:#f1f5f9;margin-bottom:18px;">הוספת אירוע סימולציה</div>
+
+    <!-- שם האירוע -->
+    <div style="margin-bottom:13px;">
+      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">שם האירוע</label>
+      <input id="sim-ev-label" type="text" placeholder="" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;direction:rtl;" />
+    </div>
+
+    <!-- תאריך -->
+    <div style="display:flex;gap:12px;margin-bottom:13px;">
+      <div style="flex:1;">
+        <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">שנה</label>
+        <input id="sim-ev-year" type="number" min="2026" max="2060" step="1" value="2030" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;text-align:center;" />
+      </div>
+      <div style="flex:1;">
+        <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">חודש (1–12)</label>
+        <input id="sim-ev-month" type="number" min="1" max="12" step="1" value="1" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;text-align:center;" />
+      </div>
+    </div>
+
+    <!-- סוג אירוע — 4 אפשרויות -->
+    <div style="margin-bottom:13px;">
+      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;">סוג אירוע</label>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-type-income" name="sim-ev-type" value="income" checked onchange="simToggleInvestmentFields()" style="accent-color:#34d399;width:14px;height:14px;" />הכנסה
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-type-expense" name="sim-ev-type" value="expense" onchange="simToggleInvestmentFields()" style="accent-color:#f87171;width:14px;height:14px;" />הוצאה
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-type-investment" name="sim-ev-type" value="investment" onchange="simToggleInvestmentFields()" style="accent-color:#60a5fa;width:14px;height:14px;" />השקעה מניבה
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-type-reminder" name="sim-ev-type" value="reminder" onchange="simToggleInvestmentFields()" style="accent-color:#9ca3af;width:14px;height:14px;" />תזכורת
+        </label>
+      </div>
+    </div>
+
+    <!-- סכום (מוסתר עבור תזכורת) -->
+    <div id="sim-ev-amount-row" style="margin-bottom:13px;">
+      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">סכום (אלפי ש״ח)</label>
+      <input id="sim-ev-amount" type="number" min="0" step="1" value="100" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;text-align:center;" />
+    </div>
+
+    <!-- שדות השקעה מניבה — מוצגים רק עבור "השקעה מניבה" -->
+    <div id="sim-ev-invest-fields" style="display:none;margin-bottom:14px;padding:12px;background:rgba(96,165,250,0.07);border-radius:8px;border:1px solid rgba(96,165,250,0.2);">
+      <div style="font-size:10px;color:#93c5fd;font-weight:700;margin-bottom:10px;letter-spacing:0.3px;">פרטי ההשקעה המניבה</div>
+      <!-- שורה 1: הכנסה חודשית + הוצאה חודשית -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label style="display:block;font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:4px;">הכנסה חודשית (₪)</label>
+          <input id="sim-ev-rent" type="number" min="0" step="500" value="0" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:12px;outline:none;text-align:center;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:4px;">הוצאה חודשית (₪)</label>
+          <input id="sim-ev-loan" type="number" min="0" step="500" value="0" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:12px;outline:none;text-align:center;" />
+        </div>
+      </div>
+      <!-- שורה 2: שנת סיום + חודש סיום + בלון -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div>
+          <label style="display:block;font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:4px;">שנת סיום החזר</label>
+          <input id="sim-ev-loan-end-year" type="number" min="2026" max="2060" step="1" value="2036" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:12px;outline:none;text-align:center;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:4px;">חודש סיום החזר</label>
+          <input id="sim-ev-loan-end-month" type="number" min="1" max="12" step="1" value="1" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:12px;outline:none;text-align:center;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:10px;color:#93c5fd;font-weight:700;margin-bottom:4px;">החזר קרן בסיום (בלון)</label>
+          <input id="sim-ev-balloon" type="number" min="0" step="10" value="0" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(96,165,250,0.3);border-radius:6px;padding:6px 8px;color:#93c5fd;font-family:Heebo,sans-serif;font-size:12px;outline:none;text-align:center;" />
+          <div style="font-size:9px;color:#475569;margin-top:3px;text-align:center;">אלפי ש״ח</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- כפתורים -->
+    <div style="display:flex;gap:8px;justify-content:flex-start;align-items:center;flex-wrap:wrap;">
+      <button id="sim-ev-btn-add"    onclick="simConfirmAddEvent()"   style="padding:8px 20px;border-radius:8px;border:none;background:#6366f1;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">הוסף</button>
+      <button id="sim-ev-btn-update" onclick="simConfirmAddEvent()"   style="display:none;padding:8px 20px;border-radius:8px;border:none;background:#6366f1;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">עדכן</button>
+      <button id="sim-ev-btn-delete" onclick="simDeleteEditedEvent()" style="display:none;padding:8px 20px;border-radius:8px;border:none;background:#ef4444;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">מחק</button>
+      <button onclick="simClearEventForm()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">נקה שדות</button>
+      <button onclick="simCloseEventModal()" style="padding:8px 18px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.18);background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── v103.39: custom timeline tooltip ── -->
+<div id="sim-tltp" style="display:none;position:fixed;background:#f8f9fa;color:#1e293b;font-family:Heebo,sans-serif;font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid rgba(0,0,0,0.12);z-index:20000;max-width:280px;pointer-events:none;direction:rtl;line-height:1.55;box-shadow:0 4px 12px rgba(0,0,0,0.15);white-space:pre-wrap;"></div>
 
 <script src="app.js"></script>
 </body></html>

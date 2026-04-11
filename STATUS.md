@@ -1,7 +1,144 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v102.2 — תיקוני באגים ושדרוגים לוגיים (06/04/2026).
+גרסה v103.43 — tooltip מצומצם, יהלום סיום הלוואה, ניקוי UX (11/04/2026).
+
+## שינויים אחרונים (11/04/2026)
+
+### v103.43 – Tooltip Zone, Loan-End Diamond, Modal Cleanup
+- **Tooltip גרף (Task 1)**: `onHover` מצומצם — טריגר רק 5px מעל עד 45px מתחת לשורת הסטאק העליונה. מחוץ לטווח → `chart.tooltip.setActiveElements([])`.
+- **כפתור "טווח"**: שונה מ"טווח עשור" → "טווח" (קצר יותר).
+- **פאנל הגדרות ⚙ (Task 2)**: הוסרו שורות "פרישה" (hardcoded 2029-2033) + הוסר סליידר נדל״ן; נשארו רק שדות "טווח — התחלה/סיום" עם הערה.
+- **ניקוי מודאל (Task 3)**: `_simResetEventForm()` מנקה כל שדות — year/month/amount/loan שדות ריקים (לא "2026" ולא "1").
+- **Tooltip ציר אירועים (Task 4)**: שורה 1 = שם האירוע; שורה 2 = "תזרים חודשי: ±X₪" (נטו = שכ״ד פחות הלוואה). שאר הפרטים הוסרו. `simShowTltp` שוּנה ל-`innerHTML` + `&#10;→<br>`.
+- **יהלום סיום הלוואה (Task 5)**: לולאת `SIM_USER_EVENTS` חדשה בסוף `simRenderTimeline()` — יוצרת יהלום אפור (`#9ca3af`) בתאריך `loanEndYear/Month` לכל השקעה עם `loanMonthly>0`. Tooltip: "סיום החזר הלוואה: [שם]".
+- **KPI נדל״ן (Task 6)**: אומת — כרטיס 4, צבע `#c2956c`, `sim-kpi-re-now`, `grid repeat(4,1fr)`.
+- שינויים: `index.html` (גרסה + כפתור + settings modal), `app.js` (onHover + _simResetEventForm + simRenderTimeline tooltip + loan-end diamonds + simShowTltp)
+
+### v103.42 – RE KPI Card, Smart Tooltip, Precision Zoom
+- **כרטיס KPI נדל״ן**: נוסף כרטיס 4 ב-sim-kpi-row (grid 4 עמודות), בצבע טרקוטה `#c2956c`. מחובר ל-`simGetRoyRealEstate()` דרך `simRenderKPI()` → ID: `sim-kpi-re-now`. מוצג בתצוגות רועי/שניהם, '—' בתצוגת יעל.
+- **Tooltip חכם (Task 2)**: `onHover` ב-Chart.js בודק אם cursor נמצא בתוך ±55px מהשורה העליונה של הסטאק. מחוץ לטווח → `chart.tooltip.setActiveElements([])` → Tooltip נעלם. רקע `#f8f9fa`, אנכור לנקודה הגבוהה.
+- **זום פרישה**: 2029–2033 (5 שנים מדויקות); `SIM_ZOOM_CUSTOM` ברירות מחדל עודכנו.
+- **טווח עשור**: כפתור שונה מ"עשור" ל"טווח עשור"; טווח ברירת מחדל 2029–2039.
+- **הגדרות זום — סליידר נדל״ן**: נוסף סליידר "עליית ערך נדל״ן שנתית" לתוך פאנל הגדרות ⚙; מחובר ל-`simSetREGrowth()`.
+- **צבע תווית סליידר נדל״ן**: הוסר צבע טרקוטה מהתווית — ירש כחול/סגול כמו שאר הסליידרים.
+- שינויים: `index.html` (גרסה + sim-kpi-row → 4 cards + zoom btn rename + slider label + settings popover), `app.js` (SIM_ZOOM_CUSTOM + simGetZoomRange + simApplyZoomSettings + simRenderKPI + onHover tooltip)
+
+### v103.41 – Real Estate Layer, Zoom Refinement, Tooltip Polish
+- **שכבת נדל״ן (BOTTOM)**: `royRealEstateData[]` נוסף ל-engine — גדל חודשי לפי `SIM_RE_GROWTH_RATE`. שכבה חומה-טרקוטה (`#a0522d`) בתחתית ה-Stacked Area (לפני השקעות, פנסיוני, ירושה). גם בתצוגת Combined (5 שכבות).
+- **השקעה מניבה → הוסף לנדל״ן**: `reEventsByMonth` — כשמוסיפים "השקעה מניבה", סכום נוכה מנזיל ומתווסף לנדל״ן, ה"סה״כ הון" יציב.
+- **סליידר עליית ערך נדל״ן שנתית**: `SIM_RE_GROWTH_RATE` (ברירת מחדל 2.5%), סליידר 0–8%, `simSetREGrowth()`.
+- **זום פרישה**: חלון 5 שנים מדויק — גיל 65 עד 70 (שנה לפני + 4 שנים אחרי גיל 66).
+- **זום עשור**: בדיוק 2026–2036.
+- **כפתור הגדרות זום** (⚙): `simToggleZoomSettings()` / `simApplyZoomSettings()` — popover לקביעת טווחים מותאמים.
+- **Tooltip ציר אירועים**: רקע בהיר (`#f8f9fa`), טקסט כהה, הורם 15px.
+- **כותרת header KPI**: "הון חזוי" → "הון השקעות פעיל".
+- **simGetYaelRealEstate()**: פונקציה חדשה לנדל״ן יעל (dira, owner=yael).
+- שינויים: `index.html` (גרסה + tooltip + סליידר RE + grid 7 עמודות + zoom settings + כותרת header), `app.js` (SIM_RE_GROWTH_RATE + SIM_ZOOM_CUSTOM + simGetZoomRange + simSetZoom + simToggleZoomSettings + simApplyZoomSettings + simSetREGrowth + simGetYaelRealEstate + simRunEngine + simSliceResult + simRenderChart + simShowTltp)
+
+### v103.40 – Zoom, Balloon Loan, Dynamic Modal, Chart Events
+- **KPI Label**: "הון השקעות פעיל" (שונה מ"פיננסי פעיל")
+- **כפתור נקה**: עיצוב secondary אפור-שקוף (לא אדום)
+- **זום גרף** (3 מצבים): `SIM_ZOOM` + `simGetZoomRange()` + `simSetZoom()` + `simSliceResult()`. כפתורים: "הכל" / "פרישה" (עד גיל 77) / "עשור" (10 שנים). Timeline גם מסתגל לזום.
+- **כותרת מודאל דינמית**: `simToggleInvestmentFields()` מעדכן כותרת לפי סוג = "הוספת הכנסה/הוצאה/השקעה/תזכורת" (רק במצב הוספה)
+- **שנת ברירת מחדל**: 2026 (לא 2030). סכום ברירת מחדל: 0.
+- **הלוואה — שדות חדשים**: "שנת סיום החזר" + "חודש סיום החזר" (במקום "תקופת הלוואה"). נוסף שדה "החזר קרן בסיום (בלון)" — סכום מנוכה מהנזיל בתאריך הסיום.
+- **מנוע בלון**: `eventsByMonth[loanEnd] -= balloonAmount` בתאריך סיום ההלוואה.
+- **Chart Tooltip + אירועים**: ה-footer callback מחזיר מערך שורות — שורה ראשונה: "סה״כ: X.XM", ואחריה שורות ◆ לכל אירוע בשנה זו. מסנן אירועים לפני 2026.
+- **filter timeline**: יהלומים <2026 לא מוצגים (strict filter).
+- שינויים: `index.html` (גרסה + KPI + כפתור + zoom buttons + modal fields), `app.js` (SIM_ZOOM + simGetZoomRange/simSetZoom/simSliceResult + simRunEngine + simRenderChart + simRenderTimeline + simToggleInvestmentFields + _simResetEventForm + simShowAddEventModal + simConfirmAddEvent + simCollectEvents)
+
+### v103.39 – Event Modal Polish + Timeline UX
+- **שם KPI**: "הון פיננסי נזיל" → "הון פיננסי פעיל"
+- **מודאל — כותרות**: מצב הוספה = "הוספת אירוע סימולציה"; מצב עריכה = "עריכת אירוע"
+- **מודאל — ניקוי**: כפתור "נקה שדות" → `simClearEventForm()`. הוסר כל טקסט placeholder.
+- **מודאל — כפתורי עריכה**: "הוסף" / "עדכן" + "מחק" מוצגים לפי מצב. כפתורי שמירה ומחיקה ב-v103.38 ממוקמים בשורה אחת.
+- **כפתור global**: "נקה הכל" → "נקה אירועי סימולציה"
+- **Proximity Zoom**: בציר האירועים — אם 3+ אירועים בחלון 5-שנים, תיקים שנתיים (לא כל 5) לאותו טווח
+- **Custom Tooltip**: `simShowTltp` / `simHideTltp` — tooltip צף עם `#sim-tltp`; מציג תאריך, שם, סכום (M/k), שכ״ד, הלוואה
+- **"M" בtooltip**: סכומים ≥1000K מוצגים כ-X.XM; אחרים כ-Xk
+- שינויים: `index.html` (גרסה + KPI label + כפתורים + modal + tooltip div), `app.js` (simShowAddEventModal titles + simClearEventForm + simShowTltp/simHideTltp + simRenderTimeline proximity zoom + tooltip formatting)
+
+### v103.38 – Smart Wealth + Advanced Events + Interactive Timeline
+- **הפרדת הון (CRITICAL)**: נוסף `simGetRoyRealEstate()` — סכום קרנות `dira`. `royLiquid` מתחיל מ-`simGetRoyCapital()` (ללא דירה). הדירה נשמרת כ-`royRealEstate` (קבוע, לא מורבה בתשואה). ה-`royData` בגרף כולל liquid + pension + real estate. ה-KPI "הון פיננסי נזיל" מציג רק הנזיל; "סה״כ הון" כולל נדל"ן.
+- **מנוע: אירועים בכל שלב**: `eventsByMonth` + `monthlyFlowExtra` מיושמים בכל ה-phases (לא רק phase 3). אירועי SIM_USER_EVENTS מוכנסים ל-eventsByMonth (חד-פעמיים) ו-monthlyFlowExtra (שוטפים).
+- **מודאל מתקדם**: 4 סוגי אירוע — הכנסה / הוצאה / השקעה מניבה / תזכורת. לסוג "השקעה מניבה" — שדות נסתרים: הכנסה חודשית (₪), הוצאה חודשית (₪), תקופת הלוואה (שנים). מצב עריכה: כפתורי "עדכן" + "מחק" מוצגים, "הוסף" מוסתר.
+- **ציר אינטרקטיבי**: לחיצה על יהלום של אירוע משתמש פותחת מודאל ממולא-מראש לעריכה. קווים אנכיים (phase markers) הוסרו. legend מפושט ל-4 סוגים.
+- **כפתור "נקה הכל"**: `simClearAllUserEvents()` — מאפס את כל SIM_USER_EVENTS ומרנדר מחדש.
+- שינויים: `index.html` (גרסה + KPI label + timeline section + modal HTML), `app.js` (simGetRoyRealEstate + simRunEngine + simRenderKPI + simCollectEvents + simRenderTimeline + modal functions + simClearAllUserEvents)
+
+### v103.37 – Timeline Pixel-Sync + Add Event Modal + Header Format
+- **פורמט מספרים**: כל KPI הון (השקעות, פנסיוני, סה״כ) עברו ל-`simFmtM()` → מציג מיליון ש״ח (e.g. 15.6) במקום K. Sub-label שונה מ"אלפי ₪" ל"מיליון ש״ח".
+- **"הון חזוי" sub-label**: ה-spacer הריק הוחלף ב-sub-label "מיליון ש״ח" בצבע אפור — יישור מלא בין כל 4 ה-KPI בכותרת.
+- **סנכרון ציר אירועים**: `simRenderTimeline()` נכתב מחדש — קורא ל-`simChartObj.chartArea.left/right` לאחר רינדור ומחשב מיקום פיקסל מדויק עבור כל שנה. `simRenderChart` מפעיל `setTimeout(simRenderTimeline, 0)` לאחר ציור.
+- **מסיר ציר אירועים ישן** (`simAddEventPrompt` הוסר); **מוסיף 3 פונקציות מודאל**: `simShowAddEventModal()`, `simCloseEventModal()`, `simConfirmAddEvent()`.
+- **מודאל הוסף אירוע** (`#sim-add-event-modal`): overlay כהה, כרטיס RTL עם שדות שם/שנה/חודש/toggle הכנסה-הוצאה/סכום. כפתורים "הוסף" / "ביטול". אירוע נוסף ל-`SIM_USER_EVENTS` → גרף ו-timeline מתעדכנים מיידית.
+- **הסרת "Events Ledger"**: סעיף `sim-events-section` הוסר מ-index.html — אין עוד כפילות עם ה-timeline.
+- שינויים: `index.html` (גרסה + KPI sub-labels + timeline button + modal HTML), `app.js` (simFmtM + simRenderKPI + simRenderChart + simRenderTimeline + modal functions + simRemoveUserEvent)
+
+### v103.36 – Data Sync + UI Restructure + Events Timeline
+- **הון השקעות (CRITICAL)**: מחובר כעת ל-`ALL_TOTALS[last]` — מציג ~15.6M (סכום אמיתי מטאב השקעות) במקום 14.4M (שהחסיר דירה). גם `royLiquid` ב-`simRunEngine` מתחיל מ-ALL_TOTALS → נקודת פתיחה ~21.9M.
+- **כותרת משנה — גיל זהב**: המספר `${targetAge}` בכותרת "תחזית לגיל" מוצג בצבע זהב/ענבר (`#f59e0b`). ניקוי כותרת סימולטור מכל שאר הטאבים (switchTab).
+- **KPI min-height**: כל 4 KPI sub-labels בכותרת קיבלו `min-height:18px` → המספרים יושרו על אותה שורה אופקית.
+- **X-axis ברירת מחדל = "שניהם"**: `SIM_XAXIS_MODE = 'both'`; תצוגה דו-שורתית ['גיל X', 'YYYY'] דרך `ticks.callback` ב-Chart.js (ללא שינוי labels פנימיים).
+- **ציר אירועים פיננסיים**: `simRenderTimeline()` + `SIM_USER_EVENTS` → section ישירות מתחת לגרף; יהלומים (diamonds) לפי NOTES + PENSION_EVENTS; כפתור "+ הוסף אירוע" (volatile); legend צבעים.
+- **פריסה**: סליידרים הועברו לתחתית העמוד; ציר אירועים מוצג בין הגרף לרשימת האירועים.
+- שינויים: `index.html` (גרסה + KPI HTML + layout + timeline HTML), `app.js` (SIM_XAXIS_MODE + simRunEngine + simRenderKPI + simRenderChart + simRenderTimeline + simAddEventPrompt + simRemoveUserEvent + switchTab)
+
+## שינויים אחרונים (10/04/2026)
+
+### v103.33 – Critical InvestTab Fix, KPI Polish, Target Age 67
+- **הפקדות/העברות — תיקון שורש (CRITICAL)**:
+  (1) `parseFloat(kv)` מחליף `typeof kv === 'number'` — טיפול בערכים כמחרוזת (למשל "83" מאקסל)
+  (2) הוסרה הגבלת החלון (13 חודשים) — מסכם כעת את **כל** ה-Column K החיוביים בכל הזמן
+  כך גם ה-83k ממיטב וגם פניקס 414 + הראל 286 נכנסים לחישוב
+- **KPI הון חזוי**: חזר לפורמט M (e.g. "46.7M") — `simFmtK()` במקום `simFmtKbare()`
+- **KPI תגיות**: הוסר sub-label "אלפי ש״ח" מ"הון חזוי" (M format מספיק); נשאר ב-3 הכרטיסיות האחרות עם `line-height:1; margin-top:0` — ללא הגבהת כרטיס
+- **גיל יעד 67**: `SIM_TARGET_AGE = 67`; input חדש ב-controls panel (ליד "תרחיש סימולציה"); הוסר מאזור הגרף; מינימום שונה מ-70 ל-60
+- שינויים: `index.html` (גרסה + KPI HTML + chart overlay + controls panel), `app.js` (updateDynamicStats + simRenderKPI + simSetTargetAge + SIM_TARGET_AGE)
+
+## שינויים אחרונים (10/04/2026)
+
+### v103.31 – KPI Polish, Fixed Y-Axis, Full Slider Sync
+- **KPI sub-label**: הוסרה סיומת "k" מהמספרים; נוספה תווית "אלפי ש״ח" inline מתחת לכל ערך (`line-height:1, margin-top:1px` — אין הגבהה לכרטיס)
+- **`simFmtKbare(v)`**: formatter חדש — מחזיר מספר K עגול ב-`toLocaleString()` ללא סיומת
+- **Subtitle דינמי**: title גיל/שנה כעת מתעדכן בכל שינוי `SIM_TARGET_AGE`; input גיל יעד הוחזר לאזור הגרף (ימין עליון)
+- **Scale Selector**: dropdown חדש בגרף (ימין עליון) — 60M/80M/100M/120M → `simSetYScale(v)` + `SIM_Y_SCALE` global
+- **Y-Axis per-view**: תצוגת יעל = 10M קבוע; רועי/משותף = `SIM_Y_SCALE` (ברירת מחדל 60M, יציב)
+- **Slider sync מלא**: `simSetRate` + `simSetExpense` קוראים כעת ל-`simRenderKPI()` לפני הגרף; `simSetPensionMonthly` גם קורא ל-`simRenderKPI()`
+- **תשואת הון פנסיוני**: `pnsRetirementYieldChange` מפעיל כעת `simRenderChart(simRunEngine())` — הסליידר "חי" בסימולטור
+- שינויים: `index.html` (גרסה + KPI HTML + chart overlay), `app.js` (simFmtKbare + SIM_Y_SCALE + simSetYScale + slider setters + pnsRetirementYieldChange + simRenderKPI)
+
+## שינויים אחרונים (10/04/2026)
+
+### v103.30 – Dynamic Logic Fixes & KPI Polish
+- **שנת לידה**: `SIM_BIRTH_YEAR_ROY` תוקן מ-1962 ל-1963 (גיל 63 בשנת 2026) → subtitle מדויק
+- **Subtitle דינמי**: "תחזית לסוף שנת YYYY (גיל XX)" — מתעדכן בכל שינוי גיל/שנה (כבר עובד, תועד)
+- **הכרות/העברות (CRITICAL)**: הוסרה בדיקת `invFilter` מחישוב Column K — מסכם כעת ALL קרנות ללא תלות בתצוגה; מיטב 83k ושאר ערכים חדשים ייספרו אוטומטית
+- **הכנסה קבועה ← מנוע**: `SIM_PENSION_MONTHLY` מחווט כעת ישירות ל-Phase 3 של `simRunEngine()` כ-`totalPensionIncome`; `simSetPensionMonthly` מחשב מחדש גם את הגרף
+- **KPI M/k ללא ₪**: הכנסה פנויה / תזרים נטו / צבירה כוללת מציגים כעת פורמט k/M (ללא סימן ₪)
+- **תזרים נטו**: חישוב = `SIM_PENSION_MONTHLY − SIM_TARGET_EXP` (סליידר הכנסה − סליידר הוצאה)
+- **Y-Axis חכם**: `Math.max(60000, dataMax × 1.1)` — מאוזן ב-60M אבל גדל בתרחיש אופטימי
+- **Tooltip תזרים**: שחזור גרסת pre-103.29 — רשימת קטגוריות מלאה + YTD afterBody (Revert Task 4b)
+- שינויים: `index.html` (גרסה), `app.js` (SIM_BIRTH_YEAR_ROY + simRunEngine + simSetPensionMonthly + simRenderKPI + simRenderChart + updateDynamicStats + CF tooltip)
+
+### v103.29 – KPI Terminology, Fixed Y-Axis, Tooltip Cleanup, Dynamic Transfers
+- **KPI כותרת סימולטור — ניסוח**: תוויות חדשות בשורה אחת: "הון חזוי" / "הכנסה פנויה" / "תזרים נטו" / "צבירה כוללת"; הוסרו יחידות (₪, M ₪) מתוך הכרטיסיות; input גיל הוסר מהכרטיסייה
+- **כותרת משנה דינמית**: `hdr-subtitle` מציג "תחזית לסוף שנת YYYY (גיל XX)" בטאב הסימולטור
+- **דיוק זמן (Task 2)**: חישוב "הון חזוי" מתייחס תמיד לדצמבר של שנת היעד (סוף שנה מלאה) — תיעוד מפורש בקוד
+- **Y-axis קבוע (Task 3)**: `max: 60000` (= 60M ₪) — מונע "קפיצת" ציר כשמזיזים sliders
+- **Tooltip סימולטור (Task 4a)**: `yAlign: 'bottom', caretPadding: 16` — הטולטיפ צף מעל קווי הגרף
+- **Tooltip תזרים (Task 4b)**: מציג רק "פריטים חריגים" + שורת footer (הכנסות / הוצאות / נטו); מסתיר רשימת קטגוריות שוטפות (שוטף, יותם, הכנסות)
+- **הכרות/העברות (Task 5)**: חישוב דינמי מ-FUND_COL_K — סוכם אוטומטית כל הפקדה חיובית בחלון, ללא תלות ב-EXTERNAL_EVENTS קשיח
+- שינויים: `index.html` (גרסה + KPI HTML), `app.js` (simRenderKPI + simRenderChart + CF tooltip + updateDynamicStats)
+
+### v103.28 – Main KPI Header Logic + Tooltip Total
+- **Tooltip סה״כ**: הוספת `footer` callback לגרף הסימולטור — מציג "סה״כ: [ערך]" מסוכם לכל השכבות בנקודת הזמן הנבחרת (M/k format)
+- **KPI 1 — סה״כ הון בגיל X**: מחשב כעת מתוצאת מנוע ההקרנה (simRunEngine) — מסנן לשנת `SIM_BIRTH_YEAR_ROY + SIM_TARGET_AGE` ומציג הון אמיתי מוקרן
+- **KPI 2 — הכנסה חודשית בפרישה**: מקושר ישירות לסליידר "הכנסה קבועה" (`SIM_PENSION_MONTHLY`)
+- **KPI 3 — צבירה שוטפת**: הכנסה חודשית פחות הוצאות (salary − expenses); תווית שונתה מ"צבירה חודשית נוכחית"
+- **KPI 4 — צבירה כוללת (חדש)**: צבירה שוטפת + תשואה חודשית על ההון הנוכחי (royCapital × SIM_RATE/12); הוספת element `sim-hdr-total-accum` ב-HTML
+- שינויים: `index.html` (גרסה + KPI 4), `app.js` (tooltip footer + simRenderKPI logic)
 
 ## שינויים אחרונים (06/04/2026)
 

@@ -512,16 +512,19 @@ const grandBase0 = cats.reduce((s,c) => {
     el('hdr-change-val').textContent = (v<0?'-':'') + Math.abs(v).toLocaleString();
     el('hdr-change-val').style.color = v<0 ? '#ef4444' : '#4ade80';
   }
-  // אירועים חיצוניים (הכרות/העברות) לפי חודש
-  const EXTERNAL_EVENTS = [
+  // v103.34: הכרות/העברות — restored EXTERNAL_EVENTS (hard-coded known transfers)
+  // Phoenix 414 and הכרה 173 were never in FUND_COL_K; only Meitav 83k is in col K.
+  // Window filter: col must be within current 13-month window (winStart+1 .. winStart+WINDOW-1)
+  const _EXTERNAL_EVENTS = [
     { col: 0,  amt: 286, desc: 'הראל כללי' },
     { col: 10, amt: 414, desc: 'פניקס' },
+    { col: 13, amt: 83,  desc: 'מיטב 83k' },
     { col: 14, amt: 173, desc: 'הכרה במזומן' },
   ];
-  const extEnd = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
-  const externalAmt = EXTERNAL_EVENTS
-    .filter(e => e.col > winStart && e.col <= extEnd)
-    .reduce((s, e) => s + e.amt, 0);
+  const _extEnd = Math.min(winStart + WINDOW - 1, LABELS.length - 1);
+  const externalAmt = _EXTERNAL_EVENTS
+    .filter(function(e) { return e.col > winStart && e.col <= _extEnd; })
+    .reduce(function(s, e) { return s + e.amt; }, 0);
   const extWrap = el('hdr-external-wrap');
   if (extWrap) {
     if (externalAmt > 0 && invViewMode !== 'yael') {
@@ -775,12 +778,25 @@ function updateChartStats(data, viewCat) {
         returnEl.style.color = ret >= 0 ? '#16a34a' : '#ef4444';
       } else { returnEl.textContent = '—'; }
     } else if(first > 0) {
-      // v103.9-FIXED: apply Column K netting for single fund window return (same as category view)
+      // v103.11: apply Column K netting for all-view and single fund window return
       var _singleRetKMov = 0;
-      if (currentFund && FUNDS[currentFund]) {
+      const _winEndIdx = winStart + w.data.length - 1;
+      if (!currentFund) {
+        // "all" view — sum K movements for all active, invFilter-passing funds during window
+        const _invFlt2 = invFundFilter();
+        Object.entries(FUNDS).forEach(function(e) {
+          var k = e[0], f = e[1];
+          if (!_invFlt2(f)) return;
+          if (!((f.data[_winEndIdx]||0) > 0)) return;
+          var colK = FUND_COL_K[k] || [];
+          for (var ki = winStart + 1; ki <= _winEndIdx; ki++) {
+            var kv = ki < colK.length ? colK[ki] : null;
+            if (typeof kv === 'number' && !isNaN(kv)) _singleRetKMov += kv;
+          }
+        });
+      } else if (FUNDS[currentFund]) {
         var _singleColK = FUND_COL_K[currentFund] || [];
-        var _singleEnd = winStart + w.data.length - 1;
-        for (var _ski = winStart + 1; _ski <= _singleEnd; _ski++) {
+        for (var _ski = winStart + 1; _ski <= _winEndIdx; _ski++) {
           var _skv = (_ski < _singleColK.length) ? _singleColK[_ski] : null;
           if (typeof _skv === 'number' && !isNaN(_skv)) _singleRetKMov += _skv;
         }
@@ -5553,6 +5569,18 @@ function switchTab(id){
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
+  // v103.14-sim-ui: update AI chat title based on active tab
+  var _chatTitle = document.getElementById('chat-title');
+  if (_chatTitle) _chatTitle.innerHTML = isSim
+    ? '🤖 שאל את הסימולטור'
+    : '🤖 שאל את הדשבורד';
+
+  // v103.36: clear simulator subtitle when leaving simulator tab
+  if (!isSim) {
+    var _hdrsub = document.getElementById('hdr-subtitle');
+    if (_hdrsub) _hdrsub.innerHTML = '';
+  }
+
   if(isSim && !simInited){ simInited=true; setTimeout(simInit,80); }
 }
 
@@ -6268,63 +6296,15 @@ var pnsRetirementYield = 3; // % annual default
 
 function pnsRetirementYieldChange(val) {
   pnsRetirementYield = parseFloat(val) || 0;
-  var labelEl = document.getElementById('pns-ret-yield-val');
-  if (labelEl) labelEl.textContent = pnsRetirementYield.toFixed(1) + '%';
-  var sliderEl = document.getElementById('pns-ret-yield-slider');
-  if (sliderEl) sliderEl.style.setProperty('--pns-val', (pnsRetirementYield / 6 * 100) + '%');
-
-  var resultEl = document.getElementById('pns-ret-yield-result');
-  if (!resultEl) return;
-
-  // Executive Insurance = הראל or פניקס policies with accumulation + expected pension
-  var execAssets = PENSION_ASSETS.filter(function(a) {
-    return (a.provider && (a.provider.indexOf('\u05d4\u05e8\u05d0\u05dc') >= 0 || a.provider.indexOf('\u05e4\u05e0\u05d9\u05e7\u05e1') >= 0))
-      && (a.accumulation || 0) > 0 && (a.expectedPension || 0) > 0;
-  });
-
-  var totalCapital = execAssets.reduce(function(s,a){ return s + (a.accumulation||0); }, 0);
-  var totalPension = execAssets.reduce(function(s,a){ return s + (a.expectedPension||0); }, 0);
-
-  if (!totalCapital || !totalPension) {
-    resultEl.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:8px 0;">טען נתוני פנסיה (הראל/פניקס) כדי לחשב</div>';
-    return;
+  var sl  = document.getElementById('pns-ret-yield-slider');
+  var num = document.getElementById('pns-ret-yield-num');
+  if (sl  && parseFloat(sl.value)  !== pnsRetirementYield) sl.value  = pnsRetirementYield;
+  if (num && parseFloat(num.value) !== pnsRetirementYield) num.value = pnsRetirementYield;
+  if (sl) sl.style.setProperty('--pns-val', (pnsRetirementYield / 6 * 100) + '%');
+  // v103.31: wire "תשואת הון פנסיוני" slider to simulator — it feeds retYieldMonthly in simRunEngine
+  if (typeof simRenderChart === 'function' && typeof simRunEngine === 'function') {
+    simRenderChart(simRunEngine());
   }
-
-  var monthlyRate = pnsRetirementYield / 100 / 12;
-  var yearsStr;
-  if (monthlyRate <= 0) {
-    var yrs = totalCapital / (totalPension * 12);
-    yearsStr = isFinite(yrs) ? Math.round(yrs) + ' שנים' : '\u221e';
-  } else {
-    var factor = totalCapital * monthlyRate / totalPension;
-    if (factor >= 1) {
-      yearsStr = '\u221e — לא יתרוקן';
-    } else {
-      var months = -Math.log(1 - factor) / Math.log(1 + monthlyRate);
-      yearsStr = Math.round(months / 12) + ' שנים';
-    }
-  }
-  var monthlyYieldIncome = totalCapital * monthlyRate;
-
-  resultEl.innerHTML =
-    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">' +
-    '<div style="background:#f0fdf4;border-radius:8px;padding:8px 14px;border-right:3px solid #16a34a;">' +
-      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d4\u05d5\u05df \u05d1\u05d9\u05d8\u05d5\u05d7\u05d9</div>' +
-      '<div style="font-size:16px;font-weight:800;color:#1a1a2e;">' + pnsFmtK(totalCapital) + ' \u20aa</div>' +
-    '</div>' +
-    '<div style="background:#eff6ff;border-radius:8px;padding:8px 14px;border-right:3px solid #3b82f6;">' +
-      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05e7\u05e6\u05d1\u05d4 \u05d7\u05d5\u05d3\u05e9\u05d9\u05ea</div>' +
-      '<div style="font-size:16px;font-weight:800;color:#2563eb;">' + pnsFmt(totalPension) + ' \u20aa</div>' +
-    '</div>' +
-    (monthlyRate > 0 ? '<div style="background:#fefce8;border-radius:8px;padding:8px 14px;border-right:3px solid #ca8a04;">' +
-      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d4\u05db\u05e0\u05e1\u05d4 \u05de\u05ea\u05e9\u05d5\u05d0\u05d4</div>' +
-      '<div style="font-size:16px;font-weight:800;color:#92400e;">' + pnsFmt(Math.round(monthlyYieldIncome)) + ' \u20aa/\u05d7\u05d5\u05d3\u05e9</div>' +
-    '</div>' : '') +
-    '<div style="background:#ede9fe;border-radius:8px;padding:8px 14px;border-right:3px solid #8b5cf6;">' +
-      '<div style="font-size:10px;color:#9ca3af;font-weight:600;">\u05d9\u05d7\u05d6\u05d9\u05e7 \u05e2\u05d3</div>' +
-      '<div style="font-size:16px;font-weight:800;color:#7c3aed;">' + yearsStr + '</div>' +
-    '</div>' +
-    '</div>';
 }
 
 // ---------- LEGACY / PIE ----------
@@ -6663,28 +6643,119 @@ function pensionSaveToStorage() {
 
 var simInited  = false;
 var SIM_VIEW   = 'roy'; // 'roy' | 'yael' | 'combined' — v102.3: back to Roy default
-var SIM_RATE   = 4;          // % annual interest
-var SIM_TARGET_EXP    = 0;   // monthly expense target NIS — set on init
+var SIM_XAXIS_MODE = 'both'; // 'year' | 'age' | 'both' — v103.36: default = both (age + year)
+var SIM_BIRTH_YEAR_ROY  = 1963; // v103.30: current age 63 (2026 − 63 = 1963)
+var SIM_BIRTH_YEAR_YAEL = 1968;
+// v103.13-sim: retirement ages as named constants — future-proofed for dynamic sliders
+var SIM_RETIREMENT_AGE_ROY  = 67; // גיל פרישה — רועי (men's statutory pension age in Israel)
+var SIM_RETIREMENT_AGE_YAEL = 65; // גיל פרישה — יעל (women's statutory pension age in Israel)
+var SIM_RATE           = 4;     // % annual investment return
+var SIM_PENSION_RATE   = 3;     // % annual pension capital yield — v103.26
+var SIM_INFLATION      = 2.5;   // % annual inflation — v103.26
+var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
+var SIM_PENSION_MONTHLY = 35000; // monthly pension income NIS — v103.27 default
 var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
 var simChartObj = null;
 var SIM_CURRENT_SALARY = 0; // v102.4: cached from CF_DATA on init
 var SIM_HAREL_MODE = 'without'; // v102.4: 'with' | 'without' — syncs with pension default
 
-// Phase boundaries
+// Phase boundaries — v103.13-sim: P2/P3 start years derived from birth + retirement age constants
 var SIM_P1_START = { y:2026, m:3 };
-var SIM_P2_START = { y:2027, m:9 };
-var SIM_P3_START = { y:2029, m:9 };
-var SIM_END      = { y:2080, m:12 }; // v102.2: extended to age ~90
+var SIM_P2_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_YAEL, m:9 }; // Roy reaches 65 (phase 2: instructor)
+var SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY,  m:9 }; // Roy reaches 67 (phase 3: full pension)
+var SIM_END        = { y: SIM_BIRTH_YEAR_ROY + 95, m:12 }; // cap at Roy age 95 (2057)
+var SIM_TARGET_AGE = 67; // v103.33: default target age 67 (retirement year)
+var SIM_Y_SCALE    = 60000; // v103.31: Y-axis ceiling in K (default 60M); user-adjustable
+var SIM_ZOOM           = 'full'; // v103.40: 'full' | 'retirement' | 'decade'
+var SIM_RE_GROWTH_RATE = 2.5;    // v103.41: annual % appreciation for real estate layer (default 2.5%)
+// v103.41: custom zoom range overrides (null = use defaults)
+var SIM_ZOOM_CUSTOM = { retStart: 2029, retEnd: 2033, decStart: 2029, decEnd: 2039 };
 
-// v103.10: birth years for age calculations and data isolation
-var SIM_ROY_BIRTH  = 1962;
-var SIM_YAEL_BIRTH = 1968;
+// v103.42: zoom range helpers — retirement=2029-2033 (5yr window), decade=2029-2039
+function simGetZoomRange() {
+  if (SIM_ZOOM === 'retirement') {
+    return { start: SIM_ZOOM_CUSTOM.retStart, end: SIM_ZOOM_CUSTOM.retEnd };
+  }
+  if (SIM_ZOOM === 'decade') {
+    return { start: SIM_ZOOM_CUSTOM.decStart, end: SIM_ZOOM_CUSTOM.decEnd };
+  }
+  return { start: SIM_P1_START.y, end: SIM_END.y };
+}
+function simSetZoom(mode) {
+  SIM_ZOOM = mode;
+  ['full','retirement','decade'].forEach(function(m) {
+    var btn = document.getElementById('sim-zoom-' + m);
+    if (!btn) return;
+    btn.style.background  = (m === mode) ? '#3b82f6' : 'rgba(0,0,0,0.05)';
+    btn.style.color       = (m === mode) ? 'white'   : '#374151';
+    btn.style.borderColor = (m === mode) ? '#3b82f6' : 'rgba(0,0,0,0.18)';
+  });
+  simRenderChart(simRunEngine());
+}
+// v103.41: toggle settings popover for zoom buttons
+function simToggleZoomSettings() {
+  var s = document.getElementById('sim-zoom-settings');
+  if (s) s.style.display = (s.style.display === 'none') ? 'block' : 'none';
+}
+// v103.42: read custom zoom overrides from settings inputs
+function simApplyZoomSettings() {
+  function rd(id, def) { var el = document.getElementById(id); return (el && el.value) ? parseInt(el.value) : def; }
+  SIM_ZOOM_CUSTOM.retStart = rd('zoom-ret-start', 2029);
+  SIM_ZOOM_CUSTOM.retEnd   = rd('zoom-ret-end',   2033);
+  SIM_ZOOM_CUSTOM.decStart = rd('zoom-dec-start', 2029);
+  SIM_ZOOM_CUSTOM.decEnd   = rd('zoom-dec-end',   2039);
+  simRenderChart(simRunEngine());
+}
+// v103.41: Real estate growth rate setter
+function simSetREGrowth(v) {
+  SIM_RE_GROWTH_RATE = parseFloat(v) || 2.5;
+  var numEl = document.getElementById('sim-re-growth-num');
+  var slEl  = document.getElementById('sim-re-growth-slider');
+  if (numEl) numEl.value = SIM_RE_GROWTH_RATE;
+  if (slEl)  slEl.value  = SIM_RE_GROWTH_RATE;
+  simRenderKPI();
+  simRenderChart(simRunEngine());
+}
+// Slice engine result arrays to a year range (for zoom)
+function simSliceResult(result, startYr, endYr) {
+  var labels = result.labels || [];
+  var s = 0, e = labels.length - 1;
+  for (var li = 0; li < labels.length; li++) {
+    var yr = parseInt(labels[li]);
+    if (!isNaN(yr)) {
+      if (yr < startYr) s = li + 1;
+      if (yr > endYr && e === labels.length - 1) e = li - 1;
+    }
+  }
+  s = Math.max(0, s); e = Math.min(labels.length - 1, e);
+  function sl(arr) { return (arr && arr.length) ? arr.slice(s, e + 1) : []; }
+  return { labels: sl(result.labels), royData: sl(result.royData), yaelData: sl(result.yaelData),
+           royLiquidData: sl(result.royLiquidData), royPhoenixData: sl(result.royPhoenixData),
+           royHarelData: sl(result.royHarelData),
+           royRealEstateData: sl(result.royRealEstateData),
+           phase1EndLabel: result.phase1EndLabel, phase2EndLabel: result.phase2EndLabel };
+}
 
 // ── Formatters ──────────────────────────────
+// v103.16-sim-ui-safe: safe M/k formatter — returns "0" on bad input to prevent crashes
 function simFmtK(v) {
-  if (v === null || v === undefined || isNaN(v)) return '—';
-  return Math.round(v).toLocaleString() + 'K';
+  if (v === undefined || v === null || isNaN(v)) return '0';
+  if (typeof v !== 'number') return '0';
+  var abs = Math.abs(v);
+  if (abs >= 1000) return (v / 1000).toFixed(1) + 'M';
+  return Math.round(v) + 'k';
+}
+// v103.37: M formatter — returns decimal without suffix (e.g. 15600K → "15.6"), for "מיליון ש״ח" sub-label
+function simFmtM(v) {
+  if (v === undefined || v === null || isNaN(v) || typeof v !== 'number') return '0';
+  return (v / 1000).toFixed(1);
+}
+// v103.31: bare K formatter — plain number without suffix, for use alongside "אלפי ש״ח" sub-label
+function simFmtKbare(v) {
+  if (v === undefined || v === null || isNaN(v) || typeof v !== 'number') return '0';
+  var r = Math.round(v);
+  return (r < 0 ? '-' : '') + Math.abs(r).toLocaleString();
 }
 function simFmtNIS(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
@@ -6726,6 +6797,38 @@ function simGetRoyCapital() {
       if (f.data[i] !== null && f.data[i] !== undefined) {
         total += (f.cat === 'chov') ? -f.data[i] : f.data[i];
         break;
+      }
+    }
+  });
+  return total; // K
+}
+
+// v103.38: real estate (dira) value for Roy — dynamic base that grows with SIM_RE_GROWTH_RATE
+function simGetRoyRealEstate() {
+  var total = 0;
+  Object.keys(FUNDS).forEach(function(k) {
+    var f = FUNDS[k];
+    if (!f || f.owner === 'yael') return;
+    if (f.cat !== 'dira') return;
+    for (var i = (f.data||[]).length-1; i>=0; i--) {
+      if (f.data[i] !== null && f.data[i] !== undefined && f.data[i] > 0) {
+        total += f.data[i]; break;
+      }
+    }
+  });
+  return total; // K
+}
+
+// v103.41: real estate value for Yael (dira category, owner=yael)
+function simGetYaelRealEstate() {
+  var total = 0;
+  Object.keys(FUNDS).forEach(function(k) {
+    var f = FUNDS[k];
+    if (!f || f.owner !== 'yael') return;
+    if (f.cat !== 'dira') return;
+    for (var i = (f.data||[]).length-1; i>=0; i--) {
+      if (f.data[i] !== null && f.data[i] !== undefined && f.data[i] > 0) {
+        total += f.data[i]; break;
       }
     }
   });
@@ -6832,7 +6935,10 @@ function simIdxToYM(idx) {
 // ── Projection Engine ─────────────────────────
 function simRunEngine() {
   // v103.4: 3-layer split — liquid / phoenix / harel; filter isolation for Roy-only view
-  var royLiquid        = simGetRoyCapital();                   // K — liquid investments (Layer 1)
+  // v103.38: liquid-only starting capital (no dira) — real estate tracked separately to avoid double-counting yield
+  // v103.41: royRealEstateK is now dynamic — grows at SIM_RE_GROWTH_RATE annually + investment events add to it
+  var royLiquid        = simGetRoyCapital(); // K — stocks, cash, funds (excludes apartment)
+  var royRealEstateK   = simGetRoyRealEstate(); // K — dynamic base (grows with RE growth rate)
   var totalPenK        = simGetRoyPensionAccum() / 1000;       // K — total pension accumulation
   var harelK           = simGetRoyHarelAccum() / 1000;         // K — Harel portion
   var royPhoenixCap    = totalPenK - harelK;                   // K — Layer 2: Phoenix/regular pension
@@ -6848,16 +6954,20 @@ function simRunEngine() {
   var currentSalary    = simGetCurrentSalary();
   var targetExp        = SIM_TARGET_EXP;
   var instructorSal    = SIM_INSTRUCTOR_SAL;
-  var royPhoenixPension = simGetRoyPension();        // NIS/month — always drawn in Phase 3 (Layer 2)
-  var royHarelPension   = simGetRoyHarelPension();   // NIS/month — drawn only if mode='with' (Layer 3)
-  // Total pension income hitting liquid in Phase 3
-  var totalPensionIncome = royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0);
+  var royPhoenixPension = simGetRoyPension();        // NIS/month — used for Layer 2 capital draw
+  var royHarelPension   = simGetRoyHarelPension();   // NIS/month — used for Layer 3 capital draw
+  // v103.30: Phase 3 liquid income = "הכנסה קבועה" slider (SIM_PENSION_MONTHLY) so slider is live
+  var totalPensionIncome = SIM_PENSION_MONTHLY > 0
+    ? SIM_PENSION_MONTHLY
+    : royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0);
 
   var phase2Idx   = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
   var phase3Idx   = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
   var totalMonths = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
+  var reGrowthMonthly = SIM_RE_GROWTH_RATE / 100 / 12; // v103.41: monthly RE appreciation rate
 
   var eventsByMonth = {};
+  var reEventsByMonth = {}; // v103.41: tracks investment additions to RE equity
   if (PENSION_EVENTS && PENSION_EVENTS.length) {
     PENSION_EVENTS.forEach(function(ev, idx) {
       if (SIM_EVENTS_ON[idx] === false) return;
@@ -6871,10 +6981,49 @@ function simRunEngine() {
     });
   }
 
-  var labels = [], royData = [], yaelData = [], royLiquidData = [], royPhoenixData = [], royHarelData = [];
+  // v103.38: user events — lump sums applied in all phases; investment events add ongoing monthly cashflow
+  var monthlyFlowExtra = new Array(totalMonths).fill(0);
+  SIM_USER_EVENTS.forEach(function(ev) {
+    if (ev.type === 'reminder') return;
+    var mIdx = simMonthIdx(ev.yr, ev.mo);
+    if (mIdx < 0 || mIdx >= totalMonths) return;
+    // Lump sum (amount already in K, correctly signed)
+    if (!eventsByMonth[mIdx]) eventsByMonth[mIdx] = 0;
+    eventsByMonth[mIdx] += (ev.type === 'investment') ? -Math.abs(ev.amount || 0) : (ev.amount || 0);
+    // v103.41: investment purchase → deduct from liquid AND add to RE equity (total wealth stable)
+    if (ev.type === 'investment' && (ev.amount || 0) !== 0) {
+      if (!reEventsByMonth[mIdx]) reEventsByMonth[mIdx] = 0;
+      reEventsByMonth[mIdx] += Math.abs(ev.amount || 0); // K — add purchase price to RE equity
+    }
+    // Investment type: ongoing monthly rent income + loan payments + balloon
+    if (ev.type === 'investment') {
+      var rentK = (ev.rentMonthly || 0) / 1000;  // NIS → K/month
+      var loanK = (ev.loanMonthly || 0) / 1000;  // NIS → K/month
+      if (rentK > 0) {
+        for (var ji = mIdx; ji < totalMonths; ji++) monthlyFlowExtra[ji] += rentK;
+      }
+      if (loanK > 0) {
+        // v103.40: explicit loan end year/month (replaces loanYears duration)
+        var loanEndYr2 = ev.loanEndYear  || (ev.yr + 10);
+        var loanEndMo2 = ev.loanEndMonth || ev.mo;
+        var loanEnd    = Math.max(mIdx, simMonthIdx(loanEndYr2, loanEndMo2));
+        for (var ji = mIdx; ji < Math.min(loanEnd, totalMonths); ji++) monthlyFlowExtra[ji] -= loanK;
+        // v103.40: balloon payment (bullet principal) deducted at loan end date
+        if ((ev.balloonAmount || 0) > 0 && loanEnd >= 0 && loanEnd < totalMonths) {
+          if (!eventsByMonth[loanEnd]) eventsByMonth[loanEnd] = 0;
+          eventsByMonth[loanEnd] -= Math.abs(ev.balloonAmount); // K
+        }
+      }
+    }
+  });
+
+  var labels = [], royData = [], yaelData = [], royLiquidData = [], royPhoenixData = [], royHarelData = [], royRealEstateData = [];
 
   for (var i = 0; i < totalMonths; i++) {
     var ym = simIdxToYM(i);
+    // v103.41: RE grows monthly + investment events add to it
+    royRealEstateK *= (1 + reGrowthMonthly);
+    if (reEventsByMonth[i]) royRealEstateK += reEventsByMonth[i];
 
     // ── Layer 2: Phoenix pension capital ──
     if (i < phase3Idx) {
@@ -6912,8 +7061,10 @@ function simRunEngine() {
       royLiquid += (instructorSal - targetExp) / 1000;
     } else {
       royLiquid += (totalPensionIncome - targetExp) / 1000;
-      if (eventsByMonth[i]) royLiquid += eventsByMonth[i];
     }
+    // v103.38: lump-sum events + investment monthly cashflow apply in ALL phases
+    if (eventsByMonth[i]) royLiquid += eventsByMonth[i];
+    royLiquid += monthlyFlowExtra[i];
 
     yaelCapital *= (1 + monthlyRate);
 
@@ -6921,17 +7072,36 @@ function simRunEngine() {
       var liqVal = Math.max(0, Math.round(royLiquid));
       var phxVal = Math.max(0, Math.round(royPhoenixCap));
       var hrlVal = Math.max(0, Math.round(royHarelCap));
-      labels.push(String(ym.y));
+      // v103.12-sim: format label by SIM_XAXIS_MODE
+      var _yr = ym.y;
+      var _lbl;
+      if (SIM_XAXIS_MODE === 'age') {
+        if (SIM_VIEW === 'yael') {
+          _lbl = String(_yr - SIM_BIRTH_YEAR_YAEL);
+        } else if (SIM_VIEW === 'combined') {
+          _lbl = (_yr - SIM_BIRTH_YEAR_ROY) + '|' + (_yr - SIM_BIRTH_YEAR_YAEL);
+        } else {
+          _lbl = String(_yr - SIM_BIRTH_YEAR_ROY);
+        }
+      } else if (SIM_XAXIS_MODE === 'both') {
+        _lbl = String(_yr); // v103.36: ticks.callback formats display as [age, year]
+      } else {
+        _lbl = String(_yr);
+      }
+      labels.push(_lbl);
+      var reVal = Math.max(0, Math.round(royRealEstateK));
       royLiquidData.push(liqVal);
       royPhoenixData.push(phxVal);
       royHarelData.push(hrlVal);
-      royData.push(liqVal + phxVal + hrlVal);
+      royRealEstateData.push(reVal);
+      royData.push(liqVal + phxVal + hrlVal + reVal); // v103.41: dynamic RE replaces static
       yaelData.push(Math.max(0, Math.round(yaelCapital)));
     }
   }
 
   return { labels: labels, royData: royData,
            royLiquidData: royLiquidData, royPhoenixData: royPhoenixData, royHarelData: royHarelData,
+           royRealEstateData: royRealEstateData,
            yaelData: yaelData,
            phase1EndLabel: String(SIM_P2_START.y - 1),
            phase2EndLabel: String(SIM_P3_START.y - 1) };
@@ -6969,6 +7139,10 @@ var simBgPlugin = {
 function simRenderChart(result) {
   var wrap = document.getElementById('sim-chart-wrap');
   if (!wrap) return;
+  // v103.40: apply zoom slice before rendering
+  var zr = simGetZoomRange();
+  result = simSliceResult(result, zr.start, zr.end);
+
   // Re-mount canvas each render
   var old = document.getElementById('sim-chart');
   if (old) old.parentNode.removeChild(old);
@@ -6976,25 +7150,41 @@ function simRenderChart(result) {
   canvas.id = 'sim-chart';
   wrap.appendChild(canvas);
 
+  // v103.40: collect events for tooltip — filter to simulation range only (≥2026)
+  var _tooltipEvents = (typeof simCollectEvents === 'function')
+    ? simCollectEvents().events.filter(function(ev) { return ev.yr >= SIM_P1_START.y; })
+    : [];
+
   var datasets = [];
   var _yaelRaw = result.yaelData;
 
   if (SIM_VIEW === 'roy') {
-    // v103.4: 3-layer stacked area — Layer1=השקעות, Layer2=הון פנסיוני, Layer3=הון לירושה
+    // v103.41: 4-layer stacked area — Layer0=נדל״ן (bottom), Layer1=השקעות, Layer2=הון פנסיוני, Layer3=הון לירושה
     var liq = result.royLiquidData;
     var phx = result.royPhoenixData;
     var hrl = result.royHarelData;
-    // cumulative tops for stacking
-    var liqTop = liq;
-    var phxTop = liq.map(function(v, i) { return v + phx[i]; });
-    var hrlTop = liq.map(function(v, i) { return v + phx[i] + hrl[i]; });
+    var re  = result.royRealEstateData || liq.map(function() { return 0; });
+    // cumulative tops — RE is the bottom base layer
+    var reTop  = re;
+    var liqTop = re.map(function(v, i) { return v + liq[i]; });
+    var phxTop = re.map(function(v, i) { return v + liq[i] + phx[i]; });
+    var hrlTop = re.map(function(v, i) { return v + liq[i] + phx[i] + hrl[i]; });
     datasets = [
+      {
+        label: 'נדל״ן',
+        data: reTop,
+        borderColor: '#a0522d',
+        backgroundColor: 'rgba(184,115,51,0.50)',
+        fill: 'origin',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        order: 4
+      },
       {
         label: 'השקעות',
         data: liqTop,
         borderColor: '#1e40af',
         backgroundColor: 'rgba(30,64,175,0.45)',
-        fill: 'origin',
+        fill: '-1',
         tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 3
       },
@@ -7027,21 +7217,31 @@ function simRenderChart(result) {
       tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
     }];
   } else {
-    // v103.6: Combined — 4-layer stacked: Roy(liquid, phoenix, harel) + Yael
+    // v103.41: Combined — 5-layer stacked: נדל״ן (bottom) + Roy(liquid, phoenix, harel) + Yael
     var _cLiq = result.royLiquidData;
     var _cPhx = result.royPhoenixData;
     var _cHrl = result.royHarelData;
-    var _cLiqTop = _cLiq;
-    var _cPhxTop = _cLiq.map(function(v, i) { return v + _cPhx[i]; });
-    var _cHrlTop = _cLiq.map(function(v, i) { return v + _cPhx[i] + _cHrl[i]; });
-    var _cYaelTop = _cHrlTop.map(function(v, i) { return v + _yaelRaw[i]; });
+    var _cRe  = result.royRealEstateData || _cLiq.map(function() { return 0; });
+    var _cReTop   = _cRe;
+    var _cLiqTop  = _cRe.map(function(v, i) { return v + _cLiq[i]; });
+    var _cPhxTop  = _cRe.map(function(v, i) { return v + _cLiq[i] + _cPhx[i]; });
+    var _cHrlTop  = _cRe.map(function(v, i) { return v + _cLiq[i] + _cPhx[i] + _cHrl[i]; });
+    var _cYaelTop = _cRe.map(function(v, i) { return v + _cLiq[i] + _cPhx[i] + _cHrl[i] + _yaelRaw[i]; });
     datasets = [
+      {
+        label: 'נדל״ן',
+        data: _cReTop,
+        borderColor: '#a0522d',
+        backgroundColor: 'rgba(184,115,51,0.50)',
+        fill: 'origin',
+        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 5
+      },
       {
         label: 'השקעות (רועי)',
         data: _cLiqTop,
         borderColor: '#1e40af',
         backgroundColor: 'rgba(30,64,175,0.35)',
-        fill: 'origin',
+        fill: '-1',
         tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 4
       },
       {
@@ -7071,6 +7271,9 @@ function simRenderChart(result) {
     ];
   }
 
+  // v103.31: Per-view fixed Y-axis — Roy/Combined: SIM_Y_SCALE (default 60M); Yael: fixed 10M
+  var _simYMax = (SIM_VIEW === 'yael') ? 10000 : SIM_Y_SCALE; // in K units
+
   simChartObj = new Chart(canvas.getContext('2d'), {
     type: 'line',
     plugins: [simBgPlugin],
@@ -7080,21 +7283,51 @@ function simRenderChart(result) {
       maintainAspectRatio: false,
       animation: false,
       interaction: { mode: 'index', intersect: false },
+      // v103.43: Smart tooltip — only near top of stack (5px above / 45px below top line)
+      onHover: function(event, activeElements, chart) {
+        if (!event || !event.native || !activeElements || !activeElements.length) return;
+        try {
+          var di = activeElements[0].index;
+          var ds = chart.data.datasets;
+          if (!ds || !ds.length) return;
+          var topDs = ds[ds.length - 1]; // topmost stacked line (הון לירושה / יעל)
+          if (!topDs || !topDs.data || di >= topDs.data.length) return;
+          var topVal = topDs.data[di];
+          if (topVal === undefined || topVal === null) return;
+          var topYPx = chart.scales.y.getPixelForValue(topVal);
+          var cursorY = event.native.offsetY;
+          // Show only within 5px above / 45px below the topmost line
+          if (cursorY < topYPx - 5 || cursorY > topYPx + 45) {
+            chart.tooltip.setActiveElements([], {});
+          }
+        } catch(e) {}
+      },
       scales: {
         x: {
           ticks: {
             font: { family: 'Heebo', size: 10 },
             color: '#9ca3af',
             maxTicksLimit: 20,
-            maxRotation: 0
+            maxRotation: 0,
+            // v103.36: 'both' mode — display as [age (bold), year (grey)]
+            callback: function(value, index) {
+              var lbl = this.getLabelForValue(value);
+              if (SIM_XAXIS_MODE === 'both') {
+                var yr = parseInt(lbl);
+                if (isNaN(yr)) return lbl;
+                var byear = (SIM_VIEW === 'yael') ? SIM_BIRTH_YEAR_YAEL : SIM_BIRTH_YEAR_ROY;
+                return ['גיל ' + (yr - byear), String(yr)];
+              }
+              return lbl;
+            }
           },
           grid: { color: 'rgba(0,0,0,0.04)' }
         },
         y: {
           min: 0,
-          grace: '5%', // v103.10: fixed 5% buffer above max so Harel toggle is visually impactful
+          max: _simYMax, // v103.30: smart ceiling — floor 60M, grows if scenario exceeds it
           ticks: {
-            callback: function(v) { return v.toLocaleString() + 'K'; },
+            callback: function(v) { return (v === undefined || v === null || isNaN(v)) ? '0' : (v >= 1000 ? Math.round(v/1000)+'M' : Math.round(v)+'k'); },
             font: { family: 'Heebo', size: 10 },
             color: '#9ca3af'
           },
@@ -7108,35 +7341,423 @@ function simRenderChart(result) {
         tooltip: {
           rtl: true,
           textDirection: 'rtl',
+          yAlign: 'bottom',    // v103.29: anchor tooltip above the data lines
+          caretPadding: 16,    // extra gap so tooltip floats clear of the lines
           titleFont: { family: 'Heebo' },
           bodyFont: { family: 'Heebo' },
+          footerFont: { family: 'Heebo', weight: 'bold' },
+          footerColor: '#f9fafb',
           callbacks: {
             label: function(ctx) {
               var v;
               var di = ctx.dataIndex;
               if (SIM_VIEW === 'combined') {
-                // v103.6: 4-layer combined — show individual values per layer
-                if (ctx.datasetIndex === 0) v = result.royLiquidData[di];
-                else if (ctx.datasetIndex === 1) v = result.royPhoenixData[di];
-                else if (ctx.datasetIndex === 2) v = result.royHarelData[di];
-                else if (ctx.datasetIndex === 3) v = _yaelRaw[di];
+                // v103.41: 5-layer combined — index 0=RE, 1=liquid, 2=phoenix, 3=harel, 4=yael
+                if (ctx.datasetIndex === 0) v = (result.royRealEstateData || [])[di] || 0;
+                else if (ctx.datasetIndex === 1) v = result.royLiquidData[di];
+                else if (ctx.datasetIndex === 2) v = result.royPhoenixData[di];
+                else if (ctx.datasetIndex === 3) v = result.royHarelData[di];
+                else if (ctx.datasetIndex === 4) v = _yaelRaw[di];
                 else v = ctx.parsed.y;
               } else if (SIM_VIEW === 'roy') {
-                // Show individual layer value (not cumulative top)
-                if (ctx.datasetIndex === 0) v = result.royLiquidData[di];
-                else if (ctx.datasetIndex === 1) v = result.royPhoenixData[di];
-                else if (ctx.datasetIndex === 2) v = result.royHarelData[di];
+                // v103.41: 4-layer roy — index 0=RE, 1=liquid, 2=phoenix, 3=harel
+                if (ctx.datasetIndex === 0) v = (result.royRealEstateData || [])[di] || 0;
+                else if (ctx.datasetIndex === 1) v = result.royLiquidData[di];
+                else if (ctx.datasetIndex === 2) v = result.royPhoenixData[di];
+                else if (ctx.datasetIndex === 3) v = result.royHarelData[di];
                 else v = ctx.parsed.y;
               } else {
                 v = ctx.parsed.y;
               }
-              return ' ' + ctx.dataset.label + ': ' + (v || 0).toLocaleString() + 'K';
+              var _tv = (v !== undefined && v !== null && !isNaN(v)) ? v : 0;
+              return ' ' + ctx.dataset.label + ': ' + (_tv >= 1000 ? (_tv/1000).toFixed(1)+'M' : Math.round(_tv)+'k');
+            },
+            // v103.28/v103.40: Total row + events at this year
+            footer: function(items) {
+              if (!items || !items.length) return '';
+              var di = items[0].dataIndex;
+              var total = 0;
+              if (SIM_VIEW === 'combined') {
+                total = (result.royData[di] || 0) + (result.yaelData[di] || 0);
+              } else if (SIM_VIEW === 'roy') {
+                total = result.royData[di] || 0;
+              } else {
+                total = result.yaelData[di] || 0;
+              }
+              var lines = ['סה״כ: ' + (total >= 1000 ? (total/1000).toFixed(1)+'M' : Math.round(total)+'k')];
+              // v103.40: show events for this year (filter past + only simulation range)
+              var yr = parseInt(result.labels[di]);
+              if (!isNaN(yr)) {
+                _tooltipEvents.forEach(function(ev) {
+                  if (ev.yr !== yr) return;
+                  var absAmt = Math.abs(ev.amount || 0);
+                  var amtStr = absAmt >= 1000 ? (ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1)+'M'
+                             : absAmt > 0 ? (ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k' : '';
+                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : ''));
+                });
+              }
+              return lines;
             }
           }
         }
       }
     }
   });
+  // v103.37: sync timeline X-axis after chart renders (chart area available immediately)
+  setTimeout(simRenderTimeline, 0);
+}
+
+// ── v103.36: Financial Events Timeline ────────
+var SIM_USER_EVENTS = []; // volatile user-added events (session only)
+
+// v103.37: collect timeline events from all sources (shared helper)
+function simCollectEvents() {
+  var events = [];
+  var monthNames = ['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
+
+  if (typeof NOTES !== 'undefined' && NOTES && NOTES.length) {
+    NOTES.forEach(function(n) {
+      if (!n.date) return;
+      var dp = n.date.split('/');
+      if (dp.length < 3) return;
+      var yr = parseInt(dp[2]), mo = parseInt(dp[1]);
+      if (isNaN(yr) || isNaN(mo)) return;
+      var amt = (n.net !== undefined ? n.net : n.gross) || 0;
+      events.push({ yr: yr, mo: mo, label: n.title || n.type || '', amount: amt, color: '#f59e0b', src: 'note' });
+    });
+  }
+  if (PENSION_EVENTS && PENSION_EVENTS.length) {
+    PENSION_EVENTS.forEach(function(ev) {
+      if (!ev.date) return;
+      var dp = ev.date.split('-');
+      if (dp.length < 3) return;
+      var yr = parseInt(dp[0]), mo = parseInt(dp[1]);
+      if (isNaN(yr) || isNaN(mo)) return;
+      events.push({ yr: yr, mo: mo, label: ev.label || ev.type || '', amount: ev.amount || 0,
+                    color: (ev.amount || 0) >= 0 ? '#34d399' : '#f87171', src: 'pension' });
+    });
+  }
+  SIM_USER_EVENTS.forEach(function(ev, i) {
+    var color = '#34d399'; // income (green)
+    if (ev.type === 'expense')    color = '#f87171'; // red
+    else if (ev.type === 'investment') color = '#60a5fa'; // blue
+    else if (ev.type === 'reminder')   color = '#9ca3af'; // gray
+    events.push({ yr: ev.yr, mo: ev.mo, label: ev.label, amount: ev.amount,
+                  color: color, src: 'user', _userIdx: i, type: ev.type,
+                  rentMonthly: ev.rentMonthly, loanMonthly: ev.loanMonthly,
+                  loanEndYear: ev.loanEndYear, loanEndMonth: ev.loanEndMonth, balloonAmount: ev.balloonAmount });
+  });
+  return { events: events, monthNames: monthNames };
+}
+
+// v103.39: custom tooltip for timeline diamonds
+function simShowTltp(el, e) {
+  // v103.43: innerHTML + &#10; → <br> for multi-line tooltips
+  var t = document.getElementById('sim-tltp');
+  if (!t) return;
+  var raw = (el && el.dataset) ? (el.dataset.tip || '') : '';
+  // Decode &#10; line breaks; other content is pre-escaped
+  t.innerHTML = raw.replace(/&#10;/g, '<br>');
+  t.style.display = 'block';
+  t.style.left = (e.clientX + 14) + 'px';
+  t.style.top  = Math.max(4, e.clientY - 67) + 'px';
+}
+function simHideTltp() {
+  var t = document.getElementById('sim-tltp');
+  if (t) t.style.display = 'none';
+}
+
+// v103.38: rewritten timeline — pixel-synced, no phase lines, click to edit user events
+function simRenderTimeline() {
+  var wrap = document.getElementById('sim-timeline');
+  if (!wrap) return;
+
+  var collected = simCollectEvents();
+  var events = collected.events;
+  var monthNames = collected.monthNames;
+
+  // ── X-axis sync with chart — respects active zoom range ─────────────────
+  var _zr     = simGetZoomRange();
+  var startYr = _zr.start;
+  var endYr   = _zr.end;
+  var numYrs  = endYr - startYr;
+
+  var ca = (simChartObj && simChartObj.chartArea) ? simChartObj.chartArea : null;
+  var canvas = document.getElementById('sim-chart');
+  var canvasW = canvas ? (canvas.offsetWidth || canvas.clientWidth || 0) : 0;
+  var usePixels = (ca && canvasW > 0);
+
+  function yrToLeft(yr, mo) {
+    var frac = (yr + ((mo || 1) - 1) / 12 - startYr) / numYrs;
+    if (usePixels) return (ca.left + frac * (ca.right - ca.left)).toFixed(1) + 'px';
+    return (frac * 100).toFixed(2) + '%';
+  }
+  function yrToLeftPx(yr, mo) {
+    if (!usePixels) return 0;
+    var frac = (yr + ((mo || 1) - 1) / 12 - startYr) / numYrs;
+    return ca.left + frac * (ca.right - ca.left);
+  }
+
+  var outerStyle = usePixels
+    ? 'position:relative;height:54px;user-select:none;width:' + canvasW + 'px;'
+    : 'position:relative;height:54px;user-select:none;';
+
+  var html = '<div style="' + outerStyle + '">';
+
+  // Base bar
+  var barL = usePixels ? ca.left.toFixed(1) + 'px' : '0';
+  var barR = usePixels ? (canvasW - ca.right).toFixed(1) + 'px' : '0';
+  html += '<div style="position:absolute;left:' + barL + ';right:' + barR + ';top:24px;height:2px;'
+        + 'background:linear-gradient(90deg,rgba(99,102,241,0.12),rgba(99,102,241,0.35),rgba(99,102,241,0.08));'
+        + 'border-radius:2px;"></div>';
+
+  // ── v103.39: proximity zoom — find dense event windows ──────────────────
+  // Build a density map: count events per year
+  var evDensity = {};
+  events.forEach(function(ev) {
+    if (!ev.yr) return;
+    evDensity[ev.yr] = (evDensity[ev.yr] || 0) + 1;
+  });
+  // Identify dense zones: if 2+ events within a 2-year window, mark those years for yearly ticks
+  var denseSet = {};
+  Object.keys(evDensity).forEach(function(y) {
+    var yr = parseInt(y);
+    var windowCount = 0;
+    for (var dy = -2; dy <= 2; dy++) windowCount += (evDensity[yr + dy] || 0);
+    if (windowCount >= 3) {
+      for (var dy2 = -2; dy2 <= 2; dy2++) denseSet[yr + dy2] = true;
+    }
+  });
+
+  // Year tick marks — every 5 years base; every 1 year in dense zones
+  var ticksDrawn = {};
+  for (var ty = startYr; ty <= endYr; ty++) {
+    var isFiveYr = (ty % 5 === 0);
+    var isDense  = denseSet[ty];
+    if (!isFiveYr && !isDense) continue;
+    if (ticksDrawn[ty]) continue;
+    ticksDrawn[ty] = true;
+    var tL = yrToLeft(ty, 1);
+    var tickH = isFiveYr ? 8 : 5;
+    var tickColor = isFiveYr ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.07)';
+    var labelColor = isDense && !isFiveYr ? '#b0b8c4' : '#9ca3af';
+    html += '<div style="position:absolute;left:' + tL + ';top:' + (28 - tickH) + 'px;width:1px;height:' + tickH + 'px;background:' + tickColor + ';"></div>';
+    html += '<div style="position:absolute;left:' + tL + ';top:30px;font-size:' + (isFiveYr ? 8 : 7) + 'px;color:' + labelColor + ';transform:translateX(-50%);font-family:Heebo,sans-serif;white-space:nowrap;">' + ty + '</div>';
+  }
+
+  // ── Event diamond icons — strict range filter (no past events) ──────────
+  events.forEach(function(ev) {
+    if (!ev.yr || ev.yr < startYr || ev.yr > endYr) return;
+    var px = usePixels ? yrToLeftPx(ev.yr, ev.mo) : 0;
+    var diamondLeft = usePixels ? (px - 6).toFixed(1) + 'px' : 'calc(' + yrToLeft(ev.yr, ev.mo) + ' - 6px)';
+
+    // v103.43: Simplified tooltip — Event Name + Monthly Impact (net) only
+    var tooltip = (ev.label || '?');
+    if (ev.type === 'investment' && (ev.rentMonthly || ev.loanMonthly)) {
+      // Net monthly cashflow: rent income minus loan payment
+      var netMonthly = (ev.rentMonthly || 0) - (ev.loanMonthly || 0);
+      var sign = netMonthly >= 0 ? '+' : '';
+      tooltip += '&#10;תזרים חודשי: ' + sign + Math.round(netMonthly).toLocaleString() + '\u20aa';
+    } else {
+      // Non-investment: show lump-sum amount
+      var absAmt = Math.abs(ev.amount || 0);
+      if (absAmt >= 1000) {
+        tooltip += ' (' + (ev.amount > 0 ? '+' : '-') + (absAmt / 1000).toFixed(1) + 'M)';
+      } else if (absAmt > 0) {
+        tooltip += ' (' + (ev.amount > 0 ? '+' : '') + Math.round(ev.amount) + 'k)';
+      }
+    }
+    var safeTip = tooltip.replace(/"/g, '&quot;');
+
+    // All user diamonds: click to edit; others: info tooltip only
+    var isUser = (ev._userIdx !== undefined);
+    var clickPart = isUser ? ' onclick="simShowAddEventModal(' + ev._userIdx + ')"' : '';
+    var border = isUser ? '1.5px solid rgba(255,255,255,0.85)' : '1px solid rgba(255,255,255,0.55)';
+    var cursor  = isUser ? 'pointer' : 'default';
+    html += '<div' + clickPart
+          + ' data-tip="' + safeTip + '"'
+          + ' onmouseenter="simShowTltp(this,event)" onmouseleave="simHideTltp()"'
+          + ' style="position:absolute;left:' + diamondLeft + ';top:18px;'
+          + 'width:12px;height:12px;transform:rotate(45deg);'
+          + 'background:' + (ev.color || '#6366f1') + ';'
+          + 'border:' + border + ';border-radius:1px;cursor:' + cursor + ';z-index:2;box-sizing:border-box;">'
+          + '</div>';
+  });
+
+  // v103.43: Loan-end markers — grey diamonds auto-generated for user investment events with active loans
+  SIM_USER_EVENTS.forEach(function(ev) {
+    if (ev.type !== 'investment') return;
+    if (!(ev.loanMonthly > 0)) return;
+    var loanEndYr = ev.loanEndYear  || (ev.yr + 10);
+    var loanEndMo = ev.loanEndMonth || (ev.mo || 1);
+    if (loanEndYr < startYr || loanEndYr > endYr) return;
+    var lendPx = usePixels ? yrToLeftPx(loanEndYr, loanEndMo) : 0;
+    var lendLeft = usePixels ? (lendPx - 5).toFixed(1) + 'px' : 'calc(' + yrToLeft(loanEndYr, loanEndMo) + ' - 5px)';
+    var lendTip = ('סיום החזר הלוואה: ' + (ev.label || '')).replace(/"/g, '&quot;');
+    html += '<div'
+          + ' data-tip="' + lendTip + '"'
+          + ' onmouseenter="simShowTltp(this,event)" onmouseleave="simHideTltp()"'
+          + ' style="position:absolute;left:' + lendLeft + ';top:21px;'
+          + 'width:10px;height:10px;transform:rotate(45deg);'
+          + 'background:#9ca3af;'
+          + 'border:1px solid rgba(255,255,255,0.7);border-radius:1px;cursor:default;z-index:2;box-sizing:border-box;">'
+          + '</div>';
+  });
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// v103.38: Add / Edit Event Modal — supports all 4 event types + edit mode
+var SIM_EDIT_IDX = null; // null = add mode; number = index in SIM_USER_EVENTS (edit mode)
+
+function simShowAddEventModal(idx) {
+  SIM_EDIT_IDX = (idx !== undefined && idx !== null) ? idx : null;
+  var modal = document.getElementById('sim-add-event-modal');
+  if (!modal) return;
+  // Reset fields first
+  _simResetEventForm();
+  // Pre-fill if editing
+  if (SIM_EDIT_IDX !== null) {
+    var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
+    if (!ev) { SIM_EDIT_IDX = null; }
+    else {
+      var _el = function(id) { return document.getElementById(id); };
+      if (_el('sim-ev-label'))      _el('sim-ev-label').value      = ev.label || '';
+      if (_el('sim-ev-year'))       _el('sim-ev-year').value       = ev.yr   || 2030;
+      if (_el('sim-ev-month'))      _el('sim-ev-month').value      = ev.mo   || 1;
+      if (_el('sim-ev-amount'))     _el('sim-ev-amount').value     = Math.abs(ev.amount || 0);
+      var typeEl = _el('sim-ev-type-' + (ev.type || 'income'));
+      if (typeEl) typeEl.checked = true;
+      if (ev.type === 'investment') {
+        if (_el('sim-ev-rent'))           _el('sim-ev-rent').value           = ev.rentMonthly  || 0;
+        if (_el('sim-ev-loan'))           _el('sim-ev-loan').value           = ev.loanMonthly  || 0;
+        if (_el('sim-ev-loan-end-year'))  _el('sim-ev-loan-end-year').value  = ev.loanEndYear  || (ev.yr + 10);
+        if (_el('sim-ev-loan-end-month')) _el('sim-ev-loan-end-month').value = ev.loanEndMonth || 1;
+        if (_el('sim-ev-balloon'))        _el('sim-ev-balloon').value        = ev.balloonAmount || 0;
+      }
+    }
+    var titleEl = document.getElementById('sim-ev-modal-title');
+    if (titleEl) titleEl.textContent = 'עריכת אירוע';
+  } else {
+    var titleEl = document.getElementById('sim-ev-modal-title');
+    if (titleEl) titleEl.textContent = 'הוספת אירוע סימולציה';
+  }
+  // Toggle add/edit buttons visibility
+  var btnAdd    = document.getElementById('sim-ev-btn-add');
+  var btnUpdate = document.getElementById('sim-ev-btn-update');
+  var btnDelete = document.getElementById('sim-ev-btn-delete');
+  if (btnAdd)    btnAdd.style.display    = SIM_EDIT_IDX === null ? '' : 'none';
+  if (btnUpdate) btnUpdate.style.display = SIM_EDIT_IDX !== null ? '' : 'none';
+  if (btnDelete) btnDelete.style.display = SIM_EDIT_IDX !== null ? '' : 'none';
+  simToggleInvestmentFields();
+  modal.style.display = 'flex';
+}
+
+function _simResetEventForm() {
+  // v103.43: all fields cleared — no "Jan 2026" default, empty/null for clean UX
+  var _el = function(id) { return document.getElementById(id); };
+  if (_el('sim-ev-label'))          _el('sim-ev-label').value          = '';
+  if (_el('sim-ev-year'))           _el('sim-ev-year').value           = '';
+  if (_el('sim-ev-month'))          _el('sim-ev-month').value          = '';
+  if (_el('sim-ev-amount'))         _el('sim-ev-amount').value         = '';
+  if (_el('sim-ev-rent'))           _el('sim-ev-rent').value           = '';
+  if (_el('sim-ev-loan'))           _el('sim-ev-loan').value           = '';
+  if (_el('sim-ev-loan-end-year'))  _el('sim-ev-loan-end-year').value  = '';
+  if (_el('sim-ev-loan-end-month')) _el('sim-ev-loan-end-month').value = '';
+  if (_el('sim-ev-balloon'))        _el('sim-ev-balloon').value        = '';
+  var typeIncome = _el('sim-ev-type-income');
+  if (typeIncome) typeIncome.checked = true;
+}
+
+function simCloseEventModal() {
+  var modal = document.getElementById('sim-add-event-modal');
+  if (modal) modal.style.display = 'none';
+  SIM_EDIT_IDX = null;
+  _simResetEventForm();
+}
+
+// v103.39: public "נקה שדות" button handler — resets form fields and toggles visibility
+function simClearEventForm() {
+  _simResetEventForm();
+  simToggleInvestmentFields();
+}
+
+function simToggleInvestmentFields() {
+  var typeNode   = document.querySelector('input[name="sim-ev-type"]:checked');
+  var type       = typeNode ? typeNode.value : 'income';
+  var isInvest   = (type === 'investment');
+  var isReminder = (type === 'reminder');
+  var investFlds = document.getElementById('sim-ev-invest-fields');
+  var amtRow     = document.getElementById('sim-ev-amount-row');
+  if (investFlds) investFlds.style.display = isInvest   ? '' : 'none';
+  if (amtRow)     amtRow.style.display     = isReminder ? 'none' : '';
+  // v103.40: dynamic title in add mode only
+  if (SIM_EDIT_IDX === null) {
+    var titleMap = { income:'הוספת הכנסה', expense:'הוספת הוצאה', investment:'הוספת השקעה', reminder:'הוספת תזכורת' };
+    var titleEl  = document.getElementById('sim-ev-modal-title');
+    if (titleEl) titleEl.textContent = titleMap[type] || 'הוספת אירוע סימולציה';
+  }
+}
+
+function simConfirmAddEvent() {
+  var _el = function(id) { return document.getElementById(id); };
+  var label = (_el('sim-ev-label') || {}).value || '';
+  var yr    = parseInt((_el('sim-ev-year')   || {}).value || 0);
+  var mo    = parseInt((_el('sim-ev-month')  || {}).value || 1);
+  var amt   = parseFloat((_el('sim-ev-amount') || {}).value || 0);
+
+  var typeNode = document.querySelector('input[name="sim-ev-type"]:checked');
+  var type = typeNode ? typeNode.value : 'income';
+
+  if (!label.trim())                        { window.alert('נא להזין שם אירוע'); return; }
+  if (isNaN(yr) || yr < 2026 || yr > 2080) { window.alert('שנה לא תקינה (2026–2080)'); return; }
+  if (isNaN(mo) || mo < 1 || mo > 12)      { window.alert('חודש לא תקין (1–12)'); return; }
+
+  var ev = { yr: yr, mo: mo, label: label.trim(), type: type };
+  if (type === 'income')     ev.amount = Math.abs(amt);
+  if (type === 'expense')    ev.amount = -Math.abs(amt);
+  if (type === 'reminder')   ev.amount = 0;
+  if (type === 'investment') {
+    ev.amount        = -Math.abs(amt); // investment cost deducted from liquid wealth
+    ev.rentMonthly   = parseFloat((_el('sim-ev-rent')           || {}).value || 0) || 0;
+    ev.loanMonthly   = parseFloat((_el('sim-ev-loan')           || {}).value || 0) || 0;
+    ev.loanEndYear   = parseInt(  (_el('sim-ev-loan-end-year')  || {}).value || (yr + 10));
+    ev.loanEndMonth  = parseInt(  (_el('sim-ev-loan-end-month') || {}).value || 1);
+    ev.balloonAmount = parseFloat((_el('sim-ev-balloon')        || {}).value || 0) || 0;
+  }
+
+  if (SIM_EDIT_IDX !== null && SIM_EDIT_IDX >= 0 && SIM_EDIT_IDX < SIM_USER_EVENTS.length) {
+    SIM_USER_EVENTS[SIM_EDIT_IDX] = ev; // update existing
+  } else {
+    SIM_USER_EVENTS.push(ev); // add new
+  }
+
+  simCloseEventModal();
+  simRenderTimeline();
+  simRenderChart(simRunEngine());
+}
+
+function simDeleteEditedEvent() {
+  if (SIM_EDIT_IDX === null || SIM_EDIT_IDX < 0) return;
+  SIM_USER_EVENTS.splice(SIM_EDIT_IDX, 1);
+  simCloseEventModal();
+  simRenderTimeline();
+  simRenderChart(simRunEngine());
+}
+
+function simClearAllUserEvents() {
+  if (!SIM_USER_EVENTS.length) return;
+  SIM_USER_EVENTS.length = 0;
+  simRenderTimeline();
+  simRenderChart(simRunEngine());
+}
+
+// kept for backward compat (no longer called from timeline directly)
+function simRemoveUserEvent(idx) {
+  SIM_USER_EVENTS.splice(idx, 1);
+  simRenderTimeline();
+  simRenderChart(simRunEngine());
 }
 
 // ── KPI Rendering ─────────────────────────────
@@ -7153,17 +7774,23 @@ function simRenderKPI() {
 
   function el(id) { return document.getElementById(id); }
 
-  // v103.10: strict view isolation — hide opposing person's data completely
-  var _showYael = (SIM_VIEW !== 'roy');
   var _showRoy  = (SIM_VIEW !== 'yael');
-  // Capital KPIs
-  if (el('sim-kpi-roy-now'))  el('sim-kpi-roy-now').textContent  = _showRoy ? simFmtK(royCapital) : '—';
-  if (el('sim-kpi-yael-now')) el('sim-kpi-yael-now').textContent = _showYael ? simFmtK(yaelCapital) : '—';
-  if (el('sim-kpi-combined')) el('sim-kpi-combined').textContent =
-    (SIM_VIEW === 'roy') ? simFmtK(royCapital) :
-    (SIM_VIEW === 'yael') ? simFmtK(yaelCapital) :
-    simFmtK(royCapital + yaelCapital);
-  // Operational KPIs — Roy-specific: hide in Yael view
+
+  // v103.38: liquid capital only (excludes dira — avoids yield double-count); real estate added to total
+  var _allInvK = simGetRoyCapital(); // liquid only, no apartment
+  var _reK     = (SIM_VIEW !== 'yael') ? simGetRoyRealEstate() : 0;
+  var _invK   = (SIM_VIEW === 'yael') ? yaelCapital : _allInvK;
+  var _penK   = _showRoy ? penAccumK : 0;
+  var _totalK = _invK + _penK + _reK;
+  if (SIM_VIEW === 'combined') { _invK = _allInvK + yaelCapital; _totalK = _invK + _penK + _reK; }
+  // v103.37: wealth cards in M (no suffix) — sub-label in HTML = "מיליון ש״ח"
+  if (el('sim-kpi-inv-now'))   el('sim-kpi-inv-now').textContent   = simFmtM(_invK);
+  if (el('sim-kpi-pen-now'))   el('sim-kpi-pen-now').textContent   = _showRoy ? simFmtM(_penK) : '—';
+  // v103.42: נדל״ן KPI — current RE value (initial, from data); shown only in Roy/Combined views
+  if (el('sim-kpi-re-now'))    el('sim-kpi-re-now').textContent    = _showRoy ? simFmtM(_reK) : '—';
+  if (el('sim-kpi-total-now')) el('sim-kpi-total-now').textContent = simFmtM(_totalK);
+
+  // Operational KPIs (info-grid below chart) — Roy-specific: hide in Yael view
   if (el('sim-kpi-salary'))   el('sim-kpi-salary').textContent   = _showRoy ? simFmtNIS(salary)   : '—';
   if (el('sim-kpi-exp'))      el('sim-kpi-exp').textContent      = _showRoy ? simFmtNIS(expenses)  : '—';
   var deltaEl = el('sim-kpi-delta');
@@ -7178,24 +7805,61 @@ function simRenderKPI() {
   }
   // v103.4: pension KPI includes Harel if mode='with'
   var totalPension = pension + (SIM_HAREL_MODE === 'with' ? simGetRoyHarelPension() : 0);
-  if (el('sim-kpi-pension'))   el('sim-kpi-pension').textContent  = (_showRoy && totalPension > 0) ? simFmtNIS(totalPension) : '—';
-  if (el('sim-kpi-pen-accum')) el('sim-kpi-pen-accum').textContent = (_showRoy && penAccumK > 0)   ? simFmtK(penAccumK)      : '—';
+  if (el('sim-kpi-pension'))  el('sim-kpi-pension').textContent  = (_showRoy && totalPension > 0) ? simFmtNIS(totalPension) : '—';
 
-  // Header stats — v103.10: full view isolation
-  if (el('sim-hdr-roy'))      el('sim-hdr-roy').textContent      = _showRoy ? simFmtK(royCapital) : '—';
-  if (el('sim-hdr-yael'))     el('sim-hdr-yael').textContent     = _showYael ? simFmtK(yaelCapital) : '—';
-  if (el('sim-hdr-combined')) el('sim-hdr-combined').textContent =
-    (SIM_VIEW === 'roy') ? simFmtK(royCapital) :
-    (SIM_VIEW === 'yael') ? simFmtK(yaelCapital) :
-    simFmtK(royCapital + yaelCapital);
-  var hdrDelta = el('sim-hdr-delta');
-  if (hdrDelta) {
+  // v103.29: 4-metric header KPIs — fully wired + subtitle context
+
+  // 1. הון חזוי — wealth at end of December of target year (Task 2: full annual accumulation)
+  var _hdrResult  = simRunEngine();
+  var _targetYear = SIM_BIRTH_YEAR_ROY + SIM_TARGET_AGE;
+  // Each result index = December of that year (idx 0 = Dec 2026, idx 1 = Dec 2027, …)
+  var _targetIdx  = _targetYear - 2026;
+  var _wealthAtAge = 0;
+  if (_targetIdx >= 0 && _targetIdx < _hdrResult.royData.length) {
+    _wealthAtAge = (_hdrResult.royData[_targetIdx] || 0);
+    if (SIM_VIEW === 'combined') _wealthAtAge += (_hdrResult.yaelData[_targetIdx] || 0);
+    if (SIM_VIEW === 'yael')     _wealthAtAge  = (_hdrResult.yaelData[_targetIdx] || 0);
+  }
+  // v103.37: "הון חזוי" — decimal without M (e.g. "46.7"); sub-label in HTML = "מיליון ש״ח"
+  if (el('sim-hdr-wealth-at-age')) el('sim-hdr-wealth-at-age').textContent = simFmtM(_wealthAtAge);
+
+  // v103.35: subtitle — "תחזית לגיל XX" (bold white) + "שנת YYYY" (small grey inline)
+  var _sub = document.getElementById('hdr-subtitle');
+  // v103.36: target age in gold/yellow; year in small grey
+  if (_sub) _sub.innerHTML = 'תחזית לגיל <span style="color:#f59e0b;font-weight:800;">' + SIM_TARGET_AGE + '</span>' +
+    '<span style="font-size:9px;color:rgba(255,255,255,0.45);font-family:Heebo,sans-serif;font-weight:400;margin-right:6px;"> שנת ' + _targetYear + '</span>';
+
+  // 2. הכנסה פנויה — "הכנסה קבועה" slider; bare K number
+  var _incomeEl = el('sim-hdr-monthly-income');
+  if (_incomeEl) {
+    _incomeEl.textContent = _showRoy ? simFmtKbare(SIM_PENSION_MONTHLY / 1000) : '—';
+    _incomeEl.style.color = '#60a5fa'; // v103.35: matches pension tab הכנסה פנויה color
+  }
+
+  // 3. תזרים נטו — (הכנסה קבועה) − (הוצאות); bare K
+  var _netFlow = SIM_PENSION_MONTHLY - (SIM_TARGET_EXP || 0);
+  var _accumEl = el('sim-hdr-monthly-accum');
+  if (_accumEl) {
     if (_showRoy) {
-      hdrDelta.textContent = simFmtNIS(delta);
-      hdrDelta.style.color = delta >= 0 ? '#4ade80' : '#f87171';
+      _accumEl.textContent = simFmtKbare(_netFlow / 1000);
+      _accumEl.style.color = _netFlow >= 0 ? '#fbbf24' : '#f87171';
     } else {
-      hdrDelta.textContent = '—';
-      hdrDelta.style.color = '';
+      _accumEl.textContent = '—';
+      _accumEl.style.color = '';
+    }
+  }
+
+  // 4. צבירה כוללת — תזרים נטו + תשואה חודשית על ההון; bare K
+  var _monthlyYield = royCapital * 1000 * SIM_RATE / 100 / 12; // NIS/month
+  var _totalAccum   = _netFlow + _monthlyYield;
+  var _totalAccumEl = el('sim-hdr-total-accum');
+  if (_totalAccumEl) {
+    if (_showRoy) {
+      _totalAccumEl.textContent = simFmtKbare(_totalAccum / 1000);
+      _totalAccumEl.style.color = _totalAccum >= 0 ? '#a78bfa' : '#f87171';
+    } else {
+      _totalAccumEl.textContent = '—';
+      _totalAccumEl.style.color = '';
     }
   }
 }
@@ -7260,10 +7924,45 @@ function simSetView(v) {
   simRenderChart(simRunEngine());
 }
 
+// v103.12-sim: X-axis display mode toggle
+// v103.22: target age input handler
+function simSetTargetAge(val) {
+  var n = parseInt(val);
+  if (isNaN(n) || n < 60 || n > 100) return; // v103.33: min 60 to allow retirement age 67
+  SIM_TARGET_AGE = n;
+  var inp = document.getElementById('sim-target-age-input');
+  if (inp && parseInt(inp.value) !== n) inp.value = n;
+  simRenderKPI();
+}
+
+// v103.31: Y-axis scale selector handler
+function simSetYScale(v) {
+  SIM_Y_SCALE = parseInt(v) || 60000;
+  var sel = document.getElementById('sim-yscale-select');
+  if (sel && parseInt(sel.value) !== SIM_Y_SCALE) sel.value = SIM_Y_SCALE;
+  simRenderChart(simRunEngine());
+}
+
+function simSetXAxisMode(mode) {
+  SIM_XAXIS_MODE = mode;
+  ['year', 'age', 'both'].forEach(function(m) {
+    var btn = document.getElementById('sim-xaxis-' + m);
+    if (!btn) return;
+    var active = (m === mode);
+    btn.style.background    = active ? '#3b82f6' : 'rgba(0,0,0,0.05)';
+    btn.style.borderColor   = active ? '#3b82f6' : 'rgba(0,0,0,0.18)';
+    btn.style.color         = active ? 'white'   : '#374151';
+  });
+  simRenderChart(simRunEngine());
+}
+
 function simSetRate(r) {
   SIM_RATE = parseFloat(r);
-  var el = document.getElementById('sim-rate-val');
-  if (el) el.textContent = SIM_RATE + '%';
+  var sl  = document.getElementById('sim-rate-slider');
+  var num = document.getElementById('sim-rate-num');
+  if (sl  && parseFloat(sl.value)  !== SIM_RATE) sl.value  = SIM_RATE;
+  if (num && parseFloat(num.value) !== SIM_RATE) num.value = SIM_RATE;
+  simRenderKPI(); // v103.31: צבירה כוללת uses SIM_RATE
   simRenderChart(simRunEngine());
 }
 
@@ -7295,15 +7994,40 @@ function simSetP3Year(y) {
 
 function simSetExpense(e) {
   SIM_TARGET_EXP = parseFloat(e);
-  var el = document.getElementById('sim-exp-val');
-  if (el) el.textContent = simFmtNIS(SIM_TARGET_EXP);
+  var sl  = document.getElementById('sim-exp-slider');
+  var num = document.getElementById('sim-exp-num');
+  if (sl  && parseFloat(sl.value)  !== SIM_TARGET_EXP) sl.value  = SIM_TARGET_EXP;
+  if (num && parseFloat(num.value) !== SIM_TARGET_EXP) num.value = SIM_TARGET_EXP;
+  simRenderKPI(); // v103.31: תזרים נטו + צבירה כוללת use SIM_TARGET_EXP
   simRenderChart(simRunEngine());
 }
 
 function simSetInstructor(s) {
   SIM_INSTRUCTOR_SAL = parseFloat(s);
-  var el = document.getElementById('sim-instr-val');
-  if (el) el.textContent = simFmtNIS(SIM_INSTRUCTOR_SAL);
+  var sl  = document.getElementById('sim-instr-slider');
+  var num = document.getElementById('sim-instr-num');
+  if (sl  && parseFloat(sl.value)  !== SIM_INSTRUCTOR_SAL) sl.value  = SIM_INSTRUCTOR_SAL;
+  if (num && parseFloat(num.value) !== SIM_INSTRUCTOR_SAL) num.value = SIM_INSTRUCTOR_SAL;
+  simRenderChart(simRunEngine());
+}
+
+// v103.26: new state setters
+function simSetPensionMonthly(v) {
+  SIM_PENSION_MONTHLY = parseFloat(v) || 0;
+  var sl  = document.getElementById('sim-pension-monthly-slider');
+  var num = document.getElementById('sim-pension-monthly-num');
+  if (sl  && parseFloat(sl.value)  !== SIM_PENSION_MONTHLY) sl.value  = SIM_PENSION_MONTHLY;
+  if (num && parseFloat(num.value) !== SIM_PENSION_MONTHLY) num.value = SIM_PENSION_MONTHLY;
+  // v103.31: update KPI cards first (הכנסה פנויה + תזרים נטו), then re-run chart
+  simRenderKPI();
+  simRenderChart(simRunEngine());
+}
+function simSetInflation(v) {
+  SIM_INFLATION = parseFloat(v) || 0;
+  var sl  = document.getElementById('sim-inflation-slider');
+  var num = document.getElementById('sim-inflation-num');
+  if (sl  && parseFloat(sl.value)  !== SIM_INFLATION) sl.value  = SIM_INFLATION;
+  if (num && parseFloat(num.value) !== SIM_INFLATION) num.value = SIM_INFLATION;
   simRenderChart(simRunEngine());
 }
 
@@ -7314,27 +8038,32 @@ function simCheckEmpty() {
   var kpiRow      = document.getElementById('sim-kpi-row');
   var kpiInfoGrd  = document.getElementById('sim-kpi-info-grid');
   var kpiLbl      = document.getElementById('sim-kpi-section-label');
-  var chartSec    = document.getElementById('sim-chart-wrap') ? document.getElementById('sim-chart-wrap').parentElement : null;
+  // v103.17-fix: use closest() to target the outer .sim-chart-section (not just inner relative div)
+  var _cw = document.getElementById('sim-chart-wrap');
+  var chartSec = _cw ? (_cw.closest ? _cw.closest('.sim-chart-section') : _cw.parentElement.parentElement) : null;
   var phaseSl     = document.getElementById('sim-phase-sliders'); // v103.10: phase boundary sliders
   var emptyMsg    = document.getElementById('sim-empty-msg');
   var ctrlRow     = document.querySelector('.sim-controls-row');
+  var timelineSec = document.getElementById('sim-timeline-section'); // v103.36
 
   if (hasData) {
-    if (kpiRow)     kpiRow.style.display     = 'flex';
-    if (kpiInfoGrd) kpiInfoGrd.style.display = 'grid';
-    if (kpiLbl)     kpiLbl.style.display     = 'block';
-    if (chartSec)   chartSec.style.display   = '';
-    if (phaseSl)    phaseSl.style.display    = 'flex';
-    if (ctrlRow)    ctrlRow.style.display    = '';
-    if (emptyMsg)   emptyMsg.style.display   = 'none';
+    if (kpiRow)      kpiRow.style.display      = 'flex';
+    if (kpiInfoGrd)  kpiInfoGrd.style.display  = 'grid';
+    if (kpiLbl)      kpiLbl.style.display      = 'block';
+    if (chartSec)    chartSec.style.display    = '';
+    if (phaseSl)     phaseSl.style.display     = 'flex';
+    if (ctrlRow)     ctrlRow.style.display     = '';
+    if (timelineSec) timelineSec.style.display = '';
+    if (emptyMsg)    emptyMsg.style.display    = 'none';
   } else {
-    if (kpiRow)     kpiRow.style.display     = 'none';
-    if (kpiInfoGrd) kpiInfoGrd.style.display = 'none';
-    if (kpiLbl)     kpiLbl.style.display     = 'none';
-    if (chartSec)   chartSec.style.display   = 'none';
-    if (phaseSl)    phaseSl.style.display    = 'none';
-    if (ctrlRow)    ctrlRow.style.display    = 'none';
-    if (emptyMsg)   emptyMsg.style.display   = 'flex';
+    if (kpiRow)      kpiRow.style.display      = 'none';
+    if (kpiInfoGrd)  kpiInfoGrd.style.display  = 'none';
+    if (kpiLbl)      kpiLbl.style.display      = 'none';
+    if (chartSec)    chartSec.style.display    = 'none';
+    if (phaseSl)     phaseSl.style.display     = 'none';
+    if (ctrlRow)     ctrlRow.style.display     = 'none';
+    if (timelineSec) timelineSec.style.display = 'none';
+    if (emptyMsg)    emptyMsg.style.display    = 'flex';
   }
   return hasData;
 }
@@ -7361,7 +8090,7 @@ function simInit() {
   // v102.4: cache salary so KPIs show correct values even when CF_DATA re-queried returns 0
   SIM_CURRENT_SALARY = (_sal > 0) ? _sal : SIM_CURRENT_SALARY;
   // Set expense default from real CF_DATA or fallback
-  SIM_TARGET_EXP = (_exp > 0) ? _exp : (SIM_TARGET_EXP > 0 ? SIM_TARGET_EXP : 58000);
+  SIM_TARGET_EXP = (_exp > 0) ? _exp : (SIM_TARGET_EXP > 0 ? SIM_TARGET_EXP : 30000);
   var expSlider = document.getElementById('sim-exp-slider');
   if (expSlider) expSlider.value = SIM_TARGET_EXP;
   var expValEl = document.getElementById('sim-exp-val');
@@ -7369,6 +8098,7 @@ function simInit() {
 
   simRenderKPI();
   simRenderEvents();
+  simRenderTimeline(); // v103.36: events timeline below chart
   simRenderChart(simRunEngine());
   pnsRetirementYieldChange(pnsRetirementYield); // v102.3: init slider in simulator
 }
