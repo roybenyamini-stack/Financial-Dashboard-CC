@@ -1,7 +1,237 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v103.43 — tooltip מצומצם, יהלום סיום הלוואה, ניקוי UX (11/04/2026).
+גרסה v105.4 — Upload Toggle Reset, CF Header Flex Direction, Market Centering, Toast Leak Fix (14/04/2026).
+
+## שינויים אחרונים (14/04/2026)
+
+### v105.4 – Header Regressions Fix
+
+**Upload Label Reset (`app.js`)**
+- בענף פנסיה ב-`smartUploadRouter`: מוסיף `ovPnsShowHarel = false` + איפוס `ov-hdr-pension-label` ל-"קצבה נטו" לפני כל רנדור מחדש — מונע שמירת מצב "(עם הראל)" מ-toggle קודם
+
+**CF Header — `flex-direction:row` (`style.css`)**
+- הוסף `flex-direction: row;` מפורש ל-`.header` — אכיפת שורה אחת גם ב-browsers שמפרשים flex שונה
+
+**CF Stats — No-Wrap (`index.html`)**
+- הוסף `flex-shrink:1; overflow:hidden; flex-wrap:nowrap;` ל-`#cf-header-stats` — מונע ירידת הסטטיסטיקות לשורה שנייה
+
+**Market Search Centering (`index.html`)**
+- הוסף `margin-right:auto; margin-left:auto;` ל-`#mkt-search-area` — ממרכז את אזור החיפוש בכותרת הגלובלית
+
+**Toast Leak Fix (`app.js`)**
+- ב-`switchTab()`: `#excel-status` מוסתר (`display:none`) כשנכנסים לטאב שוק, ומשוחזר ביציאה — מונע הצגת הודעות Upload בכותרת טאב שוק
+
+---
+
+## שינויים אחרונים (13/04/2026)
+
+### v105.3 – Final Polish
+
+**Upload Bug — Label Shifting (`app.js`)**
+- הוסר עדכון ה-label (`ov-hdr-pension-label`) מתוך `ovRenderKPIs()` — הועבר אך ורק ל-`ovTogglePnsHarel()`
+- מונע הזזת אלמנטים בכותרת בעת העלאת קבצים
+
+**Pension Stat Width Fix (`index.html`)**
+- הוסף `min-width:155px` לפריט סטטיסטיקה של קצבה — מונע shifting בין מצבי עם/ללא הראל
+
+**Net Pension Math — חישוב מדויק (`app.js`)**
+- גלובלים חדשים: `pnsNetMonthlyWithHarel`, `pnsNetMonthlyNoHarel`
+- IIFE ב-`pensionSliderChange()` מחשב את שני הערכים בנפרד עם אותה מנוע מס — מחליף scaling פרופורציונלי לא-מדויק
+- `ovRenderPensionCards()`: שימוש ישיר בגלובלים החדשים, ללא סקיילינג
+
+**Harel Toggle — Active Color (`app.js`)**
+- צבע active: `#1e2d4a` (כחול-נייבי כהה) → `#3b82f6` (כחול בהיר ברור)
+- גם ה-border מתעדכן לכחול כשפעיל
+
+**CF Header Nowrap (`index.html`)**
+- הוסף `flex-wrap:nowrap` ל-`#hdr-title-group` — מכריח title + stats להישאר בשורה אחת
+
+**Market Title Spacing (`index.html`)**
+- הוסף `margin-left:30px` לספאן הכותרת "ניתוח שוק" ב-`#mkt-search-area` — רווח בין הכותרת לסרגל החיפוש
+
+---
+
+### v105.2 – Harel Toggle Polish + CF Header + Market Title + Sim Age Fix
+
+**Harel Toggle (`app.js`)**
+- גלובל חדש `ovPnsDisplayNet` — מתעדכן ב-`ovRenderPensionCards()` עם הערך הנוכחי (עם/ללא הראל)
+- `ovTogglePnsHarel()`: מוסיף קריאה ל-`ovRenderKPIs()` לאחר הרינדור → כותרת גלובלית מסתנכרנת
+- `ovRenderKPIs()`: משתמש ב-`ovPnsDisplayNet` לעדכון `#ov-hdr-pension`; label מגיב ל-`ovPnsShowHarel`
+- עיצוב טוגל: inactive = לבן + border navy; active = navy + טקסט לבן
+
+**CF Header Alignment (`style.css`)**
+- `.header`: הוסף `flex-wrap: nowrap`
+- `.header-stats`: `align-items: flex-start` → `align-items: center`
+
+**Market Tab Title Restore (`index.html`)**
+- הוסף חזרה ל-`#mkt-search-area`: `<span>ניתוח שוק <span>v105.0</span></span>` — כותרת + גרסה + search + chips על שורה אחת
+
+**Simulator "גיל" View Bug (`app.js`)**
+- גלובלים חדשים: `SIM_START_YEAR = 2026`, `userCurrentAge = 63`
+- תיקון שורש (`simSliceResult`): age labels (< 200) מומרים לשנה לפני השוואה: `yr + SIM_BIRTH_YEAR_ROY` — מונע slice ריק
+- label חישוב: `_royAge = (_yr - SIM_START_YEAR) + userCurrentAge` — קריא ועמיד
+
+### v105.1 – Default Tab + Pension Net Fix + Mini-Sim Unblock
+
+**Default Tab (`app.js`)**
+- `DOMContentLoaded`: שינוי `switchTab('cashflow')` → `switchTab('overview')`
+
+**Pension Card — "קצבה נטו" Fix (`app.js`)**
+- שורש הבעיה: `pnsNetMonthly` נשאר 0 כשמעלים קובץ פנסיה מטאב מבט-על (טאב פנסיה לא אותחל)
+- תיקון: בתוך `smartUploadRouter` — קריאה מיידית ל-`pensionSliderChange()` לאחר `PENSION_ASSETS = pnsAssets`
+- טיפוגרפיה: כותרות אפורות `9px→11px`, ערכים כספיים `14px→17px`, suffix `9px→11px`, harelBtn `9px→11px`
+
+**Mini-Simulator Unblock (`app.js`)**
+- הוספת `ovRenderSimMini()` לשלוש נקודות upload:
+  - לאחר pension upload
+  - לאחר CF upload
+  - לאחר investments upload
+
+### v105.0 – Overview & Market Polish
+
+**Overview — Pension Upload Sync (`app.js`)**
+- תיקון: לאחר העלאת קובץ פנסיה מטאב מבט-על — מוסיף קריאה ל-`ovRenderPensionCards()` (בנוסף ל-`ovRenderKPIs()`) → כרטיס הפנסיה מתרענן ללא מעבר טאב ידני
+
+**Overview — Cashflow "Today" Line (`app.js`)**
+- צבע: `rgba(200,200,200,0.5)` → `rgba(150,150,150,0.8)`, עובי: `lineWidth:1` → `lineWidth:1.5`
+
+**Overview — Pension Card UI (`index.html` + `app.js`)**
+- מפרידים: `#1e2d4a` → `rgba(100,116,139,0.2)` (עדין יותר)
+- יישור: `#ov-pension-content` מ-`align-items:center` ל-`align-items:flex-start` — שורת הסטטיסטיקות נדחפת לראש הכרטיס
+
+**Overview — "קצבה ברוטו" מגיב לטוגל הראל (`app.js`)**
+- תיקון: `fmtNIS(ovPnsShowHarel ? grossWith : grossWithout)` — כברירת מחדל מציג ללא הראל; עם טוגל מציג עם הראל
+
+**Market Analysis — True Header (`index.html` + `app.js`)**
+- `mkt-search-area` הועבר לתוך `.header` הגלובלי; הוסר הטקסט "ניתוח שוק" ממנו
+- הוסף `id="hdr-title-group"` לאלמנט הכותרת הראשי
+- `switchTab()`: כשנמצאים ב-market — מסתיר `#hdr-title-group`, מציג `#mkt-search-area` כ-flex
+- FX Slider: JS clamp `Math.max(3.00, Math.min(4.50, mktFxRate))` בשעת sync
+
+**Simulator — Month Input Clamp (`index.html`)**
+- `sim-ev-month`: הוסף `oninput` JS שמונע ערך מחוץ לטווח 1–12
+
+**Version: v105.0**
+
+### v104.8 – Deep UI Polish
+
+**Overview — Pension Card (`index.html` + `app.js`)**
+- **שורת טקסט אחת**: הוחלפו 4 כרטיסי `ov-micro-card` בשורה הוריזונטלית אחת (הון צבור | קצבה ברוטו | קצבה נטו | הכנסה פנויה)
+- **מיני-טוגל הראל**: כפתור `עם הראל` / `– הראל` (9px, inline) ליד "קצבה נטו" — מחליף ערך ב-click ללא ריענון מלא
+- גלובל חדש: `ovPnsShowHarel`, פונקציה חדשה: `ovTogglePnsHarel()`
+
+**Overview — Simulator Mini (`index.html` + `app.js`)**
+- **גובה**: container → `min-height:200px;flex:1;`; הוסרה שורת `canvas.height=165` — Chart.js שולט בגובה עם `maintainAspectRatio:false`
+- **Tooltip אירועים**: כעת מציג גם סכום כספי (e.g. `פרישה (+2.5M)`)
+- **סינון אירועי עבר**: `simCollectEvents()` מסנן `ev.yr < 2026` לפני החזרה
+
+**Overview — Cashflow Today Line (`app.js`)**
+- **הוסרה תווית "היום"** לחלוטין
+- **קו**: מהסגנון הצהוב המקווקו → `rgba(200,200,200,0.5)`, `lineWidth:1`, `[5,5]`
+
+**Market Analysis — Layout Shift (`index.html` + `app.js`)**
+- **Search לשורת כותרת**: `mkt-search-area` הוזז לראש `mkt-wrap` כשורה אחת: כותרת "ניתוח שוק" + input + כפתור + chips
+- **News לסייד-בר**: `mkt-news-section` הועבר מהעמודה הראשית לתחתית `mkt-ai-panel` (sidebar ימני)
+- כרטיסי חדשות: עוצבו מחדש לרוחב צר (11px title, 9px publisher, 2-line clamp)
+
+### v104.7 – Phase 4: Cross-Tab Sync + News + UI
+
+**Backend: `app.py`**
+- **News בנקודת הקצה המשולבת `/api/stock`**: שליפת 3-4 ידיעות אחרונות (title, publisher, url) דרך `yfinance .news` — מוחזרות ב-JSON תחת `news`
+
+**Market Analysis (`index.html` + `app.js`)**
+- **Ultra-Compact Search**: input + כפתור חפש + chips בשורה אחת (flexbox) — מינימליזם מלא
+- **כרטיסי חדשות**: `<div id="mkt-news-section">` מוצג מתחת לגרף הראשי. `mktRenderNews(articles)` בונה 3-4 כרטיסים קליקביליים (title + publisher + ↗) — dark theme, `target="_blank"`
+
+**Overview Tab (`app.js`)**
+- **Cross-Tab Sync — נתוני השקעות**: `loadExcelFileCore()` מוסיף קריאה ל-`ovRenderKPIs()` + `ovRenderInvestChart()` לאחר טעינת נתוני השקעות
+- **Cross-Tab Sync — נתוני פנסיה**: `smartUploadRouter()` מוסיף קריאה ל-`ovRenderKPIs()` לאחר הצלחת טעינת פנסיה
+- **קו "היום" בגרף תזרים**: ממוקם ב-GAP בין הבר הנוכחי לבא (חצי מרחק בין `currentMonthIdx` ל-`currentMonthIdx+1`)
+- **כרטיס "קצבה נטו" — עם/ללא הראל**: תצוגה הוריזונטלית: שני ערכים זה לצד זה (עם הראל | ללא הראל) בכרטיס בודד
+
+### v104.6 – UX/UI Edge Cases & Bug Fixes
+
+**Market Analysis (`index.html` + `app.js`)**
+- **Auto-Uppercase**: `marketInit()` מוסיף `addEventListener('input')` שממיר כל הקשה ל-UPPERCASE תוך שמירת מיקום cursor
+- **Graceful 404**: `mktLoadTicker` מפריד HTTP 404 — קורא ל-`mktShowNotFound()` שמציג הודעה עדינה (`mkt-not-found` div) ומסתיר את אזור התוצאות. שגיאות אחרות → banner אדום כרגיל
+- **Compact Layout**: `mkt-empty-hero` → `padding:10px 0 8px`; search row → `margin-bottom:8px`; chips → `gap:5px`; `mkt-not-found` div נוסף מתחת לחיפוש
+- **FX Slider Bug**: נוסף `mktLastFxSyncTicker` — slider מסתנכרן לשער החי **רק** כשהטיקר משתנה; שינוי period/bench לא מאפס את ה-slider
+
+**Overview Tab (`app.js`)**
+- **"קצבה נטו" Async Bug**: בסוף `pensionRender()` — אם `pnsNetMonthly === 0`, קורא ל-`pensionSliderChange()` עם ערך slider נוכחי לאתחול המשתנה; ואז `ovRenderKPIs()` לעדכון header מיידי עם טעינת נתונים
+- **Tooltip `+` הוסר**: ב-monthly chart afterBody — מציג `net.toLocaleString()` בלי `+`
+- **YTD Exact Clone**: Bar Chart ירוק/אדום לפי סימן (clone מדויק של CF tab); Y-axis עם padded locked range; ה-plugin של קו "היום" נשמר
+- **Mini Simulator Exact Clone**: `ovRenderSimMini()` כתובה מחדש — אותם datasets/צבעים/fill כמו `simRenderChart` (SIM_VIEW=roy); `interaction: {mode:'index',intersect:false}`; tooltip מציג כל שכבה + footer סה״כ + אירועים; Y-axis `min:0`; ציר אירועים pixel-aligned מ-`simCollectEvents()`
+
+### v104.5 – Market Analysis Polish + Overview Phase 2
+
+**Market Analysis (`index.html`)**
+- **הסרת האייקון**: `mkt-empty-hero` ריק לחלוטין — אין emoji, אין כותרת. search bar עולה לראש
+- **FX Slider**: `min=3.00`, `max=4.50`, `step=0.01` — טווח רחב + שלב עדין יותר; `value` מאותחל ב-3.50 (JS מסנכרן לשער החי)
+
+**Overview Tab (`index.html` + `app.js`)**
+- **"הון חזוי לגיל 67" — State Persistence**: נוסף `OV_CACHED_WEALTH` global. `ovRenderKPIs()` שומר ערך חוקי ב-cache ומשתמש בו גם כש-`ovAllDataReady()` מחזיר false (מעבר טאב). הערך לא נאבד יותר
+- **Cashflow Chart — הוצאות מלאות**: משתמש ב-`r.total_exp.val` כשקיים (כל ההוצאות מהאקסל כולל חריגות); fallback ל-`cfCalcExp(r)`
+- **Toggle חודשי/YTD**: כפתורים "חודשי" / "YTD" בכותרת הכרטיס. `ovSetCFMode(mode)` — מצב YTD מציג Line Chart מצטבר; מצב חודשי Bar Chart רגיל. גלובל `ovCFMode`
+- **סמן חודש נוכחי**: Plugin מקומי `ovCurMonthLine` — קו אנכי מקווקו צהוב (`rgba(250,204,21,0.55)`) + תווית "היום" על index של אפריל בשני מצבי הגרף
+- **Simulator Mini — Y-axis**: `min: 0` קבוע — שכבת הנדל"ן בתחתית מוצגת במלואה
+
+### v104.4 – Market Analysis Tab Revival (Phase 1)
+
+**Backend: `app.py`** (נמצא ב-`/Users/roybenyamini/stock-dashboard/app.py`, פורט 5050)
+- **`get_fx_rate()`**: שליפת שער USD/ILS חי מ-Yahoo Finance (`ILS=X`); fallback ל-3.70
+- **`_ils_price()`**: פונקציית עזר להמרת מחיר ILS/ILa (אגורות) ל-USD
+- **ILS Normalization ב-`/api/stock/<ticker>`**: בדיקת currency (ILS/ILa), חלוקת price/marketCap/targetMeanPrice ב-agora_factor ו-fx_rate
+- **נקודת קצה חדשה `/api/stock` (query params)**: מחזירה data משולב — info + chart history + benchmark (SPY/QQQ/IWM) + sniper zones. תואמת את קריאות ה-frontend (`?ticker=X&period=Y&bench=Z`)
+- **נקודת קצה חדשה `/api/chat` (POST)**: proxy ל-Cloudflare worker; תופסת HTTP 429/529 ומחזירה שגיאה עברית ידידותית; timeout ו-server errors מטופלים גם הם
+
+**Frontend: `app.js`**
+- **`mktLoadTicker`**: קריאה לנקודה החדשה `/api/stock?ticker&period&bench`; מסנכרן FX slider לשער החי שחזר מה-API (`data.fx_rate`)
+- **`mktUpdateComparison`**: `fxAdj = mktFxRate / liveFx` (במקום hardcoded 3.70)
+- **`mktAISend`**: שולח ל-`localhost:5050/api/chat` (במקום ישירות ל-Cloudflare); זיהוי ספציפי של `overloaded_error` / HTTP 429 → הודעה עברית ידידותית
+- **`mktToggleSniper`**: Toggle Switch אמיתי (track + thumb עם אנימציה) במקום כפתור רגיל
+
+**Frontend: `index.html`**
+- **Empty State נקי**: הוסרו "ניתוח שוק ומסחר" ו"חפש מניה לניתוח מעמיק"; נשאר רק 📈 + search + chips
+- **Sniper Toggle Switch**: הוחלף הכפתור ב-label עם track/thumb מונפש
+
+### v104.3 – Overview QA Bug Fixes
+- **Empty States אחידים**: נוספה class `.ov-empty-state` (position:absolute, overlay) + overlay divs בכל quadrant (`ov-cf-empty`, `ov-inv-empty`, `ov-sim-empty`). טקסט אחיד: "יש להעלות את קבצי הנתונים להצגת התוכן"
+- **אל חטיפת ניווט**: העלאת תזרים כשנמצאים ב-Overview — נשאר ב-Overview, לא קופץ לטאב תזרים
+- **גרף תזרים — הוצאות כלפי מעלה**: תוקן ל-`Math.abs(exp)` (חיובי); תווית X מציגה שם חודש בלבד ללא שנה
+- **CF_DATA לא נמחק בהעלאת Asset Data**: `CF_DATA = []` הועבר פנימה לענף CF בלבד ב-`smartUploadRouter`
+- **Dependency Gate לסימולטור**: `ovAllDataReady()` — הסימולטור ו-KPI "הון חזוי" מציגים תוכן רק אם CF + Investments + Pension כולם טעונים; אחרת: "ממתין..." ב-KPI ו-empty state בריבוע
+
+
+
+### v104.0 – Overview Tab + Market Analysis Tab
+
+**טאב מבט על (`#tab-overview`) — Bento Box Layout:**
+- **שורת KPI עליונה (4 כרטיסים)**: רווח חודש אחרון (מ-CF_DATA.delta) | סה"כ השקעות (מ-ALL_TOTALS, בM) | קצבה נטו ללא הראל (מ-pnsNetMonthly) | הון חזוי לגיל 67 (מ-simRunEngine)
+- **גרף תזרים (Top Right)**: Bar Chart 13 חודשים מ-CF_DATA.delta; ירוק/אדום; כולל מספר "רווח YTD" בפינה
+- **גרף השקעות (Top Left)**: Line Chart מ-ALL_TOTALS עם gradient fill ו-hover tooltips מפורטים
+- **כרטיסי פנסיה (Bottom Right)**: 4 Micro-Cards — הון צבור / קצבה ברוטו / קצבה נטו / הכנסה פנויה. ללא גרפים. מציג "אין נתונים" כשאין Excel פנסיה
+- **סימולטור מוקטן (Bottom Left)**: Stacked Area Chart 5 שנים קרובות (simRunEngine + simSliceResult). ציר אירועים תחתון מ-SIM_USER_EVENTS. ללא גרף כשאין נתונים
+- **CSS**: `<style>` מוטמע בתוך הטאב (לא משנה CSS גלובלי); כל הכרטיסים `.ov-card`, `.ov-kpi-card`, `.ov-micro-card`
+- **JS**: `overviewRender()` נקרא בכל מעבר לטאב (`switchTab`); 5 פונקציות: `ovRenderKPIs`, `ovRenderCashflowChart`, `ovRenderInvestChart`, `ovRenderPensionCards`, `ovRenderSimMini`
+
+**טאב ניתוח שוק (`#tab-market`) — Market Analysis:**
+- **תמה**: Dark deep `#0a0e1a` background, `#141c2e` כרטיסים
+- **חיפוש**: שדה טקסט + כפתור חיפוש + Quick Chips (Mag7, S&P 500, ת"א 125, ת"א 35)
+- **גרף ראשי**: Line Chart מ-`localhost:5050/api/stock?ticker=X&period=Y`; כפתורי 1M/3M/6M/1Y/3Y
+- **Sniper Zones**: Toggle button — כשפעיל, מציג קווים אופקיים מקווקוים על הגרף לפי `data.sniper.target_buy` ו-`target_sell`; legend מתחת לגרף
+- **Comparison Chart**: תשואה % נורמלית מול benchmark (SPY/QQQ/IWM) + Slider USD/ILS (`mktFxRate`) שמשפיע על תשואת המניה
+- **AI Sidebar**: Collapsible; שולח שאלה לפרוקסי הקיים `holy-poetry-claude-proxy`; system prompt כולל נתוני המניה הנוכחית; היסטוריית שיחה (8 הודעות אחרונות)
+- **Empty State**: גיבור + שדה חיפוש ענק; `#mkt-results` נשאר `display:none` עד חיפוש ראשון
+- **CSS**: `<style>` מוטמע בטאב; classes: `.mkt-chip`, `.mkt-period-btn`, `.mkt-ai-msg-user`, `.mkt-ai-msg-ai`
+
+**שינויים ב-`switchTab`:**
+- נוספו `isOv` ו-`isMkt` flags
+- Overview: `overviewRender()` נקרא בכל מעבר (רענון נתונים)
+- Market: `marketInit()` נקרא פעם אחת (lazy init)
+
+**קבצים שהשתנו**: `index.html` (גרסה + HTML שני טאבים), `app.js` (switchTab + ~600 שורות חדשות בסוף)
 
 ## שינויים אחרונים (11/04/2026)
 
