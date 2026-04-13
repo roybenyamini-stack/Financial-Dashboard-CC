@@ -2478,8 +2478,7 @@ function smartUploadRouter(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      // v102.5: Stateless — no localStorage cleanup needed; reset runtime state only
-      CF_DATA = [];
+      // v104.3: CF_DATA is reset only inside the CF branch — not here — to prevent investment/pension uploads from clearing it
       var data = new Uint8Array(e.target.result);
       var wb = XLSX.read(data, {type:'array', cellDates:true});
       // בדיקת גיליון פנסיה לפי תוכן תאים — עדיפות ראשונה (v60.0)
@@ -2499,6 +2498,19 @@ function smartUploadRouter(input) {
           }
           // v102.5: עדכן סימולטור עם נתוני פנסיה מהקובץ החדש
           if (simInited) simRefresh();
+          // v105.1: חשב pnsNetMonthly גם כשטאב פנסיה לא פעיל — חיוני לכרטיס בממשק מבט-על
+          var _sldr = document.getElementById('pns-tax-slider');
+          if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldr ? _sldr.value : '35');
+          // v105.0: סנכרון מבט-על לאחר טעינת נתוני פנסיה (KPIs + pension card body + mini-sim)
+          if (overviewInited) {
+            // v105.4: reset Harel toggle on upload — label must stay plain, no "(עם/ללא הראל)" from prior toggle
+            ovPnsShowHarel = false;
+            var _lblReset = document.getElementById('ov-hdr-pension-label');
+            if (_lblReset) _lblReset.textContent = 'קצבה נטו';
+            if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
+            if (typeof ovRenderPensionCards === 'function') ovRenderPensionCards();
+            if (typeof ovRenderSimMini === 'function') ovRenderSimMini();
+          }
         } else {
           if (status) { status.textContent = '⚠️ לא נמצאו נתוני פנסיה בגיליון'; setTimeout(function(){ status.textContent=''; }, 5000); }
         }
@@ -2509,6 +2521,7 @@ function smartUploadRouter(input) {
       var cfKey = 'שוטף חדשי'.normalize('NFC');
       var isCF = wb.SheetNames.some(function(n){ return n.normalize('NFC').indexOf(cfKey) >= 0; });
       if (isCF) {
+        CF_DATA = []; // v104.3: reset CF_DATA only for CF uploads
         var newData = cfParseWorkbook(wb);
         if (newData.length > 0) {
           CF_DATA = newData;
@@ -2530,13 +2543,19 @@ function smartUploadRouter(input) {
           }
           // תמיד מאלץ רינדור מחדש — גם אם הטאב לא פעיל
           cfInited = false;
+          // v104.3: אם המשתמש נמצא ב-Overview — אל תחטוף את הניווט
+          var _activePanel = document.querySelector('.tab-panel.active');
+          var _onOverview  = _activePanel && _activePanel.id === 'tab-overview';
           var cfPanel = document.getElementById('tab-cashflow');
-          if (cfPanel) {
-            // הצג את טאב התזרים ורנדר
+          if (cfPanel && !_onOverview) {
             switchTab('cashflow');
           }
           // v102.5: עדכן סימולטור עם נתוני שכר/הוצאות מהקובץ החדש
           if (simInited) simRefresh();
+          // v104.2: סנכרון גרף תזרים בלשונית מבט-על
+          if (overviewInited && typeof ovRenderCashflowChart === 'function') ovRenderCashflowChart();
+          // v105.1: עדכן מיני-סימולטור לאחר טעינת תזרים
+          if (overviewInited && typeof ovRenderSimMini === 'function') ovRenderSimMini();
           cfSandboxInitDefaults(); // v103.4: set default date to next future month
           if(status) {
             var lastM = newData[newData.length - 1];
@@ -2988,6 +3007,14 @@ function loadExcelFileCore(wb) {
 
       // v102.5: עדכן סימולטור עם הון רועי/יעל מהקובץ החדש
       if (simInited) simRefresh();
+
+      // v104.7: סנכרון מבט-על לאחר טעינת נתוני השקעות
+      if (overviewInited) {
+        if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
+        if (typeof ovRenderInvestChart === 'function') ovRenderInvestChart();
+        // v105.1: עדכן מיני-סימולטור לאחר טעינת נתוני השקעות
+        if (typeof ovRenderSimMini === 'function') ovRenderSimMini();
+      }
 
     } catch(err) {
       status.textContent = 'שגיאה: ' + err.message;
@@ -5505,6 +5532,17 @@ function switchTab(id){
   var isInv = (id === 'investments');
   var isPns = (id === 'pension');
   var isSim = (id === 'simulator');
+  var isOv  = (id === 'overview');
+  var isMkt = (id === 'market');
+
+  // v105.0: market tab — hide title group, show search area in header
+  var hdrTitleGroup = document.getElementById('hdr-title-group');
+  if (hdrTitleGroup) hdrTitleGroup.style.display = isMkt ? 'none' : '';
+  var mktHeaderArea = document.getElementById('mkt-search-area');
+  if (mktHeaderArea) mktHeaderArea.style.display = isMkt ? 'flex' : 'none';
+  // v105.4: hide upload toast on market tab — prevents success message leaking into market header
+  var _excelStatus = document.getElementById('excel-status');
+  if (_excelStatus) _excelStatus.style.display = isMkt ? 'none' : '';
 
   // Header stats
   var invStats = document.getElementById('inv-header-stats');
@@ -5515,6 +5553,8 @@ function switchTab(id){
   if(pnsStats) pnsStats.style.display = isPns ? 'flex' : 'none';
   var simStats = document.getElementById('sim-header-stats');
   if(simStats) simStats.style.display = isSim ? 'flex' : 'none';
+  var ovStats = document.getElementById('ov-header-stats');
+  if(ovStats) ovStats.style.display = isOv ? 'flex' : 'none';
 
   // Cards row
   var invCards = document.getElementById('inv-cards-row');
@@ -5533,6 +5573,7 @@ function switchTab(id){
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
   document.querySelectorAll('.sim-only-btn').forEach(function(b){ b.style.display = isSim ? 'flex' : 'none'; });
+  document.querySelectorAll('.ov-only-btn').forEach(function(b){ b.style.display = isOv ? 'flex' : 'none'; });
 
   // v99.3: categories-scroll always hidden (Master-Detail replaces it)
   var _catScr = document.getElementById('categories-scroll');
@@ -5569,6 +5610,8 @@ function switchTab(id){
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
+  if(isOv){ if(!overviewInited){ overviewInited=true; } setTimeout(overviewRender,80); }
+  if(isMkt && !marketInited){ marketInited=true; setTimeout(marketInit,80); }
   // v103.14-sim-ui: update AI chat title based on active tab
   var _chatTitle = document.getElementById('chat-title');
   if (_chatTitle) _chatTitle.innerHTML = isSim
@@ -5593,7 +5636,7 @@ function switchTab(id){
 // v56.1: הפעל טאב ברירת מחדל ב-DOMContentLoaded — מפעיל את כל ה-show/hide logic
 // v56.2: קרא updateTableCells כדי לאפס תאי HTML לאפס כשאין localStorage
 document.addEventListener('DOMContentLoaded', function() {
-  switchTab('cashflow');
+  switchTab('overview');
   updateTableCells(); // מבטיח שתאי טבלת השקעות מציגים 0 כשאין נתוני localStorage
 });
 
@@ -5612,7 +5655,9 @@ var pensionNIMode   = 'single';
 var pnsLegacyChart  = null;
 var pnsTimelineChart = null;
 var pnsViewMode      = 'mine';
-var pnsNetMonthly    = 0;
+var pnsNetMonthly          = 0;
+var pnsNetMonthlyWithHarel = 0; // v105.3: exact net WITH Harel (same tax engine as pension tab)
+var pnsNetMonthlyNoHarel   = 0; // v105.3: exact net WITHOUT Harel
 var pnsExcludeHarel  = true; // v102.3: default = ללא הראל
 var PNS_SHEET_KEY   = 'ביטוח חיים ופנסיה';
 // Israel 2025 approximate tax ceilings
@@ -5679,6 +5724,14 @@ function pensionRender() {
   pensionRenderLumpsums();
   pensionRenderTaxLab();
   pensionRenderLegacy();
+  // v104.5: initialize pnsNetMonthly from current slider value so overview KPI
+  // shows the correct value immediately without requiring the user to touch the slider
+  if (pnsNetMonthly === 0) {
+    var _sldr = document.getElementById('pns-tax-slider');
+    var _val  = _sldr ? _sldr.value : '35';
+    pensionSliderChange(_val);
+  }
+  if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
 }
 
 function pensionActiveAssets() {
@@ -5783,6 +5836,8 @@ function pensionToggleHarel(exclude) {
   pensionRenderRiskRow();
   pensionRenderCards();
   pensionRenderTaxLab();
+  // v104.1: sync overview header KPI label if rendered
+  if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
 }
 
 // ---------- MASTER VIEW TOGGLE ----------
@@ -6243,6 +6298,27 @@ function pensionSliderChange(val) {
 
   // עדכן global ורענן KPI קצבה נטו ב-snapshot
   pnsNetMonthly = netMonthly;
+
+  // v105.3: compute exact with/without Harel values for Overview card (same tax engine, no scaling)
+  (function() {
+    var _royBase   = PENSION_ASSETS.filter(function(a){ return !a.isPendingReview && (!a.owner || a.owner === 'רועי'); });
+    var _noHarel   = _royBase.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; });
+    function _calcNet(tp) {
+      var _exempt  = pnsExemptBasket * pensionExemptFrac / 180;
+      var _taxable = Math.max(0, tp - _exempt);
+      var _tax;
+      if (taxMethod === '31')      _tax = _taxable * 0.31;
+      else if (taxMethod === '35') _tax = _taxable * 0.35;
+      else if (taxMethod === '47') _tax = _taxable * 0.47;
+      else                         _tax = pnsCalcTax(_taxable);
+      return Math.round(tp - _tax);
+    }
+    var _tpWith    = _royBase.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+    var _tpWithout = _noHarel.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+    pnsNetMonthlyWithHarel = _tpWith    > 0 ? _calcNet(_tpWith)    : 0;
+    pnsNetMonthlyNoHarel   = _tpWithout > 0 ? _calcNet(_tpWithout) : 0;
+  })();
+
   pensionRenderSnapshot();
 
   // אנימציית עיגולים — scale() בתוך מיכל יציב (אין layout shift)
@@ -6646,6 +6722,8 @@ var SIM_VIEW   = 'roy'; // 'roy' | 'yael' | 'combined' — v102.3: back to Roy d
 var SIM_XAXIS_MODE = 'both'; // 'year' | 'age' | 'both' — v103.36: default = both (age + year)
 var SIM_BIRTH_YEAR_ROY  = 1963; // v103.30: current age 63 (2026 − 63 = 1963)
 var SIM_BIRTH_YEAR_YAEL = 1968;
+var SIM_START_YEAR      = 2026; // v105.2: baseline calendar year for age ↔ year mapping
+var userCurrentAge      = 63;  // v105.2: Roy's age in SIM_START_YEAR (2026 − 1963)
 // v103.13-sim: retirement ages as named constants — future-proofed for dynamic sliders
 var SIM_RETIREMENT_AGE_ROY  = 67; // גיל פרישה — רועי (men's statutory pension age in Israel)
 var SIM_RETIREMENT_AGE_YAEL = 65; // גיל פרישה — יעל (women's statutory pension age in Israel)
@@ -6724,6 +6802,8 @@ function simSliceResult(result, startYr, endYr) {
   for (var li = 0; li < labels.length; li++) {
     var yr = parseInt(labels[li]);
     if (!isNaN(yr)) {
+      // v105.2: age labels (< 200) must be converted back to calendar years for slicing
+      if (yr < 200) yr = yr + SIM_BIRTH_YEAR_ROY;
       if (yr < startYr) s = li + 1;
       if (yr > endYr && e === labels.length - 1) e = li - 1;
     }
@@ -7076,12 +7156,15 @@ function simRunEngine() {
       var _yr = ym.y;
       var _lbl;
       if (SIM_XAXIS_MODE === 'age') {
+        // v105.2: use SIM_START_YEAR + userCurrentAge baseline — never produces NaN
+        var _royAge  = (_yr - SIM_START_YEAR) + userCurrentAge;
+        var _yaelAge = (_yr - SIM_START_YEAR) + (SIM_START_YEAR - SIM_BIRTH_YEAR_YAEL);
         if (SIM_VIEW === 'yael') {
-          _lbl = String(_yr - SIM_BIRTH_YEAR_YAEL);
+          _lbl = String(_yaelAge);
         } else if (SIM_VIEW === 'combined') {
-          _lbl = (_yr - SIM_BIRTH_YEAR_ROY) + '|' + (_yr - SIM_BIRTH_YEAR_YAEL);
+          _lbl = _royAge + '|' + _yaelAge;
         } else {
-          _lbl = String(_yr - SIM_BIRTH_YEAR_ROY);
+          _lbl = String(_royAge);
         }
       } else if (SIM_XAXIS_MODE === 'both') {
         _lbl = String(_yr); // v103.36: ticks.callback formats display as [age, year]
@@ -7447,6 +7530,9 @@ function simCollectEvents() {
                   rentMonthly: ev.rentMonthly, loanMonthly: ev.loanMonthly,
                   loanEndYear: ev.loanEndYear, loanEndMonth: ev.loanEndMonth, balloonAmount: ev.balloonAmount });
   });
+  // Filter out past events (before current year)
+  var curYr = new Date().getFullYear();
+  events = events.filter(function(ev) { return ev.yr >= curYr; });
   return { events: events, monthNames: monthNames };
 }
 
@@ -7933,6 +8019,8 @@ function simSetTargetAge(val) {
   var inp = document.getElementById('sim-target-age-input');
   if (inp && parseInt(inp.value) !== n) inp.value = n;
   simRenderKPI();
+  // v104.1: sync overview header KPI label if rendered
+  if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
 }
 
 // v103.31: Y-axis scale selector handler
@@ -8121,4 +8209,1021 @@ function simRefresh() {
   }
   simRenderKPI();
   simRenderChart(simRunEngine());
+}
+
+// =========================================
+// OVERVIEW TAB — v104.0
+// =========================================
+
+var overviewInited  = false;
+var ovCFChart       = null;
+var ovInvChart      = null;
+var ovSimMiniChart  = null;
+var ovCFMode        = 'monthly';   // 'monthly' | 'ytd'
+var OV_CACHED_WEALTH = null;       // persists הון חזוי across tab switches
+var ovPnsShowHarel  = false;       // false = ללא הראל (default), true = עם הראל
+var ovPnsDisplayNet = 0;           // cached displayNet from ovRenderPensionCards — used for header sync
+
+function overviewRender() {
+  ovRenderKPIs();
+  ovRenderCashflowChart();
+  ovRenderInvestChart();
+  ovRenderPensionCards();
+  ovRenderSimMini();
+}
+
+// ── Dependency Gate: all 3 data sources must be loaded ───
+function ovAllDataReady() {
+  var hasCF   = CF_DATA && CF_DATA.length > 0;
+  var hasInv  = ALL_TOTALS && ALL_TOTALS.length > 0;
+  var hasPns  = (typeof PENSION_ASSETS !== 'undefined') && PENSION_ASSETS && PENSION_ASSETS.length > 0;
+  return hasCF && hasInv && hasPns;
+}
+
+// ── KPI Header (v104.1: KPIs moved to dark header bar) ───
+function ovRenderKPIs() {
+  function el(id) { return document.getElementById(id); }
+
+  // 1. Last month net profit (delta = total NIS profit incl. USD)
+  var lastIdx = (typeof cfGetLastRealMonth === 'function') ? cfGetLastRealMonth() : CF_DATA.length - 1;
+  var lastRow = CF_DATA[lastIdx] && CF_DATA[lastIdx].rows;
+  var netProfit = lastRow && lastRow.delta ? (lastRow.delta.val || 0) : 0;
+  var profitEl = el('ov-hdr-profit');
+  if (profitEl) {
+    profitEl.textContent = netProfit !== 0 ? Math.round(netProfit).toLocaleString('he-IL') : '—';
+    profitEl.style.color = netProfit >= 0 ? '#4ade80' : '#f87171';
+  }
+
+  // 2. Total active investments (M)
+  var invTotal = (ALL_TOTALS && ALL_TOTALS.length > 0) ? ALL_TOTALS[ALL_TOTALS.length - 1] : 0;
+  var invEl = el('ov-hdr-invest');
+  if (invEl) invEl.textContent = invTotal > 0 ? (invTotal / 1000).toFixed(2) : '—';
+
+  // 3. Pension net income — value only; label is set exclusively by ovTogglePnsHarel (v105.3)
+  var pVal = (ovPnsDisplayNet > 0) ? ovPnsDisplayNet
+           : ((typeof pnsNetMonthly !== 'undefined') ? (pnsNetMonthly || 0) : 0);
+  var pensionEl = el('ov-hdr-pension');
+  if (pensionEl) pensionEl.textContent = pVal > 0 ? Math.round(pVal).toLocaleString('he-IL') : '—';
+
+  // 4. Estimated total wealth — dynamic label based on SIM_TARGET_AGE
+  //    v104.3: Only compute if all data sources are loaded (dependency gate)
+  var targetAge = (typeof SIM_TARGET_AGE !== 'undefined') ? SIM_TARGET_AGE : 67;
+  var wealthLbl = el('ov-hdr-wealth-label');
+  var wealthEl  = el('ov-hdr-wealth');
+  if (wealthLbl) wealthLbl.textContent = 'הון חזוי לגיל ' + targetAge;
+  if (wealthEl) {
+    if (!ovAllDataReady()) {
+      // Show cached value if we have one, otherwise show waiting
+      if (OV_CACHED_WEALTH !== null) {
+        wealthEl.textContent = OV_CACHED_WEALTH;
+        wealthEl.style.color = '#fbbf24';
+      } else {
+        wealthEl.textContent = 'ממתין...';
+        wealthEl.style.color = '#9ca3af';
+      }
+    } else {
+      wealthEl.style.color = '#fbbf24';
+      var hasSimCap = (typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0;
+      if (hasSimCap && typeof simRunEngine === 'function') {
+        var _res = simRunEngine();
+        var _yr  = (typeof SIM_BIRTH_YEAR_ROY !== 'undefined') ? SIM_BIRTH_YEAR_ROY + targetAge : 2059;
+        var _idx = _yr - 2026;
+        var _w = (_idx >= 0 && _res.royData && _idx < _res.royData.length) ? _res.royData[_idx] : 0;
+        if (_w > 0) {
+          OV_CACHED_WEALTH = (_w / 1000).toFixed(1);
+          wealthEl.textContent = OV_CACHED_WEALTH;
+        } else if (OV_CACHED_WEALTH !== null) {
+          wealthEl.textContent = OV_CACHED_WEALTH;
+        } else {
+          wealthEl.textContent = '—';
+        }
+      } else if (OV_CACHED_WEALTH !== null) {
+        wealthEl.textContent = OV_CACHED_WEALTH;
+      } else {
+        wealthEl.textContent = '—';
+      }
+    }
+  }
+}
+
+// ── CF Mode Toggle ────────────────────────
+function ovSetCFMode(mode) {
+  ovCFMode = mode;
+  var btnM = document.getElementById('ov-cf-btn-monthly');
+  var btnY = document.getElementById('ov-cf-btn-ytd');
+  if (btnM) { btnM.style.background = mode === 'monthly' ? '#1e3a8a' : 'transparent'; btnM.style.color = mode === 'monthly' ? '#fff' : '#6b7280'; }
+  if (btnY) { btnY.style.background = mode === 'ytd'     ? '#1e3a8a' : 'transparent'; btnY.style.color = mode === 'ytd'     ? '#fff' : '#6b7280'; }
+  ovRenderCashflowChart();
+}
+
+// ── Cashflow Chart — Income vs Expenses (v104.4) ─────────────
+function ovRenderCashflowChart() {
+  var canvas  = document.getElementById('ov-cf-chart');
+  var emptyEl = document.getElementById('ov-cf-empty');
+  if (!canvas) return;
+  if (!CF_DATA || CF_DATA.length === 0) {
+    if (ovCFChart) { ovCFChart.destroy(); ovCFChart = null; }
+    canvas.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  // Sync toggle button styles on render
+  var btnM = document.getElementById('ov-cf-btn-monthly');
+  var btnY = document.getElementById('ov-cf-btn-ytd');
+  if (btnM) { btnM.style.background = ovCFMode === 'monthly' ? '#1e3a8a' : 'transparent'; btnM.style.color = ovCFMode === 'monthly' ? '#fff' : '#6b7280'; }
+  if (btnY) { btnY.style.background = ovCFMode === 'ytd'     ? '#1e3a8a' : 'transparent'; btnY.style.color = ovCFMode === 'ytd'     ? '#fff' : '#6b7280'; }
+
+  var curYear = new Date().getFullYear();
+  var curMonth = new Date().getMonth() + 1; // 1-based
+  var yearData = CF_DATA.filter(function(m) { return m.year === curYear; });
+  if (yearData.length === 0) yearData = CF_DATA.slice(-6);
+
+  var months = [], incomes = [], expenses = [], ytdByMonth = [];
+  var ytdNet = 0;
+  var currentMonthIdx = -1; // index of the current month bar
+
+  yearData.forEach(function(m, i) {
+    var r   = m.rows || {};
+    var inc = cfCalcIncome(r);
+    // v104.4: use total_exp when available to capture all special/other expenses
+    var exp = (r.total_exp && r.total_exp.val > 0) ? r.total_exp.val : cfCalcExp(r);
+    ytdNet += (inc - exp);
+    months.push((m.label || '').split(' ')[0]);
+    incomes.push(Math.round(inc));
+    expenses.push(Math.round(exp));
+    ytdByMonth.push(Math.round(ytdNet));
+    if (m.month === curMonth) currentMonthIdx = i;
+  });
+
+  // Current month vertical marker plugin
+  var currentMonthPlugin = {
+    id: 'ovCurMonthLine',
+    afterDraw: function(chart) {
+      if (currentMonthIdx < 0) return;
+      var xScale = chart.scales.x;
+      var yScale = chart.scales.y;
+      if (!xScale || !yScale) return;
+      // Position the line in the GAP between current and next bar
+      var _xCur  = xScale.getPixelForValue(currentMonthIdx);
+      var _xNext = (currentMonthIdx + 1 < months.length)
+        ? xScale.getPixelForValue(currentMonthIdx + 1)
+        : _xCur;
+      var x = (_xCur + _xNext) / 2;
+      var ctx2 = chart.ctx;
+      ctx2.save();
+      ctx2.setLineDash([5, 5]);
+      ctx2.strokeStyle = 'rgba(150,150,150,0.8)';
+      ctx2.lineWidth = 1.5;
+      ctx2.beginPath();
+      ctx2.moveTo(x, yScale.top);
+      ctx2.lineTo(x, yScale.bottom);
+      ctx2.stroke();
+      ctx2.setLineDash([]);
+      ctx2.restore();
+    }
+  };
+
+  if (ovCFChart) { ovCFChart.destroy(); ovCFChart = null; }
+  canvas.height = 185;
+
+  if (ovCFMode === 'ytd') {
+    // EXACT clone of main CF tab YTD bar chart (green=positive, red=negative)
+    var safeYtd  = ytdByMonth.map(function(v) { return v || 0; });
+    var ytdMin   = Math.min.apply(null, safeYtd);
+    var ytdMax   = Math.max.apply(null, safeYtd);
+    var ytdPad   = (ytdMax - ytdMin) * 0.12 || 50;
+    ovCFChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'מצטבר',
+          data: safeYtd,
+          backgroundColor: safeYtd.map(function(v) { return v >= 0 ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)'; }),
+          borderRadius: 3,
+          maxBarThickness: 34
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        layout: { padding: { top: 8 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            rtl: true, textDirection: 'rtl',
+            callbacks: {
+              title: function(items) { return items[0].label || ''; },
+              label: function(c) {
+                return 'מצטבר: ' + Math.round(c.raw).toLocaleString('he-IL') + ' ₪';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { offset: true, grid: { display: false }, ticks: { font: { size: 9, family: 'Heebo,sans-serif' }, color: '#9ca3af' } },
+          y: {
+            min: ytdMin - ytdPad,
+            max: ytdMax + ytdPad,
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            ticks: { font: { size: 10, family: 'Heebo,sans-serif' }, color: '#9ca3af', maxTicksLimit: 5, callback: function(v) { return v.toLocaleString(); } }
+          }
+        }
+      },
+      plugins: [currentMonthPlugin]
+    });
+  } else {
+    // Monthly bar chart
+    ovCFChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label: 'הכנסות', data: incomes,  backgroundColor: 'rgba(74,222,128,0.78)', borderRadius: 4, borderSkipped: false },
+          { label: 'הוצאות', data: expenses, backgroundColor: 'rgba(248,113,113,0.78)', borderRadius: 4, borderSkipped: false }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 9, family: 'Heebo' }, color: '#6b7280', boxWidth: 10, padding: 6 } },
+          tooltip: {
+            rtl: true,
+            callbacks: {
+              title: function(items) { return items[0].label || ''; },
+              label: function(c) {
+                var val = Math.abs(c.raw);
+                var lbl = c.dataset.label === 'הוצאות' ? 'הוצאות: ' : 'הכנסות: ';
+                return ' ' + lbl + val.toLocaleString('he-IL') + ' ₪';
+              },
+              afterBody: function(items) {
+                var idx = items[0].dataIndex;
+                var net = ytdByMonth[idx] || 0;
+                return ['נטו מצטבר YTD: ' + net.toLocaleString('he-IL') + ' ₪'];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280' }, grid: { display: false } },
+          y: {
+            ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280', callback: function(v) { return Math.round(v); } },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          }
+        }
+      },
+      plugins: [currentMonthPlugin]
+    });
+  }
+}
+
+// ── Investment Line Chart ─────────────────
+function ovRenderInvestChart() {
+  var canvas  = document.getElementById('ov-inv-chart');
+  var emptyEl = document.getElementById('ov-inv-empty');
+  if (!canvas) return;
+  if (!ALL_TOTALS || ALL_TOTALS.length === 0) {
+    if (ovInvChart) { ovInvChart.destroy(); ovInvChart = null; }
+    canvas.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  var labels = LABELS.slice(-13);
+  var data   = ALL_TOTALS.slice(-13);
+  if (ovInvChart) { ovInvChart.destroy(); ovInvChart = null; }
+  canvas.height = 185;
+  var ctx = canvas.getContext('2d');
+  var grad = ctx.createLinearGradient(0, 0, 0, 185);
+  grad.addColorStop(0, 'rgba(59,130,246,0.3)');
+  grad.addColorStop(1, 'rgba(59,130,246,0.02)');
+  ovInvChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: [{ data: data, borderColor: '#3b82f6', backgroundColor: grad, fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#3b82f6' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          rtl: true,
+          callbacks: { label: function(c) { var v = c.raw || 0; return ' ' + (v >= 1000 ? (v/1000).toFixed(2)+'M' : Math.round(v).toLocaleString('he-IL')) + ' ₪'; } }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280' }, grid: { display: false } },
+        y: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280', callback: function(v) { return v >= 1000 ? (v/1000).toFixed(1)+'M' : Math.round(v); } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+}
+
+// ── Pension Micro-Cards ───────────────────
+function ovTogglePnsHarel() {
+  ovPnsShowHarel = !ovPnsShowHarel;
+  ovRenderPensionCards();  // updates card + sets ovPnsDisplayNet
+  // update header label text (only on explicit toggle — not on upload)
+  var _lbl = document.getElementById('ov-hdr-pension-label');
+  if (_lbl) _lbl.textContent = ovPnsShowHarel ? 'קצבה נטו (עם הראל)' : 'קצבה נטו (ללא הראל)';
+  ovRenderKPIs();          // syncs global header pension value
+}
+
+function ovRenderPensionCards() {
+  var el = document.getElementById('ov-pension-content');
+  if (!el) return;
+  var hasData = (typeof PENSION_ASSETS !== 'undefined') && PENSION_ASSETS && PENSION_ASSETS.length > 0;
+  if (!hasData) {
+    el.innerHTML = '<div style="color:#475569;font-size:12px;padding:12px 0;">יש להעלות את קבצי הנתונים</div>';
+    return;
+  }
+  // Base: Roy's active assets only
+  var baseAssets = PENSION_ASSETS.filter(function(a) {
+    return !a.isPendingReview && (!a.owner || a.owner === 'רועי');
+  });
+  var activeWithout = baseAssets.filter(function(a){ return !a.provider || a.provider.indexOf('הראל') < 0; });
+
+  var totalAccum   = baseAssets.reduce(function(s,a){ return s+(a.accumulation||0); }, 0);
+  var grossWith    = baseAssets.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+  var grossWithout = activeWithout.reduce(function(s,a){ return s+(a.expectedPension||0); }, 0);
+  var totalRE      = baseAssets.reduce(function(s,a){ return s+(a.realEstateIncome||0); }, 0);
+
+  // v105.3: use exact computed values from pensionSliderChange — no scaling, same tax engine as pension tab
+  var netWithQ    = (typeof pnsNetMonthlyWithHarel !== 'undefined') ? (pnsNetMonthlyWithHarel || 0) : 0;
+  var netWithoutQ = (typeof pnsNetMonthlyNoHarel   !== 'undefined') ? (pnsNetMonthlyNoHarel   || 0) : 0;
+  // fallback: if not yet computed, use pnsNetMonthly for both
+  if (!netWithQ && !netWithoutQ) {
+    var _fb = (typeof pnsNetMonthly !== 'undefined') ? (pnsNetMonthly || 0) : 0;
+    netWithQ = netWithoutQ = _fb;
+  }
+
+  // Display value switches based on ovPnsShowHarel
+  var displayNet = ovPnsShowHarel ? netWithQ : netWithoutQ;
+  ovPnsDisplayNet = displayNet; // cache for header sync in ovRenderKPIs
+  var freeIncome = displayNet + totalRE;
+
+  function fmtNIS(n) { return n > 0 ? Math.round(n).toLocaleString('he-IL') : '—'; }
+  function fmtK(n) {
+    if (!n || n <= 0) return '—';
+    if (n >= 1000000) return (n/1000000).toFixed(2)+'M';
+    if (n >= 1000)    return Math.round(n/1000)+'K';
+    return Math.round(n).toLocaleString('he-IL');
+  }
+
+  // Harel micro-toggle button
+  var harelBtn = '<button onclick="ovTogglePnsHarel()" title="החלף בין עם/ללא הראל" ' +
+    'style="font-size:11px;padding:2px 7px;border-radius:8px;border:1px solid ' + (ovPnsShowHarel ? '#3b82f6' : '#1e2d4a') + ';' +
+    'background:' + (ovPnsShowHarel ? '#3b82f6' : 'white') + ';' +
+    'color:' + (ovPnsShowHarel ? 'white' : '#1e2d4a') + ';cursor:pointer;font-family:Heebo,sans-serif;line-height:1;vertical-align:middle;font-weight:600;">' +
+    (ovPnsShowHarel ? '+ הראל' : '– הראל') + '</button>';
+
+  // Single elegant horizontal stat row
+  function stat(label, val, color, suffix) {
+    return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:0;">' +
+      '<div style="font-size:11px;color:#64748b;font-weight:600;white-space:nowrap;">' + label + '</div>' +
+      '<div style="font-size:17px;font-weight:700;color:' + color + ';white-space:nowrap;">' + val + '</div>' +
+      '<div style="font-size:11px;color:#475569;">' + (suffix || '') + '</div>' +
+    '</div>';
+  }
+  function sep() {
+    return '<div style="width:1px;height:36px;background:rgba(100,116,139,0.2);flex-shrink:0;"></div>';
+  }
+
+  el.innerHTML = '<div style="display:flex;align-items:stretch;gap:0;width:100%;">' +
+    stat('הון צבור', fmtK(totalAccum), '#a5b4fc', 'ש״ח') +
+    sep() +
+    stat('קצבה ברוטו', fmtNIS(ovPnsShowHarel ? grossWith : grossWithout), '#7dd3fc', '₪/חודש') +
+    sep() +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:0;">' +
+      '<div style="font-size:11px;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px;">' +
+        'קצבה נטו&nbsp;' + harelBtn +
+      '</div>' +
+      '<div style="font-size:17px;font-weight:700;color:#4ade80;white-space:nowrap;">' + fmtNIS(displayNet) + '</div>' +
+      '<div style="font-size:11px;color:#475569;">₪/חודש</div>' +
+    '</div>' +
+    sep() +
+    stat('הכנסה פנויה', fmtNIS(freeIncome), '#60a5fa', 'Cash Flow נטו') +
+  '</div>';
+}
+
+// ── Simulator Mini — EXACT clone of simRenderChart (5-year, roy view) ────────
+function ovRenderSimMini() {
+  var canvas  = document.getElementById('ov-sim-chart');
+  var emptyEl = document.getElementById('ov-sim-empty');
+  var tlEl    = document.getElementById('ov-sim-timeline');
+  if (!canvas) return;
+
+  // Strict dependency gate
+  var allReady = ovAllDataReady() && (typeof simRunEngine === 'function') &&
+                 (typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0;
+  if (!allReady) {
+    if (ovSimMiniChart) { ovSimMiniChart.destroy(); ovSimMiniChart = null; }
+    canvas.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    if (tlEl) tlEl.innerHTML = '';
+    return;
+  }
+  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  var result  = simRunEngine();
+  var startYr = (typeof SIM_P1_START !== 'undefined') ? SIM_P1_START.y : 2026;
+  var endYr   = startYr + 5;
+  var sliced  = simSliceResult(result, startYr, endYr);
+
+  var re     = sliced.royRealEstateData || (sliced.royLiquidData || []).map(function(){ return 0; });
+  var liq    = sliced.royLiquidData  || [];
+  var phx    = sliced.royPhoenixData || [];
+  var hrl    = sliced.royHarelData   || [];
+  var liqTop = re.map(function(v,i){ return v + liq[i]; });
+  var phxTop = re.map(function(v,i){ return v + liq[i] + phx[i]; });
+  var hrlTop = re.map(function(v,i){ return v + liq[i] + phx[i] + hrl[i]; });
+
+  // Collect tooltip events — same as main simulator
+  var _tooltipEvs = (typeof simCollectEvents === 'function')
+    ? simCollectEvents().events.filter(function(ev){ return ev.yr >= startYr && ev.yr <= endYr; })
+    : [];
+
+  if (ovSimMiniChart) { ovSimMiniChart.destroy(); ovSimMiniChart = null; }
+
+  ovSimMiniChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: sliced.labels || [],
+      datasets: [
+        { label:'נדל״ן',   data:re,     borderColor:'#a0522d', backgroundColor:'rgba(184,115,51,0.50)', fill:'origin', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:4 },
+        { label:'השקעות',  data:liqTop, borderColor:'#1e40af', backgroundColor:'rgba(30,64,175,0.45)',  fill:'-1',     tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:3 },
+        { label:'הון פנסיוני', data:phxTop, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.25)', fill:'-1', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:2 },
+        { label:'הון לירושה',  data:hrlTop, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.20)', fill:'-1', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font: { size: 9, family: 'Heebo' }, color: '#374151', boxWidth: 10, padding: 6 } },
+        tooltip: {
+          rtl: true, textDirection: 'rtl',
+          yAlign: 'bottom', caretPadding: 12,
+          titleFont: { family: 'Heebo' }, bodyFont: { family: 'Heebo' },
+          footerFont: { family: 'Heebo', weight: 'bold' }, footerColor: '#f9fafb',
+          callbacks: {
+            label: function(ctx) {
+              var di = ctx.dataIndex;
+              var v;
+              if (ctx.datasetIndex === 0) v = re[di]     || 0;
+              else if (ctx.datasetIndex === 1) v = liq[di] || 0;
+              else if (ctx.datasetIndex === 2) v = phx[di] || 0;
+              else v = hrl[di] || 0;
+              return ' ' + ctx.dataset.label + ': ' + (v >= 1000 ? (v/1000).toFixed(1)+'M' : Math.round(v)+'k');
+            },
+            footer: function(items) {
+              if (!items || !items.length) return '';
+              var di    = items[0].dataIndex;
+              var total = sliced.royData ? (sliced.royData[di] || 0) : (hrlTop[di] || 0);
+              var lines = ['סה״כ: ' + (total >= 1000 ? (total/1000).toFixed(1)+'M' : Math.round(total)+'k')];
+              var yr = parseInt((sliced.labels || [])[di]);
+              if (!isNaN(yr)) {
+                _tooltipEvs.forEach(function(ev) {
+                  if (ev.yr !== yr) return;
+                  var absAmt = Math.abs(ev.amount || 0);
+                  var amtStr = absAmt >= 1000 ? (ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1)+'M'
+                             : absAmt > 0 ? (ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k' : '';
+                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : ''));
+                });
+              }
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { family: 'Heebo', size: 9 }, color: '#9ca3af', maxTicksLimit: 6, maxRotation: 0 },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        },
+        y: {
+          min: 0,
+          ticks: { font: { family: 'Heebo', size: 9 }, color: '#9ca3af', callback: function(v){ return v >= 1000 ? Math.round(v/1000)+'M' : Math.round(v)+'k'; } },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        }
+      }
+    }
+  });
+
+  // Events timeline — pixel-aligned clone of simRenderTimeline targeting ov-sim-timeline
+  if (tlEl) {
+    setTimeout(function() {
+      var collected = (typeof simCollectEvents === 'function') ? simCollectEvents() : { events: [], monthNames: [] };
+      var evs = collected.events.filter(function(ev){ return ev.yr >= startYr && ev.yr <= endYr; });
+      var numYrs  = endYr - startYr;
+      var ca      = (ovSimMiniChart && ovSimMiniChart.chartArea) ? ovSimMiniChart.chartArea : null;
+      var canvasW = canvas ? (canvas.offsetWidth || canvas.clientWidth || 0) : 0;
+      var usePixels = (ca && canvasW > 0);
+
+      function yrToLeft(yr) {
+        var frac = (yr - startYr) / numYrs;
+        if (usePixels) return (ca.left + frac * (ca.right - ca.left)).toFixed(1) + 'px';
+        return (frac * 100).toFixed(2) + '%';
+      }
+
+      var outerStyle = usePixels
+        ? 'position:relative;height:46px;user-select:none;width:' + canvasW + 'px;'
+        : 'position:relative;height:46px;user-select:none;';
+      var html = '<div style="' + outerStyle + '">';
+
+      // Base bar
+      var barL = usePixels ? ca.left.toFixed(1) + 'px' : '0';
+      var barR = usePixels ? (canvasW - ca.right).toFixed(1) + 'px' : '0';
+      html += '<div style="position:absolute;left:' + barL + ';right:' + barR + ';top:20px;height:2px;'
+            + 'background:linear-gradient(90deg,rgba(99,102,241,0.12),rgba(99,102,241,0.35),rgba(99,102,241,0.08));border-radius:2px;"></div>';
+
+      // Year ticks
+      for (var ty = startYr; ty <= endYr; ty++) {
+        var tL = yrToLeft(ty);
+        html += '<div style="position:absolute;left:' + tL + ';top:15px;width:1px;height:5px;background:rgba(0,0,0,0.1);"></div>';
+        html += '<div style="position:absolute;left:' + tL + ';top:22px;font-size:7px;color:#9ca3af;transform:translateX(-50%);font-family:Heebo,sans-serif;white-space:nowrap;">' + ty + '</div>';
+      }
+
+      // Event diamonds
+      evs.forEach(function(ev) {
+        if (!ev.yr) return;
+        var dL = usePixels
+          ? (parseFloat(yrToLeft(ev.yr)) - 5).toFixed(1) + 'px'
+          : 'calc(' + yrToLeft(ev.yr) + ' - 5px)';
+        var absAmt = Math.abs(ev.amount || 0);
+        var amtStr = absAmt >= 1000 ? ((ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1) + 'M')
+                   : absAmt > 0    ? ((ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k') : '';
+        var tipText = (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : '');
+        var tip = tipText.replace(/"/g, '&quot;');
+        html += '<div data-tip="' + tip + '"'
+              + ' onmouseenter="simShowTltp(this,event)" onmouseleave="simHideTltp()"'
+              + ' style="position:absolute;left:' + dL + ';top:12px;width:10px;height:10px;'
+              + 'transform:rotate(45deg);background:' + (ev.color || '#6366f1') + ';'
+              + 'border:1px solid rgba(255,255,255,0.55);border-radius:1px;cursor:default;z-index:2;box-sizing:border-box;">'
+              + '</div>';
+      });
+
+      html += '</div>';
+      tlEl.innerHTML = html;
+    }, 0);
+  }
+}
+
+
+// =========================================
+// MARKET ANALYSIS TAB — v104.0
+// =========================================
+
+var marketInited        = false;
+var mktCurrentTicker    = null;
+var mktCurrentPeriod    = '1m';
+var mktCurrentData      = null;
+var mktMainChart        = null;
+var mktCompChart        = null;
+var mktSniperOn         = false;
+var mktAIOpen           = true;
+var mktFxRate           = 3.70;
+var mktChatHistory      = [];
+var mktLastFxSyncTicker = null; // tracks which ticker last synced the FX slider
+
+function marketInit() {
+  var inp = document.getElementById('mkt-search-input');
+  if (inp) {
+    inp.focus();
+    // Auto-uppercase on every keystroke
+    inp.addEventListener('input', function() {
+      var pos = this.selectionStart;
+      this.value = this.value.toUpperCase();
+      this.setSelectionRange(pos, pos);
+    });
+  }
+}
+
+// ── Search & Load ─────────────────────────
+function mktSearch() {
+  var inp = document.getElementById('mkt-search-input');
+  if (!inp) return;
+  var ticker = inp.value.trim().toUpperCase();
+  if (!ticker) return;
+  mktLoadTicker(ticker);
+}
+
+var MKT_GROUPS = {
+  mag7:  ['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA'],
+  sp500: ['SPY'],
+  ta125: ['TA125.TA'],
+  ta35:  ['TA35.TA']
+};
+
+function mktLoadGroup(group) {
+  var list = MKT_GROUPS[group] || [];
+  if (list.length > 0) {
+    var inp = document.getElementById('mkt-search-input');
+    if (inp) inp.value = list[0];
+    mktLoadTicker(list[0]);
+  }
+}
+
+function mktLoadTicker(ticker) {
+  var isNewTicker = (ticker !== mktLastFxSyncTicker);
+  mktCurrentTicker = ticker;
+  mktCurrentData   = null;
+  mktSniperOn      = false;
+  mktChatHistory   = [];
+
+  // Clear not-found message
+  var nfEl = document.getElementById('mkt-not-found');
+  if (nfEl) nfEl.style.display = 'none';
+
+  // Reset sniper toggle
+  var track = document.getElementById('mkt-sniper-track');
+  var thumb = document.getElementById('mkt-sniper-thumb');
+  if (track) { track.style.background = '#1e2d4a'; track.style.borderColor = '#3b4f6e'; }
+  if (thumb) { thumb.style.right = '2px'; thumb.style.background = '#475569'; }
+  var legendEl = document.getElementById('mkt-sniper-legend');
+  if (legendEl) legendEl.style.display = 'none';
+
+  // Reset AI messages
+  var aiMsgs = document.getElementById('mkt-ai-messages');
+  if (aiMsgs) aiMsgs.innerHTML = '';
+
+  // Hide news section while loading
+  var newsEl = document.getElementById('mkt-news-section');
+  if (newsEl) { newsEl.style.display = 'none'; newsEl.innerHTML = ''; }
+
+  // Show results area
+  var results = document.getElementById('mkt-results');
+  if (results) results.style.display = '';
+
+  // Update name immediately
+  var nameEl = document.getElementById('mkt-stock-name');
+  if (nameEl) nameEl.textContent = '⏳ טוען ' + ticker + '...';
+  var tickerEl2 = document.getElementById('mkt-stock-ticker');
+  if (tickerEl2) tickerEl2.textContent = ticker;
+
+  var benchSel = document.getElementById('mkt-bench-select');
+  var benchVal = benchSel ? benchSel.value : 'SPY';
+  fetch('http://localhost:5050/api/stock?ticker=' + encodeURIComponent(ticker) +
+        '&period=' + mktCurrentPeriod + '&bench=' + encodeURIComponent(benchVal))
+    .then(function(r) {
+      if (r.status === 404) {
+        return r.json().then(function(j) {
+          mktShowNotFound(ticker);
+          throw new Error('404');
+        });
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (data.error) { mktShowNotFound(ticker); return; }
+      mktCurrentData = data;
+      // Sync FX slider ONLY when loading a different ticker (not on period/bench change)
+      if (isNewTicker && data.fx_rate && data.fx_rate > 0) {
+        mktFxRate = data.fx_rate;
+        mktLastFxSyncTicker = ticker;
+        var slider = document.getElementById('mkt-fx-slider');
+        var fxValEl = document.getElementById('mkt-fx-val');
+        var clampedFx = Math.max(3.00, Math.min(4.50, mktFxRate));
+        if (slider) slider.value = clampedFx.toFixed(2);
+        if (fxValEl) fxValEl.textContent = clampedFx.toFixed(2);
+      }
+      mktRenderStockHeader(data);
+      mktRenderMainChart(data);
+      mktUpdateComparison();
+      mktRenderNews(data.news || []);
+      mktAddAIMessage('assistant', 'שלום! אני מנתח את ' + (data.name || ticker) +
+        '. מחיר: ' + (data.price ? data.price.toFixed(2) + ' ' + (data.currency || 'USD') : '—') +
+        '. מה תרצה לדעת?');
+    })
+    .catch(function(err) {
+      if (err.message === '404') return; // already handled by mktShowNotFound
+      mktShowError('לא ניתן להתחבר לשרת הנתונים (localhost:5050).<br><small>ודא שהשרת פועל ונסה שוב.</small><br><small style="color:#64748b;">' + err.message + '</small>');
+    });
+}
+
+function mktShowNotFound(ticker) {
+  var nameEl = document.getElementById('mkt-stock-name');
+  if (nameEl) nameEl.textContent = '—';
+  var tickerEl = document.getElementById('mkt-stock-ticker');
+  if (tickerEl) tickerEl.textContent = '';
+  // Hide results area cleanly
+  var results = document.getElementById('mkt-results');
+  if (results) results.style.display = 'none';
+  // Show gentle inline message below search bar
+  var nfEl = document.getElementById('mkt-not-found');
+  if (nfEl) {
+    nfEl.textContent = '⚠️ "' + ticker + '" לא נמצאה — בדוק את הסימול ונסה שוב';
+    nfEl.style.display = 'block';
+  }
+}
+
+function mktShowError(msg) {
+  var nameEl = document.getElementById('mkt-stock-name');
+  if (nameEl) nameEl.textContent = '⚠️ שגיאה';
+  var existing = document.getElementById('mkt-error-card');
+  if (existing) existing.remove();
+  var div = document.createElement('div');
+  div.id = 'mkt-error-card';
+  div.style.cssText = 'background:#1c1424;border:1px solid #7f1d1d;border-radius:12px;padding:18px 20px;color:#fca5a5;font-size:13px;text-align:center;margin-top:8px;line-height:1.7;';
+  div.innerHTML = msg;
+  var results = document.getElementById('mkt-results');
+  if (results) results.insertBefore(div, results.firstChild);
+}
+
+// ── Stock Header ──────────────────────────
+function mktRenderStockHeader(data) {
+  function el(id){ return document.getElementById(id); }
+  var errCard = document.getElementById('mkt-error-card');
+  if (errCard) errCard.remove();
+  if (el('mkt-stock-name'))   el('mkt-stock-name').textContent   = data.name || mktCurrentTicker;
+  if (el('mkt-stock-ticker')) el('mkt-stock-ticker').textContent = mktCurrentTicker;
+  if (el('mkt-stock-price'))  el('mkt-stock-price').textContent  = data.price ? data.price.toFixed(2) + ' ' + (data.currency || 'USD') : '—';
+  var chgEl = el('mkt-stock-change');
+  if (chgEl) {
+    var chg = data.change_pct || 0;
+    chgEl.textContent = (chg >= 0 ? '▲ +' : '▼ ') + chg.toFixed(2) + '%';
+    chgEl.style.color = chg >= 0 ? '#4ade80' : '#f87171';
+  }
+}
+
+// ── News Cards ───────────────────────────
+function mktRenderNews(articles) {
+  var el = document.getElementById('mkt-news-section');
+  if (!el) return;
+  if (!articles || !articles.length) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  var html = '<div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:7px;letter-spacing:0.6px;text-transform:uppercase;">חדשות</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+  articles.forEach(function(a) {
+    if (!a.title) return;
+    var hasUrl = a.url && a.url.length > 0;
+    var tag = hasUrl ? 'a' : 'div';
+    var attrs = hasUrl ? 'href="' + a.url + '" target="_blank" rel="noopener noreferrer"' : '';
+    html += '<' + tag + ' ' + attrs
+      + ' style="display:flex;align-items:flex-start;gap:8px;background:#0d1524;border:1px solid #1e2d4a;border-radius:9px;padding:8px 10px;text-decoration:none;cursor:' + (hasUrl ? 'pointer' : 'default') + ';transition:border-color 0.18s,background 0.18s;"'
+      + (hasUrl ? ' onmouseover="this.style.borderColor=\'#3b82f6\';" onmouseout="this.style.borderColor=\'#1e2d4a\';"' : '')
+      + '>';
+    html += '<div style="flex:1;min-width:0;overflow:hidden;">';
+    html += '<div style="font-size:11px;font-weight:600;color:#cbd5e1;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + a.title + '</div>';
+    if (a.publisher) {
+      html += '<div style="font-size:9px;color:#475569;margin-top:2px;">' + a.publisher + '</div>';
+    }
+    html += '</div>';
+    if (hasUrl) {
+      html += '<div style="color:#3b82f6;font-size:10px;flex-shrink:0;padding-top:1px;">↗</div>';
+    }
+    html += '</' + tag + '>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── Main Stock Chart ──────────────────────
+function mktRenderMainChart(data) {
+  var canvas = document.getElementById('mkt-main-chart');
+  if (!canvas || !data || !data.history || !data.history.length) return;
+  var labels = data.history.map(function(p){ return p.date; });
+  var prices = data.history.map(function(p){ return p.close; });
+  if (mktMainChart) { mktMainChart.destroy(); mktMainChart = null; }
+  var ctx  = canvas.getContext('2d');
+  var grad = ctx.createLinearGradient(0, 0, 0, 250);
+  grad.addColorStop(0, 'rgba(59,130,246,0.22)');
+  grad.addColorStop(1, 'rgba(59,130,246,0.01)');
+
+  mktMainChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: [{
+      label: mktCurrentTicker,
+      data: prices,
+      borderColor: '#3b82f6', backgroundColor: grad,
+      fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false, callbacks: {
+          label: function(c){ return ' ' + (c.raw||0).toFixed(2) + ' ' + (data.currency||'USD'); }
+        }}
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    },
+    plugins: [{
+      id: 'sniperLines',
+      afterDraw: function(chart) {
+        if (!mktSniperOn || !mktCurrentData || !mktCurrentData.sniper) return;
+        var sniper = mktCurrentData.sniper;
+        var ctx2   = chart.ctx;
+        var yAxis  = chart.scales.y;
+        var xAxis  = chart.scales.x;
+        if (!yAxis || !xAxis) return;
+        function drawLine(price, color, label) {
+          if (!price || price <= 0) return;
+          var y = yAxis.getPixelForValue(price);
+          if (y < yAxis.top || y > yAxis.bottom) return;
+          ctx2.save();
+          ctx2.setLineDash([7, 4]);
+          ctx2.strokeStyle = color;
+          ctx2.lineWidth   = 1.5;
+          ctx2.globalAlpha = 0.75;
+          ctx2.beginPath();
+          ctx2.moveTo(xAxis.left, y);
+          ctx2.lineTo(xAxis.right, y);
+          ctx2.stroke();
+          ctx2.globalAlpha = 1;
+          ctx2.setLineDash([]);
+          ctx2.fillStyle = color;
+          ctx2.font      = 'bold 10px Heebo, sans-serif';
+          ctx2.textAlign = 'left';
+          ctx2.fillText(label + ' ' + price.toFixed(2), xAxis.left + 6, y - 5);
+          ctx2.restore();
+        }
+        drawLine(sniper.target_buy,  '#4ade80', '🎯 קנייה:');
+        drawLine(sniper.target_sell, '#f87171', '🎯 מכירה:');
+        var legendEl2 = document.getElementById('mkt-sniper-legend');
+        if (legendEl2) {
+          legendEl2.style.display = 'flex';
+          legendEl2.innerHTML =
+            '<span style="color:#4ade80;">● קנייה: ' + (sniper.target_buy  || '—') + '</span> ' +
+            '<span style="color:#f87171;">● מכירה: ' + (sniper.target_sell || '—') + '</span>' +
+            (sniper.note ? ' <span>· ' + sniper.note + '</span>' : '');
+        }
+      }
+    }]
+  });
+}
+
+// ── Period Buttons ────────────────────────
+function mktSetPeriod(period) {
+  mktCurrentPeriod = period;
+  document.querySelectorAll('.mkt-period-btn').forEach(function(b) {
+    b.classList.toggle('active', (b.getAttribute('data-p') || '') === period);
+  });
+  if (mktCurrentTicker) mktLoadTicker(mktCurrentTicker);
+}
+
+// ── Sniper Toggle ─────────────────────────
+function mktToggleSniper() {
+  mktSniperOn = !mktSniperOn;
+  var track = document.getElementById('mkt-sniper-track');
+  var thumb = document.getElementById('mkt-sniper-thumb');
+  var label = document.querySelector('#mkt-sniper-btn span');
+  if (track) {
+    track.style.background   = mktSniperOn ? 'rgba(59,130,246,0.35)' : '#1e2d4a';
+    track.style.borderColor  = mktSniperOn ? '#3b82f6' : '#3b4f6e';
+  }
+  if (thumb) {
+    thumb.style.right      = mktSniperOn ? '16px' : '2px';
+    thumb.style.background = mktSniperOn ? '#60a5fa' : '#475569';
+  }
+  if (label) label.style.color = mktSniperOn ? '#60a5fa' : '#94a3b8';
+  if (mktMainChart) mktMainChart.update();
+  var legendEl3 = document.getElementById('mkt-sniper-legend');
+  if (legendEl3 && !mktSniperOn) legendEl3.style.display = 'none';
+}
+
+// ── Comparison Chart ──────────────────────
+function mktUpdateComparison() {
+  var canvas = document.getElementById('mkt-compare-chart');
+  if (!canvas || !mktCurrentData || !mktCurrentData.history || !mktCurrentData.history.length) return;
+  var benchSel    = document.getElementById('mkt-bench-select');
+  var benchTicker = benchSel ? benchSel.value : 'SPY';
+  var history     = mktCurrentData.history;
+  var base        = history[0].close || 1;
+  var liveFx      = mktCurrentData.fx_rate || 3.70;
+  var fxAdj       = mktFxRate / liveFx;
+  var stockPct    = history.map(function(p){ return (p.close / base - 1) * 100 * fxAdj; });
+  var labels      = history.map(function(p){ return p.date; });
+  var datasets    = [{
+    label: mktCurrentTicker, data: stockPct,
+    borderColor: '#3b82f6', backgroundColor: 'transparent',
+    tension: 0.3, borderWidth: 2, pointRadius: 0, fill: false
+  }];
+  var bench = mktCurrentData.benchmark;
+  if (bench && bench.length > 0) {
+    var bBase = bench[0].close || 1;
+    datasets.push({
+      label: benchTicker,
+      data: bench.map(function(p){ return (p.close / bBase - 1) * 100; }),
+      borderColor: '#f59e0b', backgroundColor: 'transparent',
+      tension: 0.3, borderWidth: 2, pointRadius: 0, fill: false
+    });
+  }
+  if (mktCompChart) { mktCompChart.destroy(); mktCompChart = null; }
+  mktCompChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: true, labels: { color: '#94a3b8', font: { size: 10, family: 'Heebo' }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false, callbacks: {
+          label: function(c){ return ' ' + c.dataset.label + ': ' + (c.raw||0).toFixed(2) + '%'; }
+        }}
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#64748b', font: { size: 10 }, callback: function(v){ return v.toFixed(1)+'%'; } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+// ── FX Slider ─────────────────────────────
+function mktFxChange(val) {
+  mktFxRate = parseFloat(val);
+  var el = document.getElementById('mkt-fx-val');
+  if (el) el.textContent = mktFxRate.toFixed(2);
+  mktUpdateComparison();
+}
+
+// ── AI Sidebar ────────────────────────────
+function mktToggleAI() {
+  mktAIOpen = !mktAIOpen;
+  var body    = document.getElementById('mkt-ai-body');
+  var chevron = document.getElementById('mkt-ai-chevron');
+  if (body)    body.style.display  = mktAIOpen ? '' : 'none';
+  if (chevron) chevron.textContent = mktAIOpen ? '▼' : '▶';
+}
+
+function mktAddAIMessage(role, text) {
+  var el = document.getElementById('mkt-ai-messages');
+  if (!el) return;
+  var div = document.createElement('div');
+  div.className = (role === 'user') ? 'mkt-ai-msg-user' : 'mkt-ai-msg-ai';
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function mktAISend() {
+  var inp = document.getElementById('mkt-ai-input');
+  if (!inp) return;
+  var question = inp.value.trim();
+  if (!question) return;
+  inp.value = '';
+  mktAddAIMessage('user', question);
+  mktChatHistory.push({ role: 'user', content: question });
+
+  var stockCtx = '';
+  if (mktCurrentData) {
+    stockCtx = 'מניה: ' + (mktCurrentData.name || mktCurrentTicker) + ' (' + mktCurrentTicker + ')' +
+      ' | מחיר: ' + (mktCurrentData.price ? mktCurrentData.price.toFixed(2) + ' ' + (mktCurrentData.currency || 'USD') : '—') +
+      ' | שינוי: ' + ((mktCurrentData.change_pct || 0).toFixed(2)) + '%';
+    if (mktCurrentData.sniper) {
+      stockCtx += ' | יעד קנייה: ' + (mktCurrentData.sniper.target_buy || '—') +
+                  ' | יעד מכירה: ' + (mktCurrentData.sniper.target_sell || '—');
+    }
+  }
+  var systemPrompt = 'אתה אנליסט פיננסי מומחה בשוק ההון. ענה בעברית בתמציתיות ובדיוק. ' +
+    (stockCtx ? 'נתוני המניה הנוכחית: ' + stockCtx : 'לא נבחרה מניה ספציפית.');
+
+  var msgs = mktChatHistory.slice(-8);
+
+  // Thinking indicator
+  mktAddAIMessage('assistant', '⏳ מנתח...');
+  var thinkingDiv = document.getElementById('mkt-ai-messages').lastChild;
+
+  fetch('http://localhost:5050/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      system: systemPrompt,
+      messages: msgs
+    })
+  })
+  .then(function(r){ return r.json().then(function(j){ return { status: r.status, body: j }; }); })
+  .then(function(res) {
+    if (thinkingDiv && thinkingDiv.parentNode) thinkingDiv.parentNode.removeChild(thinkingDiv);
+    var resp = res.body;
+    var text = '';
+    if (resp.content && resp.content.length > 0) {
+      text = resp.content.filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('\n');
+    } else if (resp.error) {
+      var errType = resp.error.type || '';
+      if (errType === 'overloaded_error' || res.status === 429) {
+        text = '⏳ ' + (resp.error.message || 'השרת עמוס כרגע. המתן מספר שניות ונסה שוב.');
+      } else {
+        text = 'שגיאה: ' + (resp.error.message || errType || 'לא ידוע');
+      }
+    }
+    if (!text) text = 'לא התקבלה תשובה. נסה שוב.';
+    mktAddAIMessage('assistant', text);
+    mktChatHistory.push({ role: 'assistant', content: text });
+  })
+  .catch(function(err) {
+    if (thinkingDiv && thinkingDiv.parentNode) thinkingDiv.parentNode.removeChild(thinkingDiv);
+    mktAddAIMessage('assistant', 'שגיאה בחיבור לשרת (localhost:5050). ודא שהשרת פועל.');
+  });
 }

@@ -1,4 +1,4 @@
-<!-- v103.43 -->
+<!-- v105.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -31,16 +31,16 @@
   <button class="tab-btn" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
   <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
-  <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק ומסחר</button>
+  <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק</button>
 </div>
 <div class="header">
   <!-- Title + CF stats: adjacent RTL group — do NOT add other tab stats here -->
-  <div style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;">
+  <div id="hdr-title-group" style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;flex-wrap:nowrap;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v103.43</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v105.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
-    <div id="cf-header-stats" class="header-stats" style="display:none;">
+    <div id="cf-header-stats" class="header-stats" style="display:none;flex-shrink:1;overflow:hidden;flex-wrap:nowrap;">
       <div class="stat-item">
         <div class="stat-label">הכנסות</div>
         <div class="stat-value green" id="cf-hdr-income">—</div>
@@ -118,8 +118,56 @@
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
   </div>
+  <!-- v105.0: Market tab search area — shown only on market tab, replaces title -->
+  <div id="mkt-search-area" style="display:none;align-items:center;gap:10px;flex-wrap:nowrap;direction:rtl;margin-right:auto;margin-left:auto;">
+    <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0;margin-left:30px;">ניתוח שוק <span style="font-size:11px;font-weight:700;color:#ef4444;font-family:monospace;">v105.0</span></span>
+    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">
+      <input id="mkt-search-input" type="text" placeholder="סימול..."
+        style="width:100px;padding:7px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;font-family:Heebo,sans-serif;outline:none;direction:ltr;letter-spacing:0.5px;transition:border-color 0.2s,box-shadow 0.2s;"
+        onkeydown="if(event.key==='Enter') mktSearch()" />
+      <button onclick="mktSearch()" style="padding:7px 14px;border-radius:9px;background:#3b82f6;color:white;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">חפש</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">
+      <button class="mkt-chip" onclick="mktLoadGroup('mag7')" style="padding:5px 12px;font-size:11px;">Mag 7 🔥</button>
+      <button class="mkt-chip" onclick="mktLoadGroup('sp500')" style="padding:5px 12px;font-size:11px;">S&amp;P 500</button>
+      <button class="mkt-chip" onclick="mktLoadGroup('ta125')" style="padding:5px 12px;font-size:11px;">ת"א 125</button>
+      <button class="mkt-chip" onclick="mktLoadGroup('ta35')" style="padding:5px 12px;font-size:11px;">ת"א 35</button>
+    </div>
+    <div id="mkt-not-found" style="display:none;font-size:11px;color:#f87171;font-family:Heebo,sans-serif;"></div>
+  </div>
+  <!-- v104.3: Overview Header KPIs (shown only on overview tab) -->
+  <div id="ov-header-stats" class="header-stats" style="display:none;direction:rtl;gap:20px;padding:0 16px;">
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">רווח חודש אחרון</div>
+      <div class="stat-value" id="ov-hdr-profit" style="color:#4ade80;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ₪</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label">השקעות</div>
+      <div class="stat-value" id="ov-hdr-invest" style="color:#93c5fd;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ₪</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item" style="gap:0;min-width:155px;">
+      <div class="stat-label" id="ov-hdr-pension-label">קצבה נטו</div>
+      <div class="stat-value" id="ov-hdr-pension" style="color:#a78bfa;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">₪/חודש</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label" id="ov-hdr-wealth-label">הון חזוי לגיל 67</div>
+      <div class="stat-value" id="ov-hdr-wealth" style="color:#fbbf24;line-height:1.15;">—</div>
+      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ₪</div>
+    </div>
+  </div>
+
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; margin-right:auto;">
     <div style="display:flex; align-items:center; gap:8px;">
+      <!-- Overview upload buttons (far-left, visible only on overview tab) — RTL order: תזרים שוטף (right) | Asset Data (middle) | תכנון פרישה (left) -->
+      <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תזרים שוטף</button>
+      <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 Asset Data</button>
+      <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
       <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
@@ -797,7 +845,82 @@
 
 
 </div>
-<div class="tab-panel" id="tab-overview"><div class="tab-coming-soon"><div class="tcs-icon">🗺️</div><div class="tcs-text">מבט על</div><div class="tcs-sub">בבנייה...</div></div></div>
+<div class="tab-panel" id="tab-overview">
+<style>
+.ov-wrap{padding:14px 18px;font-family:Heebo,sans-serif;direction:rtl;background:#f0f2f5;min-height:calc(100vh - 130px);}
+.ov-kpi-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.ov-kpi-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:4px;}
+.ov-kpi-label{font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.2px;}
+.ov-kpi-val{font-size:22px;font-weight:800;color:#1e3a8a;line-height:1.1;}
+.ov-kpi-sub{font-size:10px;color:#9ca3af;}
+.ov-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;}
+.ov-card{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,0.07);display:flex;flex-direction:column;min-height:240px;}
+.ov-card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.ov-card-title{font-size:13px;font-weight:700;color:#374151;}
+.ov-annual-profit{margin-right:auto;display:flex;align-items:center;gap:6px;background:#f0fdf4;border-radius:20px;padding:4px 12px;}
+.ov-ap-label{font-size:10px;color:#6b7280;}
+.ov-ap-val{font-size:15px;font-weight:800;color:#16a34a;}
+.ov-micro-card{background:#f8fafc;border-radius:12px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;border:1px solid #e8eef4;}
+.ov-mc-label{font-size:11px;color:#6b7280;font-weight:600;margin-bottom:2px;}
+.ov-mc-sub{font-size:10px;color:#94a3b8;}
+.ov-mc-val{font-size:19px;font-weight:800;}
+.ov-empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;font-family:Heebo,sans-serif;text-align:center;padding:8px;background:rgba(255,255,255,0.6);border-radius:10px;line-height:1.5;}
+</style>
+<div class="ov-wrap">
+  <!-- 2×2 Bento Grid (RTL: right→left per row) — KPIs moved to header -->
+  <div class="ov-grid">
+
+    <!-- TOP RIGHT: Cashflow Chart (2026) -->
+    <div class="ov-card">
+      <div class="ov-card-header">
+        <span class="ov-card-title">תזרים שוטף — 2026</span>
+        <div style="margin-right:auto;display:flex;gap:4px;">
+          <button id="ov-cf-btn-monthly" onclick="ovSetCFMode('monthly')"
+            style="padding:3px 10px;border-radius:20px;border:1px solid #d1d5db;background:#1e3a8a;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;">חודשי</button>
+          <button id="ov-cf-btn-ytd" onclick="ovSetCFMode('ytd')"
+            style="padding:3px 10px;border-radius:20px;border:1px solid #d1d5db;background:transparent;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;">YTD</button>
+        </div>
+      </div>
+      <div style="position:relative;height:185px;">
+        <canvas id="ov-cf-chart"></canvas>
+        <div id="ov-cf-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
+      </div>
+    </div>
+
+    <!-- TOP LEFT: Investment Growth -->
+    <div class="ov-card">
+      <div class="ov-card-header">
+        <span class="ov-card-title">השקעות — צמיחה כוללת</span>
+      </div>
+      <div style="position:relative;height:185px;">
+        <canvas id="ov-inv-chart"></canvas>
+        <div id="ov-inv-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
+      </div>
+    </div>
+
+    <!-- BOTTOM RIGHT: Pension & Insurance -->
+    <div class="ov-card">
+      <div class="ov-card-header">
+        <span class="ov-card-title">פנסיה וביטוחים</span>
+      </div>
+      <div id="ov-pension-content" style="flex:1;display:flex;flex-direction:row;align-items:flex-start;overflow:auto;padding:4px 0;"></div>
+    </div>
+
+    <!-- BOTTOM LEFT: Tactical Simulator (5-year) -->
+    <div class="ov-card">
+      <div class="ov-card-header">
+        <span class="ov-card-title">סימולטור — 5 שנים קרובות</span>
+      </div>
+      <div style="position:relative;min-height:200px;flex:1;">
+        <canvas id="ov-sim-chart"></canvas>
+        <div id="ov-sim-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
+      </div>
+      <div id="ov-sim-timeline" style="min-height:22px;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+    </div>
+
+  </div>
+</div>
+</div>
 <div class="tab-panel active" id="tab-cashflow">
 <div style="padding:16px 20px 16px 20px; font-family:Heebo,sans-serif; direction:rtl;">
 
@@ -1052,7 +1175,122 @@
     </div><!-- /pns-content -->
   </div><!-- /pns-wrap -->
 </div>
-<div class="tab-panel" id="tab-market"><div class="tab-coming-soon"><div class="tcs-icon">📈</div><div class="tcs-text">ניתוח שוק ומסחר</div><div class="tcs-sub">בבנייה...</div></div></div>
+<div class="tab-panel" id="tab-market">
+<style>
+#mkt-wrap{background:#0a0e1a;min-height:calc(100vh - 130px);padding:20px;direction:rtl;font-family:Heebo,sans-serif;box-sizing:border-box;}
+.mkt-chip{padding:8px 16px;border-radius:20px;border:1.5px solid #1e2d4a;background:transparent;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.18s;}
+.mkt-chip:hover{border-color:#3b82f6;color:#60a5fa;background:rgba(59,130,246,0.08);}
+.mkt-period-btn{padding:4px 11px;border-radius:20px;border:1.5px solid #1e2d4a;background:transparent;color:#94a3b8;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;}
+.mkt-period-btn:hover,.mkt-period-btn.active{border-color:#3b82f6;background:#3b82f6;color:#fff;}
+.mkt-ai-msg-user{padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;max-width:88%;background:#1e3a5f;color:#bfdbfe;align-self:flex-end;margin-right:auto;}
+.mkt-ai-msg-ai{padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;max-width:92%;background:#1e2d4a;color:#cbd5e1;align-self:flex-start;}
+#mkt-search-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}
+#mkt-ai-input:focus{border-color:#3b82f6;}
+</style>
+<div id="mkt-wrap">
+
+  <!-- mkt-search-area moved to top fixed header (v105.0) -->
+
+  <!-- Results Area (hidden until search) -->
+  <div id="mkt-results" style="display:none;">
+
+    <!-- Stock Header -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+      <div>
+        <div id="mkt-stock-name" style="font-size:20px;font-weight:800;color:#e2e8f0;">—</div>
+        <div id="mkt-stock-ticker" style="font-size:12px;color:#64748b;direction:ltr;font-weight:600;letter-spacing:0.5px;"></div>
+      </div>
+      <div style="margin-right:auto;text-align:left;">
+        <div id="mkt-stock-price" style="font-size:26px;font-weight:800;color:#60a5fa;direction:ltr;line-height:1.1;">—</div>
+        <div id="mkt-stock-change" style="font-size:12px;font-weight:700;direction:ltr;"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+
+      <!-- Main Content Column -->
+      <div style="flex:1;min-width:0;">
+
+        <!-- Main Chart -->
+        <div style="background:#141c2e;border-radius:16px;padding:18px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:#cbd5e1;">גרף מניה</span>
+            <div id="mkt-period-btns" style="display:flex;gap:5px;">
+              <button class="mkt-period-btn active" onclick="mktSetPeriod('1m')" data-p="1m">1M</button>
+              <button class="mkt-period-btn" onclick="mktSetPeriod('3m')" data-p="3m">3M</button>
+              <button class="mkt-period-btn" onclick="mktSetPeriod('6m')" data-p="6m">6M</button>
+              <button class="mkt-period-btn" onclick="mktSetPeriod('1y')" data-p="1y">1Y</button>
+              <button class="mkt-period-btn" onclick="mktSetPeriod('3y')" data-p="3y">3Y</button>
+            </div>
+            <label id="mkt-sniper-btn" onclick="mktToggleSniper()" style="margin-right:auto;display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
+              <span style="font-size:11px;font-weight:700;color:#94a3b8;font-family:Heebo,sans-serif;">🎯 Sniper</span>
+              <div id="mkt-sniper-track" style="position:relative;width:34px;height:18px;border-radius:9px;background:#1e2d4a;border:1.5px solid #3b4f6e;transition:background 0.2s,border-color 0.2s;flex-shrink:0;">
+                <div id="mkt-sniper-thumb" style="position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#475569;transition:right 0.2s,background 0.2s;"></div>
+              </div>
+            </label>
+          </div>
+          <div style="height:250px;position:relative;">
+            <canvas id="mkt-main-chart"></canvas>
+          </div>
+          <div id="mkt-sniper-legend" style="display:none;margin-top:10px;font-size:11px;color:#94a3b8;display:flex;gap:16px;flex-wrap:wrap;"></div>
+        </div>
+
+        <!-- Comparison Chart -->
+        <div style="background:#141c2e;border-radius:16px;padding:18px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:#cbd5e1;">תשואה יחסית</span>
+            <select id="mkt-bench-select" onchange="mktUpdateComparison()"
+              style="padding:4px 8px;border-radius:8px;border:1px solid #1e2d4a;background:#0d1524;color:#94a3b8;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;outline:none;">
+              <option value="SPY">מול S&amp;P 500</option>
+              <option value="QQQ">מול נאסד"ק</option>
+              <option value="IWM">מול Russell 2000</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:7px;margin-right:auto;">
+              <span style="font-size:11px;color:#64748b;white-space:nowrap;">רגישות USD/ILS:</span>
+              <input type="range" id="mkt-fx-slider" min="3.00" max="4.50" step="0.01" value="3.50"
+                oninput="mktFxChange(this.value)"
+                style="width:90px;accent-color:#3b82f6;cursor:pointer;">
+              <span id="mkt-fx-val" style="font-size:11px;color:#60a5fa;font-weight:700;min-width:32px;">3.50</span>
+            </div>
+          </div>
+          <div style="height:160px;position:relative;">
+            <canvas id="mkt-compare-chart"></canvas>
+          </div>
+        </div>
+
+      </div><!-- end main column -->
+
+      <!-- Sidebar: AI + News -->
+      <div id="mkt-ai-panel" style="width:290px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+
+        <!-- AI Chat -->
+        <div style="background:#141c2e;border-radius:16px;overflow:hidden;border:1px solid #1e2d4a;">
+          <div onclick="mktToggleAI()" style="padding:13px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1e2d4a;cursor:pointer;user-select:none;">
+            <span style="font-size:15px;">🤖</span>
+            <span style="font-size:13px;font-weight:700;color:#cbd5e1;">שאל על המניה</span>
+            <span id="mkt-ai-chevron" style="margin-right:auto;color:#64748b;font-size:11px;">▼</span>
+          </div>
+          <div id="mkt-ai-body">
+            <div id="mkt-ai-messages" style="height:220px;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="padding:10px;border-top:1px solid #1e2d4a;display:flex;gap:7px;">
+              <input id="mkt-ai-input" type="text" placeholder="שאל שאלה..."
+                style="flex:1;padding:9px 12px;border-radius:10px;border:1px solid #1e2d4a;background:#0d1524;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;outline:none;transition:border-color 0.2s;"
+                onkeydown="if(event.key==='Enter') mktAISend()" />
+              <button onclick="mktAISend()" style="padding:9px 12px;border-radius:10px;background:#3b82f6;color:white;border:none;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;font-weight:700;">שלח</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- News Cards (sidebar) -->
+        <div id="mkt-news-section" style="display:none;background:#141c2e;border:1px solid #1e2d4a;border-radius:16px;padding:12px 14px;"></div>
+
+      </div><!-- end sidebar -->
+
+    </div>
+  </div><!-- end results -->
+
+</div>
+</div>
 <div class="tab-panel" id="tab-simulator">
   <div class="sim-wrap">
 
@@ -1261,7 +1499,7 @@
       </div>
       <div style="flex:1;">
         <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">חודש (1–12)</label>
-        <input id="sim-ev-month" type="number" min="1" max="12" step="1" value="1" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;text-align:center;" />
+        <input id="sim-ev-month" type="number" min="1" max="12" step="1" value="1" oninput="var v=parseInt(this.value)||1;if(v<1)this.value=1;if(v>12)this.value=12;" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;text-align:center;" />
       </div>
     </div>
 
