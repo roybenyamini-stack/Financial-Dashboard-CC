@@ -1,7 +1,27 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v105.5 — 4 תיקוני UI+Cross-browser: Harel upload bug, CF header nowrap, Market title RTL, iPad canvas fix (14/04/2026).
+גרסה v107.0 — Step Charts לסימולטור + טאב הגדרות (שלד UI) + עדכון גרסה (14/04/2026).
+
+## שינויים אחרונים (14/04/2026 — v107.0)
+
+### v107.0 – Step Charts + Settings Tab Skeleton
+
+**Step Charts בסימולטור (`app.js`)**
+- כל 10 ה-datasets בפונקציות `simRenderChart` (שלושת תצוגות: רועי, יעל, משולב) ו-`ovRenderSimMini` עודכנו: `tension: 0` + `stepped: 'after'`.
+- הגיון: אירועים שנתיים (משיכות, הפקדות) מיוצגים נכון כמדרגות, לא כקווים אלכסוניים.
+
+**טאב הגדרות — שלד UI בלבד (`index.html` + `app.js` + `style.css`)**
+- `index.html`: נוסף כפתור `⚙ הגדרות` בסרגל הניווט.
+- `index.html`: נוסף `<div id="tab-settings">` עם 3 סקציות: גיל פרישה (רועי/יעל), תשואות ואינפלציה (4 שדות), הכנסות פרישה (2 שדות). כפתור שמירה מושבת (placeholder).
+- `app.js`: נוסף `'settings':'הגדרות'` ל-`TAB_NAMES`; נוסף `var isSettings = (id === 'settings')` ב-`switchTab`.
+- `style.css`: נוסף עיצוב מלא לטאב ההגדרות (grid, card sections, inputs).
+
+**עדכון גרסה**
+- `index.html`: `v106.0` → `v107.0` (comment, h1 span, market comment).
+- `app.js`: `v106.0` → `v107.0` (comment בתוך `switchTab`).
+
+---
 
 ## שינויים אחרונים (14/04/2026 — v105.5)
 

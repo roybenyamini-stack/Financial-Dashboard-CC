@@ -1,4 +1,4 @@
-<!-- v106.0 -->
+<!-- v107.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -32,12 +32,13 @@
   <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
   <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
   <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק</button>
+  <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
 </div>
 <div class="header">
   <!-- Title + CF stats: adjacent RTL group — do NOT add other tab stats here -->
   <div id="hdr-title-group" style="display:flex;align-items:center;justify-content:space-between;direction:rtl;flex:1 1 0;min-width:0;flex-wrap:nowrap;overflow:hidden;">
     <div class="header-title" style="flex:0 0 auto;white-space:nowrap;">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v106.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v107.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
     <div id="cf-header-stats" class="header-stats" style="display:none;flex:0 0 auto;flex-shrink:0;flex-wrap:nowrap !important;white-space:nowrap;gap:0;">
@@ -118,7 +119,7 @@
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
   </div>
-  <!-- v106.0: Market tab search area — shown only on market tab -->
+  <!-- v107.0: Market tab search area — shown only on market tab -->
   <div id="mkt-search-area" style="display:none;align-items:center;gap:10px;flex-wrap:nowrap;direction:rtl;margin-right:auto;margin-left:auto;">
     <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">
       <input id="mkt-search-input" type="text" placeholder="סימול..."
@@ -1572,6 +1573,111 @@
 
 <!-- ── v103.39: custom timeline tooltip ── -->
 <div id="sim-tltp" style="display:none;position:fixed;background:#f8f9fa;color:#1e293b;font-family:Heebo,sans-serif;font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid rgba(0,0,0,0.12);z-index:20000;max-width:280px;pointer-events:none;direction:rtl;line-height:1.55;box-shadow:0 4px 12px rgba(0,0,0,0.15);white-space:pre-wrap;"></div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- v107.0: SETTINGS TAB — static UI skeleton             -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-settings">
+  <div class="settings-wrap">
+    <div class="settings-header">
+      <h2 class="settings-title">הגדרות סימולטור</h2>
+      <p class="settings-subtitle">הגדרות ברירת מחדל המשפיעות על חישובי הסימולטור הפיננסי. שינויים עתידיים יחושבו מחדש אוטומטית.</p>
+    </div>
+
+    <!-- Section: גיל פרישה -->
+    <div class="settings-section">
+      <div class="settings-section-title">גיל פרישה</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">גיל פרישה — רועי</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-retire-age-roy" value="67" min="55" max="80" placeholder="67">
+            <span class="settings-unit">שנים</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 67 (גיל פרישה חוקי לגברים)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">גיל פרישה — יעל</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-retire-age-yael" value="64" min="55" max="80" placeholder="64">
+            <span class="settings-unit">שנים</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 65 (גיל פרישה חוקי לנשים)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: תשואות -->
+    <div class="settings-section">
+      <div class="settings-section-title">תשואות ואינפלציה</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">תשואה שנתית על השקעות</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-inv-rate" value="4" min="0" max="20" step="0.5" placeholder="4">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 4% (SIM_RATE)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">תשואה שנתית — הון פנסיוני</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-pension-rate" value="3" min="0" max="15" step="0.5" placeholder="3">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 3% (SIM_PENSION_RATE)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">שיעור אינפלציה שנתי</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-inflation" value="2.5" min="0" max="15" step="0.5" placeholder="2.5">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_INFLATION)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">צמיחה שנתית נדל״ן</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-re-growth" value="2.5" min="0" max="15" step="0.5" placeholder="2.5">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_RE_GROWTH_RATE)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: הכנסות פרישה -->
+    <div class="settings-section">
+      <div class="settings-section-title">הכנסות בגיל פרישה</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">הכנסה חודשית מפנסיה</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-pension-monthly" value="35000" min="0" max="200000" step="1000" placeholder="35000">
+            <span class="settings-unit">₪</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 35,000 ₪ (SIM_PENSION_MONTHLY)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">משכורת מדריך (שלב ביניים)</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-instructor-sal" value="35000" min="0" max="100000" step="1000" placeholder="35000">
+            <span class="settings-unit">₪</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 20,000 ₪ (SIM_INSTRUCTOR_SAL)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save button — placeholder, no logic yet -->
+    <div class="settings-footer">
+      <button class="settings-save-btn" disabled title="פונקציונליות זו תופעל בגרסה הבאה">
+        💾 שמור הגדרות
+      </button>
+      <span class="settings-save-note">שמירה ועדכון חישובים — יופעל בגרסה הבאה</span>
+    </div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body></html>
