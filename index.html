@@ -1,4 +1,4 @@
-<!-- v108.0 -->
+<!-- v130.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -35,36 +35,37 @@
   <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
 </div>
 <div class="header">
-  <!-- Title + CF stats: adjacent RTL group — do NOT add other tab stats here -->
-  <div id="hdr-title-group" style="display:flex;align-items:center;justify-content:space-between;direction:rtl;flex:1 1 0;min-width:0;flex-wrap:nowrap;overflow:hidden;">
-    <div class="header-title" style="flex:0 0 auto;white-space:nowrap;">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v108.0</span></h1>
+  <!-- Title group — title only; tab stats are direct children of .header below -->
+  <div id="hdr-title-group" style="display:flex;align-items:center;direction:rtl;flex:0 0 auto;white-space:nowrap;">
+    <div class="header-title">
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v130.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
-    <div id="cf-header-stats" class="header-stats" style="display:none;flex:0 0 auto;flex-shrink:0;flex-wrap:nowrap !important;white-space:nowrap;gap:0;">
-      <div class="stat-item cf-stat-item">
-        <div class="stat-label">הכנסות</div>
-        <div class="stat-value green" id="cf-hdr-income">—</div>
-        <div class="stat-change">אלפי ש״ח</div>
-      </div>
-      <div class="divider"></div>
-      <div class="stat-item cf-stat-item">
-        <div class="stat-label">הוצאות</div>
-        <div class="stat-value red" id="cf-hdr-exp">—</div>
-        <div class="stat-change">אלפי ש״ח</div>
-      </div>
-      <div class="divider"></div>
-      <div class="stat-item cf-stat-item">
-        <div class="stat-label" id="cf-hdr-net-label">נטו</div>
-        <div class="stat-value green" id="cf-hdr-net">—</div>
-        <div class="stat-change" id="cf-hdr-net-sub">אלפי ש״ח</div>
-      </div>
-      <div class="divider"></div>
-      <div class="stat-item cf-stat-item">
-        <div class="stat-label" id="cf-hdr-pl-label">רווח/הפסד</div>
-        <div class="stat-value" id="cf-hdr-pl">—</div>
-        <div class="stat-change">אלפי ש״ח</div>
-      </div>
+  </div>
+  <!-- CF stats: direct child of .header (same level as inv/pns/sim stats) — v110.0 structural fix, v111.0 -->
+  <div id="cf-header-stats" class="header-stats" style="display:none;">
+    <div class="stat-item cf-stat-item">
+      <div class="stat-label">הכנסות</div>
+      <div class="stat-value green" id="cf-hdr-income">—</div>
+      <div class="stat-change">אלפי ש״ח</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item cf-stat-item">
+      <div class="stat-label">הוצאות</div>
+      <div class="stat-value red" id="cf-hdr-exp">—</div>
+      <div class="stat-change">אלפי ש״ח</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item cf-stat-item">
+      <div class="stat-label" id="cf-hdr-net-label">נטו</div>
+      <div class="stat-value green" id="cf-hdr-net">—</div>
+      <div class="stat-change" id="cf-hdr-net-sub">אלפי ש״ח</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item cf-stat-item">
+      <div class="stat-label" id="cf-hdr-pl-label">רווח/הפסד</div>
+      <div class="stat-value" id="cf-hdr-pl">—</div>
+      <div class="stat-change">אלפי ש״ח</div>
     </div>
   </div>
   <div class="header-stats" id="inv-header-stats" style="display:none;">
@@ -92,10 +93,10 @@
     <div id="pns-snap-stats" style="display:contents;"></div>
     <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
   </div>
-  <!-- v103.43: 4-metric simulator header KPIs — הון השקעות פעיל in M; others bare K + sub-label -->
-  <div id="sim-header-stats" class="header-stats" style="display:none;direction:rtl;gap:24px;padding:0 20px;">
+  <!-- v114.0: 4-metric simulator header KPIs — הון חזוי in M; gap/padding controlled by CSS -->
+  <div id="sim-header-stats" class="header-stats" style="display:none;direction:rtl;">
     <div class="stat-item" style="gap:0;">
-      <div class="stat-label">הון השקעות פעיל</div>
+      <div class="stat-label">הון חזוי</div>
       <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
       <!-- v103.37: sub-label מיליון ש״ח to align with other KPIs -->
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ש״ח</div>
@@ -165,6 +166,7 @@
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; margin-right:auto;">
     <div style="display:flex; align-items:center; gap:8px;">
       <!-- Overview upload buttons (far-left, visible only on overview tab) — RTL order: תזרים שוטף (right) | Asset Data (middle) | תכנון פרישה (left) -->
+      <button class="ov-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תזרים שוטף</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 Asset Data</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
@@ -227,6 +229,7 @@
           style="width:42px;padding:3px 5px;border-radius:5px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:12px;font-family:Heebo,sans-serif;color:white;outline:none;text-align:center;-webkit-appearance:textfield;-moz-appearance:textfield;appearance:textfield;font-weight:700;">
       </div>
       <span class="sim-only-btn" onclick="toggleChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI">💬</span>
+      <button class="sim-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
     </div>
     <span id="excel-status" style="color:rgba(255,255,255,0.85); font-size:11px; min-height:16px; display:block;"></span>
   </div>
@@ -416,7 +419,7 @@
   </div>
 </div>
 <!-- v97.0: Table label shown only in "all" (shared) view -->
-<div id="cat-scroll-label" style="display:none;font-size:12px;font-weight:700;color:#6b7280;padding:10px 4px 6px;border-top:1px solid #e5e7eb;margin-top:4px;">📋 טבלת נכסים – רועי</div>
+<div id="cat-scroll-label" style="display:none;font-size:12px;font-weight:700;color:#6b7280;padding:10px 4px 6px;border-top:1px solid #e5e7eb;margin-top:4px;">📋 טבלת נכסים – <span id="display-user1-name-tbl">רועי</span></div>
 <div id="categories-scroll" style="display:none;">
 <!-- CATEGORY: מזומן -->
 <div class="category-section" id="sec-mezuman" style="--cat-color:#0891b2;--cat-color-light:#e0f2fe;--cat-color-ultralight:#f0fbff">
@@ -750,7 +753,7 @@
     </div>
     <!-- v97.1: Roee historical analysis section -->
     <div id="roee-charts-section">
-      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">תמונת מצב – רועי</div>
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">תמונת מצב – <span id="display-user1-name-charts">רועי</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="charts-grid">
         <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-by-cat" style="max-width:160px;max-height:160px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
         <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-equity" style="max-width:160px;max-height:160px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
@@ -760,7 +763,7 @@
     </div>
     <!-- v97.2: Yael snapshot section inside modal — uses same ch-card style as Roee charts -->
     <div id="yael-charts-section" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;">
-      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;letter-spacing:0.3px;">תמונת מצב – יעל</div>
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;letter-spacing:0.3px;">תמונת מצב – <span id="display-user2-name-charts">יעל</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="ch-card" onclick="toggleCard(this)">
           <div class="ch-title">פילוח לפי סוג מוצר</div>
@@ -1064,7 +1067,7 @@
       <!-- 6. TAX LAB -->
       <div id="pns-tax-lab" style="background:#fff;border-radius:14px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <div class="pns-section-title" style="margin-bottom:0;font-size:12px;">⚙️ מחשבון מס</div>
+          <div class="pns-section-title" style="margin-bottom:0;font-size:12px;">⚙️ קיבוע זכויות</div>
           <span class="pns-info-icon" title="מדרגות מס הכנסה חודשי 2025: עד ₪7,010 — 10% | עד ₪10,060 — 14% | עד ₪16,150 — 20% | עד ₪22,440 — 31% | עד ₪46,690 — 35% | עד ₪60,130 — 47% | מעל — 50% | קיזוז נקודות זיכוי: ₪544/חודש | מס רווח הון על הון: 25%">ℹ️</span>
         </div>
         <!-- Tax Lab v72.0: Two-column layout — slider (right) | circles (left) -->
@@ -1304,7 +1307,7 @@
     <div id="sim-kpi-section-label" style="display:none;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">הון נוכחי</div>
     <div class="sim-kpi-row" id="sim-kpi-row" style="display:none;grid-template-columns:repeat(4,1fr);">
       <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון השקעות פעיל</div>
+        <div class="sim-kpi-label">הון חזוי</div>
         <div class="sim-kpi-val blue" id="sim-kpi-inv-now">—</div>
         <div class="sim-kpi-sub" id="sim-kpi-inv-sub">מיליון ש״ח</div>
       </div>
@@ -1589,7 +1592,7 @@
       <div class="settings-section-title">גיל פרישה</div>
       <div class="settings-grid">
         <div class="settings-field">
-          <label class="settings-label">גיל פרישה — רועי</label>
+          <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">רועי</span></label>
           <div class="settings-input-row">
             <input type="number" class="settings-input" id="stg-retire-age-roy" value="67" min="55" max="80" placeholder="67">
             <span class="settings-unit">שנים</span>
@@ -1597,7 +1600,7 @@
           <div class="settings-hint">ברירת מחדל: 67 (גיל פרישה חוקי לגברים)</div>
         </div>
         <div class="settings-field">
-          <label class="settings-label">גיל פרישה — יעל</label>
+          <label class="settings-label">גיל פרישה — <span id="display-user2-name-retire">יעל</span></label>
           <div class="settings-input-row">
             <input type="number" class="settings-input" id="stg-retire-age-yael" value="64" min="55" max="80" placeholder="64">
             <span class="settings-unit">שנים</span>
@@ -1636,12 +1639,12 @@
           <div class="settings-hint">ברירת מחדל: 2.5% (SIM_INFLATION)</div>
         </div>
         <div class="settings-field">
-          <label class="settings-label">צמיחה שנתית נדל״ן</label>
+          <label class="settings-label">צמיחת נדל״ן שנתית</label>
           <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-re-growth" value="2.5" min="0" max="15" step="0.5" placeholder="2.5">
+            <input type="number" class="settings-input" id="stg-re-growth" value="2.0" min="0" max="15" step="0.5" placeholder="2.0">
             <span class="settings-unit">%</span>
           </div>
-          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_RE_GROWTH_RATE)</div>
+          <div class="settings-hint">ברירת מחדל: 2.0% (SIM_RE_GROWTH_RATE)</div>
         </div>
       </div>
     </div>
@@ -1651,7 +1654,7 @@
       <div class="settings-section-title">הכנסות בגיל פרישה</div>
       <div class="settings-grid">
         <div class="settings-field">
-          <label class="settings-label">הכנסה חודשית מפנסיה</label>
+          <label class="settings-label">הכנסה נטו מפנסיה</label>
           <div class="settings-input-row">
             <input type="number" class="settings-input" id="stg-pension-monthly" value="35000" min="0" max="200000" step="1000" placeholder="35000">
             <span class="settings-unit">₪</span>
@@ -1669,12 +1672,175 @@
       </div>
     </div>
 
-    <!-- Save button — v108.0: wired to saveSettings() -->
+    <!-- Section: נתוני צבירה ונכסים — v124.0 -->
+    <div class="settings-section">
+      <div class="settings-section-title">נתוני צבירה ונכסים</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">צבירה פנסיונית נוכחית</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-pension-acc" value="0" min="0" max="10000000" step="10000" placeholder="0">
+            <span class="settings-unit">₪</span>
+          </div>
+          <div class="settings-hint">סה״כ הון פנסיוני צבור נוכחי (SIM_PENSION_ACC)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">הכנסה מדמי שכירות</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-rental-income" value="0" min="0" max="50000" step="500" placeholder="0">
+            <span class="settings-unit">₪/חודש</span>
+          </div>
+          <div class="settings-hint">הכנסה חודשית משכירות (SIM_RENTAL_INCOME)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: מאקרו כלכלה ומיסוי — v120.0 -->
+    <div class="settings-section">
+      <div class="settings-section-title">מאקרו כלכלה ומיסוי</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">אינפלציה שנתית</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-inflation-macro" value="2.5" min="0" max="15" step="0.1" placeholder="2.5">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ראה גם: SIM_INFLATION בסעיף תשואות</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">מס רווחי הון ריאלי</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-capital-tax" value="25" min="0" max="50" step="1" placeholder="25">
+            <span class="settings-unit">%</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 25% (SIM_CAPITAL_TAX)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: פרופיל — v126.0 -->
+    <div class="settings-section">
+      <div class="settings-section-title">פרופיל</div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="settings-label">שם משתמש 1</label>
+          <div class="settings-input-row">
+            <input type="text" class="settings-input" id="stg-user1-name" value="רועי" maxlength="20" placeholder="רועי">
+          </div>
+          <div class="settings-hint">שם לתגיות תצוגה (רועי)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">שם משתמש 2</label>
+          <div class="settings-input-row">
+            <input type="text" class="settings-input" id="stg-user2-name" value="יעל" maxlength="20" placeholder="יעל">
+          </div>
+          <div class="settings-hint">שם לתגיות תצוגה (יעל)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">רועי</span></label>
+          <div class="settings-input-row">
+            <input type="date" class="settings-input" id="stg-user1-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
+          </div>
+          <div class="settings-hint">לחישוב גיל פרישה מדויק (SIM_USER1_BIRTH)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">יעל</span></label>
+          <div class="settings-input-row">
+            <input type="date" class="settings-input" id="stg-user2-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
+          </div>
+          <div class="settings-hint">לחישוב גיל פרישה מדויק (SIM_USER2_BIRTH)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save button — v120.0: dirty-state wired -->
     <div class="settings-footer">
       <button class="settings-save-btn" onclick="saveSettings()">
         💾 שמור הגדרות
       </button>
       <span class="settings-save-note"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal overlay — v127.0: Simulator quick-settings -->
+<div class="modal-overlay" id="settings-modal" onclick="closeSettingsModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ הגדרות סימולטור</span>
+      <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- פרופיל -->
+      <div class="modal-section">
+        <div class="modal-section-title">פרופיל</div>
+        <div class="modal-grid">
+          <div class="modal-field">
+            <label class="modal-label">שם משתמש 1</label>
+            <input type="text" class="modal-input" id="modal-user1-name" maxlength="20" placeholder="רועי">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">שם משתמש 2</label>
+            <input type="text" class="modal-input" id="modal-user2-name" maxlength="20" placeholder="יעל">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">תאריך לידה 1</label>
+            <input type="date" class="modal-input" id="modal-user1-birth" min="1900-01-01">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">תאריך לידה 2</label>
+            <input type="date" class="modal-input" id="modal-user2-birth" min="1900-01-01">
+          </div>
+        </div>
+      </div>
+
+      <!-- גיל פרישה -->
+      <div class="modal-section">
+        <div class="modal-section-title">גיל פרישה</div>
+        <div class="modal-grid">
+          <div class="modal-field">
+            <label class="modal-label">גיל פרישה — <span id="modal-display-user1-name">רועי</span></label>
+            <div class="modal-input-row">
+              <input type="number" class="modal-input" id="modal-retire-age-roy" min="55" max="80" placeholder="67">
+              <span class="modal-unit">שנים</span>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">גיל פרישה — <span id="modal-display-user2-name">יעל</span></label>
+            <div class="modal-input-row">
+              <input type="number" class="modal-input" id="modal-retire-age-yael" min="55" max="80" placeholder="64">
+              <span class="modal-unit">שנים</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- כלכלה ומיסוי -->
+      <div class="modal-section">
+        <div class="modal-section-title">כלכלה ומיסוי</div>
+        <div class="modal-grid">
+          <div class="modal-field">
+            <label class="modal-label">אינפלציה שנתית</label>
+            <div class="modal-input-row">
+              <input type="number" class="modal-input" id="modal-inflation" min="0" max="15" step="0.1" placeholder="2.5">
+              <span class="modal-unit">%</span>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">מס רווחי הון</label>
+            <div class="modal-input-row">
+              <input type="number" class="modal-input" id="modal-capital-tax" min="0" max="50" step="1" placeholder="25">
+              <span class="modal-unit">%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="modal-save-btn" onclick="saveModalSettings()">💾 שמור ועדכן</button>
+      <span class="modal-save-note" id="modal-save-note"></span>
     </div>
   </div>
 </div>
