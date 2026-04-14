@@ -1,4 +1,4 @@
-<!-- v105.0 -->
+<!-- v106.0 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -35,32 +35,32 @@
 </div>
 <div class="header">
   <!-- Title + CF stats: adjacent RTL group — do NOT add other tab stats here -->
-  <div id="hdr-title-group" style="display:flex;align-items:center;gap:28px;direction:rtl;flex-shrink:0;flex-wrap:nowrap;">
-    <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v105.0</span></h1>
+  <div id="hdr-title-group" style="display:flex;align-items:center;justify-content:space-between;direction:rtl;flex:1 1 0;min-width:0;flex-wrap:nowrap;overflow:hidden;">
+    <div class="header-title" style="flex:0 0 auto;white-space:nowrap;">
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v106.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
-    <div id="cf-header-stats" class="header-stats" style="display:none;flex-shrink:1;overflow:hidden;flex-wrap:nowrap;">
-      <div class="stat-item">
+    <div id="cf-header-stats" class="header-stats" style="display:none;flex:0 0 auto;flex-wrap:nowrap;white-space:nowrap;">
+      <div class="stat-item cf-stat-item">
         <div class="stat-label">הכנסות</div>
         <div class="stat-value green" id="cf-hdr-income">—</div>
         <div class="stat-change">אלפי ש״ח</div>
       </div>
       <div class="divider"></div>
-      <div class="stat-item">
+      <div class="stat-item cf-stat-item">
         <div class="stat-label">הוצאות</div>
         <div class="stat-value red" id="cf-hdr-exp">—</div>
         <div class="stat-change">אלפי ש״ח</div>
       </div>
       <div class="divider"></div>
-      <div class="stat-item">
+      <div class="stat-item cf-stat-item">
         <div class="stat-label" id="cf-hdr-net-label">נטו</div>
         <div class="stat-value green" id="cf-hdr-net">—</div>
         <div class="stat-change" id="cf-hdr-net-sub">אלפי ש״ח</div>
       </div>
       <div class="divider"></div>
-      <div class="stat-item">
-        <div class="stat-label" id="cf-hdr-pl-label">רווח או הפסד</div>
+      <div class="stat-item cf-stat-item">
+        <div class="stat-label" id="cf-hdr-pl-label">רווח/הפסד</div>
         <div class="stat-value" id="cf-hdr-pl">—</div>
         <div class="stat-change">אלפי ש״ח</div>
       </div>
@@ -118,9 +118,8 @@
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
     </div>
   </div>
-  <!-- v105.0: Market tab search area — shown only on market tab, replaces title -->
+  <!-- v106.0: Market tab search area — shown only on market tab -->
   <div id="mkt-search-area" style="display:none;align-items:center;gap:10px;flex-wrap:nowrap;direction:rtl;margin-right:auto;margin-left:auto;">
-    <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0;margin-left:30px;">ניתוח שוק <span style="font-size:11px;font-weight:700;color:#ef4444;font-family:monospace;">v105.0</span></span>
     <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">
       <input id="mkt-search-input" type="text" placeholder="סימול..."
         style="width:100px;padding:7px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;font-family:Heebo,sans-serif;outline:none;direction:ltr;letter-spacing:0.5px;transition:border-color 0.2s,box-shadow 0.2s;"
@@ -815,7 +814,7 @@
             <span id="cm-win-label">—</span>
             <button id="cm-btn-prev" onclick="cmSlide(-1)">←</button>
           </div>
-          <div id="cm-chart-wrap"><canvas id="cm-mini-chart"></canvas></div>
+          <div id="cm-chart-wrap" style="position:relative;width:100%;display:block;"><canvas id="cm-mini-chart" style="width:100% !important;display:block;"></canvas></div>
         </div>
         <div id="cm-fund-table"></div>
       </div>
@@ -854,7 +853,7 @@
 .ov-kpi-val{font-size:22px;font-weight:800;color:#1e3a8a;line-height:1.1;}
 .ov-kpi-sub{font-size:10px;color:#9ca3af;}
 .ov-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;}
-.ov-card{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,0.07);display:flex;flex-direction:column;min-height:240px;}
+.ov-card{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,0.07);display:flex;flex-direction:column;min-height:240px;min-width:0;}
 .ov-card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .ov-card-title{font-size:13px;font-weight:700;color:#374151;}
 .ov-annual-profit{margin-right:auto;display:flex;align-items:center;gap:6px;background:#f0fdf4;border-radius:20px;padding:4px 12px;}
@@ -881,8 +880,8 @@
             style="padding:3px 10px;border-radius:20px;border:1px solid #d1d5db;background:transparent;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;">YTD</button>
         </div>
       </div>
-      <div style="position:relative;height:185px;">
-        <canvas id="ov-cf-chart"></canvas>
+      <div style="position:relative;height:185px;width:100%;display:block;">
+        <canvas id="ov-cf-chart" style="width:100% !important;display:block;"></canvas>
         <div id="ov-cf-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
       </div>
     </div>
@@ -892,8 +891,8 @@
       <div class="ov-card-header">
         <span class="ov-card-title">השקעות — צמיחה כוללת</span>
       </div>
-      <div style="position:relative;height:185px;">
-        <canvas id="ov-inv-chart"></canvas>
+      <div style="position:relative;height:185px;width:100%;display:block;">
+        <canvas id="ov-inv-chart" style="width:100% !important;display:block;"></canvas>
         <div id="ov-inv-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
       </div>
     </div>
@@ -911,8 +910,8 @@
       <div class="ov-card-header">
         <span class="ov-card-title">סימולטור — 5 שנים קרובות</span>
       </div>
-      <div style="position:relative;min-height:200px;flex:1;">
-        <canvas id="ov-sim-chart"></canvas>
+      <div style="position:relative;min-height:200px;flex:1;width:100%;display:block;">
+        <canvas id="ov-sim-chart" style="width:100% !important;display:block;"></canvas>
         <div id="ov-sim-empty" class="ov-empty-state" style="display:none;">יש להעלות את קבצי הנתונים להצגת התוכן</div>
       </div>
       <div id="ov-sim-timeline" style="min-height:22px;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
@@ -1015,8 +1014,8 @@
       <div id="cf-inner-wrap" style="position:relative;display:inline-block;">
 
         <!-- Chart canvas — width set precisely by JS (includes Y axis width) -->
-        <div id="cf-chart-wrap" style="height:242px;min-height:242px;max-height:350px;overflow:hidden;" dir="ltr">
-          <canvas id="cf-chart" style="display:block;height:100%;"></canvas>
+        <div id="cf-chart-wrap" style="height:242px;min-height:242px;max-height:350px;overflow:hidden;width:100%;display:block;" dir="ltr">
+          <canvas id="cf-chart" style="display:block;height:100%;width:100% !important;"></canvas>
         </div>
 
         <!-- TABLE: own vertical scroll so thead sticky:top works independently -->
@@ -1163,8 +1162,8 @@
       <!-- 8. TIMELINE / GROWTH AREA -->
       <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
         <div class="pns-section-title">📈 ציר זמן וצמיחה</div>
-        <div id="pns-timeline-chart-wrap" style="height:140px;margin-bottom:14px;display:none;">
-          <canvas id="pns-timeline-chart"></canvas>
+        <div id="pns-timeline-chart-wrap" style="height:140px;margin-bottom:14px;display:none;position:relative;width:100%;">
+          <canvas id="pns-timeline-chart" style="width:100% !important;display:block;"></canvas>
         </div>
         <div id="pns-growth-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80px;color:#9ca3af;gap:6px;background:#f8fafc;border-radius:10px;">
           <div style="font-size:24px;opacity:0.35;">📊</div>
@@ -1229,8 +1228,8 @@
               </div>
             </label>
           </div>
-          <div style="height:250px;position:relative;">
-            <canvas id="mkt-main-chart"></canvas>
+          <div style="height:250px;position:relative;width:100%;display:block;">
+            <canvas id="mkt-main-chart" style="width:100% !important;display:block;"></canvas>
           </div>
           <div id="mkt-sniper-legend" style="display:none;margin-top:10px;font-size:11px;color:#94a3b8;display:flex;gap:16px;flex-wrap:wrap;"></div>
         </div>
@@ -1253,8 +1252,8 @@
               <span id="mkt-fx-val" style="font-size:11px;color:#60a5fa;font-weight:700;min-width:32px;">3.50</span>
             </div>
           </div>
-          <div style="height:160px;position:relative;">
-            <canvas id="mkt-compare-chart"></canvas>
+          <div style="height:160px;position:relative;width:100%;display:block;">
+            <canvas id="mkt-compare-chart" style="width:100% !important;display:block;"></canvas>
           </div>
         </div>
 

@@ -5535,9 +5535,9 @@ function switchTab(id){
   var isOv  = (id === 'overview');
   var isMkt = (id === 'market');
 
-  // v105.0: market tab — hide title group, show search area in header
+  // v106.0: market tab — keep title group visible (title aligns right), show search area in header
   var hdrTitleGroup = document.getElementById('hdr-title-group');
-  if (hdrTitleGroup) hdrTitleGroup.style.display = isMkt ? 'none' : '';
+  if (hdrTitleGroup) hdrTitleGroup.style.display = '';
   var mktHeaderArea = document.getElementById('mkt-search-area');
   if (mktHeaderArea) mktHeaderArea.style.display = isMkt ? 'flex' : 'none';
   // v105.4: hide upload toast on market tab — prevents success message leaking into market header
@@ -5808,20 +5808,25 @@ function pensionRenderSnapshot() {
         '<button class="pns-ni-btn '+(pensionNIMode==='couple'?'active':'')+'" onclick="pensionSetNI(\'couple\')">זוג</button>';
     }
   }
-  // הראל toggle — תמיד מוצג; active כשיש נתוני הראל, disabled (greyed) כשאין
+  // הראל toggle — switchTab() מנהל hide/show; כאן רק מעדכנים תוכן ו-display כשהטאב פעיל
   var harelArea = document.getElementById('pns-harel-area');
   if (harelArea) {
-    var hasHarel = PENSION_ASSETS.some(function(a){ return a.provider && a.provider.indexOf('הראל') >= 0; });
-    harelArea.style.display = 'flex';
-    harelArea.style.opacity = hasHarel ? '1' : '0.4';
-    harelArea.innerHTML =
-      '<span style="font-size:10px;color:white;margin-left:6px;">הראל:</span>' +
-      '<button class="pns-ni-btn '+( hasHarel && !pnsExcludeHarel ? 'active' : '')+'" '+
-        (hasHarel ? 'onclick="pensionToggleHarel(false)"' : 'disabled style="cursor:default;"') +
-        '>עם</button> ' +
-      '<button class="pns-ni-btn '+( hasHarel && pnsExcludeHarel  ? 'active' : '')+'" '+
-        (hasHarel ? 'onclick="pensionToggleHarel(true)"' : 'disabled style="cursor:default;"') +
-        '>ללא</button>';
+    try {
+      var hasHarel = PENSION_ASSETS.some(function(a){ return a.provider && a.provider.indexOf('הראל') >= 0; });
+      // רק אם בטאב פנסיה — עדכן display; אחרת switchTab() אחראי — לא לדרוס אותו
+      if (document.querySelector('#tabn-pension.active')) {
+        harelArea.style.display = 'flex';
+      }
+      harelArea.style.opacity = hasHarel ? '1' : '0.4';
+      harelArea.innerHTML =
+        '<span style="font-size:10px;color:white;margin-left:6px;">הראל:</span>' +
+        '<button class="pns-ni-btn '+( hasHarel && !pnsExcludeHarel ? 'active' : '')+'" '+
+          (hasHarel ? 'onclick="pensionToggleHarel(false)"' : 'disabled style="cursor:default;"') +
+          '>עם</button> ' +
+        '<button class="pns-ni-btn '+( hasHarel && pnsExcludeHarel  ? 'active' : '')+'" '+
+          (hasHarel ? 'onclick="pensionToggleHarel(true)"' : 'disabled style="cursor:default;"') +
+          '>ללא</button>';
+    } catch(e) { /* UI update failure must never block data loading */ }
   }
 }
 

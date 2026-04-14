@@ -1,9 +1,32 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v105.4 — Upload Toggle Reset, CF Header Flex Direction, Market Centering, Toast Leak Fix (14/04/2026).
+גרסה v105.5 — 4 תיקוני UI+Cross-browser: Harel upload bug, CF header nowrap, Market title RTL, iPad canvas fix (14/04/2026).
 
-## שינויים אחרונים (14/04/2026)
+## שינויים אחרונים (14/04/2026 — v105.5)
+
+### v105.5 – UI Regressions & Cross-Browser Fixes
+
+**Harel Toggle Upload Bug (`app.js`)**
+- `pensionRenderSnapshot()`: כפתורי הראל (עם/ללא) עכשיו מוצגים (`display:flex`) רק כשטאב פנסיה פעיל בפועל — מונע הצצת הכפתורים בכותרת גלובלית בעת העלאת קובץ מכל טאב אחר.
+
+**CF Header — Single Row Enforced (`index.html` + `style.css`)**
+- `#hdr-title-group`: שינוי מ-`flex-shrink:0` ל-`flex-shrink:1; min-width:0; overflow:hidden` — מאפשר לקבוצה להצטמצם.
+- הוספת class `cf-stat-item` ל-4 הסטטיסטיקות של תזרים עם `padding:0 14px; flex-shrink:1; min-width:0`.
+- CSS: `white-space:nowrap` על `.header-stats`, `.stat-label`, `.stat-value`, `.stat-change`.
+- שינוי "רווח או הפסד" ל-"רווח/הפסד" (חוסך מקום).
+
+**Market Tab Title Alignment (`app.js` + `index.html`)**
+- `switchTab()`: הוסרה ההסתרה של `hdr-title-group` בטאב שוק — הכותרת "ניתוח שוק ומסחר v105.0" מוצגת בצד ימין (RTL start) תמיד.
+- הוסרה הכותרת הכפולה מתוך `#mkt-search-area` — אזור החיפוש נשאר ממורכז.
+
+**iPad/iOS Canvas Fix (`index.html` + `style.css`)**
+- CSS: `.chart-container` קיבל `display:block`; הוסף `.chart-container canvas { width:100% !important; display:block; }`.
+- כל ה-wrapper divs של canvas (ov-cf, ov-inv, ov-sim, mkt-main, mkt-compare, cf-chart, pns-timeline, cm-chart) קיבלו `width:100%; display:block` + `canvas` עצמו קיבל `width:100% !important; display:block`.
+
+---
+
+## שינויים קודמים (14/04/2026 — v105.4)
 
 ### v105.4 – Header Regressions Fix
 
