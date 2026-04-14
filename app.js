@@ -5516,7 +5516,7 @@ function cfToggleTable() {
 
 
 
-var TAB_NAMES={'overview':'מבט על','cashflow':'תזרים שוטף','investments':'השקעות','pension':'פנסיה וביטוחים','market':'ניתוח שוק ומסחר','simulator':'סימולטור פיננסי'};
+var TAB_NAMES={'overview':'מבט על','cashflow':'תזרים שוטף','investments':'השקעות','pension':'פנסיה וביטוחים','market':'ניתוח שוק ומסחר','simulator':'סימולטור פיננסי','settings':'הגדרות'};
 var cfInited = false;
 function switchTab(id){
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
@@ -5528,14 +5528,15 @@ function switchTab(id){
   var t=document.getElementById('hdr-tab-title');
   if(t)t.textContent=TAB_NAMES[id]||id;
 
-  var isCF  = (id === 'cashflow');
-  var isInv = (id === 'investments');
-  var isPns = (id === 'pension');
-  var isSim = (id === 'simulator');
-  var isOv  = (id === 'overview');
-  var isMkt = (id === 'market');
+  var isCF       = (id === 'cashflow');
+  var isInv      = (id === 'investments');
+  var isPns      = (id === 'pension');
+  var isSim      = (id === 'simulator');
+  var isOv       = (id === 'overview');
+  var isMkt      = (id === 'market');
+  var isSettings = (id === 'settings');
 
-  // v106.0: market tab — keep title group visible (title aligns right), show search area in header
+  // v107.0: market tab — keep title group visible (title aligns right), show search area in header
   var hdrTitleGroup = document.getElementById('hdr-title-group');
   if (hdrTitleGroup) hdrTitleGroup.style.display = '';
   var mktHeaderArea = document.getElementById('mkt-search-area');
@@ -6731,12 +6732,12 @@ var SIM_START_YEAR      = 2026; // v105.2: baseline calendar year for age ↔ ye
 var userCurrentAge      = 63;  // v105.2: Roy's age in SIM_START_YEAR (2026 − 1963)
 // v103.13-sim: retirement ages as named constants — future-proofed for dynamic sliders
 var SIM_RETIREMENT_AGE_ROY  = 67; // גיל פרישה — רועי (men's statutory pension age in Israel)
-var SIM_RETIREMENT_AGE_YAEL = 65; // גיל פרישה — יעל (women's statutory pension age in Israel)
+var SIM_RETIREMENT_AGE_YAEL = 64; // גיל פרישה — יעל (women's statutory pension age in Israel)
 var SIM_RATE           = 4;     // % annual investment return
 var SIM_PENSION_RATE   = 3;     // % annual pension capital yield — v103.26
 var SIM_INFLATION      = 2.5;   // % annual inflation — v103.26
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
-var SIM_INSTRUCTOR_SAL = 20000; // monthly instructor salary NIS
+var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
 var SIM_PENSION_MONTHLY = 35000; // monthly pension income NIS — v103.27 default
 var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
 var simChartObj = null;
@@ -7264,7 +7265,7 @@ function simRenderChart(result) {
         borderColor: '#a0522d',
         backgroundColor: 'rgba(184,115,51,0.50)',
         fill: 'origin',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 4
       },
       {
@@ -7273,7 +7274,7 @@ function simRenderChart(result) {
         borderColor: '#1e40af',
         backgroundColor: 'rgba(30,64,175,0.45)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 3
       },
       {
@@ -7282,7 +7283,7 @@ function simRenderChart(result) {
         borderColor: '#60a5fa',
         backgroundColor: 'rgba(96,165,250,0.25)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 2
       },
       {
@@ -7291,7 +7292,7 @@ function simRenderChart(result) {
         borderColor: '#34d399',
         backgroundColor: 'rgba(52,211,153,0.20)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4,
         order: 1
       }
     ];
@@ -7302,7 +7303,7 @@ function simRenderChart(result) {
       borderColor: '#ec4899',
       backgroundColor: 'rgba(236,72,153,0.18)',
       fill: 'origin',
-      tension: 0.35, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
+      tension: 0, stepped: 'after', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4
     }];
   } else {
     // v103.41: Combined — 5-layer stacked: נדל״ן (bottom) + Roy(liquid, phoenix, harel) + Yael
@@ -7322,7 +7323,7 @@ function simRenderChart(result) {
         borderColor: '#a0522d',
         backgroundColor: 'rgba(184,115,51,0.50)',
         fill: 'origin',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 5
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 5
       },
       {
         label: 'השקעות (רועי)',
@@ -7330,7 +7331,7 @@ function simRenderChart(result) {
         borderColor: '#1e40af',
         backgroundColor: 'rgba(30,64,175,0.35)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 4
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 4
       },
       {
         label: 'הון פנסיוני (רועי)',
@@ -7338,7 +7339,7 @@ function simRenderChart(result) {
         borderColor: '#60a5fa',
         backgroundColor: 'rgba(96,165,250,0.20)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 3
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 3
       },
       {
         label: 'הון לירושה (רועי)',
@@ -7346,7 +7347,7 @@ function simRenderChart(result) {
         borderColor: '#34d399',
         backgroundColor: 'rgba(52,211,153,0.16)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 2
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 2
       },
       {
         label: 'יעל',
@@ -7354,7 +7355,7 @@ function simRenderChart(result) {
         borderColor: '#ec4899',
         backgroundColor: 'rgba(236,72,153,0.14)',
         fill: '-1',
-        tension: 0.35, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 1
+        tension: 0, stepped: 'after', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 1
       }
     ];
   }
@@ -8657,10 +8658,10 @@ function ovRenderSimMini() {
     data: {
       labels: sliced.labels || [],
       datasets: [
-        { label:'נדל״ן',   data:re,     borderColor:'#a0522d', backgroundColor:'rgba(184,115,51,0.50)', fill:'origin', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:4 },
-        { label:'השקעות',  data:liqTop, borderColor:'#1e40af', backgroundColor:'rgba(30,64,175,0.45)',  fill:'-1',     tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:3 },
-        { label:'הון פנסיוני', data:phxTop, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.25)', fill:'-1', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:2 },
-        { label:'הון לירושה',  data:hrlTop, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.20)', fill:'-1', tension:0.35, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:1 }
+        { label:'נדל״ן',   data:re,     borderColor:'#a0522d', backgroundColor:'rgba(184,115,51,0.50)', fill:'origin', tension:0, stepped:'after', borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:4 },
+        { label:'השקעות',  data:liqTop, borderColor:'#1e40af', backgroundColor:'rgba(30,64,175,0.45)',  fill:'-1',     tension:0, stepped:'after', borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:3 },
+        { label:'הון פנסיוני', data:phxTop, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.25)', fill:'-1', tension:0, stepped:'after', borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:2 },
+        { label:'הון לירושה',  data:hrlTop, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.20)', fill:'-1', tension:0, stepped:'after', borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:1 }
       ]
     },
     options: {
