@@ -1,7 +1,32 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v107.0 — Step Charts לסימולטור + טאב הגדרות (שלד UI) + עדכון גרסה (14/04/2026).
+גרסה v108.0 — חיבור לוגיקת הגדרות לגלובלים + localStorage (14/04/2026).
+
+## שינויים אחרונים (14/04/2026 — v108.0)
+
+### v108.0 – Settings Tab: Logic & Persistence
+
+**`loadSettings()` (`app.js`)**
+- קורא מ-`localStorage` (מפתח `fd_settings_v1`), מעדכן גלובלים: `SIM_RETIREMENT_AGE_ROY/YAEL`, `SIM_RATE`, `SIM_PENSION_RATE`, `SIM_INFLATION`, `SIM_RE_GROWTH_RATE`, `SIM_PENSION_MONTHLY`, `SIM_INSTRUCTOR_SAL`.
+- מחשב מחדש `SIM_P2_START.y` ו-`SIM_P3_START.y` מגיל הפרישה.
+- מאכלס את שדות ה-input ב-`#tab-settings`.
+- נקרא ב-`DOMContentLoaded` לפני כל render.
+
+**`saveSettings()` (`app.js`)**
+- קורא ערכים מ-8 שדות ה-input בטאב ההגדרות.
+- מעדכן גלובלים ושומר ב-`localStorage`.
+- מציג הודעת הצלחה על הכפתור למשך 2.5 שניות.
+- מפעיל מחדש: `simRenderChart(simRunEngine())`, `ovRenderSimMini()`, `ovRenderPensionCards()`, `ovRenderKPIs()`.
+
+**כפתור "שמור הגדרות" (`index.html`)**
+- הוסר `disabled` ו-`title`; נוסף `onclick="saveSettings()"`.
+- ה-`settings-save-note` מתמלא דינמית ע"י הפונקציה.
+
+**עדכון גרסה**
+- `index.html`: `v107.0` → `v108.0` (comment, h1 span, כל ה-comments).
+
+---
 
 ## שינויים אחרונים (14/04/2026 — v107.0)
 
