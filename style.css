@@ -7,6 +7,8 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 
 /* HEADER — v119.0 HARD RESET */
 .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 8px; padding: 14px 24px; margin-bottom: 20px; color: white; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; }
+/* v140.0: sim controls — forced single horizontal row */
+.sim-controls-left { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 12px !important; flex-wrap: nowrap !important; }
 .header-title { display: flex; flex-direction: column; flex: 0 0 auto; }
 .header-title h1 { font-size: 15px; font-weight: 800; color: #fff; }
 .header-title p   { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
@@ -669,11 +671,12 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 }
 .modal-close-btn:hover { background: rgba(255,255,255,0.2); }
 
-/* v129.0: date inputs — force dark color-scheme so browser renders text + icon in white */
+/* v132.0: date inputs — force dark color-scheme + explicit white text override */
 .modal-input[type="date"],
 .settings-input[type="date"] {
   color-scheme: dark;
-  color: #fff;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
 }
 .modal-input[type="date"]::-webkit-calendar-picker-indicator,
 .settings-input[type="date"]::-webkit-calendar-picker-indicator {

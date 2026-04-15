@@ -35,11 +35,38 @@
   <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
 </div>
 <div class="header">
-  <!-- Title group — title only; tab stats are direct children of .header below -->
-  <div id="hdr-title-group" style="display:flex;align-items:center;direction:rtl;flex:0 0 auto;white-space:nowrap;">
+  <!-- Title group — v140.0: sim controls in unified flex row wrapper -->
+  <div id="hdr-title-group" style="display:flex;align-items:center;gap:8px;direction:rtl;flex:0 0 auto;white-space:nowrap;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v130.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v140.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
+    </div>
+    <!-- v140.0: single unified flex row — switchTab shows/hides this one wrapper via sim-only-btn -->
+    <div class="sim-only-btn sim-controls-left" style="display:none;">
+      <!-- 💬 Chat -->
+      <span onclick="toggleChat()" style="cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI">💬</span>
+      <!-- ⚙️ Settings -->
+      <button id="sim-settings-hdr-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
+      <!-- תצוגה: רועי/יעל/משותף -->
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
+        <button class="pns-ni-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
+        <button class="pns-ni-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
+        <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
+      </div>
+      <!-- הראל: עם/ללא -->
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
+        <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
+        <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
+      </div>
+      <!-- גיל יעד -->
+      <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 12px;height:34px;flex-shrink:0;direction:rtl;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;">גיל יעד:</span>
+        <input type="number" id="sim-target-age-input" min="60" max="100" value="67"
+          oninput="simSetTargetAge(this.value)"
+          style="width:42px;padding:3px 5px;border-radius:5px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:12px;font-family:Heebo,sans-serif;color:white;outline:none;text-align:center;-webkit-appearance:textfield;-moz-appearance:textfield;appearance:textfield;font-weight:700;">
+      </div>
     </div>
   </div>
   <!-- CF stats: direct child of .header (same level as inv/pns/sim stats) — v110.0 structural fix, v111.0 -->
@@ -166,7 +193,7 @@
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; margin-right:auto;">
     <div style="display:flex; align-items:center; gap:8px;">
       <!-- Overview upload buttons (far-left, visible only on overview tab) — RTL order: תזרים שוטף (right) | Asset Data (middle) | תכנון פרישה (left) -->
-      <button class="ov-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
+      <button class="ov-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תזרים שוטף</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 Asset Data</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
@@ -209,27 +236,6 @@
       <button class="inv-only-btn" onclick="openNotes()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📝 הערות</button>
       <button id="inv-table-btn" class="inv-only-btn" onclick="openTableView()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📋 טבלה</button>
       <span class="inv-only-btn" onclick="toggleChat()" style="cursor:pointer; color:white; font-size:22px; opacity:0.85;" title="צ׳אט">💬</span>
-      <!-- simulator view toggles — v103.8: moved to header -->
-      <div class="sim-only-btn" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
-        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
-        <button class="pns-ni-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
-        <button class="pns-ni-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-        <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
-      </div>
-      <div class="sim-only-btn" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
-        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
-        <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
-        <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
-      </div>
-      <!-- v103.36: Target Age control — prominent in header near sim title -->
-      <div class="sim-only-btn" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 12px;height:34px;flex-shrink:0;direction:rtl;">
-        <span style="font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;">גיל יעד:</span>
-        <input type="number" id="sim-target-age-input" min="60" max="100" value="67"
-          oninput="simSetTargetAge(this.value)"
-          style="width:42px;padding:3px 5px;border-radius:5px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:12px;font-family:Heebo,sans-serif;color:white;outline:none;text-align:center;-webkit-appearance:textfield;-moz-appearance:textfield;appearance:textfield;font-weight:700;">
-      </div>
-      <span class="sim-only-btn" onclick="toggleChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI">💬</span>
-      <button class="sim-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
     </div>
     <span id="excel-status" style="color:rgba(255,255,255,0.85); font-size:11px; min-height:16px; display:block;"></span>
   </div>
@@ -905,6 +911,10 @@
     <div class="ov-card">
       <div class="ov-card-header">
         <span class="ov-card-title">פנסיה וביטוחים</span>
+        <div style="margin-right:auto;display:flex;gap:4px;">
+          <button id="ov-harel-btn-minus" onclick="ovSetPnsHarel(false)" style="padding:3px 10px;border-radius:20px;border:1px solid #d1d5db;background:#1e3a8a;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;">הראל -</button>
+          <button id="ov-harel-btn-plus"  onclick="ovSetPnsHarel(true)"  style="padding:3px 10px;border-radius:20px;border:1px solid #d1d5db;background:transparent;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:all 0.15s;">הראל +</button>
+        </div>
       </div>
       <div id="ov-pension-content" style="flex:1;display:flex;flex-direction:row;align-items:flex-start;overflow:auto;padding:4px 0;"></div>
     </div>
@@ -1388,6 +1398,8 @@
         <span><span style="display:inline-block;width:8px;height:8px;background:#34d399;transform:rotate(45deg);margin-left:3px;"></span>הכנסה</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:#f87171;transform:rotate(45deg);margin-left:3px;"></span>הוצאה</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:#9ca3af;transform:rotate(45deg);margin-left:3px;"></span>תזכורת</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#1b5e20;transform:rotate(45deg);margin-left:3px;"></span>הכנסה קבועה (אקסל)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#881111;transform:rotate(45deg);margin-left:3px;"></span>הוצאה קבועה (אקסל)</span>
       </div>
     </div>
 
@@ -1833,6 +1845,21 @@
               <input type="number" class="modal-input" id="modal-capital-tax" min="0" max="50" step="1" placeholder="25">
               <span class="modal-unit">%</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- v137.0: תצוגת סימולטור ברירת מחדל -->
+      <div class="modal-section">
+        <div class="modal-section-title">תצוגת סימולטור ברירת מחדל</div>
+        <div class="modal-grid">
+          <div class="modal-field">
+            <label class="modal-label">תצוגה בטעינה</label>
+            <select class="modal-input" id="setting-default-view" style="cursor:pointer;direction:rtl;">
+              <option value="full">הכל</option>
+              <option value="retirement">פרישה</option>
+              <option value="decade">טווח</option>
+            </select>
           </div>
         </div>
       </div>

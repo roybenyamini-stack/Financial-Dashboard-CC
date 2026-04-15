@@ -1,7 +1,266 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v108.0 — חיבור לוגיקת הגדרות לגלובלים + localStorage (14/04/2026).
+גרסה v140.0 — Timeline Polish & Header Flexbox Rescue (15/04/2026).
+
+## שינויים אחרונים (15/04/2026 — v140.0)
+
+### v140.0 – Timeline Polish & Header Flexbox Rescue
+
+**צבעי ציר זמן (`app.js` — `simCollectEvents`)**
+- `retirement` (permanent Excel income) → `#1b5e20` ירוק כהה.
+- `events_timeline` (permanent Excel expense) → `#881111` בורדו.
+- לוגיקת בחירת צבע: `ev.permanent && ev.src === ...` — מדויק ולא פוגע באירועים ידניים.
+
+**Tooltip Breakdown (`app.js` — `simRenderTimeline`)**
+- הוסרה הגבלה ל-`retirement` בלבד — עכשיו גם `events_timeline` מציגים breakdown.
+- ה-`label` של כל item = עמודה A ("סוג האירוע") → טולטיפ מראה "פדיון ימי חופשה: 617k" ולא "פרישה: 617k".
+
+**Legend (`index.html`)**
+- נוספו שני פריטים לאגדת ציר הזמן: "הכנסה קבועה (אקסל)" (#1b5e20) + "הוצאה קבועה (אקסל)" (#881111).
+
+**Header Flexbox Rescue (`index.html`, `style.css`)**
+- כל כפתורי הסימולטור (💬, ⚙️, תצוגה, הראל, גיל יעד) עטופים ב-`<div class="sim-only-btn sim-controls-left">`.
+- `.sim-controls-left` ב-CSS: `flex-direction:row !important; align-items:center; gap:12px; flex-wrap:nowrap`.
+- `switchTab()` מנהל show/hide של ה-wrapper בלבד דרך `.sim-only-btn` — ילדים פנימיים אינם בעלי הClass.
+- כל הכפתורים בשורה אופקית אחת, לא מסתדרים אנכית.
+
+**עדכון גרסה**
+- `index.html`: `v139.0` → `v140.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v139.0)
+
+### v139.0 – Bulletproof Sheet Matching & RTL UI Layout Fix
+
+**זיהוי גיליון עמיד (`app.js` — `parseEventsTimelineSheet`)**
+- הוחלפה השוואת `===` ב-`indexOf()` אחרי `trim().normalize('NFC')` — עמיד לרווחים מסתתרים ב-Excel.
+- נוסף `console.log('Available sheets in uploaded file:', wb.SheetNames)` בתחילת הפונקציה לדיבוג.
+- שיפור הודעת השגיאה: מציגה את רשימת הגיליונות כשלא נמצא גיליון "ציר אירועים".
+
+**תיקון UI-RTL כירורגי (`index.html`)**
+- כל כפתורי הסימולטור (💬, ⚙️, תצוגה, הראל, גיל יעד) הועברו לתוך `#hdr-title-group`.
+- הקונטיינר `direction:rtl` — סדר DOM: Title → גיל יעד → הראל → תצוגה → ⚙️ → 💬.
+- סדר ויזואלי על המסך (שמאל לימין): 💬 → ⚙️ → תצוגה → הראל → גיל יעד → Title.
+- KPI numbers (`#sim-header-stats`) נשארים בצד ימין של המסך — לא שונו.
+- `switchTab()` ממשיך לשלוט ב-show/hide כרגיל דרך class `.sim-only-btn`.
+
+**עדכון גרסה**
+- `index.html`: `v138.0` → `v139.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v138.0)
+
+### v138.0 – Dedicated Events Sheet Parsing & Surgical UI Fix
+
+**פרסינג גיליון "ציר אירועים" (`app.js` — `parseEventsTimelineSheet`)**
+- פונקציה חדשה `parseEventsTimelineSheet(wb)` — מחפשת גיליון בשם בדיוק "ציר אירועים" (normalize NFC).
+- עמודות: A=סוג האירוע, B=תאריך יעד צפוי, C=סכום משוער, D=קטגוריה.
+- **פילטר קריטי:** שורות שבעמודה A יש "סך הכל" מדולגות — לא מוחל על גיליונות אחרים.
+- קיבוץ לפי YYYY-MM + קטגוריה → push ל-SIM_USER_EVENTS עם `src:'events_timeline'`.
+- נקרא ראשון ב-upload handler, לפני גיליון "סכומי פרישה", **ללא return** — ממשיך לזהות גיליונות אחרים באותו קובץ.
+- אירועים מופיעים בצבע כתום `#fb923c` בציר הזמן.
+- קריאה ל-`simRenderTimeline` ו-`simRenderChart(simRunEngine())` אחרי הדחיפה.
+
+**UI Fix כירורגי — כפתור הגדרות (`index.html`)**
+- Chat 💬 ו-⚙️ הועברו **לפני** View Toggles בסדר DOM.
+- סדר ויזואלי משמאל לימין: 💬 Chat → ⚙️ Settings → View Toggles (תצוגה / הראל / גיל יעד).
+- אין שינוי CSS — שינוי DOM בלבד.
+
+**עדכון גרסה**
+- `index.html`: `v137.0` → `v138.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v137.0)
+
+### v137.0 – Debug Excel Parsing, Settings Icon Polish, Default Zoom
+
+**Debug מלא — Pipeline פרסינג Excel (`app.js` — `detectRetirementSheet`, `parseRetirementSheet`)**
+- `detectRetirementSheet`: console.log לכל גיליון שנסרק + מתי נמצאה עמודת "קטגוריה" + מתי נמצא "סכומי פרישה". normalize('NFC') למחרוזות עברית. סריקה עד 25 שורות (היה 10).
+- `parseRetirementSheet`: console.log ל-header row, כל עמודה שזוהתה, כל קבוצה שנוצרה, וסיכום. normalize('NFC') גם לשדה הקטגוריה. תמיכה בפורמט תאריך YYYY-MM (נוסף). 25 שורות לסריקת header.
+- אחרי הדחיפה ל-SIM_USER_EVENTS: `console.log('[v137] Parsed Excel Events:', ...)` — **חובה** לפי הדרישה.
+
+**כפתור הגדרות — Polish סופי (`index.html`)**
+- הוסרה המילה "הגדרות" — נותרה רק האייקון ⚙️.
+- הוחלפה הסדר: כפתור הצ'אט עכשיו ראשון (שמאל), ואחריו ⚙️.
+- עיצוב תואם בדיוק לכפתור ⚙️ בלשונית "מבט על": `background:rgba(255,255,255,0.15)`, `border:rgba(255,255,255,0.4)`, `padding:7px 13px`, `font-size:14px`.
+
+**ברירת מחדל תצוגת סימולטור (`index.html`, `app.js`)**
+- נוסף `var SIM_DEFAULT_ZOOM = 'full'` כמשתנה גלובלי.
+- מודאל ההגדרות — סקציה חדשה "תצוגת סימולטור ברירת מחדל" עם dropdown `#setting-default-view`: "הכל" / "פרישה" / "טווח".
+- `openSettingsModal`: ממלא את ה-dropdown מהמשתנה הגלובלי.
+- `saveModalSettings`: קורא את הבחירה, מעדכן `SIM_DEFAULT_ZOOM`, שומר ב-localStorage (מפתח `defaultZoom`).
+- `loadSettings`: טוען את `SIM_DEFAULT_ZOOM` מה-localStorage בסטארט.
+- `simInit`: מגדיר `SIM_ZOOM = SIM_DEFAULT_ZOOM` לפני הרנדור הראשון → כפתורי הזום מתעדכנים בהתאם.
+
+**עדכון גרסה**
+- `index.html`: `v136.0` → `v137.0`.
+
+---
+
+
+
+## שינויים אחרונים (15/04/2026 — v136.0)
+
+### v136.0 – Dynamic Y-Axis, Timeline Events Rendering, & UI Alignment
+
+**Y-axis דינמי ב-Mini Simulator (`app.js` — `ovRenderSimMini`)**
+- הוסר מגבלת max קשיחה מציר ה-Y של מיני-הגרף בלשונית "מבט על".
+- נוסף `suggestedMax` חכם: 20% headroom מעל ערך השיא של `hrlTop`, מעוגל לקרוב של 5,000K (= 5M ₪).
+- Chart.js ימשיך לגדול מעבר ל-suggestedMax אם הנתונים יעברו אותו — אין cap קשיח.
+
+**Breakdown Tooltips לאירועי Excel בציר הזמן (`app.js` — `simRenderTimeline`, `ovRenderSimMini`)**
+- הטולטיפ של אירועי `src:'retirement'` בציר הזמן הראשי כעת מציג כל פריט מה-breakdown: `· תיאור: XXk`.
+- אותו תיקון הוחל גם על הטולטיפ במיני-טיימליין של לשונית "מבט על".
+- הדיאמנדים עצמם כבר צוירו נכון (דרך `simCollectEvents` → `SIM_USER_EVENTS`) — התיקון הוא בתוכן הטולטיפ.
+
+**Settings Icon — הועבר לשמאל (`index.html`, `app.js`)**
+- הכפתור `#sim-settings-hdr-btn` הוסר מ-`#sim-header-stats` (אזור ה-KPIs הימני).
+- נוסף לשורת הכפתורים השמאלית עם `class="sim-only-btn"` — לפני כפתור הצ'אט.
+- עיצוב תואם בדיוק לכפתורי שליטה אחרים: `height:34px`, `border-radius:8px`, `background:rgba(255,255,255,0.08)`.
+- הנראות מנוהלת אוטומטית על ידי `switchTab()` (כמו שאר `.sim-only-btn`) — אין צורך בשליטה נפרדת.
+
+**עדכון גרסה**
+- `index.html`: `v135.0` → `v136.0`.
+
+---
+
+
+
+## שינויים אחרונים (15/04/2026 — v135.0)
+
+### v135.0 – Hard Fix: Events, Timeline, Settings Icon
+
+**Double-Point Trick — עדכון ל-{x,y} format (`app.js` — `simRenderChart`, `ovRenderSimMini`)**
+- המרת כל מערכי הנתונים מ-`[number, ...]` לפורמט `[{x:"YYYY-MM", y:number}, ...]`.
+- Chart.js עם {x,y} ו-categorical scale ממפה שני data points עם אותו x-string לאותו x-pixel → קפיצה אנכית 90° אמיתית באירוע, ולא אלכסון תלול.
+- הוסר `data.labels` ממבנה הגרף (רק `datasets`); החישובים המצטברים (stacking) עדיין עובדים על מערכי המספרים הגולמיים.
+- `onHover` עודכן לחלץ `topPt.y` מ-{x,y} object.
+- `autoSkip: false` + `return null` בתוך callback → מחביא ציוני ציר שאינם ינואר לחלוטין.
+
+**`simBgPlugin` — עדכון לפורמט החדש (`app.js`)**
+- כאשר `data.labels` ריק, labels נגזרות מ-`datasets[0].data[].x`.
+- `getPixelForValue` מקבל עכשיו מחרוזת label (לא אינדקס מספרי) → מיקום גבולות הפאזה מדויק.
+
+**Timeline — אירועי Excel מופיעים (`app.js` — `simCollectEvents`)**
+- `src` ו-`breakdown` של SIM_USER_EVENTS נשמרים (לא מוחלפים ב-`'user'`).
+- אירועי `src:'retirement'` מקבלים צבע סגול `#a78bfa` כדי להתבלט בציר הזמן.
+- פילטר "עתידי בלבד" עודכן ל-`SIM_P1_START.y` (במקום `new Date().getFullYear()`) לעקביות.
+
+**Settings Icon — inline עם ה-KPIs (`index.html`, `app.js`)**
+- הכפתור `#sim-settings-hdr-btn` הועבר מ-`#hdr-title-group` לסוף `#sim-header-stats`.
+- כעת גלוי/מוסתר ביחד עם ה-KPIs של הסימולטור (אין צורך בשליטה נפרדת).
+- הוסרה שורת השליטה הנפרדת מ-`switchTab()`.
+
+**עדכון גרסה**
+- `index.html`: `v134.0` → `v135.0`.
+
+---
+
+
+
+## שינויים אחרונים (15/04/2026 — v134.0)
+
+### v134.0 – Monthly Engine Refactor + Chart Polish
+
+**`simRunEngine` — פלט חודשי (`app.js`)**
+- הוסר גייט `if (ym.m === 12 || i === totalMonths - 1)` — עכשיו כל חודש מייצר נקודת נתונים.
+- תוויות מחרוזת `"YYYY-MM"` במקום `"YYYY"` — `parseInt("2029-10") === 2029` כך שכל פרסינג שנה downstream ממשיך לעבוד.
+- הוסף `_push(lbl)` helper — מצלם מצב כל שכבות ל-output arrays.
+- **Double-point trick**: לחודש עם אירוע (eventsByMonth / reEventsByMonth) — מוסיף שתי נקודות עם אותה תווית YYYY-MM: לפני האירוע ואחרי. Chart.js מצייר קפיצה אנכית 90° רק באותו חודש; שאר הגרף שיפועים חלקים.
+
+**הסרת `stepped: 'before'` (`app.js`)**
+- הוסר מכל 4 שכבות ב-roy view, ה-yael view, וכל 5 שכבות ב-combined view ב-`simRenderChart`.
+- הוסר מ-4 שכבות ב-`ovRenderSimMini`.
+
+**`simBgPlugin` — עדכון חיפוש גבולות פאזה (`app.js`)**
+- `labels.indexOf(p2Str)` הוחלף בלולאה שמחפשת `parseInt(label) === SIM_P2_START.y` (כי תויות "YYYY-MM" לא תואמות exact match של "YYYY").
+
+**X-axis ticks — עדכון callback (`app.js`)**
+- `simRenderChart`: מציג תווית רק לחודש ינואר (month=1), מחלץ שנה/גיל לפי mode.
+- `ovRenderSimMini`: אותה לוגיקה — רק ינואר מקבל תווית, תוצג כמספר שנה.
+
+**`ovSetPnsHarel` — עדכון CSS כפתורים מיידי (`app.js`)**
+- עדכון background/color של `ov-harel-btn-minus` ו-`ov-harel-btn-plus` מתבצע מיד בתחילת הפונקציה — לפני קריאת `ovRenderPensionCards()` שעלולה לחזור מוקדם אם אין נתונים.
+
+**`sim-settings-hdr-btn` — תיקון flex (`index.html`)**
+- `align-items:center` → `align-self:center` — כפתור ⚙️ מיושר אנכית כ-flex item (לא כ-container).
+
+**עדכון גרסה**
+- `index.html`: `v133.0` → `v134.0`.
+
+---
+
+
+
+## שינויים אחרונים (15/04/2026 — v133.0)
+
+### v133.0 – Dynamic "סכומי פרישה" + Simulator Settings Icon
+
+**פרסינג דינמי "סכומי פרישה" (`app.js`)**
+- `detectRetirementSheet(wb)`: סורק כל גיליון, מחפש עמודת "קטגוריה" ולפחות שורה אחת עם "סכומי פרישה".
+- `parseRetirementSheet(wb, sheetName)`: קורא עמודות תאריך/תיאור/קטגוריה/סכום; מסנן שורות קטגוריה "סכומי פרישה"; מקבץ לפי חודש-שנה; מחזיר מערך קבוצות עם `{ yr, mo, total, items[] }`.
+- `smartUploadRouter`: בדיקה ראשונה לפני פנסיה ותזרים — אם מזוהה, מוחק אירועי פרישה ישנים, יוצר permanent events ב-`SIM_USER_EVENTS` (NIS ÷ 1000 → K), מפעיל רנדור סימולטור.
+
+**tooltip breakdowns (`app.js` — `simRenderChart`)**
+- footer callback: לאירועים עם `src: 'retirement'` ו-`breakdown[]` — מוסיף שורות `· תיאור: XXk` מתחת לסה״כ הקבוצה.
+
+**אייקון הגדרות סימולטור (`index.html`, `app.js`)**
+- הוסר כפתור ⚙️ מ-`sim-only-btn` בשורת הכפתורים השמאלית.
+- נוסף `id="sim-settings-hdr-btn"` כצאצא של `#hdr-title-group` — מוצמד לשמאל הכותרת "סימולטור פיננסי" בתוך אותה קבוצת flex.
+- `switchTab()`: מציג `sim-settings-hdr-btn` רק כשהטאב הפעיל הוא Simulator.
+
+**עדכון גרסה**
+- `index.html`: `v132.0` → `v133.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v132.0)
+
+### v132.0 – UI Polish v2: Exact Alignment
+
+**כפתורי הראל — כרטיס פנסיה וביטוחים (`index.html`, `app.js`)**
+- הכפתורים "הראל -" / "הראל +" הועברו לכותרת הכרטיס (`.ov-card-header`) בדיוק כמו "חודשי / YTD" בכרטיס התזרים: `border-radius:20px`, `#1e3a8a` active, `transparent` inactive.
+- הוסרו מהתא "קצבה נטו" בגוף הכרטיס — הכרטיס מציג עכשיו תוית פשוטה.
+- `ovRenderPensionCards()` מעדכן סגנון כפתורים לפי DOM ID.
+
+**אייקון הגדרות — בחזרה לאזור הכפתורים (`index.html`)**
+- `hdr-settings-btn` הוסר מ-`.header-title`.
+- ⚙️ הוחזר לאזור הכפתורים: `ov-only-btn` + `sim-only-btn` נפרדים, מיושרים עם שאר כפתורי הפעולה.
+
+**Date Inputs Contrast (`style.css`)**
+- נוסף `-webkit-text-fill-color: white !important` לכל `input[type="date"]` במודאל ובהגדרות — מבטיח טקסט לבן בכל הדפדפנים.
+
+**עדכון גרסה**
+- `index.html`: `v131.0` → `v132.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v131.0)
+
+### v131.0 – UI Polish: Empty States, Harel Toggle, Settings Icon
+
+**Empty State — הון חזוי לגיל 67 (`app.js`)**
+- `ovRenderKPIs()`: המצב הריק שהציג "ממתין..." עודכן לקו "—" (צהוב #fbbf24), עקבי עם כל שאר ה-KPIs בכותרת.
+
+**כפתורי הראל — שני כפתורים נפרדים (`app.js`)**
+- `ovRenderPensionCards()`: הכפתור הבודד "– הראל" / "+ הראל" הוחלף בשני כפתורים נפרדים: "הראל -" ו-"הראל +".
+- עיצוב תואם לכפתורי "חודשי / YTD": הפעיל — כחול מלא (#1e3a8a) + טקסט לבן; הלא-פעיל — שקוף + טקסט אפור.
+- "הראל -" הוא ברירת המחדל הפעילה (תואם `ovPnsShowHarel = false`).
+- נוספה `ovSetPnsHarel(val)` — setter; `ovTogglePnsHarel()` מעדכן ממנה.
+
+**אייקון הגדרות — יישור אחיד לצד הכותרת (`index.html`, `app.js`)**
+- הוסר כפתור ⚙️ נפרד מאזור ה-`ov-only-btn` ומאזור ה-`sim-only-btn`.
+- נוסף כפתור אחד `id="hdr-settings-btn"` בתוך `.header-title` (לצד טקסט הכותרת).
+- `switchTab()`: מציג את `hdr-settings-btn` רק כשהטאב הפעיל הוא Overview או Simulator.
+
+**עדכון גרסה**
+- `index.html`: `v130.0` → `v131.0` (comment, h1 span).
+
+---
 
 ## שינויים אחרונים (14/04/2026 — v108.0)
 
