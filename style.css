@@ -7,8 +7,8 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 
 /* HEADER — v119.0 HARD RESET */
 .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 8px; padding: 14px 24px; margin-bottom: 20px; color: white; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; }
-/* v140.0: sim controls — forced single horizontal row */
-.sim-controls-left { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 12px !important; flex-wrap: nowrap !important; }
+/* v142.0: sim controls wrapper — clean horizontal row, no wrap */
+#sim-hdr-controls { display: flex; flex-direction: row !important; align-items: center !important; gap: 12px !important; flex-wrap: nowrap !important; }
 .header-title { display: flex; flex-direction: column; flex: 0 0 auto; }
 .header-title h1 { font-size: 15px; font-weight: 800; color: #fff; }
 .header-title p   { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
@@ -500,6 +500,10 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 /* ═══════════════════════════════════════════════ */
 /* v107.0 — SETTINGS TAB                          */
 /* ═══════════════════════════════════════════════ */
+#tab-settings {
+  background: #0f172a;
+  min-height: 60vh;
+}
 .settings-wrap {
   max-width: 780px;
   margin: 0 auto;
@@ -509,35 +513,37 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 }
 .settings-header {
   margin-bottom: 28px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
   padding-bottom: 16px;
 }
 .settings-title {
   font-size: 20px;
   font-weight: 800;
-  color: #1a1a2e;
+  color: #fff;
   margin-bottom: 6px;
 }
 .settings-subtitle {
   font-size: 13px;
-  color: #6b7280;
+  color: rgba(255,255,255,0.5);
   line-height: 1.6;
 }
 .settings-section {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px;
   padding: 20px 20px 16px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
 .settings-section-title {
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 700;
-  color: #374151;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .settings-grid {
   display: grid;
@@ -553,9 +559,9 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
   gap: 6px;
 }
 .settings-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: #374151;
+  color: rgba(255,255,255,0.55);
 }
 .settings-input-row {
   display: flex;
@@ -565,13 +571,13 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .settings-input {
   flex: 1;
   padding: 8px 12px;
-  border: 1.5px solid #d1d5db;
+  border: 1px solid rgba(255,255,255,0.15);
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   font-family: Heebo, sans-serif;
-  color: #1a1a2e;
-  background: #f9fafb;
+  color: #fff;
+  background: rgba(255,255,255,0.08);
   text-align: center;
   transition: border-color 0.15s, box-shadow 0.15s;
   direction: ltr;
@@ -579,19 +585,19 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .settings-input:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
-  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  background: rgba(255,255,255,0.12);
 }
 .settings-unit {
   font-size: 13px;
   font-weight: 600;
-  color: #6b7280;
+  color: rgba(255,255,255,0.4);
   flex-shrink: 0;
   min-width: 20px;
 }
 .settings-hint {
   font-size: 11px;
-  color: #9ca3af;
+  color: rgba(255,255,255,0.35);
   line-height: 1.4;
 }
 .settings-footer {
@@ -600,7 +606,7 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
   gap: 14px;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid rgba(255,255,255,0.08);
   flex-wrap: wrap;
 }
 .settings-save-btn {
@@ -616,10 +622,11 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
   opacity: 1;
   transition: opacity 0.2s, background 0.2s, box-shadow 0.2s;
 }
-.settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #9ca3af; transform: none; box-shadow: none; }
+.settings-save-btn:hover { background: #2563eb; }
+.settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #475569; transform: none; box-shadow: none; }
 .settings-save-note {
   font-size: 12px;
-  color: #9ca3af;
+  color: #4ade80;
 }
 .sim-ev-amt.neg { color: #dc2626; }
 
@@ -670,6 +677,11 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
   transition: background 0.15s;
 }
 .modal-close-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* v143.0: bare date inputs (outside modals) — dark readable text */
+input[type="date"] {
+  color: #111827 !important;
+}
 
 /* v132.0: date inputs — force dark color-scheme + explicit white text override */
 .modal-input[type="date"],
