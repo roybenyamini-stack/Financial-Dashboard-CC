@@ -35,33 +35,57 @@
   <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
 </div>
 <div class="header">
-  <!-- Title group — v140.0: sim controls in unified flex row wrapper -->
-  <div id="hdr-title-group" style="display:flex;align-items:center;gap:8px;direction:rtl;flex:0 0 auto;white-space:nowrap;">
+  <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
+  <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v140.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v150.0</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
-    <!-- v140.0: single unified flex row — switchTab shows/hides this one wrapper via sim-only-btn -->
-    <div class="sim-only-btn sim-controls-left" style="display:none;">
-      <!-- 💬 Chat -->
-      <span onclick="toggleChat()" style="cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI">💬</span>
-      <!-- ⚙️ Settings -->
-      <button id="sim-settings-hdr-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
-      <!-- תצוגה: רועי/יעל/משותף -->
+  </div>
+  <!-- v149.0: Simulator header — single wrapper, flex:1 1 auto shares row with title, flex-wrap:nowrap keeps all on one line -->
+  <div class="sim-header sim-only-btn" style="display:none; flex:1 1 auto; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:15px; min-width:0;">
+    <!-- KPIs: first child (RTL → appears right of controls, left of title) -->
+    <div id="sim-header-stats" class="header-stats sim-only-btn" style="display:none; direction:rtl; flex-shrink:1; min-width:0; gap:12px;">
+      <div class="stat-item" style="gap:0;">
+        <div class="stat-label">הון חזוי</div>
+        <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ש״ח</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item" style="gap:0;">
+        <div class="stat-label">הכנסה פנויה</div>
+        <div class="stat-value" id="sim-hdr-monthly-income" style="color:#60a5fa;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item" style="gap:0;">
+        <div class="stat-label">תזרים נטו</div>
+        <div class="stat-value" id="sim-hdr-monthly-accum" style="color:#fbbf24;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-item" style="gap:0;">
+        <div class="stat-label">צבירה כוללת</div>
+        <div class="stat-value" id="sim-hdr-total-accum" style="color:#a78bfa;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+      </div>
+    </div>
+    <!-- Controls: second child (RTL → appears left side), direction:ltr so buttons flow left→right -->
+    <div class="sim-header-controls" style="display:flex; flex-direction:row; align-items:center; gap:12px; direction:ltr; flex-shrink:0; flex-wrap:nowrap;">
+      <button id="chat-btn" onclick="toggleChat()" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:18px;font-family:Heebo,sans-serif;flex-shrink:0;" title="צ׳אט AI">💬</button>
+      <button id="settings-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
         <button class="pns-ni-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
         <button class="pns-ni-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
         <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
       </div>
-      <!-- הראל: עם/ללא -->
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
         <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
         <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
       </div>
-      <!-- גיל יעד -->
-      <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 12px;height:34px;flex-shrink:0;direction:rtl;">
+      <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 12px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;">גיל יעד:</span>
         <input type="number" id="sim-target-age-input" min="60" max="100" value="67"
           oninput="simSetTargetAge(this.value)"
@@ -120,33 +144,7 @@
     <div id="pns-snap-stats" style="display:contents;"></div>
     <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
   </div>
-  <!-- v114.0: 4-metric simulator header KPIs — הון חזוי in M; gap/padding controlled by CSS -->
-  <div id="sim-header-stats" class="header-stats" style="display:none;direction:rtl;">
-    <div class="stat-item" style="gap:0;">
-      <div class="stat-label">הון חזוי</div>
-      <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
-      <!-- v103.37: sub-label מיליון ש״ח to align with other KPIs -->
-      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ש״ח</div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item" style="gap:0;">
-      <div class="stat-label">הכנסה פנויה</div>
-      <div class="stat-value" id="sim-hdr-monthly-income" style="color:#60a5fa;line-height:1.15;">—</div>
-      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item" style="gap:0;">
-      <div class="stat-label">תזרים נטו</div>
-      <div class="stat-value" id="sim-hdr-monthly-accum" style="color:#fbbf24;line-height:1.15;">—</div>
-      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item" style="gap:0;">
-      <div class="stat-label">צבירה כוללת</div>
-      <div class="stat-value" id="sim-hdr-total-accum" style="color:#a78bfa;line-height:1.15;">—</div>
-      <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
-    </div>
-  </div>
+  <!-- v149.0: sim-header-stats moved inside .sim-header > .sim-header-right above -->
   <!-- v108.0: Market tab search area — shown only on market tab -->
   <div id="mkt-search-area" style="display:none;align-items:center;gap:10px;flex-wrap:nowrap;direction:rtl;margin-right:auto;margin-left:auto;">
     <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;">

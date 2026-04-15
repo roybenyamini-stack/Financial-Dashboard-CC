@@ -2493,7 +2493,7 @@ function smartUploadRouter(input) {
         evTimelineGroups.forEach(function(grp) {
           SIM_USER_EVENTS.push({
             yr: grp.yr, mo: grp.mo,
-            label: grp.cat + ' ' + (_mnmsEv[grp.mo] || grp.mo) + ' ' + grp.yr,
+            label: 'סך אירועי פרישה - ' + (_mnmsEv[grp.mo] || grp.mo) + ' ' + grp.yr,
             type: 'expense',
             amount: grp.total / 1000, // NIS → K
             permanent: true,
@@ -2512,43 +2512,9 @@ function smartUploadRouter(input) {
         // לא מחזירים return — ממשיכים לבדוק גיליונות אחרים באותו קובץ
       }
 
-      // v133.0: בדיקת גיליון "סכומי פרישה" — עדיפות ראשונה לפני כל פרסינג אחר
-      var retSheetName = detectRetirementSheet(wb);
-      if (retSheetName) {
-        var retGroups = parseRetirementSheet(wb, retSheetName);
-        if (retGroups.length > 0) {
-          // הסרת אירועי פרישה קיימים ממקור אקסל
-          for (var _ri = SIM_USER_EVENTS.length - 1; _ri >= 0; _ri--) {
-            if (SIM_USER_EVENTS[_ri].src === 'retirement') SIM_USER_EVENTS.splice(_ri, 1);
-          }
-          var _mnms = ['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
-          retGroups.forEach(function(grp) {
-            SIM_USER_EVENTS.push({
-              yr: grp.yr, mo: grp.mo,
-              label: 'סכומי פרישה ' + (_mnms[grp.mo] || grp.mo) + ' ' + grp.yr,
-              type: 'income',
-              amount: grp.total / 1000, // NIS → K
-              permanent: true,
-              src: 'retirement',
-              breakdown: grp.items.map(function(it){ return { label: it.label, amount: it.amount }; })
-            });
-          });
-          // v137: mandatory debug log — always visible in browser console after Excel upload
-          var _retEvs = SIM_USER_EVENTS.filter(function(e){ return e.src === 'retirement'; });
-          console.log('[v137] Parsed Excel Events:', _retEvs);
-          console.log('[v137] SIM_USER_EVENTS total:', SIM_USER_EVENTS.length, '| retirement events:', _retEvs.length);
-          if (simInited) { simRenderTimeline(); simRenderChart(simRunEngine()); }
-          if (overviewInited && typeof ovRenderSimMini === 'function') ovRenderSimMini();
-          var _cnt = retGroups.length;
-          if (status) {
-            status.textContent = '✅ נטענו ' + _cnt + ' אירועי פרישה מהאקסל';
-            status.style.color = '#10b981'; status.style.fontWeight = '600';
-            setTimeout(function(){ status.textContent=''; status.style.color=''; status.style.fontWeight=''; }, 5000);
-          }
-          input.value = '';
-          return;
-        }
-      }
+      // v144.0: detectRetirementSheet/parseRetirementSheet REMOVED — caused duplicate events
+      // with parseEventsTimelineSheet when "ציר אירועים" sheet contained "קטגוריה"+"סכומי פרישה" data.
+      // ALL event parsing now done exclusively via parseEventsTimelineSheet (Column A labels).
 
       // בדיקת גיליון פנסיה לפי תוכן תאים — עדיפות ראשונה (v60.0)
       var pnsSheetName = detectPensionSheet(wb);
@@ -6749,47 +6715,42 @@ function parseRetirementSheet(wb, sheetName) {
   return result;
 }
 
-// ── v139.0: Events Timeline Sheet Parser ("ציר אירועים") ───────────
-// מחפש גיליון שמכיל "ציר אירועים" בשמו (substring, עמיד רווחים/פורמטים)
-// עמודות: A=סוג האירוע, B=תאריך יעד צפוי, C=סכום משוער, D=קטגוריה
-// CRITICAL: מדלג על שורות שבעמודה A יש "סך הכל" — לא מוחל על גיליונות אחרים
+// ── v143.0: Events Timeline Sheet Parser ("ציר אירועים") — HARD REWRITE ─────
+// עמודות: A=סוג האירוע, B=תאריך יעד צפוי (DD/MM/YYYY), C=סכום משוער
+// גיבוץ לפי YYYY-MM בלבד — לא לפי קטגוריה.
+// תאריך נקרא כמחרוזת DD/MM/YYYY — ללא UTC-shift, ללא Date-object.
 function parseEventsTimelineSheet(wb) {
   var SHEET_TARGET = 'ציר אירועים'.normalize('NFC');
   var SKIP_KEY     = 'סך הכל'.normalize('NFC');
-  // v139.0: debug — always log available sheet names for troubleshooting
   console.log('Available sheets in uploaded file:', wb.SheetNames);
   var sheetName = null;
   for (var si = 0; si < wb.SheetNames.length; si++) {
-    // v139.0: substring includes() instead of strict === — handles trailing spaces / extra chars
     if (wb.SheetNames[si].trim().normalize('NFC').indexOf(SHEET_TARGET) >= 0) { sheetName = wb.SheetNames[si]; break; }
   }
-  if (!sheetName) { console.log('[v139 evts] גיליון "ציר אירועים" לא נמצא בקובץ. גיליונות קיימים:', wb.SheetNames); return []; }
+  if (!sheetName) { console.log('[v143 evts] גיליון "ציר אירועים" לא נמצא. גיליונות קיימים:', wb.SheetNames); return []; }
 
   var sheet = wb.Sheets[sheetName];
   if (!sheet || !sheet['!ref']) return [];
-  var json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-  console.log('[v138 evts] פרסינג גיליון "' + sheetName + '" | שורות:', json.length);
+  // raw:false + dateNF → תאריכים כמחרוזת DD/MM/YYYY — מונע שגיאת UTC off-by-one
+  var json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'dd/mm/yyyy', defval: null });
+  console.log('[v143 evts] פרסינג "' + sheetName + '" | שורות:', json.length);
 
-  var groups = {}; // key: "YYYY-MM|cat"
+  var groups = {}; // key: "YYYY-MM"
   var skipped = 0, parsed = 0;
 
-  for (var ri = 1; ri < json.length; ri++) { // שורה 0 = כותרות
+  for (var ri = 1; ri < json.length; ri++) {
     var row = json[ri];
     if (!row) continue;
 
-    var typeCell = row[0] ? String(row[0]).trim().normalize('NFC') : '';
-    if (!typeCell) continue;
+    // Extract ONLY from Column A for the label — Column D (קטגוריה) is NOT used
+    var eventLabel = row[0] ? String(row[0]).trim().normalize('NFC') : '';
+    if (!eventLabel) continue;
 
     // CRITICAL FILTER: דלג על שורות "סך הכל"
-    if (typeCell.indexOf(SKIP_KEY) >= 0) {
-      skipped++;
-      console.log('[v138 evts] דילוג "סך הכל" בשורה', ri, '| ערך:', typeCell);
-      continue;
-    }
+    if (eventLabel.indexOf(SKIP_KEY) >= 0) { skipped++; continue; }
 
-    var rawDate = row[1]; // B = תאריך יעד צפוי
-    var rawAmt  = row[2]; // C = סכום משוער
-    var rawCat  = row[3]; // D = קטגוריה
+    var rawDateStr = row[1] ? String(row[1]).trim() : ''; // B = תאריך יעד צפוי
+    var rawAmt     = row[2]; // C = סכום משוער
 
     // פרסינג סכום
     var amt = 0;
@@ -6799,41 +6760,38 @@ function parseEventsTimelineSheet(wb) {
     }
     if (amt === 0) continue;
 
-    // פרסינג תאריך — תומך ב: Date object, DD/MM/YYYY, MM/YYYY, YYYY-MM, Excel serial
+    // Parse date as DD/MM/YYYY string — no UTC shift needed
+    // "01/10/2029".split('/') → ['01','10','2029'] → YYYY-MM = "2029-10" ✓
     var yr = 0, mo = 0;
-    if (rawDate instanceof Date) {
-      yr = rawDate.getFullYear(); mo = rawDate.getMonth() + 1;
-    } else if (rawDate !== null && rawDate !== undefined) {
-      var ds = String(rawDate).trim();
-      var m3 = ds.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); // DD/MM/YYYY
-      var m2 = ds.match(/^(\d{1,2})[\/\-](\d{4})$/);                 // MM/YYYY
-      var m4 = ds.match(/^(\d{4})[\/\-](\d{1,2})$/);                 // YYYY-MM
-      if (m3)      { mo = parseInt(m3[2]); yr = parseInt(m3[3]); }
-      else if (m2) { mo = parseInt(m2[1]); yr = parseInt(m2[2]); }
-      else if (m4) { yr = parseInt(m4[1]); mo = parseInt(m4[2]); }
-      else {
-        var serial = parseFloat(ds);
-        if (!isNaN(serial) && serial > 40000) {
-          var d = XLSX.SSF.parse_date_code ? XLSX.SSF.parse_date_code(serial) : null;
-          if (d) { yr = d.y; mo = d.m; }
+    if (rawDateStr) {
+      var parts = rawDateStr.split('/');
+      if (parts.length === 3) {
+        // DD/MM/YYYY
+        mo = parseInt(parts[1], 10);
+        yr = parseInt(parts[2], 10);
+      } else {
+        var dashParts = rawDateStr.split('-');
+        if (dashParts.length >= 2) {
+          if (dashParts[0].length === 4) { yr = parseInt(dashParts[0], 10); mo = parseInt(dashParts[1], 10); }
+          else { mo = parseInt(dashParts[0], 10); yr = parseInt(dashParts[1], 10); }
         }
       }
     }
     if (!yr || !mo || yr < 2024 || yr > 2080 || mo < 1 || mo > 12) {
-      console.log('[v138 evts] שורה', ri, '— תאריך לא תקין, מדלג | rawDate:', rawDate, 'yr:', yr, 'mo:', mo);
+      console.log('[v143 evts] שורה', ri, '— תאריך לא תקין, מדלג | rawDateStr:', rawDateStr);
       continue;
     }
 
-    var cat = rawCat ? String(rawCat).trim().normalize('NFC') : typeCell;
-    var key = yr + '-' + (mo < 10 ? '0' : '') + mo + '|' + cat;
-    if (!groups[key]) groups[key] = { yr: yr, mo: mo, cat: cat, items: [], total: 0 };
-    groups[key].items.push({ label: typeCell, amount: amt });
-    groups[key].total += amt;
+    // One group per YYYY-MM — label from Column A only
+    var correctDateIndex = yr + '-' + (mo < 10 ? '0' : '') + mo; // e.g. "2029-10"
+    if (!groups[correctDateIndex]) groups[correctDateIndex] = { yr: yr, mo: mo, cat: eventLabel, items: [], total: 0 };
+    groups[correctDateIndex].items.push({ label: eventLabel, amount: amt });
+    groups[correctDateIndex].total += amt;
     parsed++;
   }
 
   var result = Object.keys(groups).sort().map(function(k) { return groups[k]; });
-  console.log('[v138 evts] ✅ פורסרו', parsed, 'שורות ל-', result.length, 'קבוצות | דולגו "סך הכל":', skipped);
+  console.log('[v143 evts] ✅ פורסרו', parsed, 'שורות ל-', result.length, 'קבוצות | דולגו:', skipped);
   return result;
 }
 
@@ -7823,18 +7781,19 @@ function simRenderChart(result) {
                 total = result.yaelData[di] || 0;
               }
               var lines = ['סה״כ: ' + (total >= 1000 ? (total/1000).toFixed(1)+'M' : Math.round(total)+'k')];
-              // v103.40: show events for this year (filter past + only simulation range)
-              // v133.0: retirement events also show per-item breakdown
-              var yr = parseInt(result.labels[di]);
-              if (!isNaN(yr)) {
+              // v144.0: strict YYYY-MM string match — prevents any cross-month smearing
+              var _hoveredLabel = String(result.labels[di] || '');
+              if (_hoveredLabel) {
                 _tooltipEvents.forEach(function(ev) {
-                  if (ev.yr !== yr) return;
+                  // Build the event's exact YYYY-MM key and compare to the hovered label
+                  var _eventDateIndex = ev.yr + '-' + (ev.mo < 10 ? '0' : '') + ev.mo;
+                  if (_hoveredLabel !== _eventDateIndex) return;
                   var absAmt = Math.abs(ev.amount || 0);
-                  var amtStr = absAmt >= 1000 ? (ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1)+'M'
-                             : absAmt > 0 ? (ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k' : '';
-                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : ''));
-                  // v133.0: breakdown for "סכומי פרישה" events from Excel
-                  if (ev.src === 'retirement' && ev.breakdown && ev.breakdown.length > 0) {
+                  var amtStr = absAmt >= 1000 ? (ev.amount < 0 ? '-' : '') + (absAmt/1000).toFixed(1)+'M'
+                             : absAmt > 0 ? (ev.amount < 0 ? '-' : '') + Math.round(absAmt) + 'k' : '';
+                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ': ' + amtStr : ''));
+                  // v141.0: breakdown for retirement AND events_timeline from Excel (uses Col A label)
+                  if ((ev.src === 'retirement' || ev.src === 'events_timeline') && ev.breakdown && ev.breakdown.length > 0) {
                     ev.breakdown.forEach(function(item) {
                       var iAmt = Math.abs(item.amount || 0);
                       var iStr = iAmt >= 1000000 ? (iAmt/1000000).toFixed(2)+'M'
@@ -7887,13 +7846,13 @@ function simCollectEvents() {
     });
   }
   SIM_USER_EVENTS.forEach(function(ev, i) {
-    var color = '#34d399'; // income (green)
-    if (ev.type === 'expense')    color = '#f87171'; // red
+    var color = '#34d399'; // income (green) default
+    // v145.0: permanent Excel events checked FIRST — before type checks — so they are never overridden
+    if (ev.permanent && ev.src === 'events_timeline') color = '#1b5e20'; // dark green — permanent Excel events
+    else if (ev.permanent && ev.src === 'retirement') color = '#1b5e20'; // dark green — retirement income from Excel
+    else if (ev.type === 'expense')    color = '#f87171'; // red
     else if (ev.type === 'investment') color = '#60a5fa'; // blue
     else if (ev.type === 'reminder')   color = '#9ca3af'; // gray
-    // v140.0: permanent Excel events get distinct colors by type (income=dark-green, expense=burgundy)
-    else if (ev.permanent && ev.src === 'retirement')     color = '#1b5e20'; // dark green — permanent income from Excel
-    else if (ev.permanent && ev.src === 'events_timeline') color = '#881111'; // burgundy — permanent expense from Excel
     // v135.0: preserve original src and breakdown so tooltip and timeline render correctly
     events.push({ yr: ev.yr, mo: ev.mo, label: ev.label, amount: ev.amount,
                   color: color, src: ev.src || 'user', _userIdx: i, type: ev.type,
@@ -7944,15 +7903,38 @@ function simRenderTimeline() {
   var canvasW = canvas ? (canvas.offsetWidth || canvas.clientWidth || 0) : 0;
   var usePixels = (ca && canvasW > 0);
 
-  function yrToLeft(yr, mo) {
-    var frac = (yr + ((mo || 1) - 1) / 12 - startYr) / numYrs;
-    if (usePixels) return (ca.left + frac * (ca.right - ca.left)).toFixed(1) + 'px';
-    return (frac * 100).toFixed(2) + '%';
-  }
+  // v142.0: yrToLeftPx — read actual rendered pixel from chart's dataset metadata.
+  // This is pixel-perfect: it reads the real x-coordinate that Chart.js drew,
+  // bypassing any scale API ambiguity with categorical {x,y} axes or duplicate labels.
   function yrToLeftPx(yr, mo) {
     if (!usePixels) return 0;
+    try {
+      var targetLbl = yr + '-' + ((mo || 1) < 10 ? '0' : '') + (mo || 1);
+      var ds = simChartObj && simChartObj.data && simChartObj.data.datasets && simChartObj.data.datasets[0];
+      if (ds && ds.data) {
+        // Scan for last matching YYYY-MM point (post-event snapshot for jump months)
+        for (var pi = ds.data.length - 1; pi >= 0; pi--) {
+          var pt = ds.data[pi];
+          var ptLbl = (pt && typeof pt === 'object') ? String(pt.x) : '';
+          if (ptLbl === targetLbl) {
+            var meta = simChartObj.getDatasetMeta(0);
+            if (meta && meta.data && meta.data[pi]) {
+              var px = meta.data[pi].x;
+              if (px !== undefined && !isNaN(px) && px > 0) return px;
+            }
+            break;
+          }
+        }
+      }
+    } catch(e) {}
+    // Fallback: linear interpolation (when chart hasn't rendered yet)
     var frac = (yr + ((mo || 1) - 1) / 12 - startYr) / numYrs;
     return ca.left + frac * (ca.right - ca.left);
+  }
+  function yrToLeft(yr, mo) {
+    if (usePixels) return yrToLeftPx(yr, mo).toFixed(1) + 'px';
+    var frac = (yr + ((mo || 1) - 1) / 12 - startYr) / numYrs;
+    return (frac * 100).toFixed(2) + '%';
   }
 
   var outerStyle = usePixels
@@ -8019,9 +8001,9 @@ function simRenderTimeline() {
       // Non-investment: show lump-sum amount
       var absAmt = Math.abs(ev.amount || 0);
       if (absAmt >= 1000) {
-        tooltip += ' (' + (ev.amount > 0 ? '+' : '-') + (absAmt / 1000).toFixed(1) + 'M)';
+        tooltip += ': ' + (ev.amount < 0 ? '-' : '') + (absAmt / 1000).toFixed(1) + 'M';
       } else if (absAmt > 0) {
-        tooltip += ' (' + (ev.amount > 0 ? '+' : '') + Math.round(ev.amount) + 'k)';
+        tooltip += ': ' + (ev.amount < 0 ? '-' : '') + Math.round(absAmt) + 'k';
       }
     }
     // v136.0 / v140.0: Excel permanent events — append breakdown (label = Col A "סוג האירוע")
@@ -8038,12 +8020,14 @@ function simRenderTimeline() {
     var clickPart = isUser ? ' onclick="simShowAddEventModal(' + ev._userIdx + ')"' : '';
     var border = isUser ? '1.5px solid rgba(255,255,255,0.85)' : '1px solid rgba(255,255,255,0.55)';
     var cursor  = isUser ? 'pointer' : 'default';
+    // v145.0: permanent Excel events always dark green, regardless of simCollectEvents color path
+    var diamondColor = ev.permanent ? '#1b5e20' : (ev.color || '#6366f1');
     html += '<div' + clickPart
           + ' data-tip="' + safeTip + '"'
           + ' onmouseenter="simShowTltp(this,event)" onmouseleave="simHideTltp()"'
           + ' style="position:absolute;left:' + diamondLeft + ';top:18px;'
           + 'width:12px;height:12px;transform:rotate(45deg);'
-          + 'background:' + (ev.color || '#6366f1') + ';'
+          + 'background:' + diamondColor + ';'
           + 'border:' + border + ';border-radius:1px;cursor:' + cursor + ';z-index:2;box-sizing:border-box;">'
           + '</div>';
   });
@@ -9095,14 +9079,16 @@ function ovRenderSimMini() {
               var di    = items[0].dataIndex;
               var total = sliced.royData ? (sliced.royData[di] || 0) : (hrlTop[di] || 0);
               var lines = ['סה״כ: ' + (total >= 1000 ? (total/1000).toFixed(1)+'M' : Math.round(total)+'k')];
-              var yr = parseInt((sliced.labels || [])[di]);
-              if (!isNaN(yr)) {
+              // v146.0: strict YYYY-MM match — prevents smearing event across all months in same year
+              var _hoveredLabel = String((sliced.labels || [])[di] || '');
+              if (_hoveredLabel) {
                 _tooltipEvs.forEach(function(ev) {
-                  if (ev.yr !== yr) return;
+                  var _eventDateIndex = ev.yr + '-' + (ev.mo < 10 ? '0' : '') + ev.mo;
+                  if (_hoveredLabel !== _eventDateIndex) return;
                   var absAmt = Math.abs(ev.amount || 0);
-                  var amtStr = absAmt >= 1000 ? (ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1)+'M'
-                             : absAmt > 0 ? (ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k' : '';
-                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : ''));
+                  var amtStr = absAmt >= 1000 ? (ev.amount < 0 ? '-' : '') + (absAmt/1000).toFixed(1)+'M'
+                             : absAmt > 0 ? (ev.amount < 0 ? '-' : '') + Math.round(absAmt) + 'k' : '';
+                  lines.push('◆ ' + (ev.label || '?') + (amtStr ? ': ' + amtStr : ''));
                 });
               }
               return lines;
@@ -9183,14 +9169,15 @@ function ovRenderSimMini() {
           ? (parseFloat(yrToLeft(ev.yr)) - 5).toFixed(1) + 'px'
           : 'calc(' + yrToLeft(ev.yr) + ' - 5px)';
         var absAmt = Math.abs(ev.amount || 0);
-        var amtStr = absAmt >= 1000 ? ((ev.amount >= 0 ? '+' : '-') + (absAmt/1000).toFixed(1) + 'M')
-                   : absAmt > 0    ? ((ev.amount >= 0 ? '+' : '') + Math.round(ev.amount) + 'k') : '';
-        var tipText = (ev.label || '?') + (amtStr ? ' (' + amtStr + ')' : '');
-        // v136.0: retirement breakdown in mini timeline tooltip
-        if (ev.src === 'retirement' && ev.breakdown && ev.breakdown.length) {
-          ev.breakdown.forEach(function(item) {
-            tipText += '&#10;· ' + (item.label || '') + ': ' + Math.round((item.amount || 0) / 1000) + 'k';
-          });
+        var amtStr = absAmt >= 1000 ? ((ev.amount < 0 ? '-' : '') + (absAmt/1000).toFixed(1) + 'M')
+                   : absAmt > 0    ? ((ev.amount < 0 ? '-' : '') + Math.round(absAmt) + 'k') : '';
+        var tipText;
+        // v146.0: permanent Excel events — show total summary ("סך אירועי פרישה: 617k"), not the first item label
+        if (ev.permanent && (ev.src === 'retirement' || ev.src === 'events_timeline')) {
+          var _sumStr = absAmt >= 1000 ? (absAmt/1000).toFixed(1)+'M' : Math.round(absAmt)+'k';
+          tipText = 'סך אירועי פרישה: ' + _sumStr;
+        } else {
+          tipText = (ev.label || '?') + (amtStr ? ': ' + amtStr : '');
         }
         var tip = tipText.replace(/"/g, '&quot;');
         html += '<div data-tip="' + tip + '"'

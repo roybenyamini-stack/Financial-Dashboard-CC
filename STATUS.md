@@ -1,7 +1,219 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v140.0 — Timeline Polish & Header Flexbox Rescue (15/04/2026).
+גרסה v150.0 — Dark Theme for Settings Tab (15/04/2026).
+
+## שינויים אחרונים (15/04/2026 — v150.0)
+
+### v150.0 – Unify Settings Tab to Dark Theme
+
+**`style.css` — שינויי CSS בלבד:**
+- `#tab-settings`: רקע `#0f172a` (כהה מלא לכל האזור)
+- `.settings-section`: `background: #1e293b`, border עם שקיפות
+- `.settings-section-title`: uppercase + צבע `rgba(255,255,255,0.4)` — זהה ל-modal
+- `.settings-label`: `rgba(255,255,255,0.55)` — זהה ל-`.modal-label`
+- `.settings-input`: `background: rgba(255,255,255,0.08); color: #fff` — זהה ל-`.modal-input`
+- `.settings-hint`, `.settings-unit`: טקסט לבן שקוף
+- `.settings-footer` border: `rgba(255,255,255,0.08)`
+- `.settings-save-note`: ירוק `#4ade80` (כמו modal)
+- `.settings-title`, `.settings-subtitle`: לבן/מעומעם לבן
+
+**תוצאה**: לשונית ה-Settings נראית עקבית עם modal ה-Simulator — רקע `#1e293b`, טקסט לבן, inputs כהים.
+
+**עדכון גרסה**: `v149.0` → `v150.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v149.0)
+
+### v149.0 – Clean Tooltip Amount Format
+
+**4 מקומות תוקנו ב-`app.js`:**
+- `' (' + amtStr + ')'` → `': ' + amtStr` בכל ה-tooltip callbacks ובdiamond tooltips.
+- **לפני**: `◆ סך אירועי פרישה (1.1M)` | **אחרי**: `◆ סך אירועי פרישה: 1.1M`
+
+**עדכון גרסה**: `v148.0` → `v149.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v148.0)
+
+## שינויים אחרונים (16/04/2026 — v148.0)
+
+### v148.0 – Remove "+" from Tooltip Amounts
+
+**4 מקומות תוקנו ב-`app.js`:**
+- Simulator timeline diamond tooltip (`simRenderTimeline`)
+- Simulator chart footer callback
+- Overview chart footer callback (`ovRenderSimMini`)
+- Overview timeline diamond tooltip (`ovRenderSimMini`)
+
+**הלוגיקה**: `(ev.amount >= 0 ? '+' : '-')` → `(ev.amount < 0 ? '-' : '')` — סימן מינוס נשמר להוצאות, `+` הוסר מהכנסות.
+
+**עדכון גרסה**
+- `index.html`: `v147.0` → `v148.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v147.0)
+
+## שינויים אחרונים (16/04/2026 — v147.0)
+
+### v147.0 – Generic Event Group Title
+
+**שינוי כותרת קבוצת אירועים (`app.js` — upload handler)**
+- לפני: `label: grp.cat + ' ' + month + ' ' + year` — הציג את שם הפריט הראשון מעמודה A (למשל "פדיון ימי חופשה אוק׳ 2029").
+- אחרי: `label: 'סך אירועי פרישה - ' + month + ' ' + year` — כותרת גנרית וברורה.
+- תוצאה: ה-Overview מציג "סך אירועי פרישה - אוק׳ 2029 (1.1M+)"; הסימולטור מציג את הכותרת + הפירוט המלא בbreakdown.
+
+**עדכון גרסה**
+- `index.html`: `v146.0` → `v147.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v146.0)
+
+## שינויים אחרונים (15/04/2026 — v146.0)
+
+### v146.0 – Header Single-Line, Overview Smear Fix & Timeline Summary
+
+**כותרת סימולטור — שורה אחת (`index.html`)**
+- אוחדו `#sim-header-stats` ו-`.sim-header-controls` בחזרה ל-wrapper אחד `.sim-header`.
+- `.sim-header` עם `flex:1 1 auto; flex-wrap:nowrap` — מתמלא לצד `#hdr-title-group` בשורה אחת.
+- `flex-shrink:0` על controls, `flex-shrink:1; min-width:0` על KPIs — מגנים מחלוקות.
+
+**תיקון smearing ב-Overview (`app.js` — `ovRenderSimMini` footer)**
+- `parseInt("2029-10")` = 2029 → כל החודשים ב-2029 קיבלו אירוע בטעות.
+- תוקן ל-YYYY-MM string match בדיוק כמו ב-Simulator.
+
+**Tooltip ציר זמן ב-Overview (`app.js` — `ovRenderSimMini` timeline)**
+- אירועי Excel קבועים מציגים כעת "סך אירועי פרישה: 617k" במקום שם הפריט הראשון.
+
+**עדכון גרסה**
+- `index.html`: `v145.0` → `v146.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v145.0)
+
+## שינויים אחרונים (15/04/2026 — v145.0)
+
+### v145.0 – KPI Top Row, Controls Bar & Diamond Color
+
+**מבנה כותרת סימולטור מחדש (`index.html`)**
+- `#sim-header-stats` הוצא מ-`.sim-header` wrapper והפך לילד ישיר של `.header` — כעת יושב באותה שורת flex כמו הכותרת.
+- `.sim-header-controls` עם `flex-basis:100%` → נדחס לשורה שנייה נקייה מתחת ל-Title+KPIs.
+- `.sim-header` wrapper נמחק לגמרי — שני אלמנטים פשוטים, ללא מבנה מקונן.
+- שני האלמנטים שומרים `class="sim-only-btn"` — switchTab מציג/מסתיר אוטומטית.
+
+**תיקון צבע דיאמונד (`app.js`)**
+- `simCollectEvents`: תנאי `ev.permanent` הועבר לפני `ev.type === 'expense'` — לא עוד עקיפה בגלל סדר `if/else if`.
+- `simRenderTimeline`: override ישיר `ev.permanent ? '#1b5e20' : (ev.color || '#6366f1')` — ירוק כהה לכל אירועי האקסל הקבועים, ללא תלות בנתיב simCollectEvents.
+
+**עדכון גרסה**
+- `index.html`: `v144.0` → `v145.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v144.0)
+
+## שינויים אחרונים (15/04/2026 — v144.0)
+
+### v144.0 – Simulator Header Rescue, Duplicate Purge & Tooltip Fix
+
+**תיקון כותרת הסימולטור (`index.html`)**
+- `html[dir=rtl]` → ילד ראשון בDOM מופיע ימינה, ילד שני שמאלה.
+- סדר DOM תוקן: `#sim-header-stats` (KPIs) ראשון → מופיע ימינה; כפתורים שניים → מופיעים שמאלה.
+- שוחזרה `class="header-stats"` ל-`#sim-header-stats` — גופני KPI חוזרים לגודל הנכון.
+- `direction:ltr` על wrapper הכפתורים — כפתורים זורמים שמאל-לימין בתוך בלוק ה-RTL.
+
+**מחיקת פרסינג כפול (`app.js` — upload handler)**
+- הוסרו `detectRetirementSheet`/`parseRetirementSheet` מה-upload handler לחלוטין.
+- הסיבה: שני הפרסרים זיהו את אותו גיליון "ציר אירועים" (שמכיל קטגוריה "סכומי פרישה" בעמודה D), יצרו ערכים כפולים ב-SIM_USER_EVENTS → מדרגה (staircase) בגרף.
+- פרסינג אירועים כעת רק דרך `parseEventsTimelineSheet` (עמודה A).
+
+**תיקון tooltip smearing (`app.js` — footer callback)**
+- הוחלפה בדיקת `ev.yr + moHovered` הישנה בהשוואת מחרוזת `YYYY-MM` מדויקת.
+- `_hoveredLabel !== _eventDateIndex` → אירוע מוצג אך ורק בחודשו המדויק, ללא smearing.
+
+**עדכון גרסה**
+- `index.html`: `v143.0` → `v144.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v143.0)
+
+### v143.0 – Hard Rewrite: Event Tooltips, Simulator Header & CSS Fix
+
+**כתיבת מחדש מלאה של `parseEventsTimelineSheet` (`app.js`)**
+- שינוי `sheet_to_json` ל-`raw: false, dateNF: 'dd/mm/yyyy'` — תאריכים מתקבלים כמחרוזת DD/MM/YYYY.
+- פרסינג תאריך ע"י `split('/')` בלבד: `"01/10/2029" → 2029-10` — אין UTC-shift, אין Date object.
+- תווית (`label`) נלקחת אך ורק מעמודה A (`סוג האירוע`) — עמודה D (`קטגוריה`) לא בשימוש.
+- גיבוץ לפי `YYYY-MM` בלבד — ערך אחד לחודש, ללא כפילויות/מדרגות.
+
+**כתיבת מחדש מלאה של כותרת הסימולטור (`index.html`)**
+- נמחק `#sim-hdr-controls` הישן לחלוטין.
+- נמחק `#sim-header-stats` הישן מיקומו המקורי.
+- נוצר `<div class="sim-header sim-only-btn">` עם שני צדדים: `sim-header-left` (כפתורים) + `sim-header-right` (KPIs).
+- `#chat-btn`, `#settings-btn` כ-`<button>` מובחנים; `view-toggles` ו-`age-input` ב-divים נפרדים.
+- כל הרכיבים בשורה אופקית אחת ע"י `flex-direction:row; gap:15px` ב-inline style.
+
+**תיקון CSS (`style.css`)**
+- נוסף `input[type="date"] { color: #111827 !important; }` — תאריכי לידה קריאים ברקע בהיר.
+
+**עדכון גרסה**
+- `index.html`: `v142.0` → `v143.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v142.0)
+
+### v142.0 – Event Parsing Purge, Exact Chart Alignment & Header Rewrite
+
+**תיקון פרסינג "ציר אירועים" (`app.js` — `parseEventsTimelineSheet`)**
+- תיקון תאריך UTC: הוספת 12 שעות לפני `getUTCMonth()` — בדיוק כמו `parseMonthHeader` v20.1. "01/10/2029" כעת → אוקטובר 2029 נכון (ולא ספטמבר בטעות).
+- מפתח גיבוץ שונה מ-`yr-mo|cat` ל-`yr-mo` בלבד — מונע קבוצות כפולות לאותו חודש.
+- כל שורות לאותו חודש נאגרות בfbreakdown אחד; `label` של כל פריט = עמודה A ("סוג האירוע") בלבד.
+
+**כתיבה מחדש של כותרת הסימולטור (`index.html`, `style.css`)**
+- הכפתורים הוצאו מתוך `#hdr-title-group` לחלוטין.
+- נוצר `#sim-hdr-controls` כ-div נפרד, ישיר של `.header`, עם `class="sim-only-btn"` — נשלט ע"י `switchTab` כרגיל.
+- עיצוב CSS נקי: `display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:12px` — שורה אופקית אחת ללא חפיפה.
+- `#hdr-title-group` הורזק לכותרת בלבד (h1 + p).
+
+**יישור דיאמונד מדויק (`app.js` — `simRenderTimeline`)**
+- `yrToLeftPx` קורא עכשיו `simChartObj.getDatasetMeta(0).data[idx].x` — ה-pixel המדויק שצייר Chart.js.
+- חיפוש מהסוף (last-occurrence) ל-YYYY-MM — מביא את ה-post-event snapshot לחודשי-קפיצה.
+- Fallback ל-interpolation ליניארית אם המטאדטה לא זמינה.
+
+**עדכון גרסה**
+- `index.html`: `v141.0` → `v142.0`.
+
+---
+
+## שינויים אחרונים (15/04/2026 — v141.0)
+
+### v141.0 – Parse Regression Fix, Tooltip Precision & Timeline Alignment
+
+**תיקון רגרסיה קריטי — פרסינג פנסיה (`app.js` — upload handler)**
+- הוסר `return;` מבלוק הפרישה ("סכומי פרישה") — קוד ממשיך לבדוק גם גיליון פנסיה באותו קובץ.
+- כעת גם `parseEventsTimelineSheet` וגם `pensionParseWorkbook` רצים בעת העלאת קובץ המכיל שני סוגי גיליונות.
+- טאב "פנסיה וביטוחים" מתמלא מחדש כנדרש.
+
+**Tooltip מדויק בגרף Chart.js (`app.js` — tooltip footer)**
+- פרסינג לייבל `YYYY-MM` גם לחילוץ **החודש** (לא רק השנה).
+- פילטר קפדני: `ev.yr === yr && ev.mo === moHovered` — אירוע מוצג **רק בחודשו המדויק**, ללא smearing לאורך כל השנה.
+- הוסף `events_timeline` לתנאי breakdown בגרף — breakddown מ-Excel מוצג גם לאירועי "ציר אירועים" (לא רק "סכומי פרישה").
+
+**יישור דיאמונדים לגרף (`app.js` — `simRenderTimeline`)**
+- `yrToLeftPx` משתמש ב-`chart.scales.x.getPixelForValue(YYYY-MM)` לפיקסל מדויק.
+- `yrToLeft` קוראת ל-`yrToLeftPx` — שיטה אחידה לכל מיקומי הדיאמונד.
+- Fallback ל-linear interpolation כשה-scale אינו זמין.
+
+**עדכון גרסה**
+- `index.html`: `v140.0` → `v141.0`.
+
+---
 
 ## שינויים אחרונים (15/04/2026 — v140.0)
 
