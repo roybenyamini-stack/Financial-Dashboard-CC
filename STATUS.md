@@ -1,7 +1,298 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v150.0 — Dark Theme for Settings Tab (15/04/2026).
+גרסה v166.0 — Fix Demo Data Forward Projections (16/04/2026).
+
+## שינויים אחרונים (16/04/2026 — v166.0)
+
+### v166.0 – Fix Demo Data Forward Projections
+
+**`app.js` — תיקון גרף השקעות (התרסקות לאפס):**
+- **שורש הבעיה**: אם המשתמש טען קודם נתוני אקסל שהכילו חודש אפריל 26 (LABELS.length=16), מערכי הדמו הקשיחים (15 ערכים) גורמים לאינדקס 15 להחזיר `undefined` → אפס בגרף
+- **הפתרון**: `_demoBase` (15 ערכי בסיס ינואר 25–מרץ 26) + לולאה דינמית שמוסיפה ערכים בצמיחה עדינה (0.8%/חודש) עד `LABELS.length` — גרף לא יתרסק גם אם LABELS גדל בעתיד
+- `'דירה'` מקבל `growthRate: 1` (ערך קבוע), שאר הנכסים `1.008`
+
+**`app.js` — תיקון גרף תזרים (חודשים חסרים):**
+- **שורש הבעיה**: CF_DATA כלל רק ינואר–מרץ 26 (3 חודשים) → `ovRenderCashflowChart` (מסנן `year===2026`) הציג 3 עמודות בלבד
+- **הפתרון**: לולאות for מייצרות **12 חודשי 2025** (היסטורי) + **12 חודשי 2026** (ינו–מרץ היסטורי, אפר–דצ מוקרן) + **12 חודשי 2027** (מוקרן) — סה״כ 36 רשומות
+- `CF_CURRENT_MONTH_ID` עודכן ל-`2026-04` (חודש נוכחי)
+
+**`index.html` + `app.js`** — גרסה עודכנה מ-`v165.0` ל-`v166.0`
+
+גרסה: `v165.0` → `v166.0`.
+
+## שינויים אחרונים (16/04/2026 — v165.0)
+
+### v165.0 – Fix Demo Data Structure & Units
+
+**`app.js` — כתיבה מחדש של `loadDemoData()`:**
+- **ניקוי FUND_COL_K:** מחיקת כל ערכי ה-Column K לפני הזרקת נתוני דמו — מנע שגיאת אפס בגרף ההשקעות (buildCatChartTotals חיסר פיקדונות אמיתיים מנתוני דמו)
+- **ניקוי PENSION_EVENTS:** `PENSION_EVENTS.length = 0` — מנע אירועי חד-פעמי (לומפ-סאם) מהאקסל האמיתי שגרמו לספייק 60M+ בסימולטור
+- **ניקוי SIM_USER_EVENTS:** `SIM_USER_EVENTS.length = 0` — מנע אירועי משתמש קודמים מלהשפיע על הדמו
+- **5 נכסי FUNDS נקיים** (ללא כפילות): הראלמגוון, מיטבקהש, מורגמל, דירה, מזומןשקלי — אף נכס לא מופיע גם ב-FUNDS וגם ב-PENSION_ASSETS
+- **PENSION_ASSETS — כניסה אחת בלבד:** הפניקס פנסיה מקיפה (accumulation: 1,600,000 ₪) — ללא כפילות עם נכסי FUNDS
+- **CF_DATA — 15 חודשים:** ינואר 25 עד מרץ 26 (2025 + 3 חודשי 2026) — מבטיח שנת 2026 מוצגת בגרף תזרים במבט-על
+- **`simInited = false`:** מכריח אתחול מחדש של הסימולטור בכניסה הבאה לטאב
+
+**`index.html` + `app.js` — עדכון גרסה:**
+- מספר גרסה עודכן מ-`v164.0` ל-`v165.0`
+
+גרסה: `v164.0` → `v165.0`.
+
+## שינויים אחרונים (16/04/2026 — v164.0)
+
+### v164.0 – Demo Data Realism & Button UX Refinement
+
+**`app.js` — תיקון ערכי CF בנתוני הדמו:**
+- ערכי `salary`, `rent_income`, `visa`, `cash_exp`, `total_exp` ב-CF_DATA תוקנו מ-NIS מלא (35000) לאלפי ₪ (28/5/12/9/21) — כנדרש כי `simGetCurrentSalary()` מכפיל ב-1000
+- תיקון מנע "ספייק" של מיליוני ₪ בגרף הסימולטור עם נתוני דמו
+
+**`index.html` — ארגון מחדש של כפתורי האדמין:**
+- הוסרו כפתורי "🗑 נקה נתונים" ו-"🎭 טען נתוני דמו" עם הסטיילינג הבוטה (אדום/זהב)
+- נוספה `<div class="admin-controls">` עם שני כפתורי אדמין עדינים (`.admin-btn`) — ממוקמת *אחרי* כפתורי ה-ov-only-btn (שמאל קצה ב-RTL)
+
+**`style.css` — נראות וסטיילינג:**
+- `.admin-controls { display: none; }` — מוסתר גלובלית בכל הטאבים
+- `body.tab-overview .admin-controls { display: flex; }` — נראה *רק* בלשונית מבט-על
+- `.admin-btn` — כפתור שקוף-עמום (`color: rgba(255,255,255,0.38)`) עם hover עדין, מתלכד עם שאר כפתורי הכותרת
+
+גרסה: `v163.0` → `v164.0`.
+
+## שינויים אחרונים (16/04/2026 — v163.0)
+
+### v163.0 – Mini-Chart Labels, Demo Mode & Clear Data Button
+
+**`app.js` — תיקון תוויות מיני-גרף מבט-על:**
+- `ovRenderSimMini()`: תוויות `SIM_USER1_NAME + ' - פנסיה/חיסכון'` הוחלפו ב-`SIM_PENSION_FUND_NAME` / `SIM_SAVINGS_FUND_NAME` — תואמות כעת לגרף הראשי
+
+**`app.js` — מצב דמו:**
+- `loadDemoData()`: טוען נתוני FUNDS, CF_DATA, ו-PENSION_ASSETS ממוקדים ומציאותיים לצורך הצגה
+- שומר ל-localStorage ומפעיל את כל זרימת האתחול (mirrors DOMContentLoaded flow)
+- מציג הודעת סטטוס ב-`excel-status`
+
+**`app.js` + `index.html` — כפתור "נקה נתונים":**
+- `clearDashboardData()`: `localStorage.clear()` + `location.reload()` עם אישור משתמש
+- כפתור אדום קטן `🗑 נקה נתונים` תמיד נראה בכותרת (שמאל עליון ב-RTL)
+- כפתור `🎭 טען נתוני דמו` מוצג בלשונית מבט-על בלבד (`ov-only-btn`)
+
+גרסה: `v162.0` → `v163.0`.
+
+## שינויים אחרונים (16/04/2026 — v162.0)
+
+### v162.0 – Fix Simulator Chart Hydration on Page Load
+
+**`app.js` — שמירת אירועי ציר (permanent events) ב-localStorage:**
+- `_simSaveUserEvents()`: עודכן לשמור את כל `SIM_USER_EVENTS` (כולל `permanent: true`) — בעבר סינן אותם
+- `_simRestoreUserEvents()`: עודכן להחליף את כל המערך (`SIM_USER_EVENTS.length = 0`) — בעבר שחזר רק אירועים לא-קבועים
+- לאחר ניתוח גיליון "ציר אירועים" ב-Excel: נוסף קריאה ל-`_simSaveUserEvents()` כדי לשמור אירועי פרישה קבועים מיידית
+
+**`app.js` — DOMContentLoaded: שחזור + רנדור מפורש:**
+- לפני `switchTab()`: קריאה ל-`_simRestoreUserEvents()` כשיש נתוני localStorage כדי לאכלס `SIM_USER_EVENTS` לפני כל רנדור
+- לאחר `switchTab()`: `setTimeout(200ms)` שקורא מפורשות ל-`overviewRender()`, `simRenderKPI()`, `simRenderEvents()`, `simRenderTimeline()`, `simRenderChart(simRunEngine())` — מחקה את רצף הרנדור של `loadExcelFileCore()` ומבטיח שכל הגרפים מאוכלסים בטעינת עמוד
+
+גרסה: `v161.0` → `v162.0`.
+
+## שינויים אחרונים (16/04/2026 — v161.0)
+
+### v161.0 – Revert Labels, CF Date Fix, Tab Persistence
+
+**`app.js` + `index.html` — חזרה לתוויות אישיות (MVP):**
+- הוסרו שדות הקלט "שם קרן פנסיה" / "שם פוליסת חיסכון" מלשונית ההגדרות
+- הוסרה כל לוגיקת ה-Settings wiring (loadSettings/saveSettings)
+- `SIM_PENSION_FUND_NAME = 'הפניקס+מבטחים'`, `SIM_SAVINGS_FUND_NAME = 'הראל'` — קבועים
+
+**`app.js` — הגבלת תאריך בסימולטור תזרים:**
+- `cfSandboxUpdateMonthOpts()`: נוסף clamping שנה — אם המשתמש מקליד שנה נמוכה מ-minYr, הקלט מוחזר ל-minYr
+- `index.html sb-year`: עודכן `min="2026"`, max="2040", נוסף `onchange="cfSandboxUpdateMonthOpts()"`
+
+**`app.js` — שמירת טאב פעיל:**
+- `switchTab()`: שומר `localStorage.setItem('active_tab', id)` בכל מעבר טאב
+- `DOMContentLoaded`: קורא `localStorage.getItem('active_tab')` ומפעיל את הטאב השמור (fallback: `overview`)
+
+גרסה: `v160.0` → `v161.0`.
+
+## שינויים אחרונים (16/04/2026 — v160.0)
+
+### v160.0 – Global State Persistence, Donut Fix, Aggregation Fix, Dynamic Fund Names
+
+**`app.js` — שמירת מצב גלובלי ב-localStorage:**
+- `_dashSaveAssets()` / `_dashRestoreAssets()` — שמירה/שחזור נתוני FUNDS+LABELS+CAT_TOTALS (מפתח: `dashboard_assets_v1`)
+- `_dashSaveCF()` / `_dashRestoreCF()` — שמירה/שחזור CF_DATA (מפתח: `dashboard_cf_v1`)
+- `_dashSavePension()` / `_dashRestorePension()` — שמירה/שחזור PENSION_ASSETS (מפתח: `dashboard_pension_v1`)
+- קריאות שמירה: סיום `loadExcelFileCore()`, טעינת CF, `pensionSaveToStorage()`
+- שחזור ב-`DOMContentLoaded`: לפני `switchTab('overview')` — מחזיר נתוני גיליון, תזרים ופנסיה ומרנדר את הממשק מיידית
+
+**`index.html` + `app.js` — תיקון גרפי עוגה:**
+- הוספת `width="160" height="160"` ו-`style="width:160px;height:160px;flex-shrink:0;"` לכל 6 canvases של הדונאט (4 בלשונית השקעות + 2 במודל יעל)
+
+**`app.js` — תיקון אגרגציית "כללי":**
+- נוספו בדיקות `isRealEstate = (f.cat === 'dira')` ו-`isDebt = (f.cat === 'chov')` בלולאת חישוב גרף "מנייתי/כללי/כספי"
+- דירה ולחובות לא ייכללו עוד ב"כללי"
+
+**`app.js` + `index.html` — שמות קרן פנסיה/חיסכון דינמיים:**
+- גלובלים חדשים: `SIM_PENSION_FUND_NAME = 'הפניקס'`, `SIM_SAVINGS_FUND_NAME = 'הראל'`
+- שדות קלט חדשים בהגדרות: `stg-pension-fund-name`, `stg-savings-fund-name`
+- מחוברים ל-`loadSettings()`, `saveSettings()`, `applyUserNames()`
+- תוויות גרף הסימולטור ומיני-הגרף מבט-על עודכנו לשימוש בגלובלים
+- כפתורי "עם/ללא" בכותרת עודכנו עם span IDs: `hdr-savings-name`, `hdr-savings-name-pension`
+
+גרסה: `v158.0` → `v160.0`.
+
+## שינויים אחרונים (16/04/2026 — v158.0)
+
+### v158.0 – Events Persistence, Dynamic Labels & כספי Aggregation Fix
+
+**`app.js` — שמירת ארועי סימולטור ב-localStorage:**
+- נוספה פונקציה `_simSaveUserEvents()` שמסנכרנת את `SIM_USER_EVENTS` (ללא permanent) ל-localStorage תחת המפתח `sim_user_events`.
+- נוספה פונקציה `_simRestoreUserEvents()` שטוענת את הארועים חזרה למערך בעת `simInit()`.
+- קריאות שמירה: `simSaveEvent()` (הוסף/עדכן), `simDeleteEditedEvent()`, `simRemoveUserEvent()`.
+- מחיקה: `simClearAllUserEvents()` מוחק גם מ-localStorage (`removeItem`).
+
+**`app.js` — תוויות גרף דינמיות:**
+- `simRenderChart()` — מצב "רועי": `'הפניקס+מבטחים'` → `SIM_USER1_NAME + ' - פנסיה'`; `'הראל'` → `SIM_USER1_NAME + ' - חיסכון'`.
+- `simRenderChart()` — מצב "combined": עדכון זהה עבור `(רועי)`.
+- `ovRenderSimMini()` — עדכון זהה.
+
+**`app.js` — תיקון אגרגציית "כספי":**
+- שונה: `cashFunds = ['מיטבשקלית','מיטבדשטרייד']` ← שגוי
+- תוקן ל: `cashFunds = ['מזומןשקלי','מזומןדולרי','מיטבשקלית']` ← תואם בדיוק לפריטי הרשימה
+- סיבה: `מיטבדשטרייד` שייך ל-cat:meitav ולא נכלל ברשימת "כספי"; `מזומן שקלי` לא היה מוגדר כ-cashFund ולכן נפל לגנל (כללי) — הפרש של ~91.
+
+גרסה: `v157.0` → `v158.0`.
+
+## שינויים אחרונים (16/04/2026 — v157.0)
+
+### v157.0 – CF Sandbox Annual Sync & X-Axis Cleanup
+
+**`app.js` — סנכרון סיכום שנתי עם ארועי סימולטור:**
+- `cfRenderSummary()`: לאחר חישוב `cfGetDisplayMonths()`, מוסיף ארועי `CF_SANDBOX_EVENTS` לסיכום השנתי (הכנסות/הוצאות) לפי שנת `displayYear`. ה-YTD נשאר ללא שינוי.
+- `cfSandboxAdd()`, `cfSandboxRemove()`, `cfSandboxReset()`: כל אחת קוראת ל-`cfRenderSummary()` לאחר `cfRenderChart()` כדי לעדכן את הנתונים השנתיים מיידית.
+
+**`app.js` — ציר X ללא "גיל":**
+- `simRenderChart()` callback ציר X (מצב `both`): שונה מ-`['גיל ' + age, year]` ל-`[String(age), String(year)]`.
+
+גרסה: `v156.0` → `v157.0`.
+
+## שינויים אחרונים (16/04/2026 — v156.0)
+
+### v156.0 – syncSettingsToSliders()
+
+**`app.js` — פונקציה חדשה `syncSettingsToSliders()`:**
+מסנכרנת ערכי גלובלים (`SIM_INSTRUCTOR_SAL`, `SIM_PENSION_MONTHLY`, `SIM_RATE`, `SIM_PENSION_RATE`, `SIM_INFLATION`, `SIM_RE_GROWTH_RATE`) ישירות לפקדי ה-slider + numeric input בסימולטור.
+- **לא** גורמת לריבוי re-renders — מעדכנת DOM בשקט ומריצה render אחד בסוף (רק אם `simInited === true`).
+
+**נקודות קריאה:**
+1. `loadSettings()` — מיד לאחר אכלוס שדות ה-Settings; לפני `simInit` (כך שערכי ה-slider מוכנים לרינדור הראשון).
+2. `saveSettings()` — מיד לאחר עדכון הגלובלים (לפני ה-localStorage ולפני feedback), כך שלחיצה על "שמור הגדרות" מסנכרנת את הסלידרים מיידית.
+3. `simInit()` — בתחילת האתחול (silent mode — `simInited` מושתק זמנית כדי לא לגרום לרינדור כפול).
+
+**מיפוי Settings → Sliders:**
+| Settings ID | Global | Slider ID | Num ID |
+|---|---|---|---|
+| `stg-instructor-sal` | `SIM_INSTRUCTOR_SAL` | `sim-instr-slider` | `sim-instr-num` |
+| `stg-pension-monthly` | `SIM_PENSION_MONTHLY` | `sim-pension-monthly-slider` | `sim-pension-monthly-num` |
+| `stg-inv-rate` | `SIM_RATE` | `sim-rate-slider` | `sim-rate-num` |
+| `stg-pension-rate` | `SIM_PENSION_RATE` | `pns-ret-yield-slider` | `pns-ret-yield-num` |
+| `stg-inflation` | `SIM_INFLATION` | `sim-inflation-slider` | `sim-inflation-num` |
+| `stg-re-growth` | `SIM_RE_GROWTH_RATE` | `sim-re-growth-slider` | `sim-re-growth-num` |
+
+גרסה: `v155.0` → `v156.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v155.0)
+
+### v155.0 – Remove Orange Diamond Source from Timeline
+
+**`app.js` — `simCollectEvents`:**
+- הוסר בלוק ה-NOTES לחלוטין מהפונקציה. NOTES הן רשומות היסטוריות של עסקאות השקעה (מכירה, קנייה) — לא אירועים עתידיים מתוכננים. הצגתן כ-diamonds כתומים על ציר הזמן הייתה שגויה.
+- `SIM_USER_EVENTS = []` — אומת: כבר מאותחל כ-array ריקה, אין push() מוקדם בקוד.
+- **לפני**: NOTES → events עם `color: '#f59e0b'` — diamonds כתומים מכל הערות האקסל.
+- **אחרי**: Timeline מציג רק PENSION_EVENTS + SIM_USER_EVENTS (מאקסל / מהוספה ידנית).
+- גרסה: `v154.0` → `v155.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v154.0)
+
+### v154.0 – Ultimate Timeline Filter & Layout Spacing
+
+**`app.js` — triple-layer render filter:**
+- `simCollectEvents`: filter חוזק ל-`parseInt(ev.yr, 10) >= Math.max(2026, SIM_P1_START.y)` — hard floor ב-2026.
+- `simRenderTimeline`: guard חוזק ל-`parseInt(ev.yr, 10) < _RENDER_MIN_YR` (שכבת רינדור).
+- `ovRenderSimMini` timeline: guard חוזק ל-`parseInt(ev.yr, 10) < _OV_MIN_YR` (שכבת רינדור).
+- `switchTab`: נוסף `tab-pension` class ל-body.
+
+**`index.html`:**
+- `pns-header-stats`: gap עודכן מ-`40px` ל-`60px`.
+- כותרת `<h3>` קיבוע זכויות: `margin-bottom:15px` → `margin-bottom:5px`.
+- גרסה: `v153.0` → `v154.0`.
+
+**`style.css`:**
+- `body.tab-pension .header { margin-bottom: 6px !important }` — מרווח מופחת בלשונית פנסיה.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v153.0)
+
+### v153.0 – Data-Level Event Filter & Final Pixel Tweaks
+
+**`app.js` — `parseEventsTimelineSheet`:**
+- נוסף guard clause ישירות לאחר validation של השנה/חודש:
+  `if (parseInt(yr, 10) < new Date().getFullYear()) continue;`
+- אירועי עבר לא נכנסים כלל ל-`groups` ולכן לא מגיעים ל-`SIM_USER_EVENTS` — פתרון ברמת הנתונים.
+
+**`index.html` — לשונית פנסיה / קיבוע זכויות:**
+- הוסרה כותרת "קיבוע זכויות" הפנימית מתוך `pns-slider-section`.
+- נוספה `<h3>` חיצונית `text-align:right; width:100%` מעל ה-flex row של שני העמודות.
+- `pns-header-stats`: gap עודכן מ-`30px` ל-`40px`.
+
+**`style.css`:**
+- `body.tab-overview .header`: עודכן ל-`margin-bottom: -5px !important` (הפחתה נוספת של 5px).
+- גרסה: `v152.0` → `v153.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v152.0)
+
+### v152.0 – Aggressive UI Polish & Timeline Filter Fix
+
+**`style.css`:**
+- `body.tab-overview .header`: `margin-bottom: 0px !important; padding-bottom: 0px !important` — אפס מרווח במבט על.
+- `body.tab-simulator .header`: `margin-bottom: 8px !important` — מרווח מופחת בסימולטור.
+
+**`app.js`:**
+- `switchTab`: נוסף `tab-simulator` class ל-body בנוסף ל-`tab-overview`.
+- `simRenderTimeline`: נוסף hard filter `if (ev.yr < _currentYear) return;` ישירות בלולאת הרינדור של diamonds.
+- `ovRenderSimMini` (overview timeline): נוסף `if (ev.yr < _curYr) return;` — גם ציר ה-Overview לא מציג אירועי עבר.
+
+**`index.html` — לשונית פנסיה:**
+- הוסרה כותרת "⚙️ קיבוע זכויות" החיצונית (wrapper עם `pns-section-title` + info icon).
+- הוסר כל בלוק "ציר זמן וצמיחה" ("בבנייה") — `<!-- 8. TIMELINE / GROWTH AREA -->`.
+- `pns-header-stats`: נוסף `gap:30px` להרחבת רווח בין ה-KPIs.
+- גרסה: `v151.0` → `v152.0`.
+
+---
+
+## שינויים אחרונים (16/04/2026 — v151.0)
+
+### v151.0 – UI Polish & Filter Past Events
+
+**`style.css`:**
+- הוסף override: `body.tab-overview .header { margin-bottom: 8px; padding-bottom: 10px; }` — מצמצם רווח בין header ל-timeline במבט על.
+
+**`app.js`:**
+- `switchTab`: הוסף `document.body.classList.toggle('tab-overview')` — מוסיף/מסיר class על body לפי לשונית פעילה.
+- `simCollectEvents`: filter שנוי — `filterYr = Math.max(_simStart, new Date().getFullYear())` — אירועים מהעבר (2024, 2025) לא מוצגים בציר הזמן.
+- `setChatMode`: guard על `mode-portfolio` / `mode-explore` (אלמנטים הוסרו מה-chat header).
+
+**`index.html`:**
+- כותרת הגדרות: שונתה מ"הגדרות סימולטור" ל"הגדרות"; הפסקה ההסברתית הוסרה.
+- תזרים שוטף: "פירוט תנועות" → "פירוט תנועות חודשי".
+- Chat header: הוסרו כפתורי "תיק" ו"חקור" — נשארה רק כותרת + כפתור ✕.
+- גרסה: `v150.0` → `v151.0`.
+
+---
 
 ## שינויים אחרונים (15/04/2026 — v150.0)
 

@@ -1,4 +1,4 @@
-<!-- v130.0 -->
+<!-- v167.9 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -38,7 +38,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v150.0</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v167.9</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -81,7 +81,7 @@
         <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
       </div>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
-        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">הראל:</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;"><span id="hdr-savings-name">הראל</span>:</span>
         <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
         <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
       </div>
@@ -140,7 +140,7 @@
       <div class="stat-change" id="hdr-ret-range">—</div>
     </div>
   </div>
-  <div id="pns-header-stats" class="header-stats" style="display:none;margin-left:40px;">
+  <div id="pns-header-stats" class="header-stats" style="display:none;margin-left:40px;gap:60px;">
     <div id="pns-snap-stats" style="display:contents;"></div>
     <div id="pns-ni-area" style="display:none;flex-shrink:0;margin-right:16px;align-items:center;gap:6px;"></div>
   </div>
@@ -195,6 +195,11 @@
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תזרים שוטף</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 Asset Data</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
+      <!-- v164.0: admin controls (demo + clear) — visible overview tab only, via .admin-controls CSS -->
+      <div class="admin-controls">
+        <button class="admin-btn" onclick="loadDemoData()" title="טען נתוני דמו להצגה">🎭 נתוני דמו</button>
+        <button class="admin-btn" onclick="clearDashboardData()" title="נקה נתונים וטען קובץ חדש">🗑 נקה</button>
+      </div>
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
       <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
@@ -212,7 +217,7 @@
       </button>
       <!-- pension harel toggle — always visible on pension tab (disabled state before data load) -->
       <div id="pns-harel-area" class="pns-only-btn" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;opacity:0.45;">
-        <span style="font-size:10px;color:white !important;margin-left:6px;">הראל:</span>
+        <span style="font-size:10px;color:white !important;margin-left:6px;"><span id="hdr-savings-name-pension">הראל</span>:</span>
         <button class="pns-ni-btn" disabled style="cursor:default;">עם</button>
         <button class="pns-ni-btn" disabled style="cursor:default;">ללא</button>
       </div>
@@ -732,13 +737,7 @@
 
 <div id="cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
   <div style="padding:12px 16px;background:#0f0f23;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span id="chat-title" style="color:white;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;">🤖 שאל את הדשבורד</span>
-      <div style="display:flex;background:rgba(255,255,255,0.08);border-radius:20px;padding:2px;gap:2px;">
-        <button id="mode-portfolio" onclick="setChatMode('portfolio')" style="background:#4ade80;color:#0f0f23;border:none;border-radius:16px;padding:3px 10px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">🏠 תיק</button>
-        <button id="mode-explore" onclick="setChatMode('explore')" style="background:transparent;color:#aaa;border:none;border-radius:16px;padding:3px 10px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">🌐 חקור</button>
-      </div>
-    </div>
+    <span id="chat-title" style="color:white;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;">🤖 שאל את הדשבורד</span>
     <span onclick="toggleChat()" style="color:#888;cursor:pointer;font-size:18px;">✕</span>
   </div>
   <div id="cm" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:240px;max-height:420px;"></div>
@@ -759,10 +758,10 @@
     <div id="roee-charts-section">
       <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;letter-spacing:0.3px;">תמונת מצב – <span id="display-user1-name-charts">רועי</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="charts-grid">
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-by-cat" style="max-width:160px;max-height:160px;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-equity" style="max-width:160px;max-height:160px;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-liquidity" style="max-width:160px;max-height:160px;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
-        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-manager" style="max-width:160px;max-height:160px;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">קטגוריות השקעה</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-by-cat" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas><div id="legend-by-cat" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">מנייתי / כללי / כספי</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-equity" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas><div id="legend-equity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">נזילות</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-liquidity" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas><div id="legend-liquidity" class="ch-legend"></div></div></div>
+        <div class="ch-card" onclick="toggleCard(this)"><div class="ch-title">גוף מנהל</div><div style="display:flex;gap:10px;align-items:center;"><canvas id="chart-manager" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas><div id="legend-manager" class="ch-legend"></div></div></div>
       </div>
     </div>
     <!-- v97.2: Yael snapshot section inside modal — uses same ch-card style as Roee charts -->
@@ -772,14 +771,14 @@
         <div class="ch-card" onclick="toggleCard(this)">
           <div class="ch-title">פילוח לפי סוג מוצר</div>
           <div style="display:flex;gap:10px;align-items:center;">
-            <canvas id="yael-modal-donut-type" style="max-width:160px;max-height:160px;"></canvas>
+            <canvas id="yael-modal-donut-type" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas>
             <div id="yael-modal-donut-type-legend" class="ch-legend"></div>
           </div>
         </div>
         <div class="ch-card" onclick="toggleCard(this)">
           <div class="ch-title">פילוח לפי נזילות</div>
           <div style="display:flex;gap:10px;align-items:center;">
-            <canvas id="yael-modal-donut-liq" style="max-width:160px;max-height:160px;"></canvas>
+            <canvas id="yael-modal-donut-liq" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas>
             <div id="yael-modal-donut-liq-legend" class="ch-legend"></div>
           </div>
         </div>
@@ -946,8 +945,8 @@
   <!-- Row 1: White Cards — כרטיסיות לבנות (סיכום) -->
   <div id="cf-cards-row" style="display:none;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:8px;" class="cards-row"></div>
 
-  <!-- Micro-label: פירוט תנועות (static) -->
-  <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">פירוט תנועות</div>
+  <!-- Micro-label: פירוט תנועות חודשי (static) -->
+  <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:3px;direction:rtl;">פירוט תנועות חודשי</div>
 
   <!-- Row 2: Dark Chips — פירוט חודשי -->
   <div id="cf-detail-row" style="margin-bottom:8px;"></div>
@@ -978,7 +977,7 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:10px;color:#64748b;">שנה</label>
-        <input id="sb-year" type="number" min="2025" max="2035" value="2026" oninput="cfSandboxUpdateMonthOpts()" style="width:70px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
+        <input id="sb-year" type="number" min="2026" max="2040" value="2026" oninput="cfSandboxUpdateMonthOpts()" onchange="cfSandboxUpdateMonthOpts()" style="width:70px;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#1e293b;color:#e2e8f0;font-size:12px;font-family:Heebo,sans-serif;" />
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:10px;color:#64748b;">חודש</label>
@@ -1074,16 +1073,12 @@
 
       <!-- 6. TAX LAB -->
       <div id="pns-tax-lab" style="background:#fff;border-radius:14px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <div class="pns-section-title" style="margin-bottom:0;font-size:12px;">⚙️ קיבוע זכויות</div>
-          <span class="pns-info-icon" title="מדרגות מס הכנסה חודשי 2025: עד ₪7,010 — 10% | עד ₪10,060 — 14% | עד ₪16,150 — 20% | עד ₪22,440 — 31% | עד ₪46,690 — 35% | עד ₪60,130 — 47% | מעל — 50% | קיזוז נקודות זיכוי: ₪544/חודש | מס רווח הון על הון: 25%">ℹ️</span>
-        </div>
         <!-- Tax Lab v72.0: Two-column layout — slider (right) | circles (left) -->
+        <h3 style="text-align:right;width:100%;margin-bottom:5px;font-size:14px;font-weight:700;color:#374151;">⚙️ קיבוע זכויות</h3>
         <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
 
           <!-- עמודה ימנית: סל פטור + סליידר -->
           <div class="pns-slider-section" style="flex:1;min-width:220px;">
-            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">⚙️ קיבוע זכויות</div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
               <label style="font-size:11px;color:#6b7280;white-space:nowrap;">סל פטור (₪):</label>
               <input type="number" id="pns-basket-input"
@@ -1171,17 +1166,6 @@
         </div>
       </div>
 
-      <!-- 8. TIMELINE / GROWTH AREA -->
-      <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-        <div class="pns-section-title">📈 ציר זמן וצמיחה</div>
-        <div id="pns-timeline-chart-wrap" style="height:140px;margin-bottom:14px;display:none;position:relative;width:100%;">
-          <canvas id="pns-timeline-chart" style="width:100% !important;display:block;"></canvas>
-        </div>
-        <div id="pns-growth-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80px;color:#9ca3af;gap:6px;background:#f8fafc;border-radius:10px;">
-          <div style="font-size:24px;opacity:0.35;">📊</div>
-          <div style="font-size:11px;">גרף צבירת הון לאורך זמן — בבנייה</div>
-        </div>
-      </div>
 
     </div><!-- /pns-content -->
   </div><!-- /pns-wrap -->
@@ -1593,8 +1577,7 @@
 <div class="tab-panel" id="tab-settings">
   <div class="settings-wrap">
     <div class="settings-header">
-      <h2 class="settings-title">הגדרות סימולטור</h2>
-      <p class="settings-subtitle">הגדרות ברירת מחדל המשפיעות על חישובי הסימולטור הפיננסי. שינויים עתידיים יחושבו מחדש אוטומטית.</p>
+      <h2 class="settings-title">הגדרות</h2>
     </div>
 
     <!-- Section: גיל פרישה -->
@@ -1602,7 +1585,7 @@
       <div class="settings-section-title">גיל פרישה</div>
       <div class="settings-grid">
         <div class="settings-field">
-          <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">רועי</span></label>
+          <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">משתמש 1</span></label>
           <div class="settings-input-row">
             <input type="number" class="settings-input" id="stg-retire-age-roy" value="67" min="55" max="80" placeholder="67">
             <span class="settings-unit">שנים</span>
@@ -1610,7 +1593,7 @@
           <div class="settings-hint">ברירת מחדל: 67 (גיל פרישה חוקי לגברים)</div>
         </div>
         <div class="settings-field">
-          <label class="settings-label">גיל פרישה — <span id="display-user2-name-retire">יעל</span></label>
+          <label class="settings-label">גיל פרישה — <span id="display-user2-name-retire">משתמש 2</span></label>
           <div class="settings-input-row">
             <input type="number" class="settings-input" id="stg-retire-age-yael" value="64" min="55" max="80" placeholder="64">
             <span class="settings-unit">שנים</span>
@@ -1735,26 +1718,26 @@
         <div class="settings-field">
           <label class="settings-label">שם משתמש 1</label>
           <div class="settings-input-row">
-            <input type="text" class="settings-input" id="stg-user1-name" value="רועי" maxlength="20" placeholder="רועי">
+            <input type="text" class="settings-input" id="stg-user1-name" value="" maxlength="20" placeholder="משתמש 1">
           </div>
-          <div class="settings-hint">שם לתגיות תצוגה (רועי)</div>
+          <div class="settings-hint">שם לתגיות תצוגה (משתמש 1)</div>
         </div>
         <div class="settings-field">
           <label class="settings-label">שם משתמש 2</label>
           <div class="settings-input-row">
-            <input type="text" class="settings-input" id="stg-user2-name" value="יעל" maxlength="20" placeholder="יעל">
+            <input type="text" class="settings-input" id="stg-user2-name" value="" maxlength="20" placeholder="משתמש 2">
           </div>
-          <div class="settings-hint">שם לתגיות תצוגה (יעל)</div>
+          <div class="settings-hint">שם לתגיות תצוגה (משתמש 2)</div>
         </div>
         <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">רועי</span></label>
+          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">משתמש 1</span></label>
           <div class="settings-input-row">
             <input type="date" class="settings-input" id="stg-user1-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
           </div>
           <div class="settings-hint">לחישוב גיל פרישה מדויק (SIM_USER1_BIRTH)</div>
         </div>
         <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">יעל</span></label>
+          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">משתמש 2</span></label>
           <div class="settings-input-row">
             <input type="date" class="settings-input" id="stg-user2-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
           </div>
@@ -1788,11 +1771,11 @@
         <div class="modal-grid">
           <div class="modal-field">
             <label class="modal-label">שם משתמש 1</label>
-            <input type="text" class="modal-input" id="modal-user1-name" maxlength="20" placeholder="רועי">
+            <input type="text" class="modal-input" id="modal-user1-name" maxlength="20" placeholder="משתמש 1">
           </div>
           <div class="modal-field">
             <label class="modal-label">שם משתמש 2</label>
-            <input type="text" class="modal-input" id="modal-user2-name" maxlength="20" placeholder="יעל">
+            <input type="text" class="modal-input" id="modal-user2-name" maxlength="20" placeholder="משתמש 2">
           </div>
           <div class="modal-field">
             <label class="modal-label">תאריך לידה 1</label>
@@ -1810,14 +1793,14 @@
         <div class="modal-section-title">גיל פרישה</div>
         <div class="modal-grid">
           <div class="modal-field">
-            <label class="modal-label">גיל פרישה — <span id="modal-display-user1-name">רועי</span></label>
+            <label class="modal-label">גיל פרישה — <span id="modal-display-user1-name">משתמש 1</span></label>
             <div class="modal-input-row">
               <input type="number" class="modal-input" id="modal-retire-age-roy" min="55" max="80" placeholder="67">
               <span class="modal-unit">שנים</span>
             </div>
           </div>
           <div class="modal-field">
-            <label class="modal-label">גיל פרישה — <span id="modal-display-user2-name">יעל</span></label>
+            <label class="modal-label">גיל פרישה — <span id="modal-display-user2-name">משתמש 2</span></label>
             <div class="modal-input-row">
               <input type="number" class="modal-input" id="modal-retire-age-yael" min="55" max="80" placeholder="64">
               <span class="modal-unit">שנים</span>
