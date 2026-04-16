@@ -7,8 +7,17 @@ body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; mi
 
 /* HEADER — v119.0 HARD RESET */
 .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 8px; padding: 14px 24px; margin-bottom: 20px; color: white; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; }
+/* v154.0: per-tab header margin overrides */
+body.tab-overview  .header { margin-bottom: -5px !important; padding-bottom: 0px !important; }
+body.tab-simulator .header { margin-bottom: 8px !important; }
+body.tab-pension   .header { margin-bottom: 6px !important; }
 /* v142.0: sim controls wrapper — clean horizontal row, no wrap */
 #sim-hdr-controls { display: flex; flex-direction: row !important; align-items: center !important; gap: 12px !important; flex-wrap: nowrap !important; }
+/* v164.0: admin controls (demo + clear) — hidden globally, shown only on overview tab */
+.admin-controls { display: none; align-items: center; gap: 6px; }
+body.tab-overview .admin-controls { display: flex; }
+.admin-btn { cursor: pointer; background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.38); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 7px 11px; font-size: 11px; font-family: Heebo, sans-serif; font-weight: 600; white-space: nowrap; transition: color .15s, background .15s, border-color .15s; }
+.admin-btn:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.28); }
 .header-title { display: flex; flex-direction: column; flex: 0 0 auto; }
 .header-title h1 { font-size: 15px; font-weight: 800; color: #fff; }
 .header-title p   { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
@@ -783,4 +792,11 @@ input[type="date"] {
 .modal-save-note {
   font-size: 12px;
   color: #4ade80;
+}
+
+/* v167.7: Demo Mode — hide all file-upload trigger buttons */
+body.demo-mode button[onclick*="fileInput"],
+body.demo-mode button[onclick*="fileInput"] *,
+body.demo-mode #pns-upload-hdr-btn {
+  display: none !important;
 }

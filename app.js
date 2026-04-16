@@ -303,6 +303,103 @@ function updateActiveTags(fundKey) {
 const WINDOW = 13;
 let winStart = Math.max(0, LABELS.length - WINDOW);
 
+// =========================================
+// v160.0: GLOBAL STATE PERSISTENCE
+// =========================================
+var _DASH_ASSETS_LS_KEY  = 'dashboard_assets_v1';
+var _DASH_CF_LS_KEY      = 'dashboard_cf_v1';
+var _DASH_PENSION_LS_KEY = 'dashboard_pension_v1';
+
+function _dashSaveAssets() {
+  try {
+    var payload = { labels: Array.from(LABELS), fundData: {}, yaelMeta: {} };
+    Object.keys(FUNDS).forEach(function(k) {
+      payload.fundData[k] = FUNDS[k].data;
+      if (k.startsWith('yd_')) {
+        payload.yaelMeta[k] = { name: FUNDS[k].name, cat: FUNDS[k].cat,
+          owner: FUNDS[k].owner || 'yael', liquidity: FUNDS[k].liquidity,
+          pensionMonthly: !!FUNDS[k].pensionMonthly };
+      }
+    });
+    localStorage.setItem(_DASH_ASSETS_LS_KEY, JSON.stringify(payload));
+  } catch(e) { console.warn('[dash-persist] assets save failed:', e.message); }
+}
+
+function _dashSaveCF() {
+  try {
+    localStorage.setItem(_DASH_CF_LS_KEY, JSON.stringify({
+      data: CF_DATA, currentId: CF_CURRENT_MONTH_ID
+    }));
+  } catch(e) { console.warn('[dash-persist] CF save failed:', e.message); }
+}
+
+function _dashSavePension() {
+  try { localStorage.setItem(_DASH_PENSION_LS_KEY, JSON.stringify(PENSION_ASSETS)); }
+  catch(e) { console.warn('[dash-persist] pension save failed:', e.message); }
+}
+
+function _dashRestoreAssets() {
+  var raw = localStorage.getItem(_DASH_ASSETS_LS_KEY);
+  if (!raw) return false;
+  try {
+    var payload = JSON.parse(raw);
+    if (!payload || !Array.isArray(payload.labels) || !payload.labels.length) return false;
+    LABELS.length = 0;
+    payload.labels.forEach(function(l) { LABELS.push(l); });
+    if (payload.yaelMeta) {
+      Object.keys(payload.yaelMeta).forEach(function(k) {
+        if (!FUNDS[k]) {
+          var m = payload.yaelMeta[k];
+          FUNDS[k] = { name: m.name, cat: m.cat, owner: m.owner,
+            liquidity: m.liquidity, pensionMonthly: m.pensionMonthly,
+            data: new Array(payload.labels.length).fill(null) };
+          FUND_COLORS[k] = '#ec4899';
+        }
+      });
+    }
+    if (payload.fundData) {
+      Object.keys(payload.fundData).forEach(function(k) {
+        if (FUNDS[k]) FUNDS[k].data = payload.fundData[k];
+      });
+    }
+    rebuildInvTotals();
+    ALL_TOTALS.length = 0;
+    LABELS.forEach(function(_, i) {
+      var t = 0;
+      Object.keys(CAT_TOTALS).forEach(function(cat) {
+        t += cat === 'chov' ? -(CAT_TOTALS[cat][i]||0) : (CAT_TOTALS[cat][i]||0);
+      });
+      ALL_TOTALS.push(t);
+    });
+    CAT_CHART_TOTALS = buildCatChartTotals();
+    winStart = Math.max(0, LABELS.length - WINDOW);
+    return true;
+  } catch(e) { console.warn('[dash-persist] assets restore failed:', e.message); return false; }
+}
+
+function _dashRestoreCF() {
+  var raw = localStorage.getItem(_DASH_CF_LS_KEY);
+  if (!raw) return false;
+  try {
+    var payload = JSON.parse(raw);
+    if (!payload || !Array.isArray(payload.data) || !payload.data.length) return false;
+    CF_DATA = payload.data;
+    CF_CURRENT_MONTH_ID = payload.currentId || (typeof cfGetDefaultMonthId === 'function' ? cfGetDefaultMonthId(CF_DATA) : null);
+    return true;
+  } catch(e) { console.warn('[dash-persist] CF restore failed:', e.message); return false; }
+}
+
+function _dashRestorePension() {
+  var raw = localStorage.getItem(_DASH_PENSION_LS_KEY);
+  if (!raw) return false;
+  try {
+    var parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return false;
+    PENSION_ASSETS = parsed;
+    return true;
+  } catch(e) { console.warn('[dash-persist] pension restore failed:', e.message); return false; }
+}
+
 function getWindow(data) {
   return { labels: LABELS.slice(winStart, winStart + WINDOW), data: data.slice(winStart, winStart + WINDOW) };
 }
@@ -1684,10 +1781,11 @@ var chatMode = 'portfolio';
 function setChatMode(mode) {
   chatMode = mode;
   var isExplore = mode === 'explore';
-  document.getElementById('mode-portfolio').style.background = isExplore ? 'transparent' : '#4ade80';
-  document.getElementById('mode-portfolio').style.color = isExplore ? '#aaa' : '#0f0f23';
-  document.getElementById('mode-explore').style.background = isExplore ? '#818cf8' : 'transparent';
-  document.getElementById('mode-explore').style.color = isExplore ? '#0f0f23' : '#aaa';
+  // v151.0: mode buttons removed from chat header — guard against missing elements
+  var _mp = document.getElementById('mode-portfolio');
+  var _me = document.getElementById('mode-explore');
+  if (_mp) { _mp.style.background = isExplore ? 'transparent' : '#4ade80'; _mp.style.color = isExplore ? '#aaa' : '#0f0f23'; }
+  if (_me) { _me.style.background = isExplore ? '#818cf8' : 'transparent'; _me.style.color = isExplore ? '#0f0f23' : '#aaa'; }
   document.getElementById('chat-title').textContent = isExplore ? '🌐 חקור את השוק' : '🤖 שאל את הדשבורד';
   document.getElementById('ci').placeholder = isExplore ? 'למשל: השווה את התיק שלי ל-S&P 500...' : 'שאל על התיק שלך...';
   // נקה שיחה בעת מעבר מוד
@@ -2504,6 +2602,7 @@ function smartUploadRouter(input) {
         console.log('[v138] ציר אירועים → SIM_USER_EVENTS:', evTimelineGroups.length, 'קבוצות');
         if (simInited) { simRenderTimeline(); simRenderChart(simRunEngine()); }
         if (overviewInited && typeof ovRenderSimMini === 'function') ovRenderSimMini();
+        _simSaveUserEvents(); // v162.0: persist permanent Excel events to localStorage
         if (status) {
           status.textContent = '✅ נטענו ' + evTimelineGroups.length + ' אירועים מ"ציר אירועים"';
           status.style.color = '#10b981'; status.style.fontWeight = '600';
@@ -2561,6 +2660,7 @@ function smartUploadRouter(input) {
         if (newData.length > 0) {
           CF_DATA = newData;
           CF_CURRENT_MONTH_ID = cfGetDefaultMonthId(newData); // v19.0: THE CLOCK RULE
+          _dashSaveCF(); // v160.0: persist CF data
           CF_SELECTED_MONTH_ID = null; // איפוס בחירה ידנית בטעינת קובץ חדש
           var _lastM = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
           var _logInc = _lastM ? Math.round(cfCalcIncome(_lastM.rows)) : 0; // v43: חישוב דינמי
@@ -3043,6 +3143,7 @@ function loadExcelFileCore(wb) {
       status.textContent = '✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים';
       status.style.color = '#4ade80';
       setTimeout(function(){ status.style.color = ''; }, 5000);
+      _dashSaveAssets(); // v160.0: persist investment data
 
       // v102.5: עדכן סימולטור עם הון רועי/יעל מהקובץ החדש
       if (simInited) simRefresh();
@@ -3174,7 +3275,7 @@ function openCharts() {
                         '6899425אשגמל','הפניקסגמל926-084678','מורגמל1375900',
                         'אשגמללהשקעה2016-1738','מורגמללהשקעה',
                         'מיטבדשניהולקרנות1693'];
-  var cashFunds      = ['מיטבשקלית','מיטבדשטרייד'];
+  var cashFunds      = ['מזומןשקלי','מזומןדולרי','מיטבשקלית']; // v158.0: match list items exactly (removed מיטבדשטרייד which is cat:meitav, added מזומן funds)
   var activeFunds    = ['מיטבקהש912-443286','6730511אשגמל','מורגמל1375900'];
 
   var eqVal=0, genVal=0, cashVal=0;
@@ -3184,12 +3285,14 @@ function openCharts() {
     var key = entry[0], f = entry[1];
     var v = lastVal(f.data);
     if (!v || v <= 0) return;
-    var isCash   = cashFunds.includes(key);
-    var isEquity = equityFunds.includes(key);
-    var isActive = activeFunds.includes(key);
-    if (isCash)        { cashVal += v; }
-    else if (isEquity) { eqVal   += v; if (isActive) eqActive  += v; }
-    else               { genVal  += v; if (isActive) genActive += v; }
+    var isCash       = cashFunds.includes(key);
+    var isEquity     = equityFunds.includes(key);
+    var isActive     = activeFunds.includes(key);
+    var isRealEstate = (f.cat === 'dira'); // v160.0: exclude real estate from כללי
+    var isDebt       = (f.cat === 'chov');
+    if (isCash)                        { cashVal += v; }
+    else if (isEquity)                 { eqVal   += v; if (isActive) eqActive  += v; }
+    else if (!isRealEstate && !isDebt) { genVal  += v; if (isActive) genActive += v; }
   });
 
   eqVal   = Math.round(eqVal);
@@ -4124,18 +4227,15 @@ function cfSandboxAdd() {
   var isExpense = typeEl && typeEl.value === 'expense';
   var amt = isExpense ? -absAmt : absAmt;
 
-  // v103.2: time-travel block — reject entries before last actual CF month
-  if (CF_DATA && CF_DATA.length > 0) {
-    var lastReal = CF_DATA[cfGetLastRealMonth ? cfGetLastRealMonth() : CF_DATA.length - 1];
-    if (lastReal) {
-      var lastY = lastReal.year, lastM = lastReal.month;
-      if (yr < lastY || (yr === lastY && mo < lastM)) {
-        var errEl = document.getElementById('sb-err');
-        if (errEl) { errEl.textContent = '⚠️ לא ניתן להוסיף ארוע לפני ' + lastReal.label; errEl.style.display = 'block'; }
-        setTimeout(function() { if (errEl) errEl.style.display = 'none'; }, 3000);
-        return;
-      }
-    }
+  // v167.0: time-travel block — reject entries before current calendar month
+  var _nowD = new Date();
+  var _nowY = _nowD.getFullYear();
+  var _nowM = _nowD.getMonth() + 1;
+  if (!(yr > _nowY || (yr === _nowY && mo >= _nowM))) {
+    var errEl = document.getElementById('sb-err');
+    if (errEl) { errEl.textContent = '⚠️ לא ניתן להכניס אירועים לפני ' + _nowM + '/' + _nowY; errEl.style.display = 'block'; }
+    setTimeout(function() { if (errEl) errEl.style.display = 'none'; }, 3000);
+    return;
   }
 
   var lbl = lblEl ? lblEl.value.trim() : '';
@@ -4143,6 +4243,7 @@ function cfSandboxAdd() {
   amtEl.value = ''; if (lblEl) lblEl.value = '';
   cfSandboxRender();
   cfRenderChart();
+  cfRenderSummary(); // v157.0: עדכן סיכום שנתי
   // v103.7: refresh forecast panel if open
   var _fpSb = document.getElementById('cf-detailed-forecast');
   if (_fpSb && _fpSb.style.display !== 'none') cfRenderForecast();
@@ -4152,6 +4253,7 @@ function cfSandboxRemove(idx) {
   CF_SANDBOX_EVENTS.splice(idx, 1);
   cfSandboxRender();
   cfRenderChart();
+  cfRenderSummary(); // v157.0: עדכן סיכום שנתי
   // v103.7: refresh forecast panel if open
   var _fpRm = document.getElementById('cf-detailed-forecast');
   if (_fpRm && _fpRm.style.display !== 'none') cfRenderForecast();
@@ -4168,6 +4270,7 @@ function cfSandboxReset() {
   cfSandboxInitDefaults(); // v103.5: restore date to current Excel month
   cfSandboxRender();
   cfRenderChart();
+  cfRenderSummary(); // v157.0: עדכן סיכום שנתי
   // v103.7: refresh forecast panel if open
   var _fpRst = document.getElementById('cf-detailed-forecast');
   if (_fpRst && _fpRst.style.display !== 'none') cfRenderForecast();
@@ -4192,14 +4295,16 @@ function cfSandboxInitDefaults() {
   cfSandboxUpdateMonthOpts();
 }
 
-// v103.6: disable month <select> options that are before the minimum allowed month
+// v103.6 / v161.0: disable month options before minimum; clamp year to minimum
 function cfSandboxUpdateMonthOpts() {
   var yrEl = document.getElementById('sb-year');
   var moEl = document.getElementById('sb-month');
   if (!yrEl || !moEl) return;
   var minYr = parseInt(yrEl.getAttribute('data-min-yr')) || parseInt(yrEl.min) || new Date().getFullYear();
   var minMo = parseInt(moEl.getAttribute('data-min-mo-at-min-yr')) || 1;
+  // v161.0: clamp year — prevent typing a past year
   var selYr = parseInt(yrEl.value) || minYr;
+  if (selYr < minYr) { yrEl.value = minYr; selYr = minYr; }
   moEl.querySelectorAll('option').forEach(function(opt) {
     opt.disabled = (selYr === minYr && parseInt(opt.value) < minMo);
   });
@@ -4663,16 +4768,13 @@ function cfUpdateHeader() {
   if(elNetLabel) elNetLabel.textContent = 'תזרים שקלי נטו';
   if(elInc){ elInc.textContent = Math.round(inc).toLocaleString(); elInc.className = 'stat-value green'; }
   if(elExp){ elExp.textContent = Math.round(exp).toLocaleString(); elExp.className = 'stat-value red'; }
-  // v98.1/v98.2: רווח או הפסד — כותרת + צבע דינמיים
+  // v98.1/v98.2/v167.1: רווח או הפסד — כותרת + צבע דינמיים; fallback to Income-Expenses if profit_loss missing
   if (elPL) {
-    var plVal = (m.rows.profit_loss && m.rows.profit_loss.val != null) ? m.rows.profit_loss.val : null;
+    var plVal = (m.rows.profit_loss && m.rows.profit_loss.val != null) ? m.rows.profit_loss.val
+              : (cfCalcIncome(m.rows) - ((m.rows.total_exp && m.rows.total_exp.val != null) ? m.rows.total_exp.val : cfCalcExp(m.rows)));
     var elPLLabel = document.getElementById('cf-hdr-pl-label');
     elPL.className = 'stat-value';
-    if (plVal === null) {
-      elPL.textContent = '—';
-      elPL.style.color = '';
-      if (elPLLabel) elPLLabel.textContent = 'רווח או הפסד';
-    } else if (plVal < 0) {
+    if (plVal < 0) {
       elPL.textContent = Math.round(plVal).toLocaleString();
       elPL.style.color = '#c0394e'; // בורדו
       if (elPLLabel) elPLLabel.textContent = 'הפסד';
@@ -5315,6 +5417,16 @@ function cfRenderSummary() {
     annExpUsd += m.rows.exp_usd    && m.rows.exp_usd.val    != null ? m.rows.exp_usd.val    : 0;
     annTotUsd += m.rows.total_usd  && m.rows.total_usd.val  != null ? m.rows.total_usd.val  : 0;
   });
+  // v157.0: כלול ארועי סימולטור זמניים בסיכום השנתי
+  if (CF_SANDBOX_EVENTS && CF_SANDBOX_EVENTS.length) {
+    CF_SANDBOX_EVENTS.forEach(function(ev) {
+      if ((ev.year || 0) === displayYear) {
+        if ((ev.amount || 0) > 0) { annInc += ev.amount; }
+        else                       { annExp += Math.abs(ev.amount || 0); }
+      }
+    });
+    annNet = annInc - annExp;
+  }
   var annNetCol    = annNet    >= 0 ? '#60a5fa' : '#f87171'; // v97.7: תכלת = צבע נטו ראשי (כמו Header KPI)
   var annTotUsdCol = annTotUsd >= 0 ? '#a5b4fc' : '#fca5a5';
 
@@ -5558,6 +5670,7 @@ function cfToggleTable() {
 var TAB_NAMES={'overview':'מבט על','cashflow':'תזרים שוטף','investments':'השקעות','pension':'פנסיה וביטוחים','market':'ניתוח שוק ומסחר','simulator':'סימולטור פיננסי','settings':'הגדרות'};
 var cfInited = false;
 function switchTab(id){
+  try { localStorage.setItem('active_tab', id); } catch(e) {} // v161.0: persist active tab
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
   var btn=document.getElementById('tabn-'+id);
@@ -5566,6 +5679,11 @@ function switchTab(id){
   if(panel)panel.classList.add('active');
   var t=document.getElementById('hdr-tab-title');
   if(t)t.textContent=TAB_NAMES[id]||id;
+  // v154.0: body tab classes for per-tab header margin overrides
+  document.body.classList.remove('tab-overview', 'tab-simulator', 'tab-pension');
+  if(id === 'overview')  document.body.classList.add('tab-overview');
+  if(id === 'simulator') document.body.classList.add('tab-simulator');
+  if(id === 'pension')   document.body.classList.add('tab-pension');
 
   var isCF       = (id === 'cashflow');
   var isInv      = (id === 'investments');
@@ -5678,7 +5796,65 @@ function switchTab(id){
 // v56.2: קרא updateTableCells כדי לאפס תאי HTML לאפס כשאין localStorage
 document.addEventListener('DOMContentLoaded', function() {
   loadSettings(); // v124.0: restore saved settings before any render
-  switchTab('overview');
+
+  // v160.0: restore persisted Excel data so page refresh doesn't wipe the dashboard
+  var _assetsOk  = _dashRestoreAssets();
+  var _cfOk      = _dashRestoreCF();
+  var _pensionOk = _dashRestorePension();
+
+  if (_assetsOk) {
+    // update investment table headers + cells with restored data
+    document.querySelectorAll('th[data-col]').forEach(function(th) {
+      var col = parseInt(th.getAttribute('data-col'));
+      if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
+    });
+    updateTableCells();
+    updateDynamicStats();
+    updateNavButtons();
+    selectView(currentView || 'all');
+  }
+  if (_cfOk) {
+    // CF tab will lazy-init on first open; just ensure default month is set
+    if (typeof cfGetDefaultMonthId === 'function' && CF_DATA.length) {
+      CF_CURRENT_MONTH_ID = CF_CURRENT_MONTH_ID || cfGetDefaultMonthId(CF_DATA);
+    }
+  }
+  if (_pensionOk) {
+    pensionInited = false; // force re-init on tab open
+    // calculate pnsNetMonthly so overview pension card has data immediately
+    var _sldrInit = document.getElementById('pns-tax-slider');
+    if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldrInit ? _sldrInit.value : '35');
+  }
+
+  // v162.0: restore simulator events (permanent Excel events + user-added) before any rendering
+  if (_assetsOk || _cfOk || _pensionOk) {
+    _simRestoreUserEvents();
+  }
+
+  // v161.0: restore last active tab (fallback to overview)
+  var _savedTab = null;
+  try { _savedTab = localStorage.getItem('active_tab'); } catch(e) {}
+  var _validTabs = ['overview','investments','cashflow','pension','simulator','settings','market'];
+  switchTab((_savedTab && _validTabs.indexOf(_savedTab) >= 0) ? _savedTab : 'overview');
+
+  // v162.0: explicitly render charts after restore — mimics loadExcelFileCore() success flow
+  // Fires at 200ms (after switchTab's 80ms lazy-init) to ensure all charts populate on page load
+  if (_assetsOk || _cfOk || _pensionOk) {
+    setTimeout(function() {
+      if (typeof overviewRender === 'function') {
+        if (!overviewInited) overviewInited = true;
+        overviewRender();
+      }
+      // if simulator tab was active and simInit already ran, re-render chart with restored events
+      if (simInited && typeof simRenderChart === 'function' && typeof simRunEngine === 'function') {
+        simRenderKPI();
+        simRenderEvents();
+        simRenderTimeline();
+        simRenderChart(simRunEngine());
+      }
+    }, 200);
+  }
+
   updateTableCells(); // מבטיח שתאי טבלת השקעות מציגים 0 כשאין נתוני localStorage
 
   // v120.0: Dirty state — enable save button whenever any settings input changes
@@ -6781,6 +6957,8 @@ function parseEventsTimelineSheet(wb) {
       console.log('[v143 evts] שורה', ri, '— תאריך לא תקין, מדלג | rawDateStr:', rawDateStr);
       continue;
     }
+    // v153.0: data-level filter — discard past events before they enter PERMANENT_EVENTS
+    if (parseInt(yr, 10) < new Date().getFullYear()) continue;
 
     // One group per YYYY-MM — label from Column A only
     var correctDateIndex = yr + '-' + (mo < 10 ? '0' : '') + mo; // e.g. "2029-10"
@@ -6982,7 +7160,7 @@ function pensionParseWorkbook(wb, sheetName) {
 }
 
 function pensionSaveToStorage() {
-  // v102.5: Stateless — no data persistence between sessions
+  _dashSavePension(); // v160.0: real persistence via _dashSavePension
 }
 
 // =============================================
@@ -7007,6 +7185,9 @@ var SIM_PENSION_ACC    = 0;     // ₪ current pension accumulation — v124.0
 var SIM_RENTAL_INCOME  = 0;     // ₪/month rental income — v124.0
 var SIM_USER1_NAME     = 'רועי'; // display name user 1 — v125.0
 var SIM_USER2_NAME     = 'יעל';  // display name user 2 — v125.0
+// v161.0: hardcoded personal labels (removed Settings inputs — MVP focus)
+var SIM_PENSION_FUND_NAME = 'הפניקס+מבטחים';
+var SIM_SAVINGS_FUND_NAME = 'הראל';
 var SIM_USER1_BIRTH    = '';     // birth date string 'YYYY-MM-DD' — v126.0
 var SIM_USER2_BIRTH    = '';     // birth date string 'YYYY-MM-DD' — v126.0
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
@@ -7030,13 +7211,15 @@ var SIM_RE_GROWTH_RATE = 2.0;    // v122.0: annual % appreciation for real estat
 // v103.41: custom zoom range overrides (null = use defaults)
 var SIM_ZOOM_CUSTOM = { retStart: 2029, retEnd: 2033, decStart: 2029, decEnd: 2039 };
 
-// v103.42: zoom range helpers — retirement=2029-2033 (5yr window), decade=2029-2039
+// v103.42 / v167.7: zoom range helpers
+// 'decade' = next 10 years from TODAY (not from retirement)
 function simGetZoomRange() {
   if (SIM_ZOOM === 'retirement') {
     return { start: SIM_ZOOM_CUSTOM.retStart, end: SIM_ZOOM_CUSTOM.retEnd };
   }
   if (SIM_ZOOM === 'decade') {
-    return { start: SIM_ZOOM_CUSTOM.decStart, end: SIM_ZOOM_CUSTOM.decEnd };
+    var _todayY = new Date().getFullYear();
+    return { start: _todayY, end: _todayY + 10 };
   }
   return { start: SIM_P1_START.y, end: SIM_END.y };
 }
@@ -7565,7 +7748,7 @@ function simRenderChart(result) {
         order: 3
       },
       {
-        label: 'הפניקס+מבטחים',
+        label: SIM_PENSION_FUND_NAME, // v160.0: dynamic fund name
         data: phxTop,
         borderColor: '#60a5fa',
         backgroundColor: 'rgba(96,165,250,0.25)',
@@ -7574,7 +7757,7 @@ function simRenderChart(result) {
         order: 2
       },
       {
-        label: 'הראל',
+        label: SIM_SAVINGS_FUND_NAME, // v160.0: dynamic fund name
         data: hrlTop,
         borderColor: '#34d399',
         backgroundColor: 'rgba(52,211,153,0.20)',
@@ -7622,7 +7805,7 @@ function simRenderChart(result) {
         tension: 0, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 4
       },
       {
-        label: 'הפניקס+מבטחים (רועי)',
+        label: SIM_PENSION_FUND_NAME, // v160.0: dynamic fund name
         data: _cPhxTop,
         borderColor: '#60a5fa',
         backgroundColor: 'rgba(96,165,250,0.20)',
@@ -7630,7 +7813,7 @@ function simRenderChart(result) {
         tension: 0, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 3
       },
       {
-        label: 'הראל (רועי)',
+        label: SIM_SAVINGS_FUND_NAME, // v160.0: dynamic fund name
         data: _cHrlTop,
         borderColor: '#34d399',
         backgroundColor: 'rgba(52,211,153,0.16)',
@@ -7706,7 +7889,7 @@ function simRenderChart(result) {
               if (SIM_XAXIS_MODE === 'both') {
                 if (isNaN(yr)) return null;
                 var byear = (SIM_VIEW === 'yael') ? SIM_BIRTH_YEAR_YAEL : SIM_BIRTH_YEAR_ROY;
-                return ['גיל ' + (yr - byear), String(yr)];
+                return [String(yr - byear), String(yr)];
               } else if (SIM_XAXIS_MODE === 'age') {
                 if (isNaN(yr)) return null;
                 var byear2 = (SIM_VIEW === 'yael') ? SIM_BIRTH_YEAR_YAEL : SIM_BIRTH_YEAR_ROY;
@@ -7766,6 +7949,7 @@ function simRenderChart(result) {
                 v = ctx.parsed.y;
               }
               var _tv = (v !== undefined && v !== null && !isNaN(v)) ? v : 0;
+              if (_tv === 0) return null; // v167.3: hide zero layers from tooltip
               return ' ' + ctx.dataset.label + ': ' + (_tv >= 1000 ? (_tv/1000).toFixed(1)+'M' : Math.round(_tv)+'k');
             },
             // v103.28/v103.40: Total row + events at this year
@@ -7816,24 +8000,34 @@ function simRenderChart(result) {
 }
 
 // ── v103.36: Financial Events Timeline ────────
-var SIM_USER_EVENTS = []; // volatile user-added events (session only)
+var SIM_USER_EVENTS = []; // user-added events — persisted to localStorage (v158.0)
+
+// v158.0: save/restore user events; v162.0: save/restore ALL events (including permanent Excel ones)
+var _SIM_EVENTS_LS_KEY = 'sim_user_events';
+function _simSaveUserEvents() {
+  // v162.0: save entire SIM_USER_EVENTS array (permanent Excel events + user-added events)
+  try { localStorage.setItem(_SIM_EVENTS_LS_KEY, JSON.stringify(SIM_USER_EVENTS)); } catch(e) {}
+}
+function _simRestoreUserEvents() {
+  try {
+    var raw = localStorage.getItem(_SIM_EVENTS_LS_KEY);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    if (!Array.isArray(saved) || !saved.length) return;
+    // v162.0: replace entire array so permanent Excel events are also restored
+    SIM_USER_EVENTS.length = 0;
+    saved.forEach(function(ev){ SIM_USER_EVENTS.push(ev); });
+  } catch(e) {}
+}
 
 // v103.37: collect timeline events from all sources (shared helper)
 function simCollectEvents() {
   var events = [];
   var monthNames = ['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
 
-  if (typeof NOTES !== 'undefined' && NOTES && NOTES.length) {
-    NOTES.forEach(function(n) {
-      if (!n.date) return;
-      var dp = n.date.split('/');
-      if (dp.length < 3) return;
-      var yr = parseInt(dp[2]), mo = parseInt(dp[1]);
-      if (isNaN(yr) || isNaN(mo)) return;
-      var amt = (n.net !== undefined ? n.net : n.gross) || 0;
-      events.push({ yr: yr, mo: mo, label: n.title || n.type || '', amount: amt, color: '#f59e0b', src: 'note' });
-    });
-  }
+  // v155.0: NOTES removed from timeline — they are historical investment records,
+  // not future planned events. Showing them as orange diamonds was misleading.
+
   if (PENSION_EVENTS && PENSION_EVENTS.length) {
     PENSION_EVENTS.forEach(function(ev) {
       if (!ev.date) return;
@@ -7860,9 +8054,9 @@ function simCollectEvents() {
                   rentMonthly: ev.rentMonthly, loanMonthly: ev.loanMonthly,
                   loanEndYear: ev.loanEndYear, loanEndMonth: ev.loanEndMonth, balloonAmount: ev.balloonAmount });
   });
-  // Filter: show only events from sim start year onward (handles both curYr and SIM_P1_START)
-  var filterYr = (typeof SIM_P1_START !== 'undefined') ? SIM_P1_START.y : new Date().getFullYear();
-  events = events.filter(function(ev) { return ev.yr >= filterYr; });
+  // v154.0: data-level filter — absolute floor: never allow any year before 2026 to reach the renderer
+  var _TIMELINE_MIN_YEAR = Math.max(2026, (typeof SIM_P1_START !== 'undefined' ? SIM_P1_START.y : 2026));
+  events = events.filter(function(ev) { return parseInt(ev.yr, 10) >= _TIMELINE_MIN_YEAR; });
   return { events: events, monthNames: monthNames };
 }
 
@@ -7985,8 +8179,11 @@ function simRenderTimeline() {
   }
 
   // ── Event diamond icons — strict range filter (no past events) ──────────
+  var _RENDER_MIN_YR = Math.max(2026, (typeof SIM_P1_START !== 'undefined' ? SIM_P1_START.y : 2026));
   events.forEach(function(ev) {
     if (!ev.yr || ev.yr < startYr || ev.yr > endYr) return;
+    // v154.0: absolute render-phase guard — parseInt ensures no string-type bypass
+    if (parseInt(ev.yr, 10) < _RENDER_MIN_YR) return;
     var px = usePixels ? yrToLeftPx(ev.yr, ev.mo) : 0;
     var diamondLeft = usePixels ? (px - 6).toFixed(1) + 'px' : 'calc(' + yrToLeft(ev.yr, ev.mo) + ' - 6px)';
 
@@ -8181,6 +8378,7 @@ function simConfirmAddEvent() {
   } else {
     SIM_USER_EVENTS.push(ev); // add new
   }
+  _simSaveUserEvents(); // v158.0: persist
 
   simCloseEventModal();
   simRenderTimeline();
@@ -8190,6 +8388,7 @@ function simConfirmAddEvent() {
 function simDeleteEditedEvent() {
   if (SIM_EDIT_IDX === null || SIM_EDIT_IDX < 0) return;
   SIM_USER_EVENTS.splice(SIM_EDIT_IDX, 1);
+  _simSaveUserEvents(); // v158.0: persist
   simCloseEventModal();
   simRenderTimeline();
   simRenderChart(simRunEngine());
@@ -8205,6 +8404,7 @@ function simClearAllUserEvents() {
     }
   }
   if (SIM_USER_EVENTS.length === before) return; // nothing removed
+  localStorage.removeItem(_SIM_EVENTS_LS_KEY); // v158.0: clear persisted events
   simRenderTimeline();
   simRenderChart(simRunEngine());
 }
@@ -8212,6 +8412,7 @@ function simClearAllUserEvents() {
 // kept for backward compat (no longer called from timeline directly)
 function simRemoveUserEvent(idx) {
   SIM_USER_EVENTS.splice(idx, 1);
+  _simSaveUserEvents(); // v158.0: persist
   simRenderTimeline();
   simRenderChart(simRunEngine());
 }
@@ -8554,6 +8755,14 @@ function simInit() {
   var expValEl = document.getElementById('sim-exp-val');
   if (expValEl) expValEl.textContent = simFmtNIS(SIM_TARGET_EXP);
 
+  // v158.0: restore user-added events from localStorage before rendering
+  _simRestoreUserEvents();
+
+  // v156.0: sync saved settings → sliders before first render (silent: skip re-render, simInit renders below)
+  if (typeof syncSettingsToSliders === 'function') {
+    var _si = simInited; simInited = false; syncSettingsToSliders(); simInited = _si;
+  }
+
   // v137.0: apply saved default zoom before rendering so chart + timeline use correct range
   if (SIM_DEFAULT_ZOOM && SIM_DEFAULT_ZOOM !== SIM_ZOOM) SIM_ZOOM = SIM_DEFAULT_ZOOM;
   simRenderKPI();
@@ -8626,7 +8835,16 @@ function ovRenderKPIs() {
   // 1. Last month net profit (delta = total NIS profit incl. USD)
   var lastIdx = (typeof cfGetLastRealMonth === 'function') ? cfGetLastRealMonth() : CF_DATA.length - 1;
   var lastRow = CF_DATA[lastIdx] && CF_DATA[lastIdx].rows;
-  var netProfit = lastRow && lastRow.delta ? (lastRow.delta.val || 0) : 0;
+  var netProfit = 0;
+  if (lastRow) {
+    if (lastRow.delta && lastRow.delta.val != null && !isNaN(lastRow.delta.val)) {
+      netProfit = lastRow.delta.val;
+    } else {
+      var _inc = (typeof cfCalcIncome === 'function') ? cfCalcIncome(lastRow) : ((lastRow.salary ? (lastRow.salary.val || 0) : 0) + (lastRow.rent_income ? (lastRow.rent_income.val || 0) : 0));
+      var _exp = lastRow.total_exp ? (lastRow.total_exp.val || 0) : ((lastRow.visa ? (lastRow.visa.val || 0) : 0) + (lastRow.cash_exp ? (lastRow.cash_exp.val || 0) : 0));
+      netProfit = _inc - _exp;
+    }
+  }
   var profitEl = el('ov-hdr-profit');
   if (profitEl) {
     profitEl.textContent = netProfit !== 0 ? Math.round(netProfit).toLocaleString('he-IL') : '—';
@@ -9048,10 +9266,10 @@ function ovRenderSimMini() {
     type: 'line',
     data: {
       datasets: [
-        { label:'נדל״ן',          data:_mkXY(re),     borderColor:'#a0522d', backgroundColor:'rgba(184,115,51,0.50)', fill:'origin', tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:4 },
-        { label:'השקעות',          data:_mkXY(liqTop), borderColor:'#1e40af', backgroundColor:'rgba(30,64,175,0.45)',  fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:3 },
-        { label:'הפניקס+מבטחים',  data:_mkXY(phxTop), borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.25)', fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:2 },
-        { label:'הראל',            data:_mkXY(hrlTop), borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.20)', fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:1 }
+        { label:'נדל״ן',                              data:_mkXY(re),     borderColor:'#a0522d', backgroundColor:'rgba(184,115,51,0.50)', fill:'origin', tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:4 },
+        { label:'השקעות',                             data:_mkXY(liqTop), borderColor:'#1e40af', backgroundColor:'rgba(30,64,175,0.45)',  fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:3 },
+        { label:SIM_PENSION_FUND_NAME,               data:_mkXY(phxTop), borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.25)', fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:2 }, // v163.0: hardcoded MVP labels
+        { label:SIM_SAVINGS_FUND_NAME,               data:_mkXY(hrlTop), borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.20)', fill:'-1',     tension:0, borderWidth:1.5, pointRadius:0, pointHoverRadius:4, order:1 }  // v163.0: hardcoded MVP labels
       ]
     },
     options: {
@@ -9072,6 +9290,7 @@ function ovRenderSimMini() {
               else if (ctx.datasetIndex === 1) v = liq[di] || 0;
               else if (ctx.datasetIndex === 2) v = phx[di] || 0;
               else v = hrl[di] || 0;
+              if (v === 0) return null; // v167.9: hide zero layers from tooltip
               return ' ' + ctx.dataset.label + ': ' + (v >= 1000 ? (v/1000).toFixed(1)+'M' : Math.round(v)+'k');
             },
             footer: function(items) {
@@ -9163,8 +9382,11 @@ function ovRenderSimMini() {
       }
 
       // Event diamonds
+      var _OV_MIN_YR = Math.max(2026, (typeof SIM_P1_START !== 'undefined' ? SIM_P1_START.y : 2026));
       evs.forEach(function(ev) {
         if (!ev.yr) return;
+        // v154.0: absolute render-phase guard — parseInt ensures no string-type bypass
+        if (parseInt(ev.yr, 10) < _OV_MIN_YR) return;
         var dL = usePixels
           ? (parseFloat(yrToLeft(ev.yr)) - 5).toFixed(1) + 'px'
           : 'calc(' + yrToLeft(ev.yr) + ' - 5px)';
@@ -9733,10 +9955,10 @@ function loadSettings() {
   };
   // Text + date inputs need separate handling
   var txtFld = {
-    'stg-user1-name':  SIM_USER1_NAME,
-    'stg-user2-name':  SIM_USER2_NAME,
-    'stg-user1-birth': SIM_USER1_BIRTH,
-    'stg-user2-birth': SIM_USER2_BIRTH
+    'stg-user1-name':        SIM_USER1_NAME,
+    'stg-user2-name':        SIM_USER2_NAME,
+    'stg-user1-birth':       SIM_USER1_BIRTH,
+    'stg-user2-birth':       SIM_USER2_BIRTH,
   };
   Object.keys(fld).forEach(function(id) {
     var el = document.getElementById(id);
@@ -9749,9 +9971,35 @@ function loadSettings() {
 
   applyUserNames();
 
+  // v156.0: sync loaded globals into simulator slider DOM
+  syncSettingsToSliders();
+
   // v120.0: dirty state — save button starts disabled after load
   var _saveBtn = document.querySelector('.settings-save-btn');
   if (_saveBtn) _saveBtn.disabled = true;
+}
+
+// v156.0: sync global SIM_* vars → simulator slider + numeric inputs without multiple re-renders.
+// Call after globals are updated (loadSettings / saveSettings).
+// Only triggers chart re-render when simulator is already initialised.
+function syncSettingsToSliders() {
+  function _set(sliderId, numId, val) {
+    var sl  = document.getElementById(sliderId);
+    var num = document.getElementById(numId);
+    if (sl  && sl.value  != val) sl.value  = val;
+    if (num && num.value != val) num.value = val;
+  }
+  _set('sim-instr-slider',           'sim-instr-num',            SIM_INSTRUCTOR_SAL);
+  _set('sim-pension-monthly-slider', 'sim-pension-monthly-num',  SIM_PENSION_MONTHLY);
+  _set('sim-rate-slider',            'sim-rate-num',             SIM_RATE);
+  _set('pns-ret-yield-slider',       'pns-ret-yield-num',        SIM_PENSION_RATE);
+  _set('sim-inflation-slider',       'sim-inflation-num',        SIM_INFLATION);
+  _set('sim-re-growth-slider',       'sim-re-growth-num',        SIM_RE_GROWTH_RATE);
+  // Re-render simulator only when already initialised (safe to call at any time)
+  if (simInited) {
+    if (typeof simRenderKPI   === 'function') simRenderKPI();
+    if (typeof simRenderChart === 'function' && typeof simRunEngine === 'function') simRenderChart(simRunEngine());
+  }
 }
 
 function saveSettings() {
@@ -9808,9 +10056,11 @@ function saveSettings() {
   SIM_USER2_NAME          = user2Name;
   SIM_USER1_BIRTH         = user1Birth;
   SIM_USER2_BIRTH         = user2Birth;
-
   // v128.0: sync birth years + recalculate ALL phase boundaries
   syncBirthYearsFromSettings();
+
+  // v156.0: push updated globals into simulator slider DOM immediately
+  syncSettingsToSliders();
 
   // Persist to localStorage
   localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify({
@@ -9825,10 +10075,10 @@ function saveSettings() {
     capitalTax:     capitalTax,
     pensionAcc:     pensionAcc,
     rentalIncome:   rentalIncome,
-    user1Name:      user1Name,
-    user2Name:      user2Name,
-    user1Birth:     user1Birth,
-    user2Birth:     user2Birth
+    user1Name:        user1Name,
+    user2Name:        user2Name,
+    user1Birth:       user1Birth,
+    user2Birth:       user2Birth,
   }));
 
   // v120.0: Show success feedback; keep button disabled after save (dirty-state logic)
@@ -9896,6 +10146,7 @@ function applyUserNames() {
     var el = document.getElementById(id);
     if (el) el.textContent = SIM_USER2_NAME;
   });
+
 }
 
 // v126.0: Calculate the calendar year of retirement given a birth date string and retirement age
@@ -10054,4 +10305,234 @@ function saveModalSettings() {
     if (btn) btn.textContent = '💾 שמור ועדכן';
     if (note) note.textContent = '';
   }, 2200);
+}
+
+// =============================================
+// v167.8: DEMO MODE — rewritten for clean chart rendering
+// =============================================
+function loadDemoData() {
+  // ── 0. Clear ALL stale state that could contaminate demo charts ──
+  // FUND_COL_K: Column K Excel deposits used for organic-growth subtraction
+  Object.keys(FUND_COL_K).forEach(function(k){ delete FUND_COL_K[k]; });
+  // PENSION_EVENTS: lump-sum events parsed from real pension Excel (never persisted → clear in-memory)
+  PENSION_EVENTS.length = 0;
+  // SIM_USER_EVENTS: user-added simulator events (will save empty array to localStorage below)
+  SIM_USER_EVENTS.length = 0;
+
+  // ── 1. FUNDS — base data for Jan 25 – Mar 26 (15 months), then forward-fill to LABELS.length ──
+  // simGetRoyCapital() sums all non-yael, non-dira, non-pensionMonthly funds (in K)
+  // RULE: do NOT duplicate funds that are also in PENSION_ASSETS accumulation
+  // v166.0: arrays extended dynamically to LABELS.length so chart never drops to 0 if real data
+  //         had more months (e.g. April 26 = index 15) than the hardcoded 15 demo values.
+  var N = LABELS.length;
+  var _demoBase = {
+    // פוליסת חיסכון (harel) — savings policy, grows steadily
+    'הראלמגוון-פוליסתחיסכ': [1800,1820,1845,1865,1890,1915,1940,1960,1985,2010,2035,2058,2080,2103,2125],
+    // קרן השתלמות (hishtalmut) — education fund, main savings vehicle
+    'מיטבקהש912-443286':    [2400,2428,2457,2487,2518,2550,2582,2615,2649,2683,2718,2754,2790,2827,2864],
+    // קופת גמל (gemel) — pension-type savings
+    'מורגמל1375900':        [820,830,840,851,862,874,886,898,911,924,937,951,965,979,993],
+    // דירה (dira) — apartment, constant
+    'דירה':                 [2800,2800,2800,2800,2800,2800,2800,2800,2800,2800,2800,2800,2800,2800,2800],
+    // מזומן (mezuman) — cash / checking account
+    'מזומןשקלי':            [280,295,308,322,337,350,364,379,395,410,426,442,458,475,492],
+  };
+  Object.keys(FUNDS).forEach(function(key) {
+    if (_demoBase[key]) {
+      var arr = _demoBase[key].slice(); // copy 15 base values
+      // v166.0: forward-fill with gentle growth for any LABELS months beyond Mar 26 (index 14)
+      var growthRate = (key === 'דירה') ? 1 : 1.008; // flat for real-estate, ~0.8%/mo for savings
+      while (arr.length < N) {
+        arr.push(Math.round(arr[arr.length - 1] * growthRate));
+      }
+      FUNDS[key].data = arr;
+    } else {
+      FUNDS[key].data = new Array(N).fill(null);
+    }
+  });
+  // v167.1: explicit real-estate override — ensures 2800K (2.8M NIS) regardless of base array
+  if (FUNDS['דירה']) FUNDS['דירה'].data = new Array(N).fill(2800);
+
+  rebuildInvTotals();
+  ALL_TOTALS.length = 0;
+  LABELS.forEach(function(_, i) {
+    var t = 0;
+    Object.keys(CAT_TOTALS).forEach(function(cat) {
+      t += cat === 'chov' ? -(CAT_TOTALS[cat][i]||0) : (CAT_TOTALS[cat][i]||0);
+    });
+    ALL_TOTALS.push(t);
+  });
+  CAT_CHART_TOTALS = buildCatChartTotals();
+  winStart = Math.max(0, LABELS.length - WINDOW);
+
+  // ── 2. CF data — 2025 (historical) + 2026 full year + 2027 full year ──
+  // CRITICAL: vals are in THOUSANDS of NIS (simGetCurrentSalary() multiplies val*1000)
+  //   salary: 35 → 35,000 NIS/month | total_exp: 22 → 22,000 NIS/month
+  // v166.0: include ALL 12 months of 2026 + 2027 so cashflow bar chart shows full projected year
+  //   ovRenderCashflowChart filters CF_DATA by year===curYear (2026) → needs 12 bars, not just 3
+  function _cfRow(yr, mo, lbl) {
+    var mid = yr + '-' + (mo < 10 ? '0' : '') + mo;
+    return {
+      year: yr, month: mo, monthId: mid, label: lbl,
+      rows: {
+        salary:       { val: 35,   note: 'משכורת (דמו)' },
+        rent_income:  { val: 4.5,  note: 'שכ"ד (דמו)' },
+        other_income: { val: 0 },
+        visa:         { val: 12,   note: 'ויזה (דמו)' },
+        cash_exp:     { val: 10,   note: 'מזומן (דמו)' },
+        total_exp:    { val: 22 }
+      }
+    };
+  }
+  var _cfLbls = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  var _demoNowY = new Date().getFullYear();
+  var _demoPrevY = _demoNowY - 1;
+  CF_DATA = [];
+  // Previous year: 12 historical months
+  for (var _m = 1; _m <= 12; _m++) { CF_DATA.push(_cfRow(_demoPrevY, _m, _cfLbls[_m] + ' ' + String(_demoPrevY).slice(2))); }
+  // Current year: all 12 months (historical + projected)
+  for (var _m = 1; _m <= 12; _m++) { CF_DATA.push(_cfRow(_demoNowY, _m, _cfLbls[_m] + ' ' + String(_demoNowY).slice(2))); }
+  CF_CURRENT_MONTH_ID = typeof cfGetDefaultMonthId === 'function'
+    ? (cfGetDefaultMonthId(CF_DATA) || (_demoNowY + '-' + (new Date().getMonth() < 9 ? '0' + (new Date().getMonth() + 1) : String(new Date().getMonth() + 1))))
+    : (_demoNowY + '-04');
+
+  // ── 3. Pension — ONE policy (הפניקס pension ONLY, no overlap with FUNDS) ──
+  // accumulation in full NIS → simulator divides by 1000 to get K
+  // lastPremium in NIS/month → monthly Phoenix premium deducted pre-retirement
+  // expectedPension in NIS/month → monthly pension income post-retirement
+  PENSION_ASSETS = [
+    {
+      id: 'demo-phoenix-pension',
+      provider: 'הפניקס', policyType: 'ביטוח מנהלים', policyId: '',
+      accumulation: 1600000,   // 1.6M NIS → 1600K in simulator (royPhoenixCap)
+      expectedPension: 8500,   // NIS/month gross pension at retirement
+      currentPension: 0,
+      lastPremium: 2800,       // NIS/month current monthly contribution
+      realEstateIncome: 0,
+      owner: 'רועי', isRisk: false,
+      isPendingReview: false, mainPurpose: 'פנסיה'
+    }
+  ];
+  // v167.1: second pension — push to avoid overwriting הפניקס
+  PENSION_ASSETS.push({
+    id: 'demo-altschuler-pension',
+    name: 'אלטשולר - פנסיה',
+    provider: 'אלטשולר', policyType: 'פנסיה', policyId: '',
+    accumulation: 850000,    // 850K NIS
+    expectedPension: 4200,   // NIS/month gross pension at retirement
+    currentPension: 0,
+    lastPremium: 1500,       // NIS/month current monthly contribution
+    realEstateIncome: 0,
+    owner: 'רועי', isRisk: false,
+    isPendingReview: false, mainPurpose: 'פנסיה'
+  });
+
+  // ── 4. Persist everything ──
+  _dashSaveAssets();
+  _dashSaveCF();
+  _dashSavePension();
+  _simSaveUserEvents(); // saves empty SIM_USER_EVENTS to localStorage
+
+  // ── 5. Override simulator labels + anonymize users (v167.2/v167.3) ──
+  SIM_PENSION_FUND_NAME = 'הפניקס';
+  SIM_SAVINGS_FUND_NAME = 'אלטשולר - פנסיה';
+  SIM_USER1_NAME    = 'דן';
+  SIM_USER2_NAME    = 'דינה';
+  SIM_USER1_BIRTH   = '1975-01-01';
+  SIM_USER2_BIRTH   = '1978-05-15';
+  SIM_BIRTH_YEAR_ROY  = 1975;
+  SIM_BIRTH_YEAR_YAEL = 1978;
+  userCurrentAge = new Date().getFullYear() - 1975;
+  // v167.5: recompute ALL phase boundaries (P2/P3/END) from the demo birth years so the
+  // simulator X-axis and retirement line reflect Dan (1975) not the real user's age
+  syncBirthYearsFromSettings();
+  if (typeof applyUserNames === 'function') applyUserNames(); // v167.4: update all name spans immediately
+
+  // v167.3: persist anonymized names/DOBs into settings localStorage so Settings tab reflects them
+  (function() {
+    var _sRaw = localStorage.getItem(SETTINGS_LS_KEY);
+    var _s = {};
+    try { _s = JSON.parse(_sRaw) || {}; } catch(e) {}
+    _s.user1Name  = 'דן';   _s.user2Name  = 'דינה';
+    _s.user1Birth = '1975-01-01'; _s.user2Birth = '1978-05-15';
+    try { localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(_s)); } catch(e) {}
+    // Update DOM inputs immediately (Settings panel may already be rendered)
+    var _domMap = { 'stg-user1-name':'דן', 'stg-user2-name':'דינה', 'stg-user1-birth':'1975-01-01', 'stg-user2-birth':'1978-05-15' };
+    Object.keys(_domMap).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = _domMap[id]; });
+  })();
+
+  // v167.3: force cashflow UI to current month so sandbox validation is correct from the start
+  cfInited = false;
+  if (typeof cfSandboxInitDefaults === 'function') cfSandboxInitDefaults();
+
+  // ── 6. Force all retirement phase boundaries for demo users (v167.8) ──
+  // Explicitly override every variable the engine loop uses for phase transitions.
+  // Do NOT rely on syncBirthYearsFromSettings() alone — localStorage settings may
+  // carry the real user's retirement ages (e.g. retireYael=66 → 1963+66=2029).
+  SIM_RETIREMENT_AGE_ROY  = 67;  // Dan retires at 67
+  SIM_RETIREMENT_AGE_YAEL = 64;  // Dina / phase-2 transition age
+  SIM_P2_START.y = 1975 + SIM_RETIREMENT_AGE_YAEL; // 2039 — Dan's instructor phase start
+  SIM_P2_START.m = 9;
+  SIM_P3_START.y = 1975 + SIM_RETIREMENT_AGE_ROY;  // 2042 — Dan's full retirement
+  SIM_P3_START.m = 9;
+  SIM_END.y      = 1975 + 95;  // 2070 — simulation end cap
+  // Sync zoom-range custom overrides to the new retirement year
+  SIM_ZOOM_CUSTOM.retStart = SIM_P3_START.y;
+  SIM_ZOOM_CUSTOM.retEnd   = SIM_P3_START.y + 4;
+  SIM_ZOOM_CUSTOM.decStart = SIM_P3_START.y;
+  SIM_ZOOM_CUSTOM.decEnd   = SIM_P3_START.y + 10;
+
+  // ── Bulletproof simulator chart reset (v167.7) ──
+  // Destroy the existing Chart.js instance so it can't reuse cached X-axis arrays
+  if (simChartObj) { try { simChartObj.destroy(); } catch(e) {} simChartObj = null; }
+  simInited = false; // force full re-init (new birth years → new phase boundaries → new X-axis)
+  // If simulator tab is already visible, re-init immediately; otherwise it inits on next tab open
+  if (document.getElementById('tab-simulator') &&
+      document.getElementById('tab-simulator').classList.contains('active')) {
+    simInit();
+  }
+
+  // ── 6. Trigger init flow (mirrors DOMContentLoaded success path) ──
+  document.querySelectorAll('th[data-col]').forEach(function(th) {
+    var col = parseInt(th.getAttribute('data-col'));
+    if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
+  });
+  updateTableCells();
+  updateDynamicStats();
+  updateNavButtons();
+  selectView(currentView || 'all');
+
+  pensionInited = false;
+  var _sldr = document.getElementById('pns-tax-slider');
+  if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldr ? _sldr.value : '35');
+
+  switchTab('overview');
+
+  setTimeout(function() {
+    if (typeof overviewRender === 'function') {
+      if (!overviewInited) overviewInited = true;
+      overviewRender();
+    }
+  }, 200);
+
+  // v167.7: CSS class approach — robust against timing/display:flex conflicts
+  document.body.classList.add('demo-mode');
+
+  // Show status message
+  var _st = document.getElementById('excel-status');
+  if (_st) {
+    _st.textContent = '✅ נטענו נתוני דמו — ניתן להציג בפני כולם';
+    _st.style.color = '#86efac';
+    setTimeout(function(){ _st.textContent = ''; _st.style.color = ''; }, 5000);
+  }
+}
+
+// =============================================
+// v166.0: CLEAR DATA / LOGOUT
+// =============================================
+function clearDashboardData() {
+  if (!confirm('האם למחוק את כל הנתונים ולחזור למסך הפתיחה?\nפעולה זו אינה ניתנת לביטול.')) return;
+  document.body.classList.remove('demo-mode');
+  localStorage.clear();
+  location.reload();
 }
