@@ -1,4 +1,4 @@
-<!-- v167.9 -->
+<!-- v168.58 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -38,7 +38,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v167.9</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.58</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -185,6 +185,42 @@
       <div class="stat-label" id="ov-hdr-wealth-label">הון חזוי לגיל 67</div>
       <div class="stat-value" id="ov-hdr-wealth" style="color:#fbbf24;line-height:1.15;">—</div>
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ₪</div>
+    </div>
+  </div>
+
+  <!-- v168.22: Market tab header — TA-125 | S&P 500 | USD/ILS -->
+  <div id="mkt-header-stats" class="header-stats" style="display:none;direction:ltr;gap:40px;padding:0 20px;margin-right:auto;flex-shrink:0;">
+    <!-- TA-125 -->
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label" style="text-align:left;font-size:9px;letter-spacing:0.3px;">ת"א 125</div>
+      <div class="stat-value" id="mkt-hdr-ta125-price" style="color:#60a5fa;line-height:1.15;font-size:16px;">—</div>
+      <div id="mkt-hdr-ta125-chg" style="min-height:14px;font-size:10px;font-weight:700;line-height:1;margin-top:1px;color:#94a3b8;">—</div>
+    </div>
+    <div class="divider"></div>
+    <!-- S&P 500 -->
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label" style="text-align:left;font-size:9px;letter-spacing:0.3px;">S&amp;P 500</div>
+      <div class="stat-value" id="mkt-hdr-sp500-price" style="color:#60a5fa;line-height:1.15;font-size:16px;">—</div>
+      <div id="mkt-hdr-sp500-chg" style="min-height:14px;font-size:10px;font-weight:700;line-height:1;margin-top:1px;color:#94a3b8;">—</div>
+    </div>
+    <div class="divider"></div>
+    <!-- USD/ILS -->
+    <div class="stat-item" style="gap:0;">
+      <div class="stat-label" style="text-align:left;font-size:9px;letter-spacing:0.3px;">USD/ILS</div>
+      <div class="stat-value" id="mkt-hdr-fx-price" style="color:#a78bfa;line-height:1.15;font-size:16px;">—</div>
+      <div id="mkt-hdr-fx-chg" style="min-height:14px;font-size:10px;font-weight:700;line-height:1;margin-top:1px;color:#94a3b8;">—</div>
+    </div>
+    <div class="divider"></div>
+    <!-- Fear & Greed compact (v168.35) -->
+    <div class="stat-item" style="gap:2px;align-items:center;">
+      <div class="stat-label" style="text-align:left;font-size:9px;letter-spacing:0.3px;">Fear &amp; Greed</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <canvas id="fng-gauge" width="56" height="32" style="display:block;"></canvas>
+        <div>
+          <div id="fng-value" style="font-size:15px;font-weight:900;color:#94a3b8;line-height:1;">—</div>
+          <div id="fng-label" style="font-size:9px;font-weight:700;color:#94a3b8;line-height:1;margin-top:2px;">N/A</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -738,6 +774,10 @@
 <div id="cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
   <div style="padding:12px 16px;background:#0f0f23;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
     <span id="chat-title" style="color:white;font-family:Heebo,sans-serif;font-size:17px;font-weight:700;">🤖 שאל את הדשבורד</span>
+    <div id="chat-context-btns" style="display:none;gap:6px;align-items:center;">
+      <button id="mode-portfolio" onclick="setChatMode('portfolio')" style="cursor:pointer;background:#4ade80;color:#0f0f23;border:none;border-radius:7px;padding:5px 11px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;">תיק 🏠</button>
+      <button id="mode-explore" onclick="setChatMode('explore')" style="cursor:pointer;background:transparent;color:#aaa;border:1px solid rgba(255,255,255,0.2);border-radius:7px;padding:5px 11px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;">חקור 🌐</button>
+    </div>
     <span onclick="toggleChat()" style="color:#888;cursor:pointer;font-size:18px;">✕</span>
   </div>
   <div id="cm" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:240px;max-height:420px;"></div>
@@ -1201,16 +1241,18 @@
       </div>
     </div>
 
-    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+    <div style="display:flex;gap:14px;align-items:flex-start;">
 
       <!-- Main Content Column -->
-      <div style="flex:1;min-width:0;">
+      <div style="flex:0.7;min-width:0;">
 
         <!-- Main Chart -->
         <div style="background:#141c2e;border-radius:16px;padding:18px;margin-bottom:12px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
             <span style="font-size:13px;font-weight:700;color:#cbd5e1;">גרף מניה</span>
             <div id="mkt-period-btns" style="display:flex;gap:5px;">
+              <button class="mkt-period-btn" onclick="mktSetPeriod('1d')" data-p="1d">1D</button>
+              <button class="mkt-period-btn" onclick="mktSetPeriod('5d')" data-p="5d">5D</button>
               <button class="mkt-period-btn active" onclick="mktSetPeriod('1m')" data-p="1m">1M</button>
               <button class="mkt-period-btn" onclick="mktSetPeriod('3m')" data-p="3m">3M</button>
               <button class="mkt-period-btn" onclick="mktSetPeriod('6m')" data-p="6m">6M</button>
@@ -1240,12 +1282,29 @@
               <option value="QQQ">מול נאסד"ק</option>
               <option value="IWM">מול Russell 2000</option>
             </select>
-            <div style="display:flex;align-items:center;gap:7px;margin-right:auto;">
-              <span style="font-size:11px;color:#64748b;white-space:nowrap;">רגישות USD/ILS:</span>
-              <input type="range" id="mkt-fx-slider" min="3.00" max="4.50" step="0.01" value="3.50"
-                oninput="mktFxChange(this.value)"
-                style="width:90px;accent-color:#3b82f6;cursor:pointer;">
-              <span id="mkt-fx-val" style="font-size:11px;color:#60a5fa;font-weight:700;min-width:32px;">3.50</span>
+            <div style="display:flex;align-items:center;gap:16px;margin-right:auto;flex-wrap:wrap;">
+              <!-- FX slider -->
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11px;color:#64748b;white-space:nowrap;">USD/ILS:</span>
+                <input type="range" id="mkt-fx-slider" min="2.5" max="3.5" step="0.01" value="3.00"
+                  oninput="mktFxChange(this.value)"
+                  style="width:80px;accent-color:#3b82f6;cursor:pointer;">
+                <span id="mkt-fx-val" style="font-size:11px;color:#60a5fa;font-weight:700;min-width:30px;">3.00</span>
+              </div>
+              <!-- Inflation toggle + slider -->
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="font-size:11px;color:#64748b;white-space:nowrap;">שחיקה ריאלית:</span>
+                <div onclick="mktInflationToggle()" style="position:relative;width:34px;height:18px;border-radius:9px;background:#1e2d4a;border:1.5px solid #3b4f6e;transition:background 0.2s;flex-shrink:0;cursor:pointer;" id="mkt-inflation-track">
+                  <div id="mkt-inflation-thumb" style="position:absolute;top:2px;right:16px;width:12px;height:12px;border-radius:50%;background:#475569;transition:right 0.2s,background 0.2s;"></div>
+                </div>
+              </div>
+              <div id="mkt-inflation-slider-row" style="display:flex;align-items:center;gap:6px;opacity:0.45;transition:opacity 0.2s;">
+                <span style="font-size:11px;color:#64748b;white-space:nowrap;">אינפלציה:</span>
+                <input type="range" id="mkt-inflation-slider" min="0" max="10" step="0.5" value="0"
+                  oninput="mktInflationChange(this.value)"
+                  style="width:70px;accent-color:#a78bfa;cursor:pointer;">
+                <span id="mkt-inflation-val" style="font-size:11px;color:#a78bfa;font-weight:700;min-width:32px;">0.0%</span>
+              </div>
             </div>
           </div>
           <div style="height:160px;position:relative;width:100%;display:block;">
@@ -1256,7 +1315,7 @@
       </div><!-- end main column -->
 
       <!-- Sidebar: AI + News -->
-      <div id="mkt-ai-panel" style="width:290px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+      <div id="mkt-ai-panel" style="flex:0.3;min-width:220px;display:flex;flex-direction:column;gap:10px;">
 
         <!-- AI Chat -->
         <div style="background:#141c2e;border-radius:16px;overflow:hidden;border:1px solid #1e2d4a;">
@@ -1323,15 +1382,27 @@
 
     <!-- ── Mountain Chart (v103.31: X-axis toggle + Scale selector + Target age) ── -->
     <div class="sim-chart-section" style="display:none;">
-      <div style="position:relative;">
-        <!-- Left overlay: X-axis mode toggles -->
-        <div style="position:absolute;top:6px;left:8px;z-index:5;display:flex;align-items:center;gap:4px;">
-          <button id="sim-xaxis-year" onclick="simSetXAxisMode('year')" style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שנה</button>
-          <button id="sim-xaxis-age" onclick="simSetXAxisMode('age')" style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">גיל</button>
-          <button id="sim-xaxis-both" onclick="simSetXAxisMode('both')" style="padding:2px 9px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שניהם</button>
+      <!-- v168.58: 4-container Flexbox cockpit header — direction:ltr forces screen-order L→R -->
+      <div style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;width:100%;padding:10px 0;gap:15px;direction:ltr;">
+
+        <!-- POS 1 — FAR LEFT: X-axis mode (שנה / גיל / שניהם) -->
+        <div style="display:flex;flex-direction:row;align-items:center;gap:4px;flex:0 0 auto;">
+          <button id="sim-xaxis-year"  onclick="simSetXAxisMode('year')"  style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שנה</button>
+          <button id="sim-xaxis-age"   onclick="simSetXAxisMode('age')"   style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">גיל</button>
+          <button id="sim-xaxis-both"  onclick="simSetXAxisMode('both')"  style="padding:2px 9px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שניהם</button>
         </div>
-        <!-- Right overlay: Scale selector + Zoom (v103.40) -->
-        <div style="position:absolute;top:4px;right:8px;z-index:5;display:flex;align-items:center;gap:6px;direction:rtl;">
+
+        <!-- POS 2: Nominal / Real (נומינלי #000080 Navy | ריאלי #800000 Bordeaux) -->
+        <div style="display:flex;flex-direction:row;align-items:center;gap:5px;flex:0 0 auto;">
+          <button id="sim-viewmode-nominal" class="sim-viewmode-btn sim-viewmode-nominal-active" onclick="simSetViewMode('nominal')">נומינלי</button>
+          <button id="sim-viewmode-real"    class="sim-viewmode-btn"                             onclick="simSetViewMode('real')">ריאלי</button>
+        </div>
+
+        <!-- POS 3: Chart legend — 12×12px color squares, populated by simUpdateLegend() -->
+        <div id="sim-legend-html" style="display:flex;flex-direction:row;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap;"></div>
+
+        <!-- POS 4 — FAR RIGHT: Scale selector + Zoom buttons -->
+        <div style="display:flex;flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;">
           <span style="font-size:9px;color:#6b7280;font-family:Heebo,sans-serif;">סקאלה:</span>
           <select id="sim-yscale-select" onchange="simSetYScale(this.value)"
             style="padding:2px 6px;border-radius:6px;border:1px solid rgba(0,0,0,0.18);background:rgba(255,255,255,0.92);font-size:9px;font-family:Heebo,sans-serif;color:#374151;cursor:pointer;outline:none;">
@@ -1341,16 +1412,18 @@
             <option value="100000">100M</option>
             <option value="120000">120M</option>
           </select>
-          <span style="font-size:9px;color:rgba(107,114,128,0.5);margin:0 1px;">|</span>
-          <span style="font-size:9px;color:#6b7280;font-family:Heebo,sans-serif;">זום:</span>
+          <span style="font-size:9px;color:rgba(107,114,128,0.4);">|</span>
           <button id="sim-zoom-full"       onclick="simSetZoom('full')"       style="padding:2px 7px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
           <button id="sim-zoom-retirement" onclick="simSetZoom('retirement')" style="padding:2px 7px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">פרישה</button>
           <button id="sim-zoom-decade"     onclick="simSetZoom('decade')"     style="padding:2px 7px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">טווח</button>
           <button onclick="simToggleZoomSettings()" title="הגדרות טווח זום" style="padding:2px 5px;border-radius:20px;border:1px solid rgba(0,0,0,0.15);background:rgba(0,0,0,0.04);color:#6b7280;font-size:10px;cursor:pointer;font-family:Heebo,sans-serif;line-height:1;">⚙</button>
         </div>
+
+      </div><!-- end 4-container flexbox cockpit header v168.58 -->
+      <!-- Canvas area: position:relative anchors the zoom popover -->
+      <div style="position:relative;">
         <!-- v103.43: Zoom settings popover -->
-        <!-- v103.43: Zoom settings — only custom decade range (retirement hardcoded 2029-2033) -->
-        <div id="sim-zoom-settings" style="display:none;position:absolute;top:28px;right:8px;background:white;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.12);z-index:50;direction:rtl;font-family:Heebo,sans-serif;font-size:11px;min-width:200px;">
+        <div id="sim-zoom-settings" style="display:none;position:absolute;top:4px;right:8px;background:white;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.12);z-index:50;direction:rtl;font-family:Heebo,sans-serif;font-size:11px;min-width:200px;">
           <div style="font-weight:700;color:#374151;margin-bottom:8px;">⚙ טווח תצוגה מותאם</div>
           <div style="display:grid;grid-template-columns:auto 62px;gap:4px 8px;align-items:center;color:#6b7280;">
             <span>טווח — שנת התחלה:</span>
