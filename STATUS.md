@@ -1,7 +1,76 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v166.0 — Fix Demo Data Forward Projections (16/04/2026).
+גרסה v168.58 — 4-Container LTR Flexbox Header, 12×12px Legend Squares, Navy/Bordeaux Buttons (18/04/2026).
+
+## שינויים אחרונים (18/04/2026 — v168.55)
+
+### v168.55 – Absolute Header Alignment — Grid Cockpit Layout
+
+**`index.html` — סימולטור:**
+- כותרת הגרף הוחלפה מ-`position:absolute` overlays ומ-flexbox ל-**CSS Grid** עם `grid-template-columns: 1fr auto 1fr`
+- עמודה שמאל: כפתורי שנה/גיל/שניהם
+- עמודה מרכז (auto): כפתורי נומינלי/ריאלי — ממורכזים לחלוטין בלי margin tricks
+- עמודה ימין: `#sim-legend-html` (legend מותאם אישית) + סקאלה + זום, עם `justify-self: end`
+- `margin-bottom: 20px` בין הכותרת לקנבס
+
+**`app.js` — `simRenderChart`:**
+- `legend: { display: false }` — Chart.js legend מבוטל לחלוטין
+- נוסף קריאה ל-`simUpdateLegend(datasets)` בסוף כל render
+
+**`app.js` — `simUpdateLegend(datasets)` (חדש):**
+- בונה HTML legend ב-`#sim-legend-html` עם color swatch (פס 12×3px) ותווית לכל dataset
+- מתעדכן אוטומטית בכל שינוי תצוגה (רועי/יעל/משולב, זום, מצב ריאלי/נומינלי)
+
+## שינויים אחרונים (18/04/2026 — v168.12)
+
+### v168.12 – Empty Dashboard Default, isDemoMode Explicit Gate
+
+**`app.js` — משתנה גלובלי `isDemoMode`:**
+- נוסף `var isDemoMode = false;` ליד ההגדרות הגלובליות הראשיות
+- הוגדר `isDemoMode = true` בסוף `loadDemoData()` — לפני הוספת `demo-mode` class
+- הוגדר `isDemoMode = false` בתחילת `clearDashboardData()`
+
+**`app.js` — `ovRenderInvestChart`:**
+- **שורש הבעיה**: `ALL_TOTALS` מאותחל עם 15 אפסים (לא מערך ריק) — `ALL_TOTALS.length === 0` היה תמיד `false`
+- **הפתרון**: הפיק `_hasInvData = ALL_TOTALS.some(v => v > 0)` — אם כל הערכים אפס, מציג מצב ריק (empty state) במקום גרף שטוח
+- כעת טעינה ראשונה ללא אקסל מציגה מסך ריק נקי
+
+**`app.js` — `ovAllDataReady`:**
+- `hasInv` עודכן מ-`ALL_TOTALS.length > 0` ל-`ALL_TOTALS.some(v => v > 0)` — עקביות עם הלוגיקה החדשה
+- מניעת הצגת גרף הסימולטור המיני כאשר אין נתוני השקעות אמיתיים
+
+**`index.html` + `app.js`** — גרסה עודכנה מ-`v168.11` ל-`v168.12`
+
+## שינויים אחרונים (18/04/2026 — v168.9)
+
+### v168.9 – Reset Tab and Demo State on Load
+
+**`app.js` — בלוק `DOMContentLoaded`:**
+- הוסר קריאת `localStorage.getItem('active_tab')` בטעינה
+- הדשבורד תמיד מתחיל בטאב "מבט על" (overview) ללא קשר למה שנשמר
+- נוספה שורה `document.body.classList.remove('demo-mode')` לוידוא שמצב דמו כבוי בטעינה
+
+**`index.html` + `app.js`** — גרסה עודכנה מ-`v168.8` ל-`v168.9`
+
+## שינויים אחרונים (18/04/2026 — v168.2)
+
+### v168.2 – Extract DOB from Excel and Sync Settings
+
+**`app.js` — פונקציה חדשה `extractAndSaveDobFromPensionSheet(wb, sheetName)`:**
+- מאתרת את שורת "שייכות" (רועי/יעל) ושורת "תאריך לידה" בגיליון תכנון פרישה
+- מחלצת שמות מ-col B (index 1) ו-col N (index 13)
+- ממירה ערכי תאריך לידה (Date object / Excel serial / מחרוזת DD/MM/YYYY) לפורמט YYYY-MM-DD
+- שומרת שמות ותאריכי לידה ל-localStorage (SETTINGS_LS_KEY) ולמשתנים הגלובליים
+- מעדכנת אלמנטי DOM בלשונית הגדרות
+- קוראת `syncBirthYearsFromSettings()` ו-`simRenderChart(simRunEngine())` לעדכון מיידי
+
+**`app.js` — `loadExcelFileCore`:**
+- נוספה קריאה ל-`extractAndSaveDobFromPensionSheet(wb, pnsSheetName)` מיד אחרי `pensionSaveToStorage()`
+
+**`index.html` + `app.js`** — גרסה עודכנה מ-`v168.0` ל-`v168.2`
+
+גרסה: `v168.0` → `v168.2`.
 
 ## שינויים אחרונים (16/04/2026 — v166.0)
 
