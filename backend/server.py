@@ -88,7 +88,7 @@ def _hist_price_and_chg(sym, is_fx=False):
 
 def _index_data(sym, is_fx=False):
     price, chg = _hist_price_and_chg(sym, is_fx=is_fx)
-    return {"price": price, "change_pct": chg}
+    return {"price": price, "change_pct": chg, "is_live": price is not None}  # v168.62
 
 def _safe_price(t):
     """Return last non-NaN close from 5d history (used by /api/stock)."""
@@ -102,7 +102,7 @@ def _safe_price(t):
 def _get_fx_rate():
     """Return the current USD/ILS rate. USDILS=X is more reliable than ILS=X."""
     price, _ = _hist_price_and_chg('USDILS=X', is_fx=True)
-    return price if price else 3.70
+    return price if price else 2.97  # v168.60: 2026 USD/ILS context fallback
 
 def _to_history(hist, intraday=False, price_divisor=1):
     rows = []
@@ -115,9 +115,21 @@ def _to_history(hist, intraday=False, price_divisor=1):
 
 @app.route('/api/market')
 def market():
+    # v168.60: retry with alternative tickers if primary returns None
     ta125 = _index_data('^TA125.TA')
+    if ta125['price'] is None:
+        ta125 = _index_data('TA125.TA')
+
     sp500 = _index_data('^GSPC')
-    fx    = _index_data('USDILS=X', is_fx=True)
+    if sp500['price'] is None:
+        sp500 = _index_data('SPY')
+
+    fx = _index_data('USDILS=X', is_fx=True)
+    if fx['price'] is None:
+        fx = _index_data('ILS=X', is_fx=True)
+    if fx['price'] is None:
+        fx = {"price": 2.97, "change_pct": 0.0, "is_live": False}  # v168.62: hardcoded fallback
+
     print(f"DEBUG: TA-125 Price: {ta125['price']}, S&P 500: {sp500['price']}, USD/ILS: {fx['price']}")
     return jsonify({"ta125": ta125, "sp500": sp500, "fx": fx})
 

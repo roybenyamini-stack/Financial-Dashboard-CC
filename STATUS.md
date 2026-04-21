@@ -1,7 +1,162 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v168.58 — 4-Container LTR Flexbox Header, 12×12px Legend Squares, Navy/Bordeaux Buttons (18/04/2026).
+גרסה v168.70 — Financial Milestone Indexing (21/04/2026).
+
+## שינויים אחרונים (21/04/2026 — v168.70)
+
+### v168.70 – Financial Milestone Indexing (The Navigator Update)
+
+**`app.js` — milestonesSummary בתוך SIMULATOR_DOMAIN:**
+- אובייקט `_milestonesSummary` נבנה עם 4 נקודות ציון קבועות: 2029 (פרישה גיל 67), 2033 (גיל 70), 2043 (גיל 80), 2047 (גיל 84 — תוחלת חיים)
+- לכל שנה: הון כולל, נזיל, פנסיה, הראל, נדל"ן (מתוך `SIM_LAST_RESULT`) + אירועים (מתוך `simCollectEvents()`)
+- כאשר `SIM_LAST_RESULT` ריק (הסימולטור טרם הופעל) — כל הערכים מוצגים כ-'N/A'
+- גיל פרישה דינמי נוסף אוטומטית אם שונה מ-2029
+
+**`app.js` — system prompt מעודכן:**
+- הוראה לבינה: "עיין תמיד ב-milestonesSummary ראשון — זוהי מפת הניווט הראשית לעתיד רועי"
+- מפנה במפורש לשנים: 2029 (פרישה), 2033, 2043, 2047
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.70`
+
+## שינויים אחרונים (21/04/2026 — v168.69)
+
+### v168.69 – Universal UI Recovery
+
+**`index.html` — שיחזור מבנה הכותרת:**
+- שוחזר `<h1>` עם `</h1>` סגור כהלכה + `<p id="hdr-subtitle">` — כפי שהיה לפני
+- שוחזר `</div>` לסגירת `hdr-title-group` במקום הנכון
+- שוחזר כל בלוק `<div class="sim-header sim-only-btn">` כולל:
+  - 4 כרטיסי KPI: הון חזוי, הכנסה פנויה, תזרים נטו, צבירה כוללת
+  - כפתורי שליטה: `chat-btn`, `settings-btn`, toggle תצוגה, toggle הראל, גיל יעד
+- הסרת כפתורי sim מתוך ה-`<h1>` שם לא שייכים
+
+**הבעיה שנגרמה (v167.9 → v168.67):** מחיקה בשגגה של כל ה-`sim-header` והכנסת הכפתורים לתוך `<h1>` פתוח — גרמה לפריסה שבורה בכל הלשוניות.
+
+## שינויים אחרונים (21/04/2026 — v168.67)
+
+### v168.67 – Demo Mode AI Bridge & UI Polish
+
+**`app.js` — Task 1: Fix Demo Data Visibility for AI:**
+- `buildSystemStatus()`: domain מסומן `ACTIVE-DEMO` כשמצב דמו פעיל ויש נתונים, במקום EMPTY
+- `buildGlobalContext()`: הוסרה ה-early return למצב דמו — ה-AI מקבל את כל נתוני הדמו (CF, Investments, Pension)
+- הסימון `[מצב דמו — מוצגים נתוני דגמה]` מוצג בראש ההקשר כהערה, לא כחסימה
+- System prompt: "אם תחום מסומן ACTIVE-DEMO — יש גישה לנתוני הדגמה; מותר לדון בהם"
+
+**`index.html` — Task 2: עיצוב אחיד לכפתור צ'אט מבט-על:**
+- `ov-only-btn toggleChat`: עודכן ל-`font-size:22px;opacity:0.85;` — בדיוק כמו cf-chat-btn ו-pns chat btn
+- אין יותר רקע/גבול/טקסט "שאל AI" — רק אמוג'י 💬 כמו שאר הלשוניות
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.67`
+
+## שינויים אחרונים (21/04/2026 — v168.66)
+
+### v168.66 – Global Overview AI & Data Integrity Check
+
+**`index.html` — Task 1: כפתור צ'אט AI בלשונית מבט על:**
+- הוספת `<span class="ov-only-btn" onclick="toggleChat()">💬 שאל AI</span>` בכותרת
+- מחובר ל-`toggleChat()` ← `buildGlobalContext()` — אותו צ'אט גלובלי
+- מוצג בלשונית מבט-על בלבד (`.ov-only-btn`)
+
+**`app.js` — Task 2: `buildSystemStatus()` — בדיקת זמינות נתונים:**
+- פונקציה חדשה בודקת כל domain: CF_DATA.length, FUNDS keys, PENSION_ASSETS.length, isDemoMode
+- מחזירה אובייקט עם ערכים: LOADED/EMPTY לכל תחום + DEMO_MODE status
+
+**`app.js` — Task 3: הזרקת `systemStatus` ל-`sendChat()`:**
+- בלוק `--- systemStatus ---` מוזרק לפני ה-system prompt
+- AI מקבל הוראה: "אם תחום מסומן EMPTY — הודע למשתמש שאין נתונים, במקום להניח"
+- הוספת ניתוב overview: 'עודד ניתוח הוליסטי כולל'
+
+**`app.js` — Task 4: Intelligence הוליסטית ב-system prompt:**
+- "אתה היועץ הפיננסי האישי הראשי — רואה תמונה שלמה"
+- "קשר תזרים שוטף, מצב השקעות, ותחזיות פנסיה לייעוץ מקיף"
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.66`
+
+## שינויים אחרונים (21/04/2026 — v168.65)
+
+### v168.65 – Events Timeline Sync & Slider Enforcement
+
+**`app.js` — Task 1: ציר אירועים מלא ב-SIMULATOR_DOMAIN:**
+- `buildGlobalContext()` קורא עכשיו ל-`simCollectEvents()` — מכיל גם `PENSION_EVENTS` (אירועי פרישה) וגם `SIM_USER_EVENTS`
+- כל אירוע כולל `breakdown` מפורט (פיצוי, מענק, תשלום חד-פעמי וכד')
+- אירועים מאורגנים לפי שנה לקורלציה ישירה עם הגרף
+
+**`app.js` — Task 2: בלוק `activeParameters` מפורש:**
+- הוספת סקציה `--- activeParameters ---` ב-SIMULATOR_DOMAIN עם: תשואה, אינפלציה, גדילת נדל"ן, מס רווח הון, תשואת פרישה, הוצאה יעד, שכר מדריך, קצבה, גבולות פאזות
+- תשואה נטו אפקטיבית מחושבת ומוצגת: `SIM_RATE × (1 - tax%)`
+
+**`app.js` — Task 3: הוראות קורלציה ב-system prompt:**
+- "השתמש תמיד בערכי activeParameters — אל תניח ערכי ברירת מחדל"
+- "כדי לאתר אירוע בשנה מסוימת: חפש תחת אותה שנה בציר האירועים"
+
+**`app.js` — Task 2+: תחזית הון עם פירוט שכבות:**
+- כל אבן דרך מציגה: נזיל | פנסיה | הראל | נדל"ן בנפרד
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.65`
+
+## שינויים אחרונים (21/04/2026 — v168.64)
+
+### v168.64 – Simulator Math Sync & AI Vision Fix
+
+**`app.js` — Task 1: תיקון מתמטיקת הסימולטור:**
+- `simRunEngine()`: הוספת `_taxFactor = 1 - SIM_CAPITAL_TAX/100`
+- `monthlyRate` ו-`retYieldMonthly` מחושבים כעת לאחר ניכוי מס רווח הון אפקטיבי
+- הסליידר "מס רווח הון" מוחל כעת ממש על חישובי הצבירה בגרף
+
+**`app.js` — Task 2: הרחבת ראיית ה-AI (SIMULATOR_DOMAIN):**
+- `SIM_LAST_RESULT` — global חדש שמאחסן את תוצאת `simRunEngine()` האחרונה
+- `simRenderChart()`: שומר את ה-result המלא (לפני zoom) ב-`SIM_LAST_RESULT`
+- `buildGlobalContext()` SIMULATOR_DOMAIN: כולל עכשיו אבני דרך (שנה נוכחית, +5, +10, גיל פרישה, סוף) עם הון צפוי + ציר אירועים (`SIM_USER_EVENTS`)
+- ה-AI יכול לענות "מה ההון הצפוי שלי בגיל 67?"
+
+**`app.js` — Task 3: ניתוב AI לפי לשונית פעילה:**
+- `sendChat()`: מזהה לשונית פעילה מ-`localStorage.getItem('active_tab')`
+- Simulator → "תעדף SIMULATOR_DOMAIN" | Pension → "תעדף PENSION_DOMAIN" | Cashflow → "תעדף CASHFLOW_DOMAIN"
+- הרמז מתווסף לתחילת ה-system prompt
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.64`
+
+## שינויים אחרונים (21/04/2026 — v168.63)
+
+### v168.63 – AI Context Routing & Domain Mapping
+
+**`app.js` — Task 1+2: `buildGlobalContext()` עם 4 תחומים מפורשים:**
+- שכתוב מלא של `buildGlobalContext()` — עטיפת כל תחום בבלוק תוויות: `INVESTMENT_DOMAIN`, `CASHFLOW_DOMAIN`, `PENSION_DOMAIN`, `SIMULATOR_DOMAIN`
+- AI כבר לא מבלבל בין פנסיה להשקעות — כל תחום עם שם ברור
+
+**`app.js` — Task 3: `buildPnsContext()` — העשרת שדות:**
+- כל נכס פנסיה כולל עכשיו: `lifeInsurance`, `פרמיה חודשית`, `מטרה`
+- `owner` — אף פעם לא מציג `'?'` — ברירת מחדל: `'לא ידוע'`
+
+**`app.js` — Task 4: הוראות ניתוב ב-`sendChat()`:**
+- פרומפט מערכת חדש: "עוזר מתמחה עם 4 תחומי נתונים נפרדים"
+- כלל ניתוב: כאשר נשאל על הראל/פניקס/ביטוח חיים/פנסיה — סרוק `PENSION_DOMAIN` לעומק לפני שמדווח על נתונים חסרים
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.63`
+
+## שינויים אחרונים (21/04/2026 — v168.62)
+
+### v168.62 – Financial Simulator Precision Start
+
+**`app.js` — Task 1: נקודת פתיחה דינמית לסימולטור:**
+- `SIM_P1_START`: שונה מ-`{ y:2026, m:3 }` לדינמי: `{ y: new Date().getFullYear(), m: new Date().getMonth()+1 }`
+- כל חישובי `simMonthIdx` / `simIdxToYM` מבוססים על הנוסחה מ-`SIM_P1_START` — מגיבים לתאריך אוטומטית
+- הגרף מתחיל מהחודש הנוכחי (אפריל 2026)
+
+**`app.js` — Task 2: ברירת מחדל — 10 שנים מהיום:**
+- `SIM_ZOOM = 'decade'` (שונה מ-'full') — מצב ברירת מחדל בטעינה ראשונה
+- `SIM_DEFAULT_ZOOM = 'decade'` — ערך ה-reset לאחר `clearDashboardData()`
+- `SIM_ZOOM_CUSTOM.decStart/decEnd`: עדיין `new Date().getFullYear()` + 10 (v168.61)
+- localStorage: אם קיים ערך שמור, הוא גובר על ברירת המחדל (שמירת העדפות ממשיכה)
+
+**Task 3 — Carryover (ללא שינוי):**
+- CF: `_sumAnn` ישיר (ללא מכפילים) — v168.61 ✅
+- AI Firewall במצב דמו — v168.60 ✅
+- תיוג בעלות פנסיה (רועי/יעל) — v168.60 ✅
+- אירועי Sandbox — חודש נוכחי בלבד — v168.60 ✅
+
+**`index.html` + `app.js`** — גרסה עודכנה ל-`v168.62`
 
 ## שינויים אחרונים (18/04/2026 — v168.55)
 
