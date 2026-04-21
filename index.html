@@ -1,4 +1,4 @@
-<!-- v168.58 -->
+<!-- v168.69 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -38,7 +38,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.58</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.69</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -72,7 +72,7 @@
     </div>
     <!-- Controls: second child (RTL → appears left side), direction:ltr so buttons flow left→right -->
     <div class="sim-header-controls" style="display:flex; flex-direction:row; align-items:center; gap:12px; direction:ltr; flex-shrink:0; flex-wrap:nowrap;">
-      <button id="chat-btn" onclick="toggleChat()" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:18px;font-family:Heebo,sans-serif;flex-shrink:0;" title="צ׳אט AI">💬</button>
+      <button id="chat-btn" onclick="toggleChat()" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:18px;font-family:Heebo,sans-serif;flex-shrink:0;" title="צ׳את AI">💬</button>
       <button id="settings-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
@@ -264,6 +264,8 @@
         <option value="all">משותף</option>
       </select>
       <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
+      <!-- v168.69: Overview tab global AI chat -->
+      <span class="ov-only-btn" onclick="toggleChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI מבט-על">💬</span>
       <!-- investments family view toggle (v94.0) -->
       <select id="inv-view-select" class="inv-only-btn" onchange="invSetView(this.value)" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;min-width:96px;">
         <option value="roee">רועי</option>
@@ -1358,7 +1360,7 @@
     <div id="sim-kpi-section-label" style="display:none;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">הון נוכחי</div>
     <div class="sim-kpi-row" id="sim-kpi-row" style="display:none;grid-template-columns:repeat(4,1fr);">
       <div class="sim-kpi-card">
-        <div class="sim-kpi-label">הון חזוי</div>
+        <div class="sim-kpi-label">השקעות</div>
         <div class="sim-kpi-val blue" id="sim-kpi-inv-now">—</div>
         <div class="sim-kpi-sub" id="sim-kpi-inv-sub">מיליון ש״ח</div>
       </div>
@@ -1427,11 +1429,11 @@
           <div style="font-weight:700;color:#374151;margin-bottom:8px;">⚙ טווח תצוגה מותאם</div>
           <div style="display:grid;grid-template-columns:auto 62px;gap:4px 8px;align-items:center;color:#6b7280;">
             <span>טווח — שנת התחלה:</span>
-            <input type="number" id="zoom-dec-start" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2029" oninput="simApplyZoomSettings()">
+            <input type="number" id="zoom-dec-start" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2030" oninput="simApplyZoomSettings()">
             <span>טווח — שנת סיום:</span>
-            <input type="number" id="zoom-dec-end" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2039" oninput="simApplyZoomSettings()">
+            <input type="number" id="zoom-dec-end" style="padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:60px;" value="2040" oninput="simApplyZoomSettings()">
           </div>
-          <div style="font-size:9px;color:#9ca3af;margin-top:4px;">כפתור "פרישה" מציג תמיד 2029–2033</div>
+          <div style="font-size:9px;color:#9ca3af;margin-top:4px;">כפתור "פרישה" — טווח פרישה | "טווח" — שנה נוכחית + 10 כברירת מחדל</div>
           <div style="margin-top:8px;text-align:left;"><button onclick="document.getElementById('sim-zoom-settings').style.display='none'" style="padding:2px 10px;border-radius:4px;border:1px solid #d1d5db;background:#f9fafb;font-size:10px;cursor:pointer;font-family:Heebo,sans-serif;">סגור</button></div>
         </div>
         <div id="sim-chart-wrap" style="position:relative;height:340px;width:100%;overflow:hidden;"></div>
