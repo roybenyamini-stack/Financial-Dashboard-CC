@@ -107,6 +107,10 @@ var FUND_COL_K = {};
 
 // v168.12: explicit demo mode flag — true ONLY when user activates demo toggle
 var isDemoMode = false;
+// v169.1: global mode — 'EXCEL' | 'DEMO' | 'SIMULATOR'
+var APP_MODE = 'EXCEL';
+// v169.1: dedicated localStorage key for personal simulator (isolated from Excel/Demo)
+var SIMULATOR_LS_KEY = 'FINANCIAL_SIM_PERSONAL_DATA';
 
 // ── Family View (v94.0) ──
 var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
@@ -7893,9 +7897,13 @@ function simGetYaelCapital() {
 }
 
 // ── FFS Capital Getters — v168.72 ─────────────────────────────────────────
+// v169.1: return the correct localStorage key based on active mode
+function ffsGetActiveKey() {
+  return (APP_MODE === 'SIMULATOR') ? SIMULATOR_LS_KEY : FFS_PROFILE_LS_KEY;
+}
 function ffsLoadProfile() {
   try {
-    var raw = localStorage.getItem(FFS_PROFILE_LS_KEY);
+    var raw = localStorage.getItem(ffsGetActiveKey()); // v169.1: scoped by mode
     if (!raw) return;
     var saved = JSON.parse(raw);
     if (saved && typeof saved === 'object') {
@@ -7919,7 +7927,7 @@ function ffsLoadProfile() {
   } catch(e) {}
 }
 function ffsSaveProfile() {
-  try { localStorage.setItem(FFS_PROFILE_LS_KEY, JSON.stringify(FFS_PROFILE)); } catch(e) {}
+  try { localStorage.setItem(ffsGetActiveKey(), JSON.stringify(FFS_PROFILE)); } catch(e) {} // v169.1: scoped by mode
 }
 function ffsSaveField(key, val) {
   FFS_PROFILE[key] = val;
@@ -8015,6 +8023,7 @@ var activeDataSource = 'MANUAL'; // default until Excel is uploaded
 
 // v168.84/86: returns true only when Excel data exists AND user has not switched to manual mode
 function isExcelLoaded() {
+  if (APP_MODE === 'SIMULATOR') return false; // v169.1: simulator always uses personal FFS data
   if (activeDataSource !== 'EXCEL') return false; // user explicitly chose manual mode
   if (isDemoMode) return false;
   return (CF_DATA && CF_DATA.length > 0) || (PENSION_ASSETS && PENSION_ASSETS.length > 0);
@@ -8022,6 +8031,7 @@ function isExcelLoaded() {
 
 // v168.86: raw check — does Excel data exist in memory? (ignores activeDataSource switch)
 function _hasRawExcelData() {
+  if (APP_MODE === 'SIMULATOR') return false; // v169.1: simulator uses FFS, not Excel
   return !isDemoMode && ((CF_DATA && CF_DATA.length > 0) || (PENSION_ASSETS && PENSION_ASSETS.length > 0));
 }
 
@@ -8589,7 +8599,7 @@ function ffsConfirmReset() {
   if (modal) modal.style.display = 'none';
   // v168.89: instant reset without page reload — clears FFS profile only
   // Excel data (CF_DATA, PENSION_ASSETS, FUNDS) remains intact in memory
-  try { localStorage.removeItem(FFS_PROFILE_LS_KEY); } catch(e) {}
+  try { localStorage.removeItem(ffsGetActiveKey()); } catch(e) {} // v169.1: scoped by mode
   try { localStorage.removeItem(_SIM_EVENTS_LS_KEY); } catch(e) {}
   SIM_USER_EVENTS = [];
   ffsStartFreshProfile(); // resets in-memory FFS + re-renders drawer + simulator
@@ -10298,7 +10308,7 @@ function ffsStartFreshProfile() {
   FFS_PROFILE.investments         = [];
   FFS_PROFILE.pension             = [];
   FFS_PROFILE.realEstate          = [];
-  try { localStorage.removeItem(FFS_PROFILE_LS_KEY); } catch(e) {}
+  try { localStorage.removeItem(ffsGetActiveKey()); } catch(e) {} // v169.1: scoped by mode
   // Reset name label to guest + zero ghost sliders
   SIM_USER1_NAME = '';
   resetAllInputs();
@@ -12388,7 +12398,11 @@ function loadDemoData() {
   // v168.117: set isDemoMode BEFORE any simInit call — _demoForceDanSliders() guards on this flag
   // CRITICAL: must be before switchTab/simInit or _demoForceDanSliders exits early (isDemoMode=false)
   isDemoMode = true;
+  APP_MODE = 'DEMO'; // v169.1: keep APP_MODE in sync
   document.body.classList.add('demo-mode');
+  if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI('DEMO');
+  var _editBtnDemo = document.getElementById('sim-edit-data-btn');
+  if (_editBtnDemo) _editBtnDemo.style.display = 'none'; // v169.1: hide in demo mode
 
   // ── Bulletproof simulator chart reset (v167.7) ──
   if (simChartObj) { try { simChartObj.destroy(); } catch(e) {} simChartObj = null; }
@@ -12435,7 +12449,125 @@ function loadDemoData() {
 function clearDashboardData() {
   if (!confirm('האם למחוק את כל הנתונים ולחזור למסך הפתיחה?\nפעולה זו אינה ניתנת לביטול.')) return;
   isDemoMode = false; // v168.12
+  APP_MODE = 'EXCEL'; // v169.1: reset mode
   document.body.classList.remove('demo-mode');
   localStorage.clear();
   location.reload();
+}
+
+// =============================================
+// v169.1: GLOBAL MODE SELECTOR — 3-world navigation
+// =============================================
+
+// Open Stage A accordion in FFS drawer, collapse all other sections
+function _ffsOpenStageA() {
+  ['investments', 'realEstate', 'pension'].forEach(function(name) {
+    var body  = document.getElementById('ffs-acc-body-' + name);
+    var arrow = document.getElementById('ffs-acc-arrow-' + name);
+    if (body)  body.style.display = 'none';
+    if (arrow) arrow.textContent = '▼';
+  });
+  var profileBody  = document.getElementById('ffs-acc-body-profile');
+  var profileArrow = document.getElementById('ffs-acc-arrow-profile');
+  if (profileBody)  profileBody.style.display = 'block';
+  if (profileArrow) profileArrow.textContent = '▲';
+}
+
+// Update mode selector UI — highlight active button + update source label
+function _updateModeSelectorUI(mode) {
+  ['excel', 'demo', 'simulator'].forEach(function(m) {
+    var btn = document.getElementById('mode-btn-' + m);
+    if (btn) btn.classList.toggle('active', m === mode.toLowerCase());
+  });
+  var labels = { EXCEL: 'אקסל', DEMO: 'דמו (דן ודינה)', SIMULATOR: 'סימולטור אישי' };
+  var lbl = document.getElementById('mode-source-label');
+  if (lbl) lbl.textContent = 'מקור נתונים: ' + (labels[mode] || mode);
+}
+
+// Central mode switch — handles all 3 worlds cleanly
+function switchMode(mode) {
+  var prev = APP_MODE;
+  APP_MODE = mode; // set FIRST so ffsGetActiveKey() and isExcelLoaded() use the new mode
+
+  _updateModeSelectorUI(mode);
+
+  // Hide "edit data" button by default — shown in SIMULATOR mode when data exists
+  var editBtn = document.getElementById('sim-edit-data-btn');
+  if (editBtn) editBtn.style.display = 'none';
+
+  // ── DEMO mode ──
+  if (mode === 'DEMO') {
+    loadDemoData(); // existing function sets isDemoMode, body.demo-mode, switches tab
+    return;
+  }
+
+  // ── Shared cleanup when leaving DEMO ──
+  if (prev === 'DEMO') {
+    isDemoMode = false;
+    document.body.classList.remove('demo-mode');
+    try { localStorage.removeItem('_dash_is_demo'); } catch(e) {}
+    // Restore real Excel data from localStorage (demo overwrites in-memory globals)
+    _dashRestoreAssets();
+    _dashRestoreCF();
+    _dashRestorePension();
+    loadSettings();
+    pensionInited = false;
+    if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
+  }
+
+  // ── EXCEL mode ──
+  if (mode === 'EXCEL') {
+    isDemoMode = false;
+    // Re-render investment table if data exists
+    if (CF_DATA && CF_DATA.length > 0 || PENSION_ASSETS && PENSION_ASSETS.length > 0) {
+      document.querySelectorAll('th[data-col]').forEach(function(th) {
+        var col = parseInt(th.getAttribute('data-col'));
+        if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
+      });
+      if (typeof updateTableCells   === 'function') updateTableCells();
+      if (typeof updateDynamicStats === 'function') updateDynamicStats();
+      if (typeof updateNavButtons   === 'function') updateNavButtons();
+      if (typeof selectView         === 'function') selectView(currentView || 'all');
+    }
+    switchTab('overview');
+    setTimeout(function() {
+      if (typeof overviewRender === 'function') {
+        if (!overviewInited) overviewInited = true;
+        overviewRender();
+      }
+    }, 200);
+    return;
+  }
+
+  // ── SIMULATOR mode ──
+  if (mode === 'SIMULATOR') {
+    isDemoMode = false;
+
+    // APP_MODE is already SIMULATOR → ffsLoadProfile() reads from FINANCIAL_SIM_PERSONAL_DATA
+    ffsLoadProfile();
+
+    var hasData = !!(
+      FFS_PROFILE.name      ||
+      FFS_PROFILE.birthDate ||
+      (FFS_PROFILE.investments && FFS_PROFILE.investments.length > 0) ||
+      (FFS_PROFILE.pension     && FFS_PROFILE.pension.length     > 0) ||
+      (FFS_PROFILE.realEstate  && FFS_PROFILE.realEstate.length  > 0)
+    );
+
+    switchTab('simulator');
+
+    setTimeout(function() {
+      if (hasData) {
+        // Data exists — show simulator dashboard with edit button
+        if (editBtn) editBtn.style.display = 'flex';
+        if (typeof simFullRefresh === 'function') simFullRefresh();
+      } else {
+        // Fresh start — clean slate + open FFS drawer at Stage A
+        if (typeof ffsStartFreshProfile === 'function') ffsStartFreshProfile();
+        if (typeof openFFSDrawer        === 'function') openFFSDrawer();
+        _ffsOpenStageA();
+      }
+    }, 200);
+    return;
+  }
 }

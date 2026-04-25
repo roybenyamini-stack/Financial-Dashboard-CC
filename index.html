@@ -1,4 +1,4 @@
-<!-- v168.118 -->
+<!-- v169.1 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -26,19 +26,31 @@
 <!-- HEADER -->
 <div id="top-fixed">
 <div id="tabs-nav">
-  <button class="tab-btn" onclick="switchTab('overview')" id="tabn-overview">מבט על</button>
-  <button class="tab-btn active" onclick="switchTab('cashflow')" id="tabn-cashflow">תזרים שוטף</button>
-  <button class="tab-btn" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
-  <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
-  <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
-  <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק</button>
-  <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
+  <!-- v169.1: tab buttons wrapped in #tabs-buttons (RTL right side) -->
+  <div id="tabs-buttons">
+    <button class="tab-btn" onclick="switchTab('overview')" id="tabn-overview">מבט על</button>
+    <button class="tab-btn active" onclick="switchTab('cashflow')" id="tabn-cashflow">תזרים שוטף</button>
+    <button class="tab-btn" onclick="switchTab('investments')" id="tabn-investments">השקעות</button>
+    <button class="tab-btn" onclick="switchTab('pension')" id="tabn-pension">פנסיה וביטוחים</button>
+    <button class="tab-btn" onclick="switchTab('simulator')" id="tabn-simulator">סימולטור פיננסי</button>
+    <button class="tab-btn" onclick="switchTab('market')" id="tabn-market">ניתוח שוק</button>
+    <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
+  </div>
+  <!-- v169.1: Mode Selector — left side (RTL end), 3-world navigation -->
+  <div id="mode-selector">
+    <div id="mode-selector-group">
+      <button class="mode-btn active" id="mode-btn-excel" onclick="switchMode('EXCEL')">נתוני אמת</button>
+      <button class="mode-btn" id="mode-btn-demo" onclick="switchMode('DEMO')">מצב דמו</button>
+      <button class="mode-btn" id="mode-btn-simulator" onclick="switchMode('SIMULATOR')">סימולטור אישי</button>
+    </div>
+    <div id="mode-source-label">מקור נתונים: אקסל</div>
+  </div>
 </div>
 <div class="header">
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.118</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v169.1</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -75,6 +87,8 @@
     <div class="sim-header-controls" style="display:flex; flex-direction:row; align-items:center; gap:12px; direction:ltr; flex-shrink:0; flex-wrap:nowrap;">
       <button id="chat-btn" onclick="toggleChat()" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:18px;font-family:Heebo,sans-serif;flex-shrink:0;" title="צ׳את AI">💬</button>
       <button id="settings-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
+      <!-- v169.1: edit data button — shown only in SIMULATOR mode when data exists -->
+      <button id="sim-edit-data-btn" onclick="openFFSDrawer()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:rgba(99,102,241,0.3);color:white;border:1px solid rgba(99,102,241,0.55);border-radius:8px;padding:7px 13px;font-size:12px;font-family:Heebo,sans-serif;font-weight:700;flex-shrink:0;white-space:nowrap;" title="עריכת נתונים אישיים">📝 עריכת נתונים</button>
       <span id="sim-active-name-label" onclick="openFFSDrawer()" title="כיול נתונים אישיים" style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.82);font-weight:600;font-family:Heebo,sans-serif;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 12px;white-space:nowrap;flex-shrink:0;cursor:pointer;user-select:none;"><span style="font-size:15px;flex-shrink:0;filter:invert(42%) sepia(93%) saturate(1352%) hue-rotate(199deg) brightness(104%) contrast(95%);">👤</span><span id="sim-active-name-text">מציג: אורח</span></span>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;"><span id="hdr-savings-name">הראל</span>:</span>
@@ -229,7 +243,7 @@
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
       <!-- v164.0: admin controls (demo + clear) — visible overview tab only, via .admin-controls CSS -->
       <div class="admin-controls">
-        <button class="admin-btn" onclick="loadDemoData()" title="טען נתוני דמו להצגה">🎭 נתוני דמו</button>
+        <button class="admin-btn" onclick="switchMode('DEMO')" title="טען נתוני דמו להצגה">🎭 נתוני דמו</button>
         <button class="admin-btn" onclick="clearDashboardData()" title="נקה נתונים וטען קובץ חדש">🗑 נקה</button>
       </div>
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
