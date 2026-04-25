@@ -1,7 +1,41 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.1 — Global Mode Selector & Navigation Architecture (25/04/2026).
+גרסה v169.2 — Privacy Shield, Floating Toast & Mode 0 Reset (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.2)
+
+### v169.2 – Privacy Shield Protocol & Navigation Fixes
+
+**1. Privacy-First Settings (Mode 0)**
+- `loadSettings()` מסיים עם `_clearPrivacyFields()` כאשר אין נתוני אקסל/פנסיה בזיכרון
+- שדות שמוסתרים בהיעדר נתונים: `stg-user1-name`, `stg-user2-name`, `stg-user1-birth`, `stg-user2-birth`, `stg-retire-exp`
+- `saveSettings()`: שדות תאריך לידה ב-privacy mode חוזרים ל-global (לא שומרים blank)
+- `saveSettings()`: `stg-retire-exp = 0` (blank) חוזר ל-`SIM_RETIRE_EXP` הגלובלי
+
+**2. Floating Toast (הודעת עדכון צפה)**
+- הוסף `<div id="upload-toast">` (position:fixed, bottom:28px, מרכז מסך)
+- `showToast(msg, bgColor, duration)` — פונקציה גלובלית עם אנימציית slide-up + fade
+- `excel-status` span הוסתר (`display:none`) — כל הקוד עובר ל-`showToast()`
+- עדכן: `smartUploadRouter`, `loadExcelFile`, `loadExcelFileCore`, `loadDemoData`
+- הסיר את ה-hide/show של excel-status מ-`switchTab` (toast self-dismisses)
+
+**3. clearAppState() — Mode 0 Reset**
+- מאפס את כל ה-KPI values לסימן '—' מיידית בכל החלפת מצב
+- מופעל ב-`switchMode()` לפני שהנתונים החדשים נטענים
+- מכסה: `ov-hdr-*`, `sim-hdr-*`, `cf-hdr-*`
+
+**4. Navigation Fixes**
+- DEMO → מנווט לטאב **Overview** (שונה מ-simulator ב-v169.1)
+- סימולטור מאותחל ברקע (150ms timeout) כדי שהנתונים יהיו מוכנים לכל המיני-charts
+- SIMULATOR → מנווט לטאב **Simulator** (ללא שינוי)
+
+**5. Settings Populate After Upload**
+- `loadExcelFileCore` success: קורא ל-`loadSettings()` אחרי פרסור → settings UI מתאכלס
+- CF branch success: קורא ל-`loadSettings()` אחרי פרסור
+- Pension branch success: קורא ל-`loadSettings()` אחרי פרסור
+
+## שינויים אחרונים (25/04/2026 — v169.1)
 
 ## שינויים אחרונים (25/04/2026 — v169.1)
 

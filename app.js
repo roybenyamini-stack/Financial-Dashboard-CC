@@ -2760,8 +2760,7 @@ function cfParseWorkbook(wb) {
 function smartUploadRouter(input) {
   var file = input.files[0];
   if (!file) return;
-  var status = document.getElementById('excel-status');
-  if(status) status.textContent = 'קורא קובץ...';
+  showToast('קורא קובץ...', '#64748b', 2000); // v169.2: floating toast
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -2792,11 +2791,7 @@ function smartUploadRouter(input) {
         if (simInited) { simRenderTimeline(); simRenderChart(simRunEngine()); }
         if (overviewInited && typeof ovRenderSimMini === 'function') ovRenderSimMini();
         _simSaveUserEvents(); // v162.0: persist permanent Excel events to localStorage
-        if (status) {
-          status.textContent = '✅ נטענו ' + evTimelineGroups.length + ' אירועים מ"ציר אירועים"';
-          status.style.color = '#10b981'; status.style.fontWeight = '600';
-          setTimeout(function(){ status.textContent=''; status.style.color=''; status.style.fontWeight=''; }, 5000);
-        }
+        showToast('✅ נטענו ' + evTimelineGroups.length + ' אירועים מ"ציר אירועים"', '#10b981', 5000);
         // לא מחזירים return — ממשיכים לבדוק גיליונות אחרים באותו קובץ
       }
 
@@ -2812,7 +2807,8 @@ function smartUploadRouter(input) {
           PENSION_ASSETS = pnsAssets;
           pensionSaveToStorage();
           extractAndSaveDobFromPensionSheet(wb, pnsSheetName); // v168.4: sync DOB + names from Excel
-          if (status) { status.textContent = '✅ עודכנו נתוני תכנון פרישה'; status.style.color = '#10b981'; status.style.fontWeight = '600'; setTimeout(function(){ status.textContent=''; status.style.color=''; status.style.fontWeight=''; }, 5000); }
+          showToast('✅ עודכנו נתוני תכנון פרישה', '#10b981', 5000);
+          loadSettings(); // v169.2: lift privacy shield after data loaded
           // אם הטאב פנסיה פעיל — רנדר מחדש; אחרת — אפס כדי לאלץ init
           var activePanel = document.querySelector('.tab-panel.active');
           if (activePanel && activePanel.id === 'tab-pension') {
@@ -2884,15 +2880,8 @@ function smartUploadRouter(input) {
           // v108.1: עדכן KPIs (כולל Profit) לאחר טעינת תזרים — תיקון חסר-ריענון ב-Overview
           if (overviewInited && typeof ovRenderKPIs === 'function') ovRenderKPIs();
           cfSandboxInitDefaults(); // v103.4: set default date to next future month
-          if(status) {
-            var lastM = newData[newData.length - 1];
-            var inc = Math.round(cfCalcIncome(lastM.rows)); // v43: חישוב דינמי
-            var exp = lastM.rows.total_exp ? (lastM.rows.total_exp.val || 0) : 0;
-            status.textContent = '✅ עודכנו נתוני תזרים שוטף';
-            status.style.color = '#10b981';
-            status.style.fontWeight = '600';
-            setTimeout(function(){ status.textContent = ''; status.style.color = ''; status.style.fontWeight = ''; }, 6000);
-          }
+          showToast('✅ עודכנו נתוני תזרים שוטף', '#10b981', 6000);
+          loadSettings(); // v169.2: lift privacy shield after data loaded
         } else {
           // פיענוח נכשל — נקה נתונים ישנים כדי לא להציג mock
           CF_DATA = [];
@@ -2929,9 +2918,7 @@ function cfLoadExcel(input) {
 function loadExcelFile(input) {
   var file = input.files[0];
   if (!file) return;
-  var status = document.getElementById('excel-status');
-  status.textContent = 'קורא קובץ...';
-  
+  showToast('קורא קובץ...', '#64748b', 2000); // v169.2: floating toast
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -2939,15 +2926,14 @@ function loadExcelFile(input) {
       var wb = XLSX.read(data, {type:'array', cellDates:true});
       loadExcelFileCore(wb);
     } catch(err) {
-      var status = document.getElementById('excel-status');
-      status.textContent = '❌ שגיאה בקריאת קובץ: ' + err.message;
+      showToast('❌ שגיאה: ' + err.message, '#ef4444', 7000);
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
 function loadExcelFileCore(wb) {
-    var status = document.getElementById('excel-status');
+    var status = null; // v169.2: replaced by floating toast — kept as null to avoid reference errors
     try {
       // Anchor map: name -> anchor_id (from Dashboard_Data sheet)
       var ANCHOR_MAP = {
@@ -3330,9 +3316,8 @@ function loadExcelFileCore(wb) {
       selectView(currentView || 'all');
       updateNavButtons();
       
-      status.textContent = '✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים';
-      status.style.color = '#4ade80';
-      setTimeout(function(){ status.style.color = ''; }, 5000);
+      showToast('✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים', '#4ade80', 5000);
+      loadSettings(); // v169.2: lift privacy shield after Excel data loaded
       _dashSaveAssets(); // v160.0: persist investment data
 
       // v102.5: עדכן סימולטור עם הון רועי/יעל מהקובץ החדש
@@ -3347,8 +3332,7 @@ function loadExcelFileCore(wb) {
       }
 
     } catch(err) {
-      status.textContent = 'שגיאה: ' + err.message;
-      status.style.color = '#f87171';
+      showToast('שגיאה: ' + err.message, '#ef4444', 7000);
     }
 }
 
@@ -5893,9 +5877,7 @@ function switchTab(id){
   if (hdrTitleGroup) hdrTitleGroup.style.display = '';
   var mktHeaderArea = document.getElementById('mkt-search-area');
   if (mktHeaderArea) mktHeaderArea.style.display = isMkt ? 'flex' : 'none';
-  // v105.4: hide upload toast on market tab — prevents success message leaking into market header
-  var _excelStatus = document.getElementById('excel-status');
-  if (_excelStatus) _excelStatus.style.display = isMkt ? 'none' : '';
+  // v169.2: excel-status replaced by floating toast — no need to hide/show per tab
 
   // Header stats
   var invStats = document.getElementById('inv-header-stats');
@@ -11827,6 +11809,12 @@ function loadSettings() {
   // v156.0: sync loaded globals into simulator slider DOM
   syncSettingsToSliders();
 
+  // v169.2: privacy shield — blank personal fields when no data is loaded
+  var _hasActiveData = (CF_DATA && CF_DATA.length > 0) ||
+                       (PENSION_ASSETS && PENSION_ASSETS.length > 0) ||
+                       isDemoMode;
+  if (!_hasActiveData) _clearPrivacyFields();
+
   // v120.0: dirty state — save button starts disabled after load
   var _saveBtn = document.querySelector('.settings-save-btn');
   if (_saveBtn) _saveBtn.disabled = true;
@@ -11892,9 +11880,9 @@ function saveSettings() {
   var user2NameEl    = document.getElementById('stg-user2-name');
   var user2Name      = (user2NameEl && user2NameEl.value.trim()) ? user2NameEl.value.trim() : SIM_USER2_NAME;
   var user1BirthEl   = document.getElementById('stg-user1-birth');
-  var user1Birth     = user1BirthEl ? (user1BirthEl.value || '') : SIM_USER1_BIRTH;
+  var user1Birth     = (user1BirthEl && user1BirthEl.value) ? user1BirthEl.value : SIM_USER1_BIRTH; // v169.2: fall back to global when blank (privacy mode)
   var user2BirthEl   = document.getElementById('stg-user2-birth');
-  var user2Birth     = user2BirthEl ? (user2BirthEl.value || '') : SIM_USER2_BIRTH;
+  var user2Birth     = (user2BirthEl && user2BirthEl.value) ? user2BirthEl.value : SIM_USER2_BIRTH; // v169.2: fall back to global when blank
 
   // Validate — fallback to current global if input is NaN
   if (isNaN(retireRoy))      retireRoy      = SIM_RETIREMENT_AGE_ROY;
@@ -11908,7 +11896,7 @@ function saveSettings() {
   if (isNaN(capitalTax))     capitalTax     = SIM_CAPITAL_TAX;
   if (isNaN(pensionAcc))     pensionAcc     = SIM_PENSION_ACC;
   if (isNaN(rentalIncome))   rentalIncome   = SIM_RENTAL_INCOME;
-  if (isNaN(retireExp))      retireExp      = SIM_RETIRE_EXP;
+  if (isNaN(retireExp) || retireExp === 0) retireExp = SIM_RETIRE_EXP; // v169.2: 0 = blank privacy field → keep global
 
   // Update global variables
   SIM_RETIREMENT_AGE_ROY  = retireRoy;
@@ -12422,25 +12410,22 @@ function loadDemoData() {
   var _sldr = document.getElementById('pns-tax-slider');
   if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldr ? _sldr.value : '35');
 
-  // v168.117: switch directly to Simulator tab (decade zoom 2026-2036 already set above)
-  // switchTab triggers simInit → simInit ends with _demoForceDanSliders() → 25K/20K/5K rendered immediately
-  switchTab('simulator');
+  // v169.2: DEMO navigates to Overview (not Simulator directly); sim inits in background
+  switchTab('overview');
 
-  // Overview renders lazily in background — safe to do after simulator switch
+  // Init simulator data in background so overview mini-sim and sim tab are both ready
   setTimeout(function() {
-    if (typeof overviewRender === 'function') {
-      if (!overviewInited) overviewInited = true;
-      overviewRender();
-    }
-  }, 300);
+    if (!simInited) { simInited = true; simInit(); }
+    // Re-render overview with full sim data after simInit completes
+    setTimeout(function() {
+      if (typeof overviewRender === 'function') {
+        if (!overviewInited) overviewInited = true;
+        overviewRender();
+      }
+    }, 250);
+  }, 150);
 
-  // Show status message
-  var _st = document.getElementById('excel-status');
-  if (_st) {
-    _st.textContent = '✅ נטענו נתוני דמו — ניתן להציג בפני כולם';
-    _st.style.color = '#86efac';
-    setTimeout(function(){ _st.textContent = ''; _st.style.color = ''; }, 5000);
-  }
+  showToast('✅ נטענו נתוני דמו — ניתן להציג בפני כולם', '#22c55e', 5000);
 }
 
 // =============================================
@@ -12453,6 +12438,55 @@ function clearDashboardData() {
   document.body.classList.remove('demo-mode');
   localStorage.clear();
   location.reload();
+}
+
+// =============================================
+// v169.2: FLOATING TOAST — replaces header excel-status
+// =============================================
+(function() {
+  var _toastTimer = null;
+  window.showToast = function(msg, bgColor, duration) {
+    var t = document.getElementById('upload-toast');
+    if (!t) return;
+    clearTimeout(_toastTimer);
+    t.textContent = msg;
+    t.style.background = bgColor || '#10b981';
+    t.classList.add('toast-visible');
+    _toastTimer = setTimeout(function() {
+      t.classList.remove('toast-visible');
+      setTimeout(function() { if (t.textContent === msg) t.textContent = ''; }, 300);
+    }, duration || 5000);
+  };
+})();
+
+// =============================================
+// v169.2: PRIVACY SHIELD — blank personal fields until data loaded
+// =============================================
+function _clearPrivacyFields() {
+  ['stg-user1-name','stg-user2-name','stg-user1-birth','stg-user2-birth'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var retEl = document.getElementById('stg-retire-exp');
+  if (retEl) retEl.value = '';
+}
+
+// =============================================
+// v169.2: CLEAR APP STATE — wipe KPI displays when switching modes
+// =============================================
+function clearAppState() {
+  // Zero all header KPI value elements
+  ['ov-hdr-profit','ov-hdr-invest','ov-hdr-pension','ov-hdr-wealth',
+   'sim-hdr-wealth-at-age','sim-hdr-total-accum','sim-hdr-monthly-accum','sim-hdr-monthly-income',
+   'cf-hdr-income','cf-hdr-exp','cf-hdr-net','cf-hdr-pl'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  // Zero overview card values
+  ['ov-hdr-profit','ov-hdr-invest','ov-hdr-pension','ov-hdr-wealth'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
 }
 
 // =============================================
@@ -12490,6 +12524,7 @@ function switchMode(mode) {
   APP_MODE = mode; // set FIRST so ffsGetActiveKey() and isExcelLoaded() use the new mode
 
   _updateModeSelectorUI(mode);
+  clearAppState(); // v169.2: immediate blank slate before new data loads
 
   // Hide "edit data" button by default — shown in SIMULATOR mode when data exists
   var editBtn = document.getElementById('sim-edit-data-btn');
