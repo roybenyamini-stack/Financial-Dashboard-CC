@@ -107,12 +107,13 @@ var FUND_COL_K = {};
 
 // v168.12: explicit demo mode flag — true ONLY when user activates demo toggle
 var isDemoMode = false;
-// v169.1: global mode — 'EXCEL' | 'DEMO' | 'SIMULATOR'
-var APP_MODE = 'EXCEL';
+// v169.7: global mode — null | 'EXCEL' | 'DEMO' | 'SIMULATOR'
+// null = Mode 0 (no source selected) — shown to new users or after full reset
+var APP_MODE = null;
 // v169.1: dedicated localStorage key for personal simulator (isolated from Excel/Demo)
 var SIMULATOR_LS_KEY = 'FINANCIAL_SIM_PERSONAL_DATA';
-// v169.3: true once any Excel file is successfully parsed in the current session
-var _sessionExcelUploaded = false;
+// v169.6: migrated from _sessionExcelUploaded JS var → sessionStorage.hasUploadedFiles
+// Use sessionStorage.getItem('hasUploadedFiles') === '1' to read, setItem/removeItem to write.
 
 // ── Family View (v94.0) ──
 var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
@@ -2809,7 +2810,7 @@ function smartUploadRouter(input) {
           PENSION_ASSETS = pnsAssets;
           pensionSaveToStorage();
           extractAndSaveDobFromPensionSheet(wb, pnsSheetName); // v168.4: sync DOB + names from Excel
-          _sessionExcelUploaded = true; // v169.3: session has real data
+          try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
           showToast('✅ עודכנו נתוני תכנון פרישה', '#10b981', 5000);
           loadSettings(); // v169.2: lift privacy shield after data loaded
           // אם הטאב פנסיה פעיל — רנדר מחדש; אחרת — אפס כדי לאלץ init
@@ -2883,7 +2884,7 @@ function smartUploadRouter(input) {
           // v108.1: עדכן KPIs (כולל Profit) לאחר טעינת תזרים — תיקון חסר-ריענון ב-Overview
           if (overviewInited && typeof ovRenderKPIs === 'function') ovRenderKPIs();
           cfSandboxInitDefaults(); // v103.4: set default date to next future month
-          _sessionExcelUploaded = true; // v169.3: session has real data
+          try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
           showToast('✅ עודכנו נתוני תזרים שוטף', '#10b981', 6000);
           loadSettings(); // v169.2: lift privacy shield after data loaded
         } else {
@@ -3320,7 +3321,7 @@ function loadExcelFileCore(wb) {
       selectView(currentView || 'all');
       updateNavButtons();
       
-      _sessionExcelUploaded = true; // v169.3: session has real data
+      try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
       showToast('✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים', '#4ade80', 5000);
       loadSettings(); // v169.2: lift privacy shield after Excel data loaded
       _dashSaveAssets(); // v160.0: persist investment data
@@ -6030,7 +6031,15 @@ document.addEventListener('DOMContentLoaded', function() {
   var _pensionOk = _dashRestorePension();
   // v169.5: returning user with data in localStorage is treated as having uploaded this session
   // (their data is real — the privacy shield should not hide it)
-  if (_assetsOk || _cfOk || _pensionOk) { _sessionExcelUploaded = true; }
+  if (_assetsOk || _cfOk || _pensionOk) {
+    try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
+    // v169.7: returning user with real data → auto-select Excel mode (skip Mode 0 placeholder)
+    APP_MODE = 'EXCEL';
+    if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI('EXCEL');
+  } else {
+    // v169.7: no data in localStorage → stay in Mode 0 (null), show placeholder
+    if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI(null);
+  }
 
   if (_assetsOk) {
     // update investment table headers + cells with restored data
@@ -7742,6 +7751,24 @@ var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, 
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_RETIRE_EXP     = 29000; // v168.101: settings-driven expected monthly retirement expense (drives slider range + KPI#3)
 var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
+
+// v169.7: Immutable mode defaults — each mode owns its own values, never borrows from another.
+// Read-only: use Object.freeze so no code accidentally overwrites these sentinel values.
+var ROY_DEFAULTS = Object.freeze({
+  retireExp:     29000,  // Roy's confirmed monthly retirement expense (NIS)
+  instructorSal: 35000,  // Roy's instructor salary during bridge phase
+  rentalIncome:  0,      // loaded dynamically from PENSION_ASSETS at runtime
+});
+var DEMO_DEFAULTS = Object.freeze({
+  retireExp:     20000,  // Dan's monthly retirement expense (NIS)
+  instructorSal: 35000,
+  rentalIncome:  0,
+});
+var SIMULATOR_DEFAULTS = Object.freeze({
+  retireExp:     0,      // FFS mode: always driven by FFS_PROFILE.retirementExpense
+  instructorSal: 0,
+  rentalIncome:  0,
+});
 var SIM_PENSION_MONTHLY = 0; // v168.91: default 0 — always set from data, never from stale memory
 var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
 var simChartObj = null;
@@ -8679,7 +8706,7 @@ function simUpdateNameLabel() {
     name = SIM_USER1_NAME || 'דן';
   } else {
     // EXCEL: Excel data takes priority; fall back to "אורח" if no session data
-    var hasExcelData = _sessionExcelUploaded && (simGetRoyCapital() > 0 || (CF_DATA && CF_DATA.length > 0));
+    var hasExcelData = (sessionStorage.getItem('hasUploadedFiles') === '1') && (simGetRoyCapital() > 0 || (CF_DATA && CF_DATA.length > 0)); // v169.6
     name = hasExcelData ? (SIM_USER1_NAME || 'אורח') : 'אורח';
   }
   lbl.textContent = 'מציג: ' + name;
@@ -8726,7 +8753,9 @@ function simRunEngine() {
       ? pnsNetMonthlyNoHarel : simGetRoyPension();
     var _fwRentNIS = simGetRoyRentalIncome();
     var _fwFixed   = _fwNetPns + _fwRentNIS;
-    if (_fwFixed > 0 && SIM_PENSION_MONTHLY === 0) SIM_PENSION_MONTHLY = _fwFixed;
+    // v169.7: ALWAYS override with Excel-authoritative value — removes the === 0 guard that
+    // allowed Demo ghost incomes (25K) to persist in Excel mode after a mode switch.
+    if (_fwFixed > 0) SIM_PENSION_MONTHLY = _fwFixed;
   }
   var royLiquid        = simGetRoyCapital(); // K — stocks, cash, funds (excludes apartment)
   var royRealEstateK   = simGetRoyRealEstate(); // K — dynamic base (grows with RE growth rate)
@@ -9841,8 +9870,16 @@ function simRenderKPI() {
     if (SIM_VIEW === 'combined') _wealthAtAge += (_hdrResult.yaelData[_targetIdx] || 0);
     if (SIM_VIEW === 'yael')     _wealthAtAge  = (_hdrResult.yaelData[_targetIdx] || 0);
   }
-  // v103.37: "הון חזוי" — decimal without M (e.g. "24.0"); sub-label in HTML = "מיליון ש״ח"
-  if (el('sim-hdr-wealth-at-age')) el('sim-hdr-wealth-at-age').textContent = simFmtM(_wealthAtAge);
+  // v169.11: SHARED WEALTH — Simulator reads from OV_CACHED_WEALTH (same global as Overview).
+  // This eliminates the 8.4M vs 26.6M divergence by forcing both tabs to one source of truth.
+  // Only for Roy view; Yael/Combined use their own engine data (no OV_CACHED_WEALTH equivalent).
+  if (el('sim-hdr-wealth-at-age')) {
+    var _ovWealth = (typeof OV_CACHED_WEALTH !== 'undefined' && OV_CACHED_WEALTH !== null
+                     && SIM_VIEW !== 'yael' && SIM_VIEW !== 'combined')
+      ? OV_CACHED_WEALTH
+      : simFmtM(_wealthAtAge);
+    el('sim-hdr-wealth-at-age').textContent = _ovWealth;
+  }
 
   // v168.114: subtitle is fully reactive — updates immediately when target age changes
   var _sub = document.getElementById('hdr-subtitle');
@@ -10460,9 +10497,18 @@ function ovRenderKPIs() {
     } else {
       var hasSimCap = _simDataReady || ((typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0);
       if (hasSimCap && typeof simRunEngine === 'function') {
+        // v169.9: Simulator Sync — resetCalculationMemory() zeros SIM_TARGET_EXP; sync to SIM_RETIRE_EXP
+        // before engine run so overview and simulator tab produce identical wealth projections
+        if (SIM_TARGET_EXP === 0 && typeof SIM_RETIRE_EXP !== 'undefined' && SIM_RETIRE_EXP > 0) {
+          SIM_TARGET_EXP = SIM_RETIRE_EXP;
+        }
         // v168.114: use cached engine result when available — avoids duplicate run when target age changes
-        var _res = (typeof SIM_LAST_RESULT !== 'undefined' && SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0)
-          ? SIM_LAST_RESULT : simRunEngine();
+        var _hadCachedResult = !!(typeof SIM_LAST_RESULT !== 'undefined' && SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0);
+        var _res = _hadCachedResult ? SIM_LAST_RESULT : simRunEngine();
+        // v169.10: cache fresh result so Simulator tab (simRenderKPI) reads SAME data — prevents 26.6M vs 8.4M divergence
+        if (!_hadCachedResult && _res && _res.royData && typeof SIM_LAST_RESULT !== 'undefined') {
+          SIM_LAST_RESULT = _res;
+        }
         var _yr  = (typeof SIM_BIRTH_YEAR_ROY !== 'undefined') ? SIM_BIRTH_YEAR_ROY + targetAge : 2029;
         var _retireM = (typeof SIM_P3_START !== 'undefined') ? (SIM_P3_START.m || 9) : 9;
         var _idx = (typeof simMonthIdx === 'function') ? simMonthIdx(_yr, _retireM) : (_yr - 2026);
@@ -11862,7 +11908,7 @@ function loadSettings() {
     _clearPrivacyFields();
     // v169.3/169.5: Roy's Vault — in EXCEL mode without a session upload, null ALL personal
     // globals so Roy's hardcoded birth year / names don't bleed into calculations or labels
-    if (APP_MODE === 'EXCEL' && !_sessionExcelUploaded) {
+    if (APP_MODE === 'EXCEL' && sessionStorage.getItem('hasUploadedFiles') !== '1') { // v169.6
       SIM_USER1_BIRTH = '';
       SIM_USER2_BIRTH = '';
       SIM_USER1_NAME  = '';
@@ -12237,7 +12283,7 @@ function saveModalSettings() {
 function _demoForceDanSliders() {
   if (!isDemoMode) return;
   SIM_PENSION_MONTHLY = 25000;
-  SIM_TARGET_EXP      = 20000;
+  SIM_TARGET_EXP      = DEMO_DEFAULTS.retireExp; // v169.7: from DEMO_DEFAULTS, not hardcoded
   // DOM sliders
   var _ids = {
     'sim-pension-monthly-slider': 25000, 'sim-pension-monthly-num': 25000,
@@ -12433,9 +12479,9 @@ function loadDemoData() {
   SIM_ZOOM_CUSTOM.decStart = _demoNowY;       // 2026
   SIM_ZOOM_CUSTOM.decEnd   = _demoNowY + 10;  // 2036
 
-  // v168.115: Dan-specific slider defaults (isolated from Roy's settings)
-  SIM_RETIRE_EXP      = 20000;  // monthly expense for Dan — NOT Roy's 29K
-  SIM_TARGET_EXP      = 20000;  // sync immediately so engine uses correct value
+  // v169.7: Dan-specific slider defaults — strictly from DEMO_DEFAULTS, never from Roy's object
+  SIM_RETIRE_EXP      = DEMO_DEFAULTS.retireExp;   // 20000 for Dan — NOT Roy's 29K
+  SIM_TARGET_EXP      = DEMO_DEFAULTS.retireExp;   // sync immediately so engine uses correct value
   SIM_PENSION_MONTHLY = 25000;  // pre-set before simInit so first KPI render shows correct income
 
   // v168.117: set isDemoMode BEFORE any simInit call — _demoForceDanSliders() guards on this flag
@@ -12490,7 +12536,7 @@ function clearDashboardData() {
   if (!confirm('האם למחוק את כל הנתונים ולחזור למסך הפתיחה?\nפעולה זו אינה ניתנת לביטול.')) return;
   isDemoMode = false; // v168.12
   APP_MODE = 'EXCEL'; // v169.1: reset mode
-  _sessionExcelUploaded = false; // v169.3: reset session flag on full clear
+  try { sessionStorage.removeItem('hasUploadedFiles'); } catch(e) {} // v169.6: clear session upload flag
   document.body.classList.remove('demo-mode');
   localStorage.clear();
   location.reload();
@@ -12564,14 +12610,41 @@ function _ffsOpenStageA() {
 }
 
 // Update mode selector UI — highlight active button + update source label
+// v169.7: mode=null → no button active, shows "בחר מקור נתונים" placeholder
 function _updateModeSelectorUI(mode) {
   ['excel', 'demo', 'simulator'].forEach(function(m) {
     var btn = document.getElementById('mode-btn-' + m);
-    if (btn) btn.classList.toggle('active', m === mode.toLowerCase());
+    if (btn) btn.classList.toggle('active', !!mode && m === mode.toLowerCase());
   });
   var labels = { EXCEL: 'אקסל', DEMO: 'דמו (דן ודינה)', SIMULATOR: 'סימולטור אישי' };
   var lbl = document.getElementById('mode-source-label');
-  if (lbl) lbl.textContent = 'מקור נתונים: ' + (labels[mode] || mode);
+  if (lbl) lbl.textContent = mode ? ('מקור נתונים: ' + (labels[mode] || mode)) : 'בחר מקור נתונים';
+  // v169.7: Mode 0 — show/hide overview placeholder
+  var _ph = document.getElementById('ov-mode0-placeholder');
+  var _gr = document.getElementById('ov-grid-main');
+  if (_ph) _ph.style.display = mode ? 'none' : 'flex';
+  if (_gr) _gr.style.display = mode ? '' : 'none';
+}
+
+// =============================================
+// v169.6: FORMAL NULL STATE — defines exactly what "clean slate" means for every world
+// =============================================
+var INITIAL_NULL_STATE = {
+  cfData:        [],      // no cashflow rows
+  pensionAssets: [],      // no pension policies
+  simResult:     null,    // no engine output cache
+  ovWealth:      null,    // no overview wealth cache
+  userName1:     '',      // no names
+  userName2:     '',
+  userBirth1:    '',      // no birth dates
+  userBirth2:    '',
+};
+
+// v169.6: Formal API — every mode transition that needs a blank state calls this.
+// It wraps absoluteInternalReset() so future code always has a single named entry point.
+function setAppState(nullState) {
+  // nullState is for documentation/future use; action is always a full wipe
+  absoluteInternalReset();
 }
 
 // =============================================
@@ -12625,6 +12698,11 @@ function absoluteInternalReset() {
   pnsNetMonthly          = 0;
   pnsNetMonthlyWithHarel = 0;
   pnsNetMonthlyNoHarel   = 0;
+  ovPnsDisplayNet        = 0; // v169.9: Ghost Data Exorcism — must reset to prevent stale pension value in KPI
+  // v169.7: lock expense + instructor back to Roy's defaults — Demo's 20K must not persist
+  SIM_RETIRE_EXP     = ROY_DEFAULTS.retireExp;
+  SIM_INSTRUCTOR_SAL = ROY_DEFAULTS.instructorSal;
+  SIM_RENTAL_INCOME  = 0;
 
   // ── 5. Clear FFS profile to blank template (no Roy/Dan data) ──
   FFS_PROFILE.name                 = '';
@@ -12661,6 +12739,24 @@ function absoluteInternalReset() {
   isDemoMode = false;
   document.body.classList.remove('demo-mode');
   try { localStorage.removeItem('_dash_is_demo'); } catch(e) {}
+
+  // ── 10. v169.6: STEEL WALL — clear ALL in-memory chart/calc data arrays ──
+  // Without this, Demo→Excel contamination persists when _dashRestore* returns false
+  CF_DATA.length = 0;
+  PENSION_ASSETS.length = 0;
+  // ALL_TOTALS is a const — must zero in-place (cannot reassign)
+  for (var _sw = 0; _sw < ALL_TOTALS.length; _sw++) ALL_TOTALS[_sw] = 0;
+  // Null-fill each fund's data array in-place (FUNDS is a const too)
+  Object.keys(FUNDS).forEach(function(k) {
+    var f = FUNDS[k];
+    if (f && Array.isArray(f.data)) {
+      for (var _sj = 0; _sj < f.data.length; _sj++) f.data[_sj] = null;
+    }
+  });
+  // Rebuild CAT_TOTALS from now-empty FUNDS (empties all category arrays)
+  Object.keys(CAT_TOTALS).forEach(function(k) { CAT_TOTALS[k].length = 0; });
+  // Clear session upload flag — each mode must re-earn it
+  try { sessionStorage.removeItem('hasUploadedFiles'); } catch(e) {}
 }
 
 // Central mode switch — handles all 3 worlds with zero-contamination guarantee
@@ -12706,6 +12802,8 @@ function switchMode(mode) {
     var _cfOk    = _dashRestoreCF();
     var _pnsOk   = _dashRestorePension();
     var _hasExcelData = _assetOk || _cfOk || _pnsOk;
+    // v169.6: re-earn the session upload flag if real data was successfully restored
+    if (_hasExcelData) { try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} }
 
     if (_hasExcelData) {
       // Real data restored — rebuild investment table + lift privacy shield
@@ -12718,6 +12816,8 @@ function switchMode(mode) {
       if (typeof updateNavButtons   === 'function') updateNavButtons();
       if (typeof selectView         === 'function') selectView(currentView || 'all');
       loadSettings(); // populates birth dates, names, rates from saved settings
+      // v169.11: 29,000 lock — loadSettings may restore a stale Demo expense (20K) from localStorage
+      SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp; // hard re-enforce Roy's baseline after settings load
       if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
       var _taxSl = document.getElementById('pns-tax-slider');
       if (typeof pensionSliderChange === 'function') pensionSliderChange(_taxSl ? _taxSl.value : '35');

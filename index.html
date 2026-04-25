@@ -1,4 +1,4 @@
-<!-- v169.5 -->
+<!-- v169.11 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -39,18 +39,18 @@
   <!-- v169.1: Mode Selector — left side (RTL end), 3-world navigation -->
   <div id="mode-selector">
     <div id="mode-selector-group">
-      <button class="mode-btn active" id="mode-btn-excel" onclick="switchMode('EXCEL')">נתוני אמת</button>
+      <button class="mode-btn" id="mode-btn-excel" onclick="switchMode('EXCEL')">נתוני אמת</button>
       <button class="mode-btn" id="mode-btn-demo" onclick="switchMode('DEMO')">מצב דמו</button>
       <button class="mode-btn" id="mode-btn-simulator" onclick="switchMode('SIMULATOR')">סימולטור אישי</button>
     </div>
-    <div id="mode-source-label">מקור נתונים: אקסל</div>
+    <div id="mode-source-label">בחר מקור נתונים</div>
   </div>
 </div>
 <div class="header">
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v169.5</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v169.11</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -172,7 +172,7 @@
     <div id="mkt-not-found" style="display:none;font-size:11px;color:#f87171;font-family:Heebo,sans-serif;"></div>
   </div>
   <!-- v104.3: Overview Header KPIs (shown only on overview tab) -->
-  <div id="ov-header-stats" class="header-stats" style="display:none;direction:rtl;gap:20px;padding:0 16px;">
+  <div id="ov-header-stats" class="header-stats" style="display:none;direction:rtl;flex-shrink:1;min-width:0;gap:20px;padding:0 12px;">
     <div class="stat-item" style="gap:0;">
       <div class="stat-label">רווח חודש אחרון</div>
       <div class="stat-value" id="ov-hdr-profit" style="color:#4ade80;line-height:1.15;">—</div>
@@ -185,7 +185,7 @@
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ₪</div>
     </div>
     <div class="divider"></div>
-    <div class="stat-item" style="gap:0;min-width:155px;">
+    <div class="stat-item" style="gap:0;">
       <div class="stat-label" id="ov-hdr-pension-label">קצבה נטו</div>
       <div class="stat-value" id="ov-hdr-pension" style="color:#a78bfa;line-height:1.15;">—</div>
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">₪/חודש</div>
@@ -921,8 +921,16 @@
 .ov-empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;font-family:Heebo,sans-serif;text-align:center;padding:8px;background:rgba(255,255,255,0.6);border-radius:10px;line-height:1.5;}
 </style>
 <div class="ov-wrap">
+
+  <!-- v169.7: Mode 0 placeholder — shown when no data source is selected (new user or after full reset) -->
+  <div id="ov-mode0-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:14px;min-height:340px;">
+    <div style="font-size:36px;line-height:1;">📊</div>
+    <div style="font-size:18px;font-weight:800;color:#374151;font-family:Heebo,sans-serif;">בחר מקור נתונים כדי להתחיל</div>
+    <div style="font-size:13px;color:#6b7280;font-family:Heebo,sans-serif;text-align:center;max-width:340px;line-height:1.7;">לחץ על אחד הכפתורים בסרגל העליון:<br><strong>נתוני אמת</strong> · <strong>מצב דמו</strong> · <strong>סימולטור אישי</strong></div>
+  </div>
+
   <!-- 2×2 Bento Grid (RTL: right→left per row) — KPIs moved to header -->
-  <div class="ov-grid">
+  <div class="ov-grid" id="ov-grid-main" style="display:none;">
 
     <!-- TOP RIGHT: Cashflow Chart (2026) -->
     <div class="ov-card">
