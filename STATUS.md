@@ -1,7 +1,187 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.5 — Iron Curtain Final Patch (25/04/2026).
+גרסה v169.11 — Ghost 8.4M Exorcism (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.11)
+
+### v169.11 – The "Ghost 8.4M" Exorcism
+
+**1. Simulator ← OV_CACHED_WEALTH (מקור יחיד)**
+- `simRenderKPI()` שינה את "הון חזוי" — כעת קורא ישירות מ-`OV_CACHED_WEALTH` (גלובל משותף של ה-Overview)
+- בצפייה "רועי" (ברירת מחדל): `sim-hdr-wealth-at-age` = `OV_CACHED_WEALTH` — בדיוק אותו מספר כמו Overview
+- בצפייה "יעל" / "משולב": ממשיך להשתמש בחישוב המנוע הרלוונטי (אין OV_CACHED_WEALTH מקביל)
+- תוצאה: שני הטאבים מציגים 26.6M (לדוגמה) — ללא כל חישוב מקומי בסימולטור
+
+**2. Pension Net Deep Clean (אימות)**
+- `ovPnsDisplayNet = 0` כבר קיים ב-absoluteInternalReset() (v169.9) ✓
+- `clearAppState()` → DOM element `ov-hdr-pension` = '—' ✓
+- `pnsNetMonthly = 0` ✓
+- לפני העלאת קובץ: קצבה נטו = '—' מיידית
+
+**3. נועל 29,000 ב-EXCEL mode**
+- לאחר `loadSettings()` ב-`switchMode('EXCEL')`: `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` (29000)
+- מונע מ-localStorage להחזיר ערך שגוי (כגון 20,000 מהדמו) שיגרום ל-SIM_TARGET_EXP שגוי ב-`simInit()`
+- `simInit()` מגדיר: `SIM_TARGET_EXP = SIM_RETIRE_EXP` (29000 נעול) → מנוע רץ עם הוצאות נכונות
+
+**4. Layout Breathing Room**
+- `.header-stats .stat-item { padding: 0 10px }` — 10px רווח אופקי לכל KPI
+- No-Wrap mode מאפשר את הרווח הנוסף ללא דחיסה
+
+## שינויים אחרונים (25/04/2026 — v169.10)
+
+### v169.10 – Back to Basics & Data Alignment
+
+**1. CSS Rollback — חזרה ל-v169.7 + שמירה אחת**
+- **הוסר**: כל בלוק v169.8/v169.9 (media queries, flex-shrink, min-width: 120px, gap overrides)
+- **הוחזר**: `.header-stats > div` חזר ל-`flex: 0 0 auto !important; min-width: max-content` (מצב v169.7)
+- **תוספת יחידה**: `min-width: 1100px` נוסף ל-`.header` container
+  - `.header` כבר מכיל `flex-wrap: nowrap` — האלמנטים לא "ידרסו" זה את זה
+  - בחלון קטן מ-1100px: scroll רוחבי קל, ללא קריסת KPIs
+
+**2. תיקון 26.6M vs 8.4M (Data Integrity)**
+- **שורש הבעיה**: `ovRenderKPIs()` הריץ `simRunEngine()` ולא שמר תוצאה ב-`SIM_LAST_RESULT`
+  - Overview קיבל תוצאה X (SIM_TARGET_EXP=29000)
+  - Simulator קיבל תוצאה Y (חישוב חדש עם פרמטרים שונים)
+- **תיקון**: לאחר ריצת `simRunEngine()` ב-`ovRenderKPIs()`, התוצאה נשמרת ב-`SIM_LAST_RESULT`
+- **תוצאה**: `simRenderKPI()` ב-Simulator קורא מ-`SIM_LAST_RESULT` — אותו מקור בדיוק
+- sync מ-v169.9 נשמר: `if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP`
+
+**3. Pension Net Reset (אימות)**
+- `clearAppState()` (step 2 ב-absoluteInternalReset) → DOM element `ov-hdr-pension` = '—' ✓
+- `pnsNetMonthly = 0` (step 5) ✓
+- `ovPnsDisplayNet = 0` (step 5, נוסף ב-v169.9) ✓
+- כשעוברים ל"נתוני אמת" לפני העלאת קובץ: קצבה נטו מציגה '—' מיידית
+
+**4. Isolation Check (אימות)**
+- Steel Wall (step 10): `CF_DATA.length = 0`, `PENSION_ASSETS.length = 0`, `ALL_TOTALS` מאופסים, `FUNDS[k].data` null-filled, `CAT_TOTALS` ריקים ✓
+- `isDemoMode = false` → `isExcelLoaded()` לא מוטעה ✓
+- נתוני נדל"ן/השקעות של דן ודינה לא מוצגים ב-Excel/Simulator mode ✓
+
+## שינויים אחרונים (25/04/2026 — v169.9)
+
+### v169.9 – Hard Isolation & Layout Restoration
+
+**1. CSS — Layout Floor (style.css)**
+- `min-width: 120px` על `.header-stats .stat-item` — רצפת רוחב לכל KPI
+- `gap: 24px !important` על `#ov-header-stats` | `gap: 20px !important` על `#sim-header-stats`
+- `#tabs-buttons { flex-shrink: 0 }` — כפתורי טאב לא נצמצמים
+- `#mode-selector { flex-shrink: 1; min-width: 0 }` — בורר מצב נצמצם ראשון
+- Media query @1400px: `font-size: 16px`, gap: 16px לכל group
+- Media query @1200px: `font-size: 14px`, `min-width: 90px`, gap מצומצם, `#mode-source-label` נסתר
+
+**2. Ghost Data Exorcism (app.js — absoluteInternalReset)**
+- הוסף `ovPnsDisplayNet = 0` לרשימת הניקוי — מונע הצגת קצבה ישנה בדשבורד אחרי reset
+- `pnsNetMonthly = 0` כבר היה קיים; כעת גם `ovPnsDisplayNet` מתאפס
+
+**3. Simulator Sync Fix (app.js — ovRenderKPIs)**
+- נמצאה סיבת השורש: `resetCalculationMemory()` מאפס `SIM_TARGET_EXP=0`; overview מריץ engine לפני `simInit()` שמגדיר את `SIM_TARGET_EXP=SIM_RETIRE_EXP (29000)`
+- **תיקון**: לפני `simRunEngine()` ב-`ovRenderKPIs()`, הוסף sync: `if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP`
+- תוצאה: Overview ו-Simulator יציגו הון חזוי זהה
+
+**4. FFS Blank Slate (אימות — ללא שינוי קוד נדרש)**
+- `ffsGetLiquidCapital()` מחזיר 0 כש-`FFS_PROFILE.investments = []` — CONFIRMED
+- `absoluteInternalReset()` כבר מגדיר `FFS_PROFILE.investments = []` — CONFIRMED
+- `ovRenderInvestChart()` בודק `ALL_TOTALS.some(v>0)` — מציג empty state כשאין נתונים — CONFIRMED
+- `isExcelLoaded()` מחזיר `false` ב-SIMULATOR mode — CONFIRMED
+
+## שינויים אחרונים (25/04/2026 — v169.8)
+
+### v169.8 – Header KPI Layout & Responsiveness Fix
+
+**1. שורש הבעיה — תוקן**
+- `.header-stats > div` הוגדר בעבר `flex: 0 0 auto !important; min-width: max-content`
+- המשמעות: כל כרטיס KPI סירב לצמצם, וגרם לדחיסה/חפיפה בחלונות ≤1400px
+- **תיקון**: שינוי ל-`flex: 0 1 auto !important; min-width: 0` — אפשר flex-shrink
+
+**2. .header-stats — flex-shrink מאופשר**
+- הוסף `flex-shrink: 1; min-width: 0` — כל בר ה-KPIs יכול כעת להצטמצם
+- `#ov-header-stats`: הוסף `flex-shrink:1; min-width:0` גם inline
+
+**3. min-width:155px על כרטיס "קצבה נטו" — הוסר**
+- הנעיל רוחב של 155px ומנע צמצום; הוסר לחלוטין
+
+**4. Media Query @1400px — גופן ו-gap**
+- gap: 12px (במקום 20px) בכל `.header-stats`
+- `#ov-header-stats` + `#sim-header-stats`: gap מצומצם
+- `.header-stats .stat-value`: `font-size: 16px !important` (10% קטן מ-18px)
+- `.stat-label`, `.stat-change`: `font-size: 9px`
+
+**5. Media Query @1200px — צמצום נוסף**
+- gap: 8px, גופן: 14px
+- `#mode-source-label` מוסתר בחלונות צרים מאוד
+
+**6. Mode 0 Startup — ללא שינוי (עובד מושלם מ-v169.7)**
+
+## שינויים אחרונים (25/04/2026 — v169.7)
+
+### v169.7 – Immutable Profile Isolation & Startup Mode 0
+
+**1. Mode 0 Startup — מצב הפתיחה הנייטרלי**
+- `APP_MODE` מאותחל ל-`null` (במקום 'EXCEL')
+- בטעינת דף: אם יש data ב-localStorage → `APP_MODE='EXCEL'` אוטומטית, כפתור Excel מסומן
+- אם אין data (משתמש חדש / לאחר reset) → Mode 0, אין כפתור מסומן
+- `_updateModeSelectorUI(null)` מציג "בחר מקור נתונים" ומסיר active מכל הכפתורים
+- HTML: כפתור Excel כבר ללא class `active` בסיס
+
+**2. Overview Mode 0 Placeholder**
+- `div#ov-mode0-placeholder`: "בחר מקור נתונים כדי להתחיל" + הוראות
+- `div#ov-grid-main` (id חדש ל-ov-grid): מוסתר כשאין מצב, מוצג עם מצב
+- `_updateModeSelectorUI()` מנהל show/hide של שני האלמנטים
+
+**3. ROY_DEFAULTS / DEMO_DEFAULTS / SIMULATOR_DEFAULTS — קבועים בלתי-משתנים**
+- `Object.freeze()` על כל שלוש — לא ניתן לדרוס
+- ROY: `retireExp=29000`, `instructorSal=35000`
+- DEMO: `retireExp=20000`, `instructorSal=35000`
+- SIMULATOR: `retireExp=0` (תמיד מ-FFS_PROFILE)
+
+**4. absoluteInternalReset() — נעילת ערכי רועי**
+- לאחר `resetCalculationMemory()`: `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` (29000 נעול)
+- `SIM_INSTRUCTOR_SAL = ROY_DEFAULTS.instructorSal` (35000 נעול)
+- `SIM_RENTAL_INCOME = 0`
+- מבטיח: Demo→Excel אף פעם לא משאיר 20000 מ-Dan
+
+**5. Ghost Income Fix — Income Slider**
+- `simRunEngine()` firewall: הסיר `&& SIM_PENSION_MONTHLY === 0` — ב-Excel mode תמיד ידרוס מ-Excel data
+- מבטיח: ערכי הכנסה ב-Excel mode תמיד מגיעים מ-`pnsNetMonthlyNoHarel + rentalIncome` (הנתונים האמיתיים)
+- מונע: Ghost income מ-Demo (25000 של דן) מדבק ב-Excel mode
+
+**6. Demo בטוח**
+- `loadDemoData()` ו-`_demoForceDanSliders()` משתמשים ב-`DEMO_DEFAULTS.retireExp` — לא מספר קשיח 20000
+
+## שינויים אחרונים (25/04/2026 — v169.6)
+
+### v169.6 – Steel Wall: Full Data Array Isolation + sessionStorage Migration
+
+**1. INITIAL_NULL_STATE — קבוע פורמלי חדש**
+- מוגדר מעל `absoluteInternalReset()`: מתאר בדיוק מה "מצב ריק" אומר
+- מכיל: `cfData:[]`, `pensionAssets:[]`, `simResult:null`, `ovWealth:null`, שמות וניים ריקים
+- מטרה: תיעוד + entry point לעתיד (אין לשנות ישירות — משמש דרך `setAppState()`)
+
+**2. setAppState() — API פורמלי חדש**
+- עוטף את `absoluteInternalReset()` — נקודת כניסה אחת לכל שינוי מצב
+- כל קוד עתידי ישתמש ב-`setAppState(INITIAL_NULL_STATE)` ולא ישיר ב-reset
+
+**3. absoluteInternalReset() — Steel Wall (שלב 10)**
+- **חדש**: `CF_DATA.length = 0` — ניקוי תזרים in-memory
+- **חדש**: `PENSION_ASSETS.length = 0` — ניקוי פנסיה in-memory
+- **חדש**: לולאה על `ALL_TOTALS` → כל ערך = 0 (const, חייב in-place)
+- **חדש**: null-fill לכל `FUNDS[k].data` (const, חייב in-place)
+- **חדש**: `Object.keys(CAT_TOTALS).forEach(k => CAT_TOTALS[k].length = 0)`
+- **חדש**: `sessionStorage.removeItem('hasUploadedFiles')` — מנקה דגל session
+- **תוצאה**: Demo→Excel עם אין data ב-LS = blank slate אמיתי (אין רשת בטחון מ-Dan)
+
+**4. _sessionExcelUploaded → sessionStorage.hasUploadedFiles (נדידה מלאה)**
+- משתנה JS הוסר; כל 8 מקומות הוחלפו:
+  - `= true` → `sessionStorage.setItem('hasUploadedFiles', '1')`
+  - `=== true` (check) → `sessionStorage.getItem('hasUploadedFiles') === '1'`
+  - `!var` (check) → `sessionStorage.getItem('hasUploadedFiles') !== '1'`
+  - `= false` → `sessionStorage.removeItem('hasUploadedFiles')`
+- 3 נקודות upload (pension/CF/investments), DOMContentLoaded, switchMode EXCEL restore
+- **יתרון**: sessionStorage נמחק אוטומטית כשהטאב נסגר → privacy by default
+
+**5. switchMode EXCEL — re-earn הדגל**
+- לאחר `absoluteInternalReset()` שמנקה את הדגל, אם `_dashRestore*` מצליח → `sessionStorage.setItem('hasUploadedFiles', '1')` מחדש
 
 ## שינויים אחרונים (25/04/2026 — v169.5)
 
