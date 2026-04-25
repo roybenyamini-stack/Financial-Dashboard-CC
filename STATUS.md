@@ -1,9 +1,46 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.3 — Iron Dome Privacy & Logic Fix (25/04/2026).
+גרסה v169.4 — Hard-Reset Isolation Protocol (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.4)
+
+### v169.4 – Hard-Reset Isolation Protocol
+
+**1. absoluteInternalReset() — פונקציה חדשה**
+מנקה את כל המצב הפנימי לפני טעינת mode חדש:
+- `SIM_LAST_RESULT = null`, `OV_CACHED_WEALTH = null`
+- `clearAppState()` — כל ה-KPIs ל-'—'
+- הורס כל chart objects: `simChartObj`, `ovCFChart`, `ovInvChart`, `ovSimMiniChart`, `cfChartInstance`
+- מאפס globals אישיים: `SIM_USER1_NAME`, `SIM_USER2_NAME`, `SIM_USER1_BIRTH`, `SIM_USER2_BIRTH`
+- `resetCalculationMemory()` — מאפס: pension, salary, rental, expense
+- `pnsNetMonthly`, `pnsNetMonthlyWithHarel`, `pnsNetMonthlyNoHarel` = 0
+- מנקה `FFS_PROFILE` למבנה ריק לחלוטין (ללא נתוני רועי/דן)
+- `_clearPrivacyFields()` — מנקה שדות UI אישיים
+- מציג "מציג: אורח" מיידית לפני כל טעינה
+- `simInited = overviewInited = cfInited = pensionInited = false`
+- מסיר `isDemoMode` ו-`demo-mode` class
+
+**2. switchMode() — ארכיטקטורה חדשה**
+- **FIRST LINE**: `absoluteInternalReset()` לפני כל פעולה (אחרי guard checks)
+- **EXCEL**: `_dashRestoreAssets/CF/Pension()` → אם נמצאו → `loadSettings()`, re-render. אם לא → blank slate
+- **DEMO**: `loadDemoData()` בלבד — טוען נתוני דן/דינה hardcoded
+- **SIMULATOR**: `ffsLoadProfile()` מ-FINANCIAL_SIM_PERSONAL_DATA בלבד → אם יש נתונים → dashboard; אם לא → `ffsRenderAll()` + drawer ריק
+
+**3. Visual Feedback Fix**
+כאשר drawer פתוח ואין נתונים: `simCheckEmpty()` מסתיר chart section ומציג "אין נתונים"
+FFS_PROFILE ריק לגמרי → drawer מציג שדות ריקים (0 / dd/mm/yyyy)
+
+**4. Name Label Sync מיידי**
+`simUpdateNameLabel()` ועדכון ישיר של `sim-active-name-text` ו-`ffs-drawer-title` ל-"אורח" ב-`absoluteInternalReset()`
+לוגיקה mode-aware: SIMULATOR→ FFS_PROFILE.name; DEMO→SIM_USER1_NAME; EXCEL→session-gated
+
+**5. Smart Warning (dirty check)**
+אזהרה ב-SIMULATOR exit רק אם `FFS_PROFILE` מכיל נתונים בפועל (name/birthDate/investments/pension/realEstate)
+ב-empty slate — אין אזהרה, עובר מיידית
 
 ## שינויים אחרונים (25/04/2026 — v169.3)
+
 
 ### v169.3 – Iron Dome: Privacy, Warnings & Cross-Tab Context
 

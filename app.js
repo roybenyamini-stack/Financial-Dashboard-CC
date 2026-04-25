@@ -8315,8 +8315,15 @@ function ffsToggleAcc(name) {
 function ffsUpdateDrawerTitle() {
   var titleEl = document.getElementById('ffs-drawer-title');
   if (!titleEl) return;
-  // v168.84: when Excel is loaded, drawer shows Excel profile (Roy), not FFS name
-  var name = isExcelLoaded() ? (SIM_USER1_NAME || 'רועי') : (FFS_PROFILE.name || SIM_USER1_NAME || 'אורח');
+  // v169.4: mode-aware — each world shows its own name, no cross-contamination
+  var name;
+  if (APP_MODE === 'SIMULATOR') {
+    name = FFS_PROFILE.name || 'אורח';
+  } else if (isExcelLoaded()) {
+    name = SIM_USER1_NAME || 'אורח';
+  } else {
+    name = FFS_PROFILE.name || SIM_USER1_NAME || 'אורח';
+  }
   titleEl.textContent = '👤 מציג: ' + name;
 }
 // v168.75: checkbox handler — re-renders section to show/hide sub-fields
@@ -8661,13 +8668,16 @@ function ffsApplyAndClose() {
 function simUpdateNameLabel() {
   var lbl = document.getElementById('sim-active-name-text');
   if (!lbl) return;
-  // v168.83: Excel data always takes priority over FFS drawer name
-  var hasExcelData = simGetRoyCapital() > 0 || (CF_DATA && CF_DATA.length > 0);
   var name;
-  if (hasExcelData) {
-    name = SIM_USER1_NAME || 'רועי';
+  // v169.4: mode-aware name resolution — no cross-mode fallback
+  if (APP_MODE === 'SIMULATOR') {
+    name = FFS_PROFILE.name || 'אורח';
+  } else if (APP_MODE === 'DEMO') {
+    name = SIM_USER1_NAME || 'דן';
   } else {
-    name = FFS_PROFILE.name || SIM_USER1_NAME || 'אורח';
+    // EXCEL: Excel data takes priority; fall back to "אורח" if no session data
+    var hasExcelData = _sessionExcelUploaded && (simGetRoyCapital() > 0 || (CF_DATA && CF_DATA.length > 0));
+    name = hasExcelData ? (SIM_USER1_NAME || 'אורח') : 'אורח';
   }
   lbl.textContent = 'מציג: ' + name;
   // keep pns/inv single-option label in sync
@@ -12561,60 +12571,118 @@ function _updateModeSelectorUI(mode) {
   if (lbl) lbl.textContent = 'מקור נתונים: ' + (labels[mode] || mode);
 }
 
-// Central mode switch — handles all 3 worlds cleanly
+// =============================================
+// v169.4: ABSOLUTE INTERNAL RESET — called first in every mode switch
+// Guarantees zero cross-contamination between EXCEL / DEMO / SIMULATOR worlds.
+// =============================================
+function absoluteInternalReset() {
+  // ── 1. Wipe simulation engine cache ──
+  SIM_LAST_RESULT  = null;
+  OV_CACHED_WEALTH = null;
+
+  // ── 2. Clear all header KPIs immediately ──
+  clearAppState();
+
+  // ── 3. Destroy ALL chart objects — no stale render can survive a mode switch ──
+  if (typeof simChartObj !== 'undefined' && simChartObj)         { try { simChartObj.destroy();     } catch(e) {} simChartObj     = null; }
+  if (typeof ovCFChart !== 'undefined' && ovCFChart)             { try { ovCFChart.destroy();       } catch(e) {} ovCFChart       = null; }
+  if (typeof ovInvChart !== 'undefined' && ovInvChart)           { try { ovInvChart.destroy();      } catch(e) {} ovInvChart      = null; }
+  if (typeof ovSimMiniChart !== 'undefined' && ovSimMiniChart)   { try { ovSimMiniChart.destroy();  } catch(e) {} ovSimMiniChart  = null; }
+  if (typeof cfChartInstance !== 'undefined' && cfChartInstance) { try { cfChartInstance.destroy(); } catch(e) {} cfChartInstance = null; }
+
+  // ── 4. Reset personal / calculation globals to zero ──
+  SIM_USER1_NAME  = '';
+  SIM_USER2_NAME  = '';
+  SIM_USER1_BIRTH = '';
+  SIM_USER2_BIRTH = '';
+  if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
+  pnsNetMonthly          = 0;
+  pnsNetMonthlyWithHarel = 0;
+  pnsNetMonthlyNoHarel   = 0;
+
+  // ── 5. Clear FFS profile to blank template (no Roy/Dan data) ──
+  FFS_PROFILE.name                 = '';
+  FFS_PROFILE.birthDate            = '';
+  FFS_PROFILE.retirementAge        = 67;
+  FFS_PROFILE.lifeExpectancy       = 84;
+  FFS_PROFILE.monthlySavings       = 0;
+  FFS_PROFILE.savingsGrowth        = 0;
+  FFS_PROFILE.retirementExpense    = 0;
+  FFS_PROFILE.retirementIncome     = 0;
+  FFS_PROFILE.bridgeAge            = '';
+  FFS_PROFILE.bridgeCashflow       = 0;
+  FFS_PROFILE.bridgePensionContrib = false;
+  FFS_PROFILE.investments          = [];
+  FFS_PROFILE.pension              = [];
+  FFS_PROFILE.realEstate           = [];
+
+  // ── 6. Clear settings UI personal fields ──
+  _clearPrivacyFields();
+
+  // ── 7. Immediately show "אורח" — name label updates before any data loads ──
+  var _nlbl = document.getElementById('sim-active-name-text');
+  if (_nlbl) _nlbl.textContent = 'מציג: אורח';
+  var _dtitle = document.getElementById('ffs-drawer-title');
+  if (_dtitle) _dtitle.textContent = '👤 מציג: אורח';
+
+  // ── 8. Force all tab re-init — each mode re-bootstraps its own tabs ──
+  simInited      = false;
+  overviewInited = false;
+  cfInited       = false;
+  pensionInited  = false;
+
+  // ── 9. Reset demo mode flags ──
+  isDemoMode = false;
+  document.body.classList.remove('demo-mode');
+  try { localStorage.removeItem('_dash_is_demo'); } catch(e) {}
+}
+
+// Central mode switch — handles all 3 worlds with zero-contamination guarantee
 function switchMode(mode) {
   var prev = APP_MODE;
 
-  // v169.3: guard — warn before leaving SIMULATOR (data in the view could be lost)
+  // v169.4: smart SIMULATOR guard — only warn if profile has actual data (not empty slate)
   if (prev === 'SIMULATOR' && mode !== 'SIMULATOR') {
-    var _proceed = confirm('שים לב: מעבר מצב ינקה את תצוגת הסימולטור. וודא ששמרת את הנתונים אם ברצונך לחזור אליהם מאוחר יותר. להמשיך?');
-    if (!_proceed) {
-      _updateModeSelectorUI('SIMULATOR'); // restore button highlight to SIMULATOR
-      return;
+    var _simHasData = !!(
+      FFS_PROFILE.name || FFS_PROFILE.birthDate ||
+      (FFS_PROFILE.investments && FFS_PROFILE.investments.length > 0) ||
+      (FFS_PROFILE.pension     && FFS_PROFILE.pension.length     > 0) ||
+      (FFS_PROFILE.realEstate  && FFS_PROFILE.realEstate.length  > 0)
+    );
+    if (_simHasData) {
+      if (!confirm('שים לב: מעבר מצב ינקה את תצוגת הסימולטור. וודא ששמרת את הנתונים אם ברצונך לחזור אליהם מאוחר יותר. להמשיך?')) {
+        _updateModeSelectorUI('SIMULATOR');
+        return;
+      }
     }
   }
 
-  APP_MODE = mode; // set FIRST so ffsGetActiveKey() and isExcelLoaded() use the new mode
+  // v169.4: IRON DOME — absolute reset is the FIRST action after all guards pass
+  absoluteInternalReset();
 
+  APP_MODE = mode;
   _updateModeSelectorUI(mode);
-  clearAppState(); // v169.2: immediate blank slate before new data loads
 
-  // Hide "edit data" button by default — shown in SIMULATOR mode when data exists
   var editBtn = document.getElementById('sim-edit-data-btn');
   if (editBtn) editBtn.style.display = 'none';
 
   // ── DEMO mode ──
   if (mode === 'DEMO') {
-    loadDemoData(); // existing function sets isDemoMode, body.demo-mode, switches tab
+    loadDemoData(); // loads Dan/Dina data, sets isDemoMode=true, switches to overview
     return;
-  }
-
-  // ── Shared cleanup when leaving DEMO — v169.3: complete purge ──
-  if (prev === 'DEMO') {
-    isDemoMode = false;
-    document.body.classList.remove('demo-mode');
-    try { localStorage.removeItem('_dash_is_demo'); } catch(e) {}
-    // Restore real Excel data from localStorage (demo overwrites in-memory globals)
-    _dashRestoreAssets();
-    _dashRestoreCF();
-    _dashRestorePension();
-    // v169.3: destroy cached overview charts so they re-render from real data (not demo cache)
-    if (typeof ovCFChart !== 'undefined' && ovCFChart) { try { ovCFChart.destroy(); } catch(e) {} ovCFChart = null; }
-    if (typeof ovInvChart !== 'undefined' && ovInvChart) { try { ovInvChart.destroy(); } catch(e) {} ovInvChart = null; }
-    if (typeof ovSimMiniChart !== 'undefined' && ovSimMiniChart) { try { ovSimMiniChart.destroy(); } catch(e) {} ovSimMiniChart = null; }
-    cfInited = false; // force cashflow tab to re-init with fresh real data
-    loadSettings();
-    pensionInited = false;
-    if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
-    // v169.3: privacy shield — blank personal fields if no real session data
-    if (!_sessionExcelUploaded) _clearPrivacyFields();
   }
 
   // ── EXCEL mode ──
   if (mode === 'EXCEL') {
     isDemoMode = false;
-    // Re-render investment table if data exists
-    if (CF_DATA && CF_DATA.length > 0 || PENSION_ASSETS && PENSION_ASSETS.length > 0) {
+    // Restore real Excel data from localStorage (each restore returns false if key missing)
+    var _assetOk = _dashRestoreAssets();
+    var _cfOk    = _dashRestoreCF();
+    var _pnsOk   = _dashRestorePension();
+    var _hasExcelData = _assetOk || _cfOk || _pnsOk;
+
+    if (_hasExcelData) {
+      // Real data restored — rebuild investment table + lift privacy shield
       document.querySelectorAll('th[data-col]').forEach(function(th) {
         var col = parseInt(th.getAttribute('data-col'));
         if (col >= 0 && col < LABELS.length) th.textContent = LABELS[col];
@@ -12623,22 +12691,29 @@ function switchMode(mode) {
       if (typeof updateDynamicStats === 'function') updateDynamicStats();
       if (typeof updateNavButtons   === 'function') updateNavButtons();
       if (typeof selectView         === 'function') selectView(currentView || 'all');
+      loadSettings(); // populates birth dates, names, rates from saved settings
+      if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
+      var _taxSl = document.getElementById('pns-tax-slider');
+      if (typeof pensionSliderChange === 'function') pensionSliderChange(_taxSl ? _taxSl.value : '35');
+    } else {
+      // No Excel data in localStorage — clean blank slate, no Roy/Dan fallback
+      _clearPrivacyFields();
     }
+
     switchTab('overview');
-    setTimeout(function() {
-      if (typeof overviewRender === 'function') {
-        if (!overviewInited) overviewInited = true;
-        overviewRender();
-      }
-    }, 200);
+    if (_hasExcelData) {
+      setTimeout(function() {
+        overviewInited = true;
+        if (typeof overviewRender === 'function') overviewRender();
+      }, 200);
+    }
     return;
   }
 
   // ── SIMULATOR mode ──
   if (mode === 'SIMULATOR') {
     isDemoMode = false;
-
-    // APP_MODE is already SIMULATOR → ffsLoadProfile() reads from FINANCIAL_SIM_PERSONAL_DATA
+    // Load ONLY from FINANCIAL_SIM_PERSONAL_DATA (APP_MODE is already SIMULATOR)
     ffsLoadProfile();
 
     var hasData = !!(
@@ -12649,17 +12724,19 @@ function switchMode(mode) {
       (FFS_PROFILE.realEstate  && FFS_PROFILE.realEstate.length  > 0)
     );
 
+    // Update name label immediately — shows saved name or "אורח" before any render
+    if (typeof simUpdateNameLabel === 'function') simUpdateNameLabel();
+
     switchTab('simulator');
 
     setTimeout(function() {
       if (hasData) {
-        // Data exists — show simulator dashboard with edit button
         if (editBtn) editBtn.style.display = 'flex';
         if (typeof simFullRefresh === 'function') simFullRefresh();
       } else {
-        // Fresh start — clean slate + open FFS drawer at Stage A
-        if (typeof ffsStartFreshProfile === 'function') ffsStartFreshProfile();
-        if (typeof openFFSDrawer        === 'function') openFFSDrawer();
+        // Empty slate — render blank drawer fields, open at Stage A
+        if (typeof ffsRenderAll === 'function') ffsRenderAll();
+        if (typeof openFFSDrawer === 'function') openFFSDrawer();
         _ffsOpenStageA();
       }
     }, 200);
