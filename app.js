@@ -6028,6 +6028,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var _assetsOk  = _dashRestoreAssets();
   var _cfOk      = _dashRestoreCF();
   var _pensionOk = _dashRestorePension();
+  // v169.5: returning user with data in localStorage is treated as having uploaded this session
+  // (their data is real — the privacy shield should not hide it)
+  if (_assetsOk || _cfOk || _pensionOk) { _sessionExcelUploaded = true; }
 
   if (_assetsOk) {
     // update investment table headers + cells with restored data
@@ -11857,13 +11860,20 @@ function loadSettings() {
                        isDemoMode;
   if (!_hasActiveData) {
     _clearPrivacyFields();
-    // v169.3: Roy's Vault — in EXCEL mode without a session upload, also null the personal
+    // v169.3/169.5: Roy's Vault — in EXCEL mode without a session upload, null ALL personal
     // globals so Roy's hardcoded birth year / names don't bleed into calculations or labels
     if (APP_MODE === 'EXCEL' && !_sessionExcelUploaded) {
       SIM_USER1_BIRTH = '';
       SIM_USER2_BIRTH = '';
       SIM_USER1_NAME  = '';
       SIM_USER2_NAME  = '';
+      // v169.5: also reset birth year globals — prevents 1962 from leaking into sim phase calc
+      var _gby = new Date().getFullYear() - 40;
+      SIM_BIRTH_YEAR_ROY  = _gby;
+      SIM_BIRTH_YEAR_YAEL = _gby;
+      SIM_P2_START.y = _gby + SIM_RETIREMENT_AGE_YAEL;
+      SIM_P3_START.y = _gby + SIM_RETIREMENT_AGE_ROY;
+      SIM_END.y      = _gby + 95;
     }
   }
 
@@ -12370,12 +12380,11 @@ function loadDemoData() {
     isPendingReview: false, mainPurpose: 'פנסיה'
   });
 
-  // ── 4. Persist everything ──
-  _dashSaveAssets();
-  _dashSaveCF();
-  _dashSavePension();
+  // ── 4. Persist events + demo flag only (v169.5: NEVER overwrite real Excel LS keys with demo data) ──
+  // _dashSaveAssets/CF/Pension intentionally NOT called — demo data lives in memory only.
+  // This guarantees Demo→Excel switches restore Roy's untouched real data.
   _simSaveUserEvents(); // saves empty SIM_USER_EVENTS to localStorage
-  try { localStorage.setItem('_dash_is_demo', '1'); } catch(e) {} // v168.10: flag so next load clears demo data
+  try { localStorage.setItem('_dash_is_demo', '1'); } catch(e) {} // flag so reload clears ghost
 
   // ── 5. Override simulator labels + anonymize users (v167.2/v167.3) ──
   SIM_PENSION_FUND_NAME = 'הפניקס';
@@ -12392,15 +12401,9 @@ function loadDemoData() {
   syncBirthYearsFromSettings();
   if (typeof applyUserNames === 'function') applyUserNames(); // v167.4: update all name spans immediately
 
-  // v167.3: persist anonymized names/DOBs into settings localStorage so Settings tab reflects them
+  // v169.5: demo names shown in DOM only — NOT written to SETTINGS_LS_KEY (prevents Settings contamination)
+  // When switching Demo→Excel, loadSettings() reads Roy's untouched settings, not Dan's.
   (function() {
-    var _sRaw = localStorage.getItem(SETTINGS_LS_KEY);
-    var _s = {};
-    try { _s = JSON.parse(_sRaw) || {}; } catch(e) {}
-    _s.user1Name  = 'דן';   _s.user2Name  = 'דינה';
-    _s.user1Birth = '1975-01-01'; _s.user2Birth = '1978-05-15';
-    try { localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(_s)); } catch(e) {}
-    // Update DOM inputs immediately (Settings panel may already be rendered)
     var _domMap = { 'stg-user1-name':'דן', 'stg-user2-name':'דינה', 'stg-user1-birth':'1975-01-01', 'stg-user2-birth':'1978-05-15' };
     Object.keys(_domMap).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = _domMap[id]; });
   })();
@@ -12583,18 +12586,41 @@ function absoluteInternalReset() {
   // ── 2. Clear all header KPIs immediately ──
   clearAppState();
 
-  // ── 3. Destroy ALL chart objects — no stale render can survive a mode switch ──
-  if (typeof simChartObj !== 'undefined' && simChartObj)         { try { simChartObj.destroy();     } catch(e) {} simChartObj     = null; }
-  if (typeof ovCFChart !== 'undefined' && ovCFChart)             { try { ovCFChart.destroy();       } catch(e) {} ovCFChart       = null; }
-  if (typeof ovInvChart !== 'undefined' && ovInvChart)           { try { ovInvChart.destroy();      } catch(e) {} ovInvChart      = null; }
-  if (typeof ovSimMiniChart !== 'undefined' && ovSimMiniChart)   { try { ovSimMiniChart.destroy();  } catch(e) {} ovSimMiniChart  = null; }
-  if (typeof cfChartInstance !== 'undefined' && cfChartInstance) { try { cfChartInstance.destroy(); } catch(e) {} cfChartInstance = null; }
+  // ── 3. Destroy ALL chart objects + clear canvas pixels (v169.5: "nuclear option") ──
+  var _killChart = function(obj) { if (obj) { try { obj.destroy(); } catch(e) {} } };
+  if (typeof simChartObj !== 'undefined')     { _killChart(simChartObj);     simChartObj     = null; }
+  if (typeof ovCFChart !== 'undefined')       { _killChart(ovCFChart);       ovCFChart       = null; }
+  if (typeof ovInvChart !== 'undefined')      { _killChart(ovInvChart);      ovInvChart      = null; }
+  if (typeof ovSimMiniChart !== 'undefined')  { _killChart(ovSimMiniChart);  ovSimMiniChart  = null; }
+  if (typeof cfChartInstance !== 'undefined') { _killChart(cfChartInstance); cfChartInstance = null; }
+  // Clear residual canvas pixels (Chart.js destroy() leaves faded image)
+  ['ov-cf-chart','ov-inv-chart','ov-sim-chart','sim-chart'].forEach(function(cid) {
+    var cv = document.getElementById(cid);
+    if (cv) { var cx = cv.getContext('2d'); if (cx) cx.clearRect(0, 0, cv.width, cv.height); cv.style.display = 'none'; }
+  });
+  // Show "no data" empty states for overview cards
+  ['ov-cf-empty','ov-inv-empty','ov-sim-empty'].forEach(function(eid) {
+    var el = document.getElementById(eid);
+    if (el) { el.textContent = 'יש להעלות את קבצי הנתונים להצגת התוכן'; el.style.display = 'flex'; }
+  });
+  // Clear pension overview content
+  var _pnsContent = document.getElementById('ov-pension-content');
+  if (_pnsContent) _pnsContent.innerHTML = '';
+  var _simTl = document.getElementById('ov-sim-timeline');
+  if (_simTl) _simTl.innerHTML = '';
 
   // ── 4. Reset personal / calculation globals to zero ──
   SIM_USER1_NAME  = '';
   SIM_USER2_NAME  = '';
   SIM_USER1_BIRTH = '';
   SIM_USER2_BIRTH = '';
+  // v169.5: also reset birth years — prevents Roy's 1962 from bleeding into calculations
+  var _genericBY = new Date().getFullYear() - 40;
+  SIM_BIRTH_YEAR_ROY  = _genericBY;
+  SIM_BIRTH_YEAR_YAEL = _genericBY;
+  SIM_P2_START.y = _genericBY + SIM_RETIREMENT_AGE_YAEL;
+  SIM_P3_START.y = _genericBY + SIM_RETIREMENT_AGE_ROY;
+  SIM_END.y      = _genericBY + 95;
   if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
   pnsNetMonthly          = 0;
   pnsNetMonthlyWithHarel = 0;
@@ -12619,7 +12645,7 @@ function absoluteInternalReset() {
   // ── 6. Clear settings UI personal fields ──
   _clearPrivacyFields();
 
-  // ── 7. Immediately show "אורח" — name label updates before any data loads ──
+  // ── 7. Immediately show "אורח" — name label is the FIRST visible update ──
   var _nlbl = document.getElementById('sim-active-name-text');
   if (_nlbl) _nlbl.textContent = 'מציג: אורח';
   var _dtitle = document.getElementById('ffs-drawer-title');

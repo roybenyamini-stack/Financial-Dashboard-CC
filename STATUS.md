@@ -1,9 +1,40 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.4 — Hard-Reset Isolation Protocol (25/04/2026).
+גרסה v169.5 — Iron Curtain Final Patch (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.5)
+
+### v169.5 – Iron Curtain: Isolation Final Patch
+
+**1. Nuclear Reset — absoluteInternalReset() משודרג**
+- ניקוי canvas pixels לאחר `chart.destroy()` (קוד HTML: `ctx.clearRect()`)
+- הצגת empty state divs (`ov-cf-empty`, `ov-inv-empty`, `ov-sim-empty`) + הסתרת canvas
+- ניקוי `ov-pension-content` ו-`ov-sim-timeline` (אין תוכן עתיק)
+- **חדש**: `SIM_BIRTH_YEAR_ROY/YAEL = currentYear - 40` — מונע 1962 מ-leak לחישובים
+- Phase boundaries (`SIM_P2/P3_START`, `SIM_END`) מחושבות מחדש מ-generic birth year
+
+**2. Privacy Shield מוחזק — loadSettings() משודרג**
+- בנוסף לניקוי שדות UI: מאפס `SIM_BIRTH_YEAR_ROY/YAEL` ל-generic כאשר `APP_MODE='EXCEL' && !_sessionExcelUploaded`
+- Phase boundaries מחושבות מחדש — אין שנת לידה מ-Roy ב-calculations
+
+**3. Startup Protocol — DOMContentLoaded**
+- אם `_dashRestoreAssets/CF/Pension()` מחזיר `true` → `_sessionExcelUploaded = true`
+- משתמש חוזר עם data ב-localStorage: רואה נתוניו מיד (לא מוסתר ע"י privacy shield)
+- משתמש חדש (אין data): blank slate — `—` בכל ה-KPIs, שדות ריקים
+
+**4. Demo→Excel Firewall — loadDemoData() מבודד**
+- **הוסר**: `_dashSaveAssets()`, `_dashSaveCF()`, `_dashSavePension()` — דמו לא כותב ל-LS הראשי
+- **הוסר**: כתיבת שמות דן/דינה ל-`SETTINGS_LS_KEY` — אין זיהום של settings רועי
+- דמו מגיל: in-memory בלבד; DOM מעודכן אך localStorage של רועי נשאר שלם
+- מעבר Demo→Excel: `_dashRestore*` מחזיר נתוני רועי האמיתיים ללא זיהום
+
+**5. Name Label — ראשוני ומיידי**
+- `absoluteInternalReset()` מעדכן `sim-active-name-text` ו-`ffs-drawer-title` ל-"אורח" כצעד ראשון
+- `simUpdateNameLabel()` mode-aware: SIMULATOR→FFS_PROFILE.name; DEMO→SIM_USER1_NAME; EXCEL→session-gated
 
 ## שינויים אחרונים (25/04/2026 — v169.4)
+
 
 ### v169.4 – Hard-Reset Isolation Protocol
 
