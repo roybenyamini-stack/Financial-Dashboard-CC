@@ -1,7 +1,45 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v168.118 — Surgical KPI#3 Fix: תזרים נטו = 5K בדמו (25/04/2026).
+גרסה v169.1 — Global Mode Selector & Navigation Architecture (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.1)
+
+### v169.1 – Mode Selector ו-Navigation Architecture
+
+**מה נבנה:**
+
+**1. Mode Selector UI (בחירת עולם גלובלי)**
+- נוסף אלמנט Segmented Control בפינה שמאלית עליונה של `#tabs-nav`
+- 3 כפתורים: `נתוני אמת` (EXCEL) | `מצב דמו` (DEMO) | `סימולטור אישי` (SIMULATOR)
+- עיצוב: background כהה, active state בכחול `#3b82f6` עם glow
+- תווית `מקור נתונים: אקסל` מתחת לכפתורים — מתעדכנת דינמית בכל החלפה
+- HTML: `#mode-selector-group`, CSS: `.mode-btn`, `.mode-btn.active`
+
+**2. לוגיקת Navigation**
+- `switchMode('EXCEL')`: מנקה Demo → חוזר ל-Overview → משחזר נתוני אקסל מ-localStorage
+- `switchMode('DEMO')`: קורא ל-`loadDemoData()` הקיים (דן ודינה, סימולטור)
+- `switchMode('SIMULATOR')`: עובר לטאב סימולטור + מחליט על הצגת טופס/דשבורד
+
+**3. Simulator Onboarding**
+- אין נתונים: פותח FFS Drawer עם "שלב א - פרטים אישיים" פתוח, שאר האקורדיון סגור (`_ffsOpenStageA()`)
+- יש נתונים: מציג סימולטור + כפתור `📝 עריכת נתונים` (`#sim-edit-data-btn`)
+
+**4. Data Isolation (NO LEAKAGE)**
+- `ffsGetActiveKey()`: מחזיר `ffs_profile_v1` ב-EXCEL, `FINANCIAL_SIM_PERSONAL_DATA` ב-SIMULATOR
+- `ffsLoadProfile()`, `ffsSaveProfile()`, `ffsStartFreshProfile()`, `ffsConfirmReset()` — כולם משתמשים ב-`ffsGetActiveKey()`
+- `isExcelLoaded()` ו-`_hasRawExcelData()`: מחזירות `false` במצב SIMULATOR כדי שהסימולטור ישתמש בנתוני FFS ולא באקסל
+
+**5. שינויי בטיחות**
+- `APP_MODE = 'EXCEL' | 'DEMO' | 'SIMULATOR'` — משתנה גלובלי חדש
+- `SIMULATOR_LS_KEY = 'FINANCIAL_SIM_PERSONAL_DATA'` — מפתח LS נפרד לסימולטור
+- `loadDemoData()` מעדכן גם `APP_MODE = 'DEMO'` + UI mode selector
+- `clearDashboardData()` מאפס `APP_MODE = 'EXCEL'`
+- כפתור Admin "🎭 נתוני דמו" שונה מ-`loadDemoData()` ל-`switchMode('DEMO')`
+
+**HTML:** הוסף `#tabs-buttons` wrapper לכפתורי הטאבים, `#mode-selector`, `#mode-source-label`, `#sim-edit-data-btn`
+**CSS:** `#tabs-nav` שינוי ל-`space-between`, נוסף `#tabs-buttons`, `.mode-btn`, `#mode-selector`
+**JS:** `switchMode()`, `_ffsOpenStageA()`, `_updateModeSelectorUI()`, `ffsGetActiveKey()`
 
 ## שינויים אחרונים (25/04/2026 — v168.118)
 
