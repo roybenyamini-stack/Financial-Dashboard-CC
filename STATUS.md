@@ -1,9 +1,41 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.2 — Privacy Shield, Floating Toast & Mode 0 Reset (25/04/2026).
+גרסה v169.3 — Iron Dome Privacy & Logic Fix (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v169.3)
+
+### v169.3 – Iron Dome: Privacy, Warnings & Cross-Tab Context
+
+**1. SIMULATOR Mode-Change Warning**
+- `switchMode()` בודק `prev === 'SIMULATOR' && mode !== 'SIMULATOR'`
+- `confirm()` עם ההודעה: "שים לב: מעבר מצב ינקה את תצוגת הסימולטור..."
+- אם המשתמש מבטל — `_updateModeSelectorUI('SIMULATOR')` משחזר את הכפתור ומחזיר `return`
+
+**2. Excel Memory Privacy — Roy's Vault**
+- `_sessionExcelUploaded = false` — משתנה גלובלי חדש, `true` רק אחרי פרסור קובץ Excel בפועל
+- נקבע ל-`true` ב-3 נקודות: פנסיה / תזרים / השקעות (לפני `showToast` בכל נתיב הצלחה)
+- ב-`loadSettings()`: כאשר `APP_MODE === 'EXCEL' && !_sessionExcelUploaded` → מאפס גם את הגלובלים האישיים:
+  - `SIM_USER1_BIRTH`, `SIM_USER2_BIRTH`, `SIM_USER1_NAME`, `SIM_USER2_NAME` → `''`
+  - מונע שנת הלידה של רועי (1962) מלהיכנס לחישובים עבור משתמש אנונימי
+- `clearDashboardData()` גם מאפס `_sessionExcelUploaded = false`
+
+**3. Cross-Tab Context Persistence (SIMULATOR mode)**
+- `ovRenderSimMini()`: gate חדש כפול לפי `APP_MODE`:
+  - `SIMULATOR`: בודק `simInited + ffsGetLiquidCapital/PensionAccumK/RealEstateK > 0` (לא דורש Excel)
+  - `EXCEL/DEMO`: שומר גייט `ovAllDataReady() + simGetRoyCapital() > 0`
+- הודעת empty state משתנה לפי mode: "הכנס נתונים אישיים בסימולטור להצגת תחזית 5 שנים"
+- `ovRenderKPIs()`: הוסף `_simDataReady` gate — ב-SIMULATOR mode מציג "הון חזוי" מ-`simRunEngine()`
+- `switchTab()`: כשפותח overview ב-SIMULATOR mode ו-simInited=false → מאתחל sim לפני הרינדור
+
+**4. Complete Demo Purge**
+- `switchMode()` בעת יציאה מ-DEMO, בנוסף לקיים:
+  - `cfInited = false` — מאלץ re-init של תזרים שוטף עם נתונים אמיתיים
+  - הורס charts ב-overview: `ovCFChart`, `ovInvChart`, `ovSimMiniChart` → null (נמנע cache של דמו)
+  - `_clearPrivacyFields()` אם `!_sessionExcelUploaded` — מגן גם בחזרה מ-DEMO ל-EXCEL
 
 ## שינויים אחרונים (25/04/2026 — v169.2)
+
 
 ### v169.2 – Privacy Shield Protocol & Navigation Fixes
 

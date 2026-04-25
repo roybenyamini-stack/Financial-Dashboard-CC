@@ -111,6 +111,8 @@ var isDemoMode = false;
 var APP_MODE = 'EXCEL';
 // v169.1: dedicated localStorage key for personal simulator (isolated from Excel/Demo)
 var SIMULATOR_LS_KEY = 'FINANCIAL_SIM_PERSONAL_DATA';
+// v169.3: true once any Excel file is successfully parsed in the current session
+var _sessionExcelUploaded = false;
 
 // ── Family View (v94.0) ──
 var invViewMode = 'roee'; // 'roee' | 'yael' | 'all'
@@ -2807,6 +2809,7 @@ function smartUploadRouter(input) {
           PENSION_ASSETS = pnsAssets;
           pensionSaveToStorage();
           extractAndSaveDobFromPensionSheet(wb, pnsSheetName); // v168.4: sync DOB + names from Excel
+          _sessionExcelUploaded = true; // v169.3: session has real data
           showToast('✅ עודכנו נתוני תכנון פרישה', '#10b981', 5000);
           loadSettings(); // v169.2: lift privacy shield after data loaded
           // אם הטאב פנסיה פעיל — רנדר מחדש; אחרת — אפס כדי לאלץ init
@@ -2880,6 +2883,7 @@ function smartUploadRouter(input) {
           // v108.1: עדכן KPIs (כולל Profit) לאחר טעינת תזרים — תיקון חסר-ריענון ב-Overview
           if (overviewInited && typeof ovRenderKPIs === 'function') ovRenderKPIs();
           cfSandboxInitDefaults(); // v103.4: set default date to next future month
+          _sessionExcelUploaded = true; // v169.3: session has real data
           showToast('✅ עודכנו נתוני תזרים שוטף', '#10b981', 6000);
           loadSettings(); // v169.2: lift privacy shield after data loaded
         } else {
@@ -3316,6 +3320,7 @@ function loadExcelFileCore(wb) {
       selectView(currentView || 'all');
       updateNavButtons();
       
+      _sessionExcelUploaded = true; // v169.3: session has real data
       showToast('✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים', '#4ade80', 5000);
       loadSettings(); // v169.2: lift privacy shield after Excel data loaded
       _dashSaveAssets(); // v160.0: persist investment data
@@ -5948,7 +5953,16 @@ function switchTab(id){
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
   if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
-  if(isOv){ if(!overviewInited){ overviewInited=true; } setTimeout(overviewRender,80); }
+  if(isOv){
+    if(!overviewInited){ overviewInited=true; }
+    // v169.3: in SIMULATOR mode, ensure sim engine is ready before overview renders
+    if(typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR' && !simInited){
+      simInited=true;
+      setTimeout(function(){ simInit(); setTimeout(overviewRender,100); },80);
+    } else {
+      setTimeout(overviewRender,80);
+    }
+  }
   if(isMkt && !marketInited){ marketInited=true; setTimeout(marketInit,80); }
   // v103.14-sim-ui: update AI chat title based on active tab
   var _chatTitle = document.getElementById('chat-title');
@@ -10411,30 +10425,34 @@ function ovRenderKPIs() {
 
   // 4. Estimated total wealth — dynamic label based on SIM_TARGET_AGE
   //    v104.3: Only compute if all data sources are loaded (dependency gate)
+  //    v169.3: SIMULATOR mode uses FFS capital gate instead of Excel data gate
   var targetAge = (typeof SIM_TARGET_AGE !== 'undefined') ? SIM_TARGET_AGE : 67;
   var wealthLbl = el('ov-hdr-wealth-label');
   var wealthEl  = el('ov-hdr-wealth');
   if (wealthLbl) wealthLbl.textContent = 'הון חזוי לגיל ' + targetAge;
   if (wealthEl) {
-    if (!ovAllDataReady()) {
-      // Show cached value if we have one, otherwise show waiting
-      if (OV_CACHED_WEALTH !== null) {
-        wealthEl.textContent = OV_CACHED_WEALTH;
-        wealthEl.style.color = '#fbbf24';
-      } else {
-        wealthEl.textContent = '—';
-        wealthEl.style.color = '#fbbf24';
-      }
+    wealthEl.style.color = '#fbbf24';
+
+    // v169.3: SIMULATOR mode — use FFS profile data, not Excel
+    var _isSimMode = (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR');
+    var _simDataReady = _isSimMode && simInited && (typeof simRunEngine === 'function') &&
+      ((typeof ffsGetLiquidCapital === 'function' && ffsGetLiquidCapital() > 0) ||
+       (typeof ffsGetPensionAccumK === 'function' && ffsGetPensionAccumK() > 0) ||
+       (typeof ffsGetRealEstateK   === 'function' && ffsGetRealEstateK()   > 0));
+
+    var _dataReady = _simDataReady || ovAllDataReady();
+
+    if (!_dataReady) {
+      wealthEl.textContent = (OV_CACHED_WEALTH !== null) ? OV_CACHED_WEALTH : '—';
     } else {
-      wealthEl.style.color = '#fbbf24';
-      var hasSimCap = (typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0;
+      var hasSimCap = _simDataReady || ((typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0);
       if (hasSimCap && typeof simRunEngine === 'function') {
         // v168.114: use cached engine result when available — avoids duplicate run when target age changes
         var _res = (typeof SIM_LAST_RESULT !== 'undefined' && SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0)
           ? SIM_LAST_RESULT : simRunEngine();
         var _yr  = (typeof SIM_BIRTH_YEAR_ROY !== 'undefined') ? SIM_BIRTH_YEAR_ROY + targetAge : 2029;
         var _retireM = (typeof SIM_P3_START !== 'undefined') ? (SIM_P3_START.m || 9) : 9;
-        var _idx = (typeof simMonthIdx === 'function') ? simMonthIdx(_yr, _retireM) : (_yr - 2026); // v168.107: fix — monthly index, not year diff
+        var _idx = (typeof simMonthIdx === 'function') ? simMonthIdx(_yr, _retireM) : (_yr - 2026);
         if (_idx < 0) _idx = 0;
         // v168.113: total wealth (liquid + pension + real estate) — aligns with "הון נוכחי" card
         var _w = (_idx >= 0 && _res.royData && _idx < _res.royData.length) ? _res.royData[_idx] : 0;
@@ -10779,13 +10797,27 @@ function ovRenderSimMini() {
   var tlEl    = document.getElementById('ov-sim-timeline');
   if (!canvas) return;
 
-  // Strict dependency gate
-  var allReady = ovAllDataReady() && (typeof simRunEngine === 'function') &&
-                 (typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0;
+  // v169.3: in SIMULATOR mode use FFS capital gate; otherwise require full Excel data
+  var allReady;
+  if (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR') {
+    var _ffsCapital = (typeof ffsGetLiquidCapital === 'function') ? ffsGetLiquidCapital() : 0;
+    var _ffsPension = (typeof ffsGetPensionAccumK === 'function') ? ffsGetPensionAccumK() : 0;
+    var _ffsRE      = (typeof ffsGetRealEstateK   === 'function') ? ffsGetRealEstateK()   : 0;
+    allReady = simInited && (typeof simRunEngine === 'function') &&
+               (_ffsCapital > 0 || _ffsPension > 0 || _ffsRE > 0);
+  } else {
+    allReady = ovAllDataReady() && (typeof simRunEngine === 'function') &&
+               (typeof simGetRoyCapital === 'function') && simGetRoyCapital() > 0;
+  }
   if (!allReady) {
     if (ovSimMiniChart) { ovSimMiniChart.destroy(); ovSimMiniChart = null; }
     canvas.style.display = 'none';
-    if (emptyEl) emptyEl.style.display = 'flex';
+    if (emptyEl) {
+      emptyEl.textContent = (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR')
+        ? 'הכנס נתונים אישיים בסימולטור להצגת תחזית 5 שנים'
+        : 'יש להעלות את קבצי הנתונים להצגת התוכן';
+      emptyEl.style.display = 'flex';
+    }
     if (tlEl) tlEl.innerHTML = '';
     return;
   }
@@ -11809,11 +11841,21 @@ function loadSettings() {
   // v156.0: sync loaded globals into simulator slider DOM
   syncSettingsToSliders();
 
-  // v169.2: privacy shield — blank personal fields when no data is loaded
+  // v169.2/169.3: privacy shield — blank personal fields when no data is loaded
   var _hasActiveData = (CF_DATA && CF_DATA.length > 0) ||
                        (PENSION_ASSETS && PENSION_ASSETS.length > 0) ||
                        isDemoMode;
-  if (!_hasActiveData) _clearPrivacyFields();
+  if (!_hasActiveData) {
+    _clearPrivacyFields();
+    // v169.3: Roy's Vault — in EXCEL mode without a session upload, also null the personal
+    // globals so Roy's hardcoded birth year / names don't bleed into calculations or labels
+    if (APP_MODE === 'EXCEL' && !_sessionExcelUploaded) {
+      SIM_USER1_BIRTH = '';
+      SIM_USER2_BIRTH = '';
+      SIM_USER1_NAME  = '';
+      SIM_USER2_NAME  = '';
+    }
+  }
 
   // v120.0: dirty state — save button starts disabled after load
   var _saveBtn = document.querySelector('.settings-save-btn');
@@ -12435,6 +12477,7 @@ function clearDashboardData() {
   if (!confirm('האם למחוק את כל הנתונים ולחזור למסך הפתיחה?\nפעולה זו אינה ניתנת לביטול.')) return;
   isDemoMode = false; // v168.12
   APP_MODE = 'EXCEL'; // v169.1: reset mode
+  _sessionExcelUploaded = false; // v169.3: reset session flag on full clear
   document.body.classList.remove('demo-mode');
   localStorage.clear();
   location.reload();
@@ -12521,6 +12564,16 @@ function _updateModeSelectorUI(mode) {
 // Central mode switch — handles all 3 worlds cleanly
 function switchMode(mode) {
   var prev = APP_MODE;
+
+  // v169.3: guard — warn before leaving SIMULATOR (data in the view could be lost)
+  if (prev === 'SIMULATOR' && mode !== 'SIMULATOR') {
+    var _proceed = confirm('שים לב: מעבר מצב ינקה את תצוגת הסימולטור. וודא ששמרת את הנתונים אם ברצונך לחזור אליהם מאוחר יותר. להמשיך?');
+    if (!_proceed) {
+      _updateModeSelectorUI('SIMULATOR'); // restore button highlight to SIMULATOR
+      return;
+    }
+  }
+
   APP_MODE = mode; // set FIRST so ffsGetActiveKey() and isExcelLoaded() use the new mode
 
   _updateModeSelectorUI(mode);
@@ -12536,7 +12589,7 @@ function switchMode(mode) {
     return;
   }
 
-  // ── Shared cleanup when leaving DEMO ──
+  // ── Shared cleanup when leaving DEMO — v169.3: complete purge ──
   if (prev === 'DEMO') {
     isDemoMode = false;
     document.body.classList.remove('demo-mode');
@@ -12545,9 +12598,16 @@ function switchMode(mode) {
     _dashRestoreAssets();
     _dashRestoreCF();
     _dashRestorePension();
+    // v169.3: destroy cached overview charts so they re-render from real data (not demo cache)
+    if (typeof ovCFChart !== 'undefined' && ovCFChart) { try { ovCFChart.destroy(); } catch(e) {} ovCFChart = null; }
+    if (typeof ovInvChart !== 'undefined' && ovInvChart) { try { ovInvChart.destroy(); } catch(e) {} ovInvChart = null; }
+    if (typeof ovSimMiniChart !== 'undefined' && ovSimMiniChart) { try { ovSimMiniChart.destroy(); } catch(e) {} ovSimMiniChart = null; }
+    cfInited = false; // force cashflow tab to re-init with fresh real data
     loadSettings();
     pensionInited = false;
     if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
+    // v169.3: privacy shield — blank personal fields if no real session data
+    if (!_sessionExcelUploaded) _clearPrivacyFields();
   }
 
   // ── EXCEL mode ──
