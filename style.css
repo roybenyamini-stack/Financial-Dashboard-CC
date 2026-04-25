@@ -810,3 +810,11 @@ body.demo-mode button[onclick*="fileInput"] *,
 body.demo-mode #pns-upload-hdr-btn {
   display: none !important;
 }
+/* v168.115: Demo Mode — hide Roy-specific "הכנסה כמדריך" slider (irrelevant for Dan profile) */
+body.demo-mode #sim-instr-group {
+  display: none !important;
+}
+/* v168.117: Demo Mode — hide "הוצאה חודשית בפרישה" Settings field (demo controlled by sliders only) */
+body.demo-mode #stg-retire-exp-field {
+  display: none !important;
+}

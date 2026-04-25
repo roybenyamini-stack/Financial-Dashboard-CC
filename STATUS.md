@@ -1,7 +1,690 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v168.70 — Financial Milestone Indexing (21/04/2026).
+גרסה v168.118 — Surgical KPI#3 Fix: תזרים נטו = 5K בדמו (25/04/2026).
+
+## שינויים אחרונים (25/04/2026 — v168.118)
+
+### v168.118 – KPI תזרים נטו בדמו: 5,000 ₪
+
+**שורש הבעיה (זוהה):**
+- `isExcelLoaded()` מחזירה `false` בדמו (שורה 8019: `if (isDemoMode) return false`)
+- KPI#3 חישב: `isExcelLoaded() ? ... : (FFS_PROFILE.monthlySavings || 0)` → הגיע ל-0
+- `FFS_PROFILE.monthlySavings` לא מוגדר בפרופיל דמו → 0
+
+**התיקון (כירורגי):**
+- הוסף סניף `isDemoMode` לפני בדיקת `isExcelLoaded()` ב-KPI#3 בלבד:
+  `isDemoMode ? (SIM_PENSION_MONTHLY - SIM_TARGET_EXP) : (isExcelLoaded() ? ... : ...)`
+- תוצאה: 25,000 - 20,000 = **5,000 ₪** מיידי ✓
+- **ריאקטיביות**: הזזת גרר הכנסה/הוצאה קוראת ל-`simRenderKPI()` ← חישוב מיידי ✓
+
+**רועי — לא נגע:**
+- הסניף `isDemoMode ?` מוחדר *לפני* כל לוגיקת רועי
+- הסניף של `isExcelLoaded()` (רועי) לא שונה בכלל
+
+## שינויים אחרונים (25/04/2026 — v168.117)
+
+### v168.117 – Firewall מלא + KPI תזרים נטו תקין + UI ניקוי דמו
+
+**שורש הבעיה שתוקן (v168.115 חלקי):**
+- `isDemoMode = true` הוגדר *לאחר* `switchTab()` → `_demoForceDanSliders()` יצא מיידית (isDemoMode=false)
+- תוצאה: KPI הראה 0, ערכי ברירת מחדל לא נטענו
+
+**תיקון מרכזי — סדר הגדרות:**
+- `isDemoMode = true` ו-`document.body.classList.add('demo-mode')` הועברו לפני כל קוד init
+- `switchTab('simulator')` במקום `switchTab('overview')` — מציג סימולטור מיידית
+- `simInit()` → `_demoForceDanSliders()` רץ עם isDemoMode=true → 25K/20K/5K ✓
+
+**UI ניקוי — הוצאה חודשית בפרישה:**
+- CSS: `body.demo-mode #stg-retire-exp-field { display:none }` — שדה ה-Settings מוסתר בדמו
+- HTML: הוסף `id="stg-retire-exp-field"` לעטיפת השדה
+
+**זרימה מלאה בלחיצה על "דמו":**
+1. `isDemoMode = true` + `body.demo-mode` ← ראשון
+2. SIM_RETIRE_EXP=20K, SIM_PENSION_MONTHLY=25K, zoom=decade/2026-2036
+3. `switchTab('simulator')` → simInit() → _demoForceDanSliders() →
+   הון חזוי דינמי + "תחזית לגיל 67 שנת 2042" + 5K תזרים נטו — מיידי
+4. Overview רונדר ב-timeout 300ms ברקע
+
+**רועי — לא נגע:**
+- SIM_RETIRE_EXP=20K הוא volatile (לא נשמר ב-localStorage ע"י demo)
+- בטעינה מחדש: `loadSettings()` מחזיר 29,000 מ-localStorage
+
+## שינויים אחרונים (25/04/2026 — v168.115)
+
+### v168.115 – Demo Profile Overhaul (דן ודינה)
+
+**בידוד מלא — רועי לא נגע:**
+- כל השינויים מוגנים ב-`isDemoMode === true`
+- `SIM_RETIRE_EXP = 20000` בדמו בלבד; לרועי נשאר 29,000 (מ-localStorage)
+- `_demoForceDanSliders()` — פונקציה חדשה, מופעלת רק כשהדמו פעיל
+
+**ברירות מחדל לדן:**
+- הוצאה חודשית בפרישה: **20,000 ₪** (לא 29K של רועי)
+- הכנסה פנויה בפרישה: **25,000 ₪** (= תוצאה מ-PENSION_ASSETS: 15,500+9,500)
+- תזרים נטו: 5,000 ₪ ✓
+
+**זום ברירת מחדל — "עשור קדימה" (2026-2036):**
+- `SIM_ZOOM = 'decade'`, `SIM_ZOOM_CUSTOM.decStart = 2026`, `decEnd = 2036`
+- כפתור "עשור" מוארים; גרף מציג 10 שנות צמיחה קדימה מיידית
+
+**הסתרת "הכנסה כמדריך":**
+- CSS: `body.demo-mode #sim-instr-group { display:none }`
+- JS: `simSyncInstrSlider()` בודק `isDemoMode`
+- שכבה כפולה: CSS + JS
+
+**כותרת + KPI מיידיים:**
+- `simInit()` מסיים → קורא `_demoForceDanSliders()` → `simRenderKPI()` + `simRenderChart()`
+- "תחזית לגיל 67 שנת 2042" מוצג מיידית בפתיחת הסימולטור
+
+**הון חזוי לדן:**
+- הון ראשוני: ~11.7M (FUNDS + פנסיה + דירה)
+- תזרים: 25K - 20K = +5K/חודש מגיל 67
+- תשואה: 4% על נזילים, 3% על פנסיה, 2.5% על נדל"ן
+
+## שינויים אחרונים (24/04/2026 — v168.114)
+
+### v168.114 – KPI ותווית דינמיים לפי גיל-מטרה
+
+**הבעיה:**
+- `simRenderKPI()` קידד קשה: `simMonthIdx(SIM_P3_START.y, ...)` = תמיד גיל 67
+- כותרת: `SIM_RETIREMENT_AGE_ROY` + `SIM_P3_START.y` — תמיד קבועות
+- שינוי גיל-מטרה ל-80 לא שינה כלום ב-KPI ובכותרת
+
+**התיקון בפונקציה `simRenderKPI()`:**
+- אינדקס: `_kpiAge = SIM_TARGET_AGE || 67` → `_kpiYear = SIM_BIRTH_YEAR_ROY + _kpiAge`
+- כותרת: 'תחזית לגיל **[_kpiAge]** שנת [_kpiYear]' — מתעדכן מיידית
+- גיל 67 → שנת 2029 | גיל 80 → שנת 2042 | גיל 90 → שנת 2052
+
+**ביצועים (אופטימיזציה):**
+- `ovRenderKPIs()`: מוסיף שימוש ב-`SIM_LAST_RESULT` כשזמין — חוסך הרצת מנוע כפולה בשינוי גיל
+
+**זרימת ריאקטיביות מלאה:**
+`sim-target-age-input` → `simSetTargetAge()` → `simRenderKPI()` + `ovRenderKPIs()`
+→ שניהם קוראים `_kpiYear = 1962 + SIM_TARGET_AGE` → index נכון ב-royData → KPI מתעדכן
+
+## שינויים אחרונים (24/04/2026 — v168.113)
+
+### v168.113 – הגדרת הון חזוי מוחזרת ל-Total Wealth
+
+**הבעיה:**
+- v168.112 הוציאה נדל"ן מ-KPI "הון חזוי" → הצגה: 23.4M
+- "הון נוכחי" (כרטיס Overview) כולל נדל"ן → הצגה: 23.8M
+- הפרש מדומה של ~0.4M יוצר רושם של הפסד — **לא נכון**
+
+**התיקון:**
+- `simRenderKPI()`: חזרה ל-`royData[_targetIdx]` (= liquid + phoenix + harel + real estate)
+- `ovRenderKPIs()`: חזרה ל-`royData[_idx]`
+- **תוצאה:** הון חזוי ~26.6M — תואם את סיכום ה-tooltip בגרף
+
+**הגדרת עקביות:**
+- "הון נוכחי" = סה"כ נכסים היום כולל נדל"ן
+- "הון חזוי" = סה"כ נכסים בגיל 67 כולל נדל"ן (אחרי צמיחה 2.5% שנתית)
+- שתי הלשוניות (Overview + Simulator) מציגות אותו ערך ✓
+
+**Settings — מצב (ללא שינוי — כבר נקי מ-v168.106):**
+- סקשן "תשואות ואינפלציה": תשואת השקעות 4%, פנסיה 3%, אינפלציה 2.5%, הוצאה בפרישה 29K, צמיחת נדל"ן 2.5%
+- אין סקשן כפול "הוצאות בפרישה" — נמחק ב-v168.106 ✓
+
+## שינויים אחרונים (24/04/2026 — v168.112)
+
+### v168.112 – Logic Synchronization & Asset Isolation
+
+**1. בידוד נדל"ן (Real Estate Isolation):**
+- ברירת מחדל נדל"ן: שונה מ-2.0% ל-**2.5%** (`SIM_RE_GROWTH_RATE`)
+- הנוסחה `Value × (1 + Rate/12)` — לינארית, ומבודדת לחלוטין מתשואת ההשקעות
+- צבירת שכר דירה לתזרים נשאר ב-`totalPensionIncome` — ללא כפילות
+
+**2. KPI הון חזוי — הגדרה מחדש (שתי לשוניות):**
+- **לפני:** `royData[idx]` = liquid + פניקס + הראל + **נדל"ן** (הכניס ~2.6M נדל"ן)
+- **אחרי:** `royLiquidData[idx] + royPhoenixData[idx] + royHarelData[idx]` (הון נזיל בלבד)
+- תיקון ב-`simRenderKPI()` (כותרת Simulator) וב-`ovRenderKPIs()` (לשונית Overview)
+- **תוצאה:** שתי הלשוניות מציגות ערך זהה ~24.1M
+
+**3. גרר נדל"ן — צעד 0.5% → 0.1% (linearity):**
+- `sim-re-growth-num` ו-`sim-re-growth-slider`: step="0.1"
+- `stg-re-growth` (הגדרות): value="2.5", step="0.1"
+- סימולטור מרנדר מחדש בכל שינוי בלי דיבאונס
+
+**4. Settings → Simulator sync:** ✓ (פועל מ-v168.104 דרך `syncSettingsToSliders()`)
+
+## שינויים קודמים (24/04/2026 — v168.107)
+
+### v168.107 – תיקון אינדקס חישוב הון בלשונית Overview
+
+**הבעיה שזוהתה:**
+- Overview הציגה 24.1M ו-Simulator הציגה 26.7M (~2.6M הפרש)
+- שורש הבעיה: `ovRenderKPIs()` השתמשה ב-`var _idx = _yr - 2026` לאינדקס מערך ה-`royData`
+- עם שנת לידה 1962 + גיל פרישה 67: `_idx = 1962+67−2026 = 3` (קורא רק 3 חודשים קדימה!)
+- הסימולטור קורא נכון דרך `simMonthIdx(SIM_P3_START.y, 9)` ≈ 41 חודשים
+
+**התיקון (app.js):**
+- שורה 10429: שונה מ-`_yr - 2026` ל-`simMonthIdx(_yr, _retireM)`
+- כעת שתי הלשוניות קוראות אותו חודש פרישה בדיוק (ספטמבר 2029)
+
+**תוצאה מצופה:** שתי הלשוניות יציגו ערך זהה בנקודת הפרישה.
+
+## שינויים אחרונים (24/04/2026 — v168.106)
+
+### v168.106 – Blind Logic Audit & UI Harmonization
+
+**ממצאי הביקורת:**
+- **כפל שכר דירה: לא נמצא** — `totalPensionIncome` כולל שכר דירה מ-`PENSION_ASSETS.realEstateIncome` פעם אחת. `monthlyFlowExtra` מגיע רק מ-user events. `royRealEstateK` הוא ערך הון (לא תזרים). ✓
+- **ציר זמן: תקין** — לידה 25/08/1962, פרישה ספטמבר 2029 (חודש אחרי יום ההולדת ה-67). P3_START.m=9 ✓
+- **KPI#1 vs גרף: מסונכרן** — שניהם קוראים מ-`SIM_LAST_RESULT` (תוקן ב-v168.103) ✓
+
+**`index.html` — האחדת שמות וניקוי:**
+- שדה `stg-retire-exp` הועבר לתוך סקשן "תשואות ואינפלציה" (ישיר מתחת לאינפלציה)
+- סקשן "הוצאות בפרישה" נמחק (לא נדרש יותר)
+- תווית: "הוצאה חודשית צפויה בפרישה" → **"הוצאה חודשית בפרישה"** (זהה לסליידר)
+- FFS drawer: "📤 הוצאה חודשית צפויה (₪)" → "📤 הוצאה חודשית בפרישה (₪)"
+
+**`app.js` — תיקון לוגיקת פאזה 1 (עיקרי):**
+- v168.101 שגה: שם בפאזה-1 (שנות עבודה) את נוסחת ההכנסה-פנסיה (34K-29K=5K)
+- תיקון v168.106: פאזה-1 חוזרת ל-`currentNetCashflow` (תזרים נוכחי אמיתי מ-CF_DATA)
+- פאזה-3 (פרישה) ממשיכה להשתמש ב-`totalPensionIncome − targetExp` (מונחה סליידרים) ✓
+- פאזה-2 (גשר): `instructorSal − targetExp` (ללא שינוי) ✓
+
+**תוצאה צפויה לאחר הריצה העיוורת:**
+פאזה-1: 41 חודש × `currentNetCashflow` (≈5K/חודש מ-CF_DATA)
+פאזה-3: `totalPensionIncome − 29K` = 34K − 29K = 5K/חודש
+הון ראשוני + צמיחה → ביקורת ידנית נדרשת על ערכי הבסיס בפועל
+
+---
+
+## שינויים אחרונים (24/04/2026 — v168.104)
+
+### v168.104 – Settings-to-Slider Connectivity & Naming Sync
+
+**`index.html` — שם אחיד לסליידר:**
+- "הוצאה חודשית" → **"הוצאה חודשית בפרישה"** (זהה לשם בהגדרות)
+- ברירות מחדל HTML עודכנו: `min=19000 max=39000 value=29000` (טווח ±10K סביב 29K)
+- תוויות גבולות: `39K ₪ / 19K ₪`
+
+**`app.js` — תיקון קריטי: `syncSettingsToSliders()`:**
+- הוסר התנאי `if (!isExcelLoaded())` שחסם את עדכון הסליידר כאשר אקסל טעון
+- החדש: מגדיר תמיד `SIM_TARGET_EXP = SIM_RETIRE_EXP = 29000` — אלא אם FFS פעיל עם הוצאה משלו
+- הסליידר יציג 29,000 ב-startup ולאחר טעינת האקסל
+
+**`app.js` — תיקון `simFullRefresh()`:**
+- כאשר Excel טעון ו-`SIM_TARGET_EXP === 0` (אופס אחרי מעבר פרופיל) — משחזר מ-`SIM_RETIRE_EXP`
+- מתקן את הבאג: חזרה ל-Excel אחרי Manual Mode לא תציג 0 בסליידר
+
+**`app.js` — תיקון `simRefresh()`:**
+- כנ"ל — שחזור הוצאה מהגדרות אם אופסה ב-re-upload
+
+**יעד:** 24.0M | 34K | 5K | 53K — עם סליידר הוצאה = 29K מוצג נכון
+
+---
+
+## שינויים אחרונים (24/04/2026 — v168.103)
+
+### v168.103 – Time Calibration & UI Sterilization
+
+**`index.html` — הוספת Date Picker בהגדרות:**
+- "גיל פרישה" → "גיל פרישה ותאריכי לידה" — הוספת 2 שדות date picker:
+  - `stg-user1-birth` ברירת מחדל: 1962-08-25 (רועי)
+  - `stg-user2-birth` ברירת מחדל: 1968-06-28 (יעל)
+
+**`index.html` — ניקוי הגדרות UI:**
+- הוסר `stg-inflation-macro` (כפיל של "שיעור אינפלציה שנתי")
+- הוסר `stg-capital-tax` (לא נדרש)
+- "מאקרו כלכלה ומיסוי" → "הוצאות בפרישה" — נותר רק `stg-retire-exp`
+
+**`app.js` — שחזור תאריכי לידה אמיתיים:**
+- `SIM_BIRTH_YEAR_ROY = 1962` (היה 1980 — ניטרלי)
+- `SIM_BIRTH_YEAR_YAEL = 1968` (היה 1983)
+- `SIM_USER1_BIRTH = '1962-08-25'`, `SIM_USER2_BIRTH = '1968-06-28'`
+- `userCurrentAge = 64` (2026−1962)
+- גבולות פאזות: P3_START = 2029, P2_START = 2026, END = 2057
+
+**`app.js` — תיקון KPI#1 "הון חזוי":**
+- שימוש ב-`SIM_LAST_RESULT` (מהגרפה האחרונה) במקום ריצת engine נפרדת
+- Index = `SIM_P3_START.y` (אותו מיילסטון שהגרף מציג) — אין עוד פערים
+- כותרת משנה: "תחזית לגיל 67 שנת 2029"
+
+**`app.js` — בידוד זהות (Manual Mode):**
+- `ffsToggleDataSource()`: כשמועברים ל-MANUAL — מנקה תאריכי לידה של רועי
+- SIM_USER1_BIRTH / SIM_BIRTH_YEAR_ROY מאפסים לגיל ניטרלי (גיל 40 מהיום)
+- שדות `stg-user1-birth` / `stg-user2-birth` מתנקים ב-DOM
+
+**יעד סופי:** 24.0M | 34K | 5K | 53K (עם timeline נכון: retirement 2029)
+
+---
+
+## שינויים אחרונים (24/04/2026 — v168.101)
+
+### v168.101 – Settings UI & Slider Logic Calibration
+
+**`index.html` — שדה חדש בהגדרות ("מאקרו כלכלה ומיסוי"):**
+- `stg-retire-exp`: "הוצאה חודשית צפויה בפרישה" — ברירת מחדל 29,000 ₪
+- ממוקם בין "אינפלציה שנתית" ל-"מס רווחי הון ריאלי"
+
+**`app.js` — גלובל חדש:**
+- `SIM_RETIRE_EXP = 29000` — מניע את טווח סליידר ההוצאה ואת KPI#3
+
+**`app.js` — `simUpdateExpSliderRange()`:**
+- מעדכן דינמית `min/max` של סליידר ההוצאה ל: [SIM_RETIRE_EXP − 10K, SIM_RETIRE_EXP + 10K]
+
+**`app.js` — `loadSettings()` / `saveSettings()`:**
+- `retireExp` נשמר/נטען ב-localStorage ומסנכרן ל-`stg-retire-exp`
+
+**`app.js` — `syncSettingsToSliders()`:**
+- קורא ל-`simUpdateExpSliderRange()` לעדכון טווח
+- כשאין Excel: מאתחל סליידר ההוצאה ל-`SIM_RETIRE_EXP` ומעדכן `SIM_TARGET_EXP`
+
+**`app.js` — `simRenderKPI()` — KPI#3 נוסחה חדשה:**
+- KPI#3 = `SIM_PENSION_MONTHLY − SIM_TARGET_EXP` (34K − 29K = 5K) — מונחה סליידרים לחלוטין
+- (הוסר: `simGetCurrentNetCashflow()` מ-CF_DATA)
+
+**`app.js` — `simRunEngine()` — phase-1 נוסחה חדשה:**
+- phase-1 משתמש ב-`totalPensionIncome − targetExp` (עקבי עם phase-3)
+
+**`app.js` — הסרת עקיפות SIM_TARGET_EXP מ-CF_DATA:**
+- `simInit()`, `simFullRefresh()`, `simRefresh()`: הוסרו כל ה-override שקראו `simGetCurrentExpenses()` וחיפסו את `SIM_TARGET_EXP`
+- ההגדרות בלבד שולטות בהוצאה הצפויה
+
+**יעד סופי (Excel טעון):** 24.0M | 34K | 5K | 53K
+
+---
+
+## שינויים אחרונים (24/04/2026 — v168.97)
+
+### v168.97 – Primary Slider-Header Synchronization
+
+**`index.html` — שם סליידר עודכן:**
+- "הכנסה קבועה (פנסיה, שכ״ד וכו')" → **"הכנסה פנויה בפרישה"**
+- כך גם ברשימת צבעי אירועים בגרף.
+
+**`app.js` — `simGetCurrentNetCashflow()` — פונקציה חדשה:**
+- קוראת את שורת `net_cashflow` ישירות מ-CF_DATA (מחושבת על-ידי האקסל עצמו).
+- ₪ אמיתיים: salary + rent − total_exp − loans — ללא חישוב ידני כפול.
+
+**`app.js` — `simRenderKPI()` — מיפוי סופי:**
+- KPI#2 "הכנסה פנויה": = `SIM_PENSION_MONTHLY` (הסליידר — source of truth). תמיד.
+- KPI#3 "תזרים נטו": = `simGetCurrentNetCashflow()` — שורת net_cashflow מהאקסל, ↩5K.
+- KPI#4 "צבירה חודשית": = KPI#3 + רווח הון. ↩53K.
+
+**`app.js` — `simRunEngine()` — phase-1 fix:**
+- `currentNetCashflow = simGetCurrentNetCashflow()` במקום `currentSalary + currentRentNIS`.
+- כאשר `net_cashflow ≠ 0`: מנוע משתמש בו ישירות (no double-dip). ↩ הון חזוי 24.0M.
+
+**`index.html`** — גרסה עודכנה ל-`v168.97`
+
+---
+
+## שינויים אחרונים (24/04/2026 — v168.96)
+
+### v168.96 – Integrity Restoration & Header Alignment
+
+**`index.html` — 4 תוויות KPI נעולות (ניסוח סופי, ללא סיומות דינמיות):**
+1. **הון חזוי** — תת-תווית: "במיליוני ש״ח"
+2. **הכנסה פנויה** — תת-תווית: "אלפי ש״ח / חודש"
+3. **תזרים נטו** — תת-תווית: "אלפי ש״ח / חודש"
+4. **צבירה חודשית** — תת-תווית: "אלפי ש״ח / חודש"
+
+**`app.js` — `simGetCurrentRentIncome()` — פונקציה חדשה:**
+- קוראת `rent_income.val * 1000` מ-CF_DATA (שכ"ד שוטף, לא שכ"ד פרישה).
+- נפרדת מ-`simGetRoyRentalIncome()` שקוראת מ-PENSION_ASSETS (פרישה).
+
+**`app.js` — `resetCalculationMemory()` — פונקציה חדשה:**
+- מרחיבה את `resetAllInputs()`: מאפסת גם `SIM_CURRENT_SALARY` ו-`SIM_RENTAL_INCOME`.
+- נקראת ב-`simInit()`, `ffsToggleDataSource()`, ו-`loadDemoData()`.
+- מונעת דימום נתונים בין פרופילי רועי, דמו ו-FFS.
+
+**`app.js` — `simRenderKPI()` — מיפוי חדש:**
+- KPI#2 "הכנסה פנויה": Excel mode = `salary + rent_income` (שוטף, לא פרישה).
+- KPI#3 "תזרים נטו": `(salary + rent_income) − total_exp` — נטו מדויק, ללא ריבית.
+- KPI#4 "צבירה חודשית": `תזרים נטו + רווח הון חודשי` (ירש תיקון מ-KPI#3).
+
+**`app.js` — `simRunEngine()` — phase-1 income fix:**
+- `_phase1Income = salary + currentRentNIS` במקום `salary` בלבד.
+- מבטיח שהתרומה החודשית במנוע תואמת ל-KPI#3.
+
+**`app.js` — `simInit()` — SIM_TARGET_EXP firewall:**
+- Excel תמיד גובר: `(isExcelLoaded() && _exp > 0) ? _exp` — ראשון בשרשרת.
+- מונע מצב שבו FFS עם שם ריק (retirementExpense=0) מאפס את SIM_TARGET_EXP למנוע.
+
+**`index.html`** — גרסה עודכנה ל-`v168.96`
+
+## שינויים אחרונים (22/04/2026 — v168.93)
+
+### v168.93 – Rental Integration & UI Sequence
+
+**`app.js` — `simGetRoyRentalIncome()` — פונקציה חדשה:**
+- מחזירה הכנסות שכ"ד של רועי מ-`PENSION_ASSETS[].realEstateIncome` (₪/חודש).
+- מסננת נכסי יעל — רועי בלבד.
+
+**`app.js` — `simInit()` + `simRefresh()` + `simRunEngine()` — Slider = X+Y:**
+- Slider "הכנסה קבועה" מוגדר ל: `netPension + rentalIncome`.
+- X = `pnsNetMonthlyNoHarel` (פנסיה נטו); Y = `simGetRoyRentalIncome()` (שכ"ד מהאקסל).
+- Firewall בכניסה ל-`simRunEngine()` עודכן גם הוא לכלול rental.
+
+**`app.js` — `simRenderKPI()` — מניעת double-count:**
+- Excel mode: `_incomeNIS = SIM_PENSION_MONTHLY` (rental כלול, לא מתווסף שוב).
+- Manual mode: `_incomeNIS = SIM_PENSION_MONTHLY + ffsGetMonthlyRentNetK() * 1000` (rental נפרד).
+
+**`app.js` — `simRunEngine()` — cap על ריבית חודשית:**
+- `monthlyRate` ו-`retYieldMonthly` מוגבלים ל-2%/חודש (27% שנתי) — מונע overflow מקלט שגוי.
+
+**`app.js` — KPI #3 "חיסכון חודשי (עכשיו)" — Surplus גולמי בלבד:**
+- `_currSavingNIS = salary - expenses` (Excel) או `FFS_PROFILE.monthlySavings` (ידני).
+- ללא ריביות, ללא רווחי הון — ערך נקי בלבד.
+
+**`index.html`** — גרסה עודכנה ל-`v168.93`
+
+## שינויים אחרונים (22/04/2026 — v168.92)
+
+## שינויים אחרונים (22/04/2026 — v168.92)
+
+### v168.92 – Dynamic Data Integrity & Logical Flow
+
+**`app.js` — `simRenderKPI()` — תיקון קריטי להון חזוי:**
+- `_targetIdx = _targetYear - 2026` → **שגוי** (הפרש שנים, לא index חודשי).
+- תוקן ל: `_targetIdx = simMonthIdx(_targetYear, 12)` — December של שנת היעד.
+- הבדל: עבור גיל 67 (שנת 2047) — הנוסחה הישנה נתנה index=21 (חודש 21!), החדשה נותנת index=260 (דצמבר 2047). זה היה שורש "הטריליונים".
+
+**`app.js` — `simRunEngine()` — cap על גידול חיסכון:**
+- `_ffsSavingsGrowthMonthly`: capped ב-20% שנתי — מונע overflow/טריליונים מ-savingsGrowth גבוה.
+
+**`app.js` — `simRunEngine()` — Firewall בכניסה:**
+- בתחילת הפונקציה: כשExcel פעיל ו-`SIM_PENSION_MONTHLY === 0`, מאכלס מ-Excel net pension.
+
+**`app.js` — `simInit()` + `simRefresh()` — פנסיה נטו:**
+- `simGetRoyPension()` (GROSS `expectedPension`) → `pnsNetMonthlyNoHarel` (נטו אחרי מס).
+- fallback לברוטו רק אם חישוב נטו טרם רץ.
+
+**`index.html` — Drawer — 3 שלבים לפי ציר חיים:**
+- **שלב א' 🟢 צבירה**: הון נוכחי + תזרים חודשי + השקעות + נדל"ן.
+- **שלב ב' 🟡 גישור**: תקופת מעבר הוצאה מ-accordion פרטים אישיים → section נפרד.
+- **שלב ג' 🔵 פרישה**: הכנסות + הוצאות + פנסיה.
+
+**`index.html`** — גרסה עודכנה ל-`v168.92`
+
+## שינויים אחרונים (22/04/2026 — v168.91)
+
+## שינויים אחרונים (22/04/2026 — v168.91)
+
+### v168.91 – Final KPI Stabilization & Ghost Data Purge
+
+**`index.html` — 4 תוויות KPI סופיות ונעולות (בסדר חדש):**
+1. **הון חזוי** — הון חזוי לגיל היעד (ללא שינוי)
+2. **תזרים נטו בפרישה** — הכנסות פסיביות פחות הוצאות לאחר גיל 67 (הועבר מ-#4 ל-#2)
+3. **חיסכון חודשי (עכשיו)** — חיסכון שוטף בדיוק כמוזן (5K = 5, לא 6)
+4. **צבירה כוללת (חודשית)** — חיסכון חודשי + רווח הון חודשי על תיק קיים
+
+כל יחידות המשנה תוקנו ל-"אלפי ₪" (לא ₪ בלבד).
+
+**`index.html` — Sliders Hard-Reset:**
+- ערך ברירת מחדל של `sim-pension-monthly-slider` ו-`sim-pension-monthly-num` שונה מ-35000 ל-0.
+- min attribute עודכן ל-0 (היה 5000).
+
+**`app.js` — `SIM_PENSION_MONTHLY` — ברירת מחדל 0:**
+- שורת הגדרת `var SIM_PENSION_MONTHLY = 35000` שונתה ל-0.
+- זה סוגר את המקור העיקרי לבאג ה-34k.
+
+**`app.js` — `simInit()` — resetAllInputs() ראשון:**
+- `resetAllInputs()` מופעל כשורה הראשונה ב-`simInit()`, לפני `ffsLoadProfile()`.
+- כל ה-sliders מאופסים אפס לפני שנתונים כלשהם נטענים.
+
+**`app.js` — `simRenderKPI()` — לוגיקה חדשה לצבירה כוללת:**
+- ערכים מחושבים מראש לפני הרנדור (ניקוי תלויות).
+- KPI #4 "צבירה כוללת" = `_currSavingNIS + (_invK * 1000 * SIM_RATE/100/12)`.
+
+**`app.js` — `ffsToggleDataSource()` — מעבר מיידי ל-"אורח":**
+- בעת מעבר EXCEL → MANUAL: אם `FFS_PROFILE.name` ריק, מנקה `SIM_USER1_NAME = ''`.
+- `simUpdateNameLabel()` מציג "מציג: אורח" מיד.
+
+**`index.html`** — גרסה עודכנה ל-`v168.91`
+
+## שינויים אחרונים (22/04/2026 — v168.90)
+
+### v168.90 – Logic Separation & Two-Phase UX
+
+**`index.html` — ה-Drawer מחולק לשני סקשנים ויזואליים:**
+- **SECTION A 🟢 "תקופת הצבירה — עכשיו"**: כולל כרטיסיית "חיסכון חודשי נטו" (`id="ffs-monthly-savings"`) + accordions של השקעות ונדל"ן.
+- **SECTION B 🔵 "תקופת הפרישה — מגיל 67"**: כולל כרטיסיה עם 2 שדות — "צפי הכנסות חודשיות" (`id="ffs-retirement-income"`) + "הוצאה חודשית צפויה" (`id="ffs-retirement-expense"`) — ואחריה accordion פנסיה.
+- ה-accordion "פרטים אישיים" נשמר ניטרלי (מעל שני הסקשנים).
+
+**`app.js` — `FFS_PROFILE` + `ffsLoadProfile()` — שדה חדש:**
+- `retirementIncome` נוסף ל-`FFS_PROFILE` default object.
+- `ffsLoadProfile()` טוען `saved.retirementIncome || 0`.
+
+**`app.js` — `ffsSaveField()` — סנכרון slider בזמן אמת:**
+- `retirementIncome` → מעדכן `SIM_PENSION_MONTHLY` + sliders DOM + `simRenderKPI()`.
+- `retirementExpense` → מעדכן `SIM_TARGET_EXP` + sliders DOM + `simRenderKPI()`.
+
+**`app.js` — `resetAllInputs()` — פונקציה חדשה:**
+- מאפסת `SIM_PENSION_MONTHLY`, `SIM_TARGET_EXP` וכל sliders DOM.
+- נקראת מ: `ffsToggleDataSource()`, `ffsStartFreshProfile()`, `ffsConfirmReset()`.
+
+**`app.js` — `simRenderKPI()` — KPIs מחולקים:**
+- KPI #3 "חיסכון חודשי שוטף": הפרש `SIM_CURRENT_SALARY - simGetCurrentExpenses()` (Excel) או `FFS_PROFILE.monthlySavings` (ידני).
+- KPI #4 "תזרים נטו בפרישה": `_incomeNIS - SIM_TARGET_EXP` — מה שנשאר מהקצבות אחרי הוצאות.
+
+**`app.js` — `ffsSyncSliders()` — העדפת `retirementIncome`:**
+- כש-`FFS_PROFILE.retirementIncome > 0` → משתמש בו במקום בחישוב הפנסיה האוטומטי.
+
+**`app.js` — `ffsStartFreshProfile()` — ניקוי מלא:**
+- מנקה גם `retirementIncome` + קורא `resetAllInputs()`.
+
+**`index.html`** — גרסה עודכנה ל-`v168.90`
+
+## שינויים אחרונים (22/04/2026 — v168.89)
+
+### v168.89 – Strict Source Sanitization & Auto-Reset
+
+**`app.js` — `ffsClearMemory()` — New Firewall Function:**
+- פונקציה חדשה: מאפסת `FFS_PROFILE.investments`, `.pension`, `.realEstate`, `.monthlySavings` בזיכרון הפעיל.
+- **לא** נוגעת ב-localStorage — המשתמש יכול לחזור למצב ידני ולקבל בחזרה את הנתונים שלו.
+- שומרת identity fields (name, birthDate, retirementAge) לצורך תצוגה ב-Drawer.
+
+**`app.js` — `simInit()` — Auto-Sanitization:**
+- כשExcel מזוהה: קורא `ffsClearMemory()` מיד אחרי `activeDataSource = 'EXCEL'`.
+- מסנכרן `SIM_PENSION_MONTHLY` מ-`simGetRoyPension()` (נתוני קרן אמיתיים).
+
+**`app.js` — `simRefresh()` — Auto-Sanitization on Upload:**
+- כשExcel מועלה: קורא `ffsClearMemory()` לפני כל חישוב.
+- Task 3: מסנכרן גם slider הכנסה קבועה מ-`simGetRoyPension()`.
+
+**`app.js` — `ffsToggleDataSource()` — Bidirectional Isolation:**
+- EXCEL → MANUAL: קורא `ffsLoadProfile()` + `ffsSyncSliders()` לשחזור FFS מ-localStorage.
+- MANUAL → EXCEL: קורא `ffsClearMemory()` לניקוי FFS מהזיכרון.
+
+**`app.js` — `simRenderKPI()` — Guarded `_hasAnyData`:**
+- `ffsGetLiquidCapital()` ו-`ffsGetPensionAccumK()` עטופים ב-`!isExcelLoaded()` — מונע "phantom data detection" בExcel mode.
+
+**`app.js` — `ffsConfirmReset()` — Instant Reset (No Reload):**
+- מחיקת `location.reload()` — במקום קורא `ffsStartFreshProfile()`.
+- מנקה FFS profile + אירועים מ-localStorage ומהזיכרון. Excel data נשמרת בשלמותה.
+
+**`index.html` — כפתור "אפס פרופיל משתמש" — Highly Visible:**
+- עיצוב חדש: כפתור מלא עם border אדום, רקע קל, hover state.
+- תת-כיתוב: "מאפס מיידית — ללא טעינה מחדש".
+
+**`index.html`** — גרסה עודכנה ל-`v168.89`
+
+## שינויים אחרונים (22/04/2026 — v168.88)
+
+### v168.88 – Dynamic KPI Sync & FFS Income Logic
+
+**`app.js` — `simRenderKPI()` — Dynamic Income & Net Flow:**
+- "הכנסה פנויה" (`sim-hdr-monthly-income`) עודכן: `SIM_PENSION_MONTHLY + _rentNIS`.
+  - כשExcel: `_rentNIS = SIM_RENTAL_INCOME` (מהגדרות).
+  - כשFFS ידני: `_rentNIS = ffsGetMonthlyRentNetK() × 1000` (נכסי FFS עם שכ"ד).
+- "תזרים נטו" (`sim-hdr-monthly-accum`) מחושב: `_incomeNIS − SIM_TARGET_EXP` — real-time מה-sliders.
+- "צבירה כוללת" (`sim-hdr-total-accum`) משתמש ב-`_netFlow` המעודכן (כולל שכ"ד).
+- עדכון בזמן אמת — `simSetPensionMonthly()`, `simSetExpense()` ו-`simSetRentalIncome()` כולם קוראים `simRenderKPI()`.
+
+**`app.js` — `ffsRenderAll()` — Avi Ghost Cleanup Button:**
+- בודק אם `activeDataSource === 'MANUAL'` ו-`FFS_PROFILE.name` קיים.
+- אם כן: מציג כפתור `id="ffs-new-profile-btn"` ("התחל פרופיל חדש 🆕").
+
+**`app.js` — `ffsStartFreshProfile()` — New Function:**
+- מנקה את כל `FFS_PROFILE` (ללא reload) + localStorage.
+- קורא `ffsRenderAll()` + `simFullRefresh()` — Drawer ריק מוכן לפרופיל חדש.
+
+**`index.html` — כפתור "התחל פרופיל חדש 🆕":**
+- נוסף `<button id="ffs-new-profile-btn">` בראש ה-Drawer (מתחת לכפתור המקור).
+- עיצוב: border אדום שקוף, רקע מינימלי — לא פולשני.
+
+**`app.js` — Tags Styling:**
+- Tags `[אקסל]`/`[ידני]` עוצבו מחדש: font 7px, border + background pill, letter-spacing 0.4px, border-radius 4px.
+
+**`index.html`** — גרסה עודכנה ל-`v168.88`
+
+## שינויים אחרונים (22/04/2026 — v168.87)
+
+### v168.87 – Total KPI Alignment & Source Labeling
+
+**`index.html` — Source Transparency Tags:**
+- נוספו 4 אלמנטי `<span>` עם IDs (`sim-src-tag-wealth`, `sim-src-tag-income`, `sim-src-tag-accum`, `sim-src-tag-total`) מתחת לכל KPI ב-Header הסימולטור.
+- כשExcel פעיל: מציג `[אקסל]` בצבע כחול. כשFFS ידני: מציג `[ידני]` בצבע צהוב. כשאין נתונים: נסתר.
+
+**`app.js` — `simRenderKPI()` — Source Tags Update:**
+- בסוף הפונקציה: מעדכן את 4 ה-tags לפי `isExcelLoaded()` — צבע + רקע שקוף בהתאם למקור.
+
+**`app.js` — `ffsSyncSliders()` — Excel Guard:**
+- נוסף `if (isExcelLoaded()) return;` בתחילת הפונקציה — כשExcel פעיל, sliders לא נדרסים בנתוני FFS/Avi.
+
+**`app.js` — `simInit()` — Auto-detect Excel on Init:**
+- נוסף `if (_hasRawExcelData()) activeDataSource = 'EXCEL'` לפני `ffsSyncSliders()`.
+- מבטיח שב-init הראשון עם Excel קיים, ה-source יוגדר נכון לפני כל sync.
+
+**`app.js` — `simRefresh()` — Slider Hard-Reset after Excel Upload:**
+- אחרי `activeDataSource = 'EXCEL'`: מאפס `SIM_TARGET_EXP` ו-`SIM_CURRENT_SALARY` מנתוני CF_DATA האמיתיים.
+- מפעיל `ffsRenderAll()` אוטומטית — Drawer מציג מיד נתוני רועי/Excel, ללא Avi ghosts.
+
+**`app.js` — `simFullRefresh()` — Pre-render FFS Clear:**
+- בתחילת הפונקציה: אם `isExcelLoaded()`, מסנכרן `SIM_TARGET_EXP` ו-`SIM_CURRENT_SALARY` מ-CF_DATA לפני כל render.
+- מבטיח שאף render לא יפלוט ערכי FFS ישנים כשExcel הוא המקור הפעיל.
+
+**`index.html`** — גרסה עודכנה ל-`v168.87`
+
+## שינויים אחרונים (22/04/2026 — v168.86)
+
+### v168.86 – The Absolute Data Isolation Patch
+
+**`app.js` — 1. `activeDataSource` Global Switch:**
+- נוסף `var activeDataSource = 'MANUAL'` — משתנה גלובלי ראשי ('EXCEL' | 'MANUAL').
+- `isExcelLoaded()` בודק תחילה `activeDataSource !== 'EXCEL'` — משתמש יכול לעקוף Excel ולבחור ידנית.
+- נוסף `_hasRawExcelData()` — בדיקת נוכחות Excel גולמית, ללא תלות ב-`activeDataSource` (לטובת הכפתור).
+
+**`app.js` — 2. `simFullRefresh()` — Unified Re-render:**
+- פונקציה חדשה `simFullRefresh()`: מפעילה `simCheckEmpty()` → `simRenderKPI()` → `simRenderChart(simRunEngine())` → `simUpdateNameLabel()` → `ovRenderSimMini()`.
+- קריאה מ-`ffsApplyAndClose()`, `ffsToggleDataSource()` — עדכון אחיד בכל החלפת מקור נתונים.
+
+**`app.js` — 3. `ffsToggleDataSource()` — Drawer Unlock:**
+- פונקציה חדשה `ffsToggleDataSource()`: מחליפה `activeDataSource` בין EXCEL ↔ MANUAL, קוראת `ffsRenderAll()` + `simFullRefresh()`.
+- `simRefresh()` (בטעינת Excel): מגדיר `activeDataSource = 'EXCEL'` אוטומטית.
+
+**`app.js` / `index.html` — 4. Switch Button בDrawer:**
+- נוסף `<div id="ffs-source-switch">` + `<button id="ffs-switch-btn">` בכותרת ה-Drawer.
+- `ffsRenderAll()` מציג/מסתיר לפי `_hasRawExcelData()`, צובע אדום (EXCEL→MANUAL) / כחול (MANUAL→EXCEL), ומעדכן טקסט בהתאם.
+- Drawer body נשאר נגיש — רק נעול כשExcel פעיל; לחיצה על הכפתור מבטלת את הנעילה.
+
+**`index.html`** — גרסה עודכנה ל-`v168.86`
+
+## שינויים אחרונים (22/04/2026 — v168.85)
+
+### v168.85 – Drawer Content Sync & Profile Lock
+
+**`index.html` — Drawer:**
+- נוסף `id="ffs-drawer-body"` + `position:relative` לבלוק הגוף של ה-Drawer.
+- נוסף `<div id="ffs-excel-badge">` בכותרת ה-Drawer: "📊 נתוני אקסל פעילים — עריכה ידנית מושבתת" — נגלה רק כשExcel פעיל.
+
+**`app.js` — `ffsRenderAll()` — Profile Lock:**
+- כשExcel פעיל: מציג שדות פרופיל מ-Excel globals (`SIM_USER1_NAME`, `SIM_USER1_BIRTH`, `SIM_RETIREMENT_AGE_ROY`), מנקה שדות FFS-ספציפיים, ומנטרל את כל הgestion (pointer-events:none, opacity:0.62).
+- מציג/מסתיר את ה-badge לפי `isExcelLoaded()`.
+- בזמן שאין Excel: מחזיר לנתוני FFS_PROFILE רגילים עם inputs פעילים.
+
+**`app.js` — `simCheckEmpty()` — Guest Mode:**
+- שוכתב: כשאין נתונים (`!hasData`) — מסתיר גם chart, sliders, controls, timeline (לא רק KPI). מציג רק את `sim-empty-msg`.
+- כשיש נתונים — מציג הכל כרגיל.
+
+**`app.js` — `simUpdateLegend()` — No Phantom Keys:**
+- מסנן `datasets` לפני הצגת ה-legend: רק שכבות עם לפחות ערך אחד >0 מוצגות.
+- בGuest Mode עם הכל 0 — Legend ריק לחלוטין.
+
+**`index.html`** — גרסה עודכנה ל-`v168.85`
+
+## שינויים אחרונים (22/04/2026 — v168.84)
+
+### v168.84 – Strict Data Isolation & Dynamic Legend Fix
+
+**`app.js` — 1. `isExcelLoaded()` + Strict Data Precedence:**
+- פונקציה חדשה `isExcelLoaded()`: מחזירה `true` אם `CF_DATA.length > 0` אוֹ `PENSION_ASSETS.length > 0` ו-`!isDemoMode`.
+- `simGetRoyCapital()`, `simGetRoyRealEstate()`, `simGetRoyPensionAccum()`, `simGetRoyHarelAccum()`: כולם עטופים — FFS נוסף **רק** כשאין Excel.
+- `simRunEngine()`: `_ffsSavingsK` ו-`_rentNetK` מאופסים כשExcel טעון.
+- `ffsApplyToSimulator()`: לא דורס `SIM_USER1_NAME` כשExcel טעון.
+- `ffsUpdateDrawerTitle()`: מציג שם Excel כשExcel טעון.
+
+**`app.js` — 2. Dynamic Legend (Ghost Harel Fix):**
+- פונקציות חדשות `simGetPhoenixLayerName()` ו-`simGetHarelLayerName()`: מחזירות שם ספק אמיתי מ-`PENSION_ASSETS` או `FFS_PROFILE.pension`.
+- שכבות הגרף מקבלות `label` דינמי מהנתונים, לא `SIM_PENSION_FUND_NAME`/`SIM_SAVINGS_FUND_NAME` hardcoded.
+- נוסף `_layer: 'phoenix'/'harel'` prop לכל dataset — tooltip מזהה לפי `_layer` (לא label).
+- Legend תמיד תואם 100% לנתונים בפועל.
+
+**`app.js` — 3. Empty State KPIs:**
+- `simRenderKPI()`: בתחילה בודק `_hasAnyData`. אם אין נתונים (Excel, FFS, FUNDS) — כל ה-KPI מוצגים כ-`—` וה-function עוצרת. אין "phantom numbers" בGuest Mode.
+
+**`app.js` — 4. Inheritance Double-Count Fix:**
+- `simGetRoyHarelAccum()`: FFS ביטוח מנהלים נוסף **רק** כשאין Excel (`!isExcelLoaded()`), מונע double-count כשExcel כולל נכסים דומים.
+
+**`index.html`** — גרסה עודכנה ל-`v168.84`
+
+## שינויים אחרונים (22/04/2026 — v168.83)
+
+### v168.83 – Final Logic Sync & Ghost Cleanup
+
+**`app.js` — 1. Profile Priority Overhaul:**
+- `simUpdateNameLabel()`: כשיש נתוני Excel (`simGetRoyCapital()>0` או `CF_DATA.length>0`) — Excel תמיד מנצח FFS. הפונקציה מחזירה `SIM_USER1_NAME || 'רועי'` ומתעלמת מ-`FFS_PROFILE.name`.
+- `simRefresh()`: כשמטענים Excel ו-`SIM_USER1_NAME === FFS_PROFILE.name` (סימן ש-FFS השתלט), מאפסים בחזרה ל-`'רועי'`.
+
+**`app.js` — 2. Slider Wiring תשואת הון פנסיוני:**
+- `syncSettingsToSliders()`: לאחר עדכון DOM של הסליידר, מוסיפים `pnsRetirementYield = SIM_PENSION_RATE` — מסנכרן את משתנה in-memory עם ה-global.
+- `simInit()`: קורא ל-`pnsRetirementYieldChange(SIM_PENSION_RATE || pnsRetirementYield)` במקום `pnsRetirementYield` בלבד.
+
+**`app.js` — 3. Legend & Ghost Data Cleanup (הראל):**
+- `simRenderChart()`: בדיקת `_hasHarel = hrl.some(v>0)` לפני בניית datasets.
+- שכבת הראל (`SIM_SAVINGS_FUND_NAME`) נוספת ל-datasets **רק אם** יש נתוני הראל בפועל — הן ב-'roy' הן ב-'combined'.
+- `_cYaelTop` בנוי דינמית לפי נוכחות/היעדרות שכבת הראל.
+- Tooltip callback שוכתב ממיפוי לפי אינדקס למיפוי לפי **label** — עמיד לשינוי מספר שכבות.
+- `simUpdateLegend()` מקבל את ה-datasets הדינמיים — Legend תמיד תואם לנתונים בפועל.
+
+**`app.js` — 4. Inheritance Sync (ביטוח מנהלים):**
+- `simGetRoyHarelAccum()`: מוסיף גם פריטי FFS מסוג `pensionType === 'manager'` לשכבה 3 (הון לירושה), תוך המרת K₪ → ₪. מונע double-count כי `royPhoenixCap = totalPenK - harelK`.
+
+**`index.html`** — גרסה עודכנה ל-`v168.83`
+
+## שינויים אחרונים (21/04/2026 — v168.71)
+
+### v168.71 – Non-Destructive FFS Power Pedestal
+
+**`index.html` — Drawer + כפתור:**
+- כפתור `⚙ הגדרות סימולציה` נוסף לשורת הכותרת של פאנל הסליידרים
+- Drawer צד שמאל (390px): `position:fixed`, `z-index:10100`, `backdrop-filter:blur`
+- 4 סקציות: פרופיל אישי (שם, תאריך לידה, גיל פרישה, תוחלת חיים) | השקעות [+] | נדל"ן [+] | פנסיה וביטוחים [+]
+- כפתור "החל ועדכן סימולטור" מחיל את הנתונים ← סוגר Drawer
+
+**`app.js` — FFS Variables & Profile:**
+- `FFS_PROFILE_LS_KEY = 'ffs_profile_v1'` + אובייקט `FFS_PROFILE` (investments/realEstate/pension)
+- `ffsLoadProfile()` / `ffsSaveProfile()` — LocalStorage persistence
+- כל שינוי בשדה נשמר אוטומטית ל-LocalStorage
+
+**`app.js` — Getters Additive (לא פוגעים בקוד קיים):**
+- `ffsGetLiquidCapital()` → מחובר ל-`simGetRoyCapital()` (מוסיף, לא מחליף)
+- `ffsGetPensionAccumK()` → מחובר ל-`simGetRoyPensionAccum()` (K₪ → ₪)
+- `ffsGetRealEstateK()` → מחובר ל-`simGetRoyRealEstate()`
+- ביטוח חיים = AI context בלבד, לא בגרף
+
+**`app.js` — AI Sync:**
+- `buildFFSContext()` מזריק שמות נכסים + יתרות לתוך `buildGlobalContext()` (FFS_PROFILE block)
+- גיל מדויק חישוב מתאריך לידה (שנה שברית)
+
+**`app.js` — ffsApplyToSimulator():**
+- עדכון `SIM_BIRTH_YEAR_ROY`, `SIM_RETIREMENT_AGE_ROY`, `SIM_USER1_NAME`
+- חישוב מחדש של גבולות פאזות + `simRenderChart(simRunEngine())`
 
 ## שינויים אחרונים (21/04/2026 — v168.70)
 

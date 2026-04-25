@@ -1,4 +1,4 @@
-<!-- v168.69 -->
+<!-- v168.118 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -38,7 +38,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.69</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v168.118</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -46,40 +46,36 @@
   <div class="sim-header sim-only-btn" style="display:none; flex:1 1 auto; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:15px; min-width:0;">
     <!-- KPIs: first child (RTL → appears right of controls, left of title) -->
     <div id="sim-header-stats" class="header-stats sim-only-btn" style="display:none; direction:rtl; flex-shrink:1; min-width:0; gap:12px;">
+      <!-- v168.96: 4 locked KPI labels — final wording (no dynamic suffixes) -->
       <div class="stat-item" style="gap:0;">
         <div class="stat-label">הון חזוי</div>
         <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
-        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ש״ח</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">במיליוני ש״ח <span id="sim-src-tag-wealth" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
       <div class="divider"></div>
       <div class="stat-item" style="gap:0;">
         <div class="stat-label">הכנסה פנויה</div>
-        <div class="stat-value" id="sim-hdr-monthly-income" style="color:#60a5fa;line-height:1.15;">—</div>
-        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+        <div class="stat-value" id="sim-hdr-total-accum" style="color:#a78bfa;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש <span id="sim-src-tag-total" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
       <div class="divider"></div>
       <div class="stat-item" style="gap:0;">
         <div class="stat-label">תזרים נטו</div>
         <div class="stat-value" id="sim-hdr-monthly-accum" style="color:#fbbf24;line-height:1.15;">—</div>
-        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש <span id="sim-src-tag-accum" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
       <div class="divider"></div>
       <div class="stat-item" style="gap:0;">
-        <div class="stat-label">צבירה כוללת</div>
-        <div class="stat-value" id="sim-hdr-total-accum" style="color:#a78bfa;line-height:1.15;">—</div>
-        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש</div>
+        <div class="stat-label">צבירה חודשית</div>
+        <div class="stat-value" id="sim-hdr-monthly-income" style="color:#60a5fa;line-height:1.15;">—</div>
+        <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש <span id="sim-src-tag-income" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
     </div>
     <!-- Controls: second child (RTL → appears left side), direction:ltr so buttons flow left→right -->
     <div class="sim-header-controls" style="display:flex; flex-direction:row; align-items:center; gap:12px; direction:ltr; flex-shrink:0; flex-wrap:nowrap;">
       <button id="chat-btn" onclick="toggleChat()" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:18px;font-family:Heebo,sans-serif;flex-shrink:0;" title="צ׳את AI">💬</button>
       <button id="settings-btn" onclick="openSettingsModal()" style="display:flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;flex-shrink:0;" title="הגדרות">⚙️</button>
-      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
-        <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;">תצוגה:</span>
-        <button class="pns-ni-btn active" id="sim-btn-roy" onclick="simSetView('roy')">רועי</button>
-        <button class="pns-ni-btn" id="sim-btn-yael" onclick="simSetView('yael')">יעל</button>
-        <button class="pns-ni-btn" id="sim-btn-combined" onclick="simSetView('combined')">משותף</button>
-      </div>
+      <span id="sim-active-name-label" onclick="openFFSDrawer()" title="כיול נתונים אישיים" style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.82);font-weight:600;font-family:Heebo,sans-serif;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 12px;white-space:nowrap;flex-shrink:0;cursor:pointer;user-select:none;"><span style="font-size:15px;flex-shrink:0;filter:invert(42%) sepia(93%) saturate(1352%) hue-rotate(199deg) brightness(104%) contrast(95%);">👤</span><span id="sim-active-name-text">מציג: אורח</span></span>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;"><span id="hdr-savings-name">הראל</span>:</span>
         <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
@@ -259,18 +255,14 @@
       </div>
       <!-- pension view select — standalone -->
       <select id="pns-view-select" class="pns-only-btn" onchange="pensionSetView(this.value)" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;min-width:96px;">
-        <option value="mine">רועי</option>
-        <option value="yael">יעל</option>
-        <option value="all">משותף</option>
+        <option value="mine" id="pns-view-opt-mine">רועי</option>
       </select>
       <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
       <!-- v168.69: Overview tab global AI chat -->
       <span class="ov-only-btn" onclick="toggleChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI מבט-על">💬</span>
       <!-- investments family view toggle (v94.0) -->
       <select id="inv-view-select" class="inv-only-btn" onchange="invSetView(this.value)" style="cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;min-width:96px;">
-        <option value="roee">רועי</option>
-        <option value="yael">יעל</option>
-        <option value="all">משותף</option>
+        <option value="roee" id="inv-view-opt-roee">רועי</option>
       </select>
       <button id="theme-btn" class="inv-only-btn" onclick="toggleTheme()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:7px 13px; font-size:12px; font-family:Heebo,sans-serif;">🎨 Slate Pro</button>
       <button class="inv-only-btn" onclick="openCharts()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📊 ניתוח</button>
@@ -1223,6 +1215,7 @@
 .mkt-ai-msg-ai{padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;max-width:92%;background:#1e2d4a;color:#cbd5e1;align-self:flex-start;}
 #mkt-search-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}
 #mkt-ai-input:focus{border-color:#3b82f6;}
+#ffs-drawer input:focus,#ffs-drawer select:focus{border-color:#3b82f6!important;outline:none!important;box-shadow:0 0 0 2px rgba(59,130,246,0.18)!important;}
 </style>
 <div id="mkt-wrap">
 
@@ -1352,8 +1345,8 @@
 
     <!-- v103.2: Empty state message (shown before any Excel upload) -->
     <div id="sim-empty-msg" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;text-align:center;">
-      <div style="font-size:40px;opacity:0.25;">📊</div>
-      <div style="font-size:15px;color:#64748b;font-weight:600;max-width:420px;line-height:1.6;">אין נתונים להצגה.<br>אנא העלה את קבצי הנתונים כדי להתחיל בסימולציה.</div>
+      <div style="font-size:44px;color:#800020;opacity:0.7;">👤</div>
+      <div style="font-size:15px;color:#800020;font-weight:700;max-width:420px;line-height:1.7;">העלה קבצים או כייל נתונים אישיים<br><span style="font-size:12px;color:#94a3b8;font-weight:500;">לחץ על האייקון 👤 בכותרת להתחיל</span></div>
     </div>
 
     <!-- ── Wealth KPI Cards (v103.14-sim-ui: 3 cards — הון נוכחי) ── -->
@@ -1455,37 +1448,37 @@
         <span><span style="display:inline-block;width:8px;height:8px;background:#34d399;transform:rotate(45deg);margin-left:3px;"></span>הכנסה</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:#f87171;transform:rotate(45deg);margin-left:3px;"></span>הוצאה</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:#9ca3af;transform:rotate(45deg);margin-left:3px;"></span>תזכורת</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#1b5e20;transform:rotate(45deg);margin-left:3px;"></span>הכנסה קבועה (אקסל)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#1b5e20;transform:rotate(45deg);margin-left:3px;"></span>הכנסה פנויה בפרישה (אקסל)</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:#881111;transform:rotate(45deg);margin-left:3px;"></span>הוצאה קבועה (אקסל)</span>
       </div>
     </div>
 
     <!-- ── v103.36: Sliders moved to bottom of page ── -->
     <div class="sim-controls-panel sim-controls-row" style="display:none;flex-direction:column;gap:6px;align-items:stretch;">
-      <div style="display:flex;align-items:center;justify-content:space-between;direction:rtl;margin-bottom:2px;">
+      <div style="display:flex;align-items:center;direction:rtl;margin-bottom:2px;">
         <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.4px;">תרחיש סימולציה:</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px 10px;align-items:start;direction:rtl;">
         <!-- 1 (rightmost) — הכנסה כמדריך -->
-        <div class="sim-ctrl-group">
+        <div id="sim-instr-group" class="sim-ctrl-group">
           <div class="sim-ctrl-label">הכנסה כמדריך</div>
           <input type="number" id="sim-instr-num" class="sim-num-input" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
           <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
           <div class="sim-slider-bounds"><span>60K ₪</span><span>5K ₪</span></div>
         </div>
-        <!-- 2 — הכנסה קבועה -->
+        <!-- 2 — הכנסה פנויה בפרישה -->
         <div class="sim-ctrl-group">
-          <div class="sim-ctrl-label">הכנסה קבועה (פנסיה, שכ״ד וכו')</div>
-          <input type="number" id="sim-pension-monthly-num" class="sim-num-input" min="5000" max="80000" step="1000" value="35000" oninput="simSetPensionMonthly(this.value)">
-          <input type="range" id="sim-pension-monthly-slider" class="sim-slider" min="5000" max="80000" step="1000" value="35000" oninput="simSetPensionMonthly(this.value)">
+          <div class="sim-ctrl-label" title="הכנסה פנויה בפרישה: פנסיה נטו + שכר דירה (מגיל 67 ואילך)">הכנסה פנויה בפרישה</div>
+          <input type="number" id="sim-pension-monthly-num" class="sim-num-input" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)">
+          <input type="range" id="sim-pension-monthly-slider" class="sim-slider" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)">
           <div class="sim-slider-bounds"><span>80K ₪</span><span>5K ₪</span></div>
         </div>
-        <!-- 3 — הוצאה חודשית -->
+        <!-- 3 — הוצאה חודשית בפרישה -->
         <div class="sim-ctrl-group">
-          <div class="sim-ctrl-label">הוצאה חודשית</div>
-          <input type="number" id="sim-exp-num" class="sim-num-input" min="10000" max="60000" step="1000" value="30000" oninput="simSetExpense(this.value)">
-          <input type="range" id="sim-exp-slider" class="sim-slider" min="10000" max="60000" step="1000" value="30000" oninput="simSetExpense(this.value)">
-          <div class="sim-slider-bounds"><span>60K ₪</span><span>10K ₪</span></div>
+          <div class="sim-ctrl-label" title="הוצאה חודשית בפרישה — מגיל פרישה ואילך (מקור: הגדרות)">הוצאה חודשית בפרישה</div>
+          <input type="number" id="sim-exp-num" class="sim-num-input" min="19000" max="39000" step="1000" value="29000" oninput="simSetExpense(this.value)">
+          <input type="range" id="sim-exp-slider" class="sim-slider" min="19000" max="39000" step="1000" value="29000" oninput="simSetExpense(this.value)">
+          <div class="sim-slider-bounds"><span>39K ₪</span><span>19K ₪</span></div>
         </div>
         <!-- 4 — תשואת הון השקעות -->
         <div class="sim-ctrl-group">
@@ -1511,8 +1504,8 @@
         <!-- 7 (leftmost) — עליית ערך נדל״ן -->
         <div class="sim-ctrl-group">
           <div class="sim-ctrl-label">עליית ערך נדל״ן שנתית (%)</div>
-          <input type="number" id="sim-re-growth-num" class="sim-num-input" min="0" max="8" step="0.5" value="2.5" oninput="simSetREGrowth(this.value)">
-          <input type="range" id="sim-re-growth-slider" class="sim-slider" min="0" max="8" step="0.5" value="2.5" oninput="simSetREGrowth(this.value)">
+          <input type="number" id="sim-re-growth-num" class="sim-num-input" min="0" max="8" step="0.1" value="2.5" oninput="simSetREGrowth(this.value)">
+          <input type="range" id="sim-re-growth-slider" class="sim-slider" min="0" max="8" step="0.1" value="2.5" oninput="simSetREGrowth(this.value)">
           <div class="sim-slider-bounds"><span>8%</span><span>0%</span></div>
         </div>
       </div>
@@ -1524,6 +1517,202 @@
   </div>
 </div>
 
+
+<!-- FFS Side Drawer v168.75 — accordion layout, 500px wide -->
+<div id="ffs-backdrop" onclick="closeFFSDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10099;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);"></div>
+<div id="ffs-drawer" style="display:none;position:fixed;top:0;left:0;height:100vh;width:500px;max-width:98vw;background:#f1f5f9;z-index:10100;box-shadow:10px 0 40px rgba(0,0,0,0.22);overflow-y:auto;direction:rtl;font-family:Heebo,sans-serif;transform:translateX(-100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);">
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:18px 20px 14px;position:sticky;top:0;z-index:1;border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div id="ffs-drawer-title" style="color:white;font-size:15px;font-weight:800;letter-spacing:0.1px;">👤 מציג: אורח</div>
+      <span onclick="closeFFSDrawer()" style="color:rgba(255,255,255,0.55);cursor:pointer;font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">✕</span>
+    </div>
+    <div style="color:rgba(255,255,255,0.45);font-size:11px;margin-top:4px;">כיול נתונים אישיים לסימולטור</div>
+    <!-- v168.89: Excel active badge — shown only when Excel is the active source -->
+    <div id="ffs-excel-badge" style="display:none;margin-top:10px;background:rgba(59,130,246,0.22);border:1px solid rgba(96,165,250,0.45);color:#93c5fd;font-size:10px;font-weight:700;padding:6px 10px;border-radius:7px;text-align:center;letter-spacing:0.2px;">
+      📊 נתוני אקסל פעילים — עריכה ידנית מושבתת
+    </div>
+    <!-- v168.89: data source switch button — shown whenever Excel data exists in memory -->
+    <div id="ffs-source-switch" style="display:none;margin-top:8px;">
+      <button id="ffs-switch-btn" onclick="ffsToggleDataSource()" style="width:100%;padding:8px 12px;border:none;border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:white;cursor:pointer;background:#dc2626;transition:background 0.15s;">
+        ✏️ עבור למצב הזנה ידנית (FFS)
+      </button>
+    </div>
+    <!-- v168.89: "Avi ghost" cleanup — shown in manual mode when a legacy profile name exists -->
+    <button id="ffs-new-profile-btn" onclick="ffsStartFreshProfile()" style="display:none;width:100%;margin-top:6px;padding:7px 12px;border:1px solid rgba(248,113,113,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#fca5a5;cursor:pointer;background:rgba(239,68,68,0.12);transition:background 0.15s;" title="מחק את הפרופיל הנוכחי ופתח דף ריק">
+      התחל פרופיל חדש 🆕
+    </button>
+  </div>
+  <!-- Body -->
+  <div id="ffs-drawer-body" style="padding:14px 14px 28px;position:relative;">
+
+    <!-- Accordion: פרטים אישיים (open by default) -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">
+      <div onclick="ffsToggleAcc('profile')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:#e8edf5;user-select:none;">
+        <div style="font-size:12px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">👤 פרטים אישיים</div>
+        <span id="ffs-acc-arrow-profile" style="font-size:11px;color:#64748b;">▲</span>
+      </div>
+      <div id="ffs-acc-body-profile" style="background:white;padding:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">שם</div>
+            <input id="ffs-name" type="text" placeholder="שם פרטי" oninput="ffsSaveField('name',this.value);ffsUpdateDrawerTitle()" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;direction:rtl;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">תאריך לידה</div>
+            <input id="ffs-birth-date" type="date" onchange="ffsSaveField('birthDate',this.value)" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;direction:ltr;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">גיל פרישה</div>
+            <input id="ffs-retirement-age" type="number" min="55" max="75" value="67" oninput="ffsSaveField('retirementAge',parseInt(this.value)||67)" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;text-align:center;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">תוחלת חיים</div>
+            <input id="ffs-life-expectancy" type="number" min="70" max="100" value="84" oninput="ffsSaveField('lifeExpectancy',parseInt(this.value)||84)" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;text-align:center;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- v168.92: SECTION A — שלב א': צבירה (עכשיו) -->
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;padding:8px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(16,185,129,0.08));border:1px solid rgba(34,197,94,0.25);border-radius:9px;">
+      <span style="font-size:14px;">🟢</span>
+      <div>
+        <div style="font-size:11px;font-weight:800;color:#15803d;letter-spacing:0.2px;">שלב א׳: צבירה</div>
+        <div style="font-size:9px;color:#166534;margin-top:1px;">הון נוכחי ותזרים חודשי פנוי</div>
+      </div>
+    </div>
+
+    <!-- חיסכון חודשי נטו -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;background:white;padding:12px 14px;">
+      <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:6px;">💰 חיסכון חודשי נטו (₪) — מה נחסך כרגע</div>
+      <input id="ffs-monthly-savings" type="number" min="0" max="100000" step="500" placeholder="0" oninput="ffsSaveField('monthlySavings',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;color:#1e293b;outline:none;text-align:center;">
+    </div>
+
+    <!-- Accordion: השקעות (closed) -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">
+      <div onclick="ffsToggleAcc('investments')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:#e8edf5;user-select:none;">
+        <div style="font-size:12px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">📈 השקעות</div>
+        <span id="ffs-acc-arrow-investments" style="font-size:11px;color:#64748b;">▼</span>
+      </div>
+      <div id="ffs-acc-body-investments" style="display:none;background:white;padding:12px 14px;">
+        <div id="ffs-investments-list"></div>
+        <button onclick="ffsAddItem('investments')" style="width:100%;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">+ הוסף נכס</button>
+      </div>
+    </div>
+
+    <!-- Accordion: נדל"ן (closed) -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">
+      <div onclick="ffsToggleAcc('realEstate')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:#e8edf5;user-select:none;">
+        <div style="font-size:12px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">🏠 נדל&quot;ן</div>
+        <span id="ffs-acc-arrow-realEstate" style="font-size:11px;color:#64748b;">▼</span>
+      </div>
+      <div id="ffs-acc-body-realEstate" style="display:none;background:white;padding:12px 14px;">
+        <div id="ffs-realestate-list"></div>
+        <button onclick="ffsAddItem('realEstate')" style="width:100%;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">+ הוסף נכס</button>
+      </div>
+    </div>
+
+    <!-- v168.92: SECTION B — שלב ב': תקופת גישור -->
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;padding:8px 12px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(245,158,11,0.08));border:1px solid rgba(234,179,8,0.3);border-radius:9px;">
+      <span style="font-size:14px;">🟡</span>
+      <div>
+        <div style="font-size:11px;font-weight:800;color:#92400e;letter-spacing:0.2px;">שלב ב׳: גישור</div>
+        <div style="font-size:9px;color:#78350f;margin-top:1px;">שינויי הכנסה מתוכננים לפני הפרישה</div>
+      </div>
+    </div>
+
+    <!-- תקופת גישור — bridge fields (v168.92: moved from profile accordion) -->
+    <div style="border:1px solid #fde68a;border-radius:10px;margin-bottom:8px;background:white;padding:12px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">גיל שינוי הכנסה</div>
+          <input id="ffs-bridge-age" type="number" min="40" max="67" step="1" placeholder="—" oninput="ffsSaveField('bridgeAge',parseInt(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;text-align:center;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:4px;">תזרים חודשי נטו חדש (₪)</div>
+          <input id="ffs-bridge-cashflow" type="number" min="0" max="100000" step="500" placeholder="—" oninput="ffsSaveField('bridgeCashflow',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;text-align:center;">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="ffs-bridge-pension-contrib" onchange="ffsSaveField('bridgePensionContrib',this.checked)" style="width:15px;height:15px;accent-color:#3b82f6;cursor:pointer;">
+        <label for="ffs-bridge-pension-contrib" style="font-size:11px;color:#475569;font-weight:600;cursor:pointer;">המשך הפקדות פנסיוניות בתקופת המעבר</label>
+      </div>
+    </div>
+
+    <!-- v168.92: SECTION C — שלב ג': פרישה -->
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;padding:8px 12px;background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(139,92,246,0.08));border:1px solid rgba(99,102,241,0.28);border-radius:9px;">
+      <span style="font-size:14px;">🔵</span>
+      <div>
+        <div style="font-size:11px;font-weight:800;color:#4338ca;letter-spacing:0.2px;">שלב ג׳: פרישה</div>
+        <div style="font-size:9px;color:#3730a3;margin-top:1px;">הכנסות קבועות והוצאות מחיה — מגיל 67</div>
+      </div>
+    </div>
+
+    <!-- הכנסות + הוצאות בפרישה -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;background:white;padding:12px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:6px;">📥 צפי הכנסות חודשיות (₪)</div>
+          <input id="ffs-retirement-income" type="number" min="0" max="200000" step="500" placeholder="0" oninput="ffsSaveField('retirementIncome',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#1e293b;outline:none;text-align:center;">
+          <div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:center;">קצבה · שכירות · הכנסה</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:6px;">📤 הוצאה חודשית בפרישה (₪)</div>
+          <input id="ffs-retirement-expense" type="number" min="0" max="200000" step="500" placeholder="0" oninput="ffsSaveField('retirementExpense',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1px solid #c9d3e0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#1e293b;outline:none;text-align:center;">
+          <div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:center;">מסונכרן עם גרר ההוצאות</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accordion: פנסיה וביטוחים (closed) -->
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden;">
+      <div onclick="ffsToggleAcc('pension')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:#e8edf5;user-select:none;">
+        <div style="font-size:12px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">🏦 פנסיה וביטוחים</div>
+        <span id="ffs-acc-arrow-pension" style="font-size:11px;color:#64748b;">▼</span>
+      </div>
+      <div id="ffs-acc-body-pension" style="display:none;background:white;padding:12px 14px;">
+        <div id="ffs-pension-list"></div>
+        <button onclick="ffsAddItem('pension')" style="width:100%;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:11px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">+ הוסף פוליסה</button>
+      </div>
+    </div>
+
+    <!-- Apply -->
+    <button onclick="ffsApplyAndClose()" style="width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;letter-spacing:0.1px;box-shadow:0 2px 8px rgba(59,130,246,0.3);">✓ החל ועדכן סימולטור</button>
+    <!-- datalist for pension providers — shared across all pension items -->
+    <datalist id="ffs-providers-dl">
+      <option value="הראל">
+      <option value="מגדל">
+      <option value="כלל ביטוח">
+      <option value="מנורה מבטחים">
+      <option value="הפניקס">
+      <option value="מיטב">
+      <option value="אלטשולר שחם">
+      <option value="מור">
+      <option value="אנליסט">
+      <option value="ילין לפידות">
+    </datalist>
+    <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:8px;">הנתונים נשמרים אוטומטית בדפדפן</div>
+    <!-- v168.89: reset button — highly visible, instant (no reload) -->
+    <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:14px;">
+      <button onclick="ffsResetAndReload()" style="width:100%;padding:10px 14px;background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.35);border-radius:9px;color:#dc2626;font-size:12px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;letter-spacing:0.1px;transition:background 0.15s,border-color 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.16)';this.style.borderColor='rgba(239,68,68,0.6)'" onmouseout="this.style.background='rgba(239,68,68,0.08)';this.style.borderColor='rgba(239,68,68,0.35)'">🗑️ אפס פרופיל משתמש</button>
+      <div style="font-size:9px;color:#94a3b8;text-align:center;margin-top:5px;">מאפס מיידית — ללא טעינה מחדש</div>
+    </div>
+  </div>
+</div>
+
+<!-- FFS Reset Confirmation Modal v168.81 -->
+<div id="ffs-reset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10300;align-items:center;justify-content:center;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);">
+  <div style="background:white;border-radius:14px;padding:28px 24px;max-width:370px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,0.3);text-align:center;font-family:Heebo,sans-serif;direction:rtl;">
+    <div style="font-size:36px;margin-bottom:10px;">🗑️</div>
+    <div style="font-size:15px;font-weight:800;color:#1e293b;margin-bottom:8px;">איפוס נתוני משתמש</div>
+    <div style="font-size:12px;color:#64748b;line-height:1.7;margin-bottom:22px;">כל נתוני הכיול האישי, האירועים ונתוני האקסל הנשמרים יימחקו.<br><strong style="color:#dc2626;">פעולה זו אינה ניתנת לביטול.</strong></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="ffsConfirmReset()" style="background:#dc2626;color:white;border:none;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;box-shadow:0 2px 6px rgba(220,38,38,0.35);">כן, אפס הכל</button>
+      <button onclick="ffsCancelReset()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
+    </div>
+  </div>
+</div>
 <!-- CF CHAT PANEL v31.0 — structure & CSS identical to investments #cp -->
 <div id="cf-cp" style="display:none;position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);width:520px;max-height:600px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-direction:column;z-index:9999;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
   <div style="padding:12px 16px;background:#0f0f23;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
@@ -1657,7 +1846,7 @@
 
     <!-- Section: גיל פרישה -->
     <div class="settings-section">
-      <div class="settings-section-title">גיל פרישה</div>
+      <div class="settings-section-title">גיל פרישה ותאריכי לידה</div>
       <div class="settings-grid">
         <div class="settings-field">
           <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">משתמש 1</span></label>
@@ -1674,6 +1863,20 @@
             <span class="settings-unit">שנים</span>
           </div>
           <div class="settings-hint">ברירת מחדל: 65 (גיל פרישה חוקי לנשים)</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">משתמש 1</span></label>
+          <div class="settings-input-row">
+            <input type="date" class="settings-input" id="stg-user1-birth" value="1962-08-25" min="1900-01-01" max="2005-01-01" style="direction:ltr;">
+          </div>
+          <div class="settings-hint">ברירת מחדל: 25/08/1962 — קובע את ציר הזמן</div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">משתמש 2</span></label>
+          <div class="settings-input-row">
+            <input type="date" class="settings-input" id="stg-user2-birth" value="1968-06-28" min="1900-01-01" max="2005-01-01" style="direction:ltr;">
+          </div>
+          <div class="settings-hint">ברירת מחדל: 28/06/1968</div>
         </div>
       </div>
     </div>
@@ -1706,117 +1909,21 @@
           </div>
           <div class="settings-hint">ברירת מחדל: 2.5% (SIM_INFLATION)</div>
         </div>
+        <div class="settings-field" id="stg-retire-exp-field">
+          <label class="settings-label">הוצאה חודשית בפרישה</label>
+          <div class="settings-input-row">
+            <input type="number" class="settings-input" id="stg-retire-exp" value="29000" min="5000" max="80000" step="1000" placeholder="29000">
+            <span class="settings-unit">₪</span>
+          </div>
+          <div class="settings-hint">ברירת מחדל: 29,000 ₪ — מגדיר את הסליידר ואת KPI תזרים נטו</div>
+        </div>
         <div class="settings-field">
           <label class="settings-label">צמיחת נדל״ן שנתית</label>
           <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-re-growth" value="2.0" min="0" max="15" step="0.5" placeholder="2.0">
+            <input type="number" class="settings-input" id="stg-re-growth" value="2.5" min="0" max="15" step="0.1" placeholder="2.5">
             <span class="settings-unit">%</span>
           </div>
-          <div class="settings-hint">ברירת מחדל: 2.0% (SIM_RE_GROWTH_RATE)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: הכנסות פרישה -->
-    <div class="settings-section">
-      <div class="settings-section-title">הכנסות בגיל פרישה</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">הכנסה נטו מפנסיה</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-pension-monthly" value="35000" min="0" max="200000" step="1000" placeholder="35000">
-            <span class="settings-unit">₪</span>
-          </div>
-          <div class="settings-hint">ברירת מחדל: 35,000 ₪ (SIM_PENSION_MONTHLY)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">משכורת מדריך (שלב ביניים)</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-instructor-sal" value="35000" min="0" max="100000" step="1000" placeholder="35000">
-            <span class="settings-unit">₪</span>
-          </div>
-          <div class="settings-hint">ברירת מחדל: 20,000 ₪ (SIM_INSTRUCTOR_SAL)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: נתוני צבירה ונכסים — v124.0 -->
-    <div class="settings-section">
-      <div class="settings-section-title">נתוני צבירה ונכסים</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">צבירה פנסיונית נוכחית</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-pension-acc" value="0" min="0" max="10000000" step="10000" placeholder="0">
-            <span class="settings-unit">₪</span>
-          </div>
-          <div class="settings-hint">סה״כ הון פנסיוני צבור נוכחי (SIM_PENSION_ACC)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">הכנסה מדמי שכירות</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-rental-income" value="0" min="0" max="50000" step="500" placeholder="0">
-            <span class="settings-unit">₪/חודש</span>
-          </div>
-          <div class="settings-hint">הכנסה חודשית משכירות (SIM_RENTAL_INCOME)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: מאקרו כלכלה ומיסוי — v120.0 -->
-    <div class="settings-section">
-      <div class="settings-section-title">מאקרו כלכלה ומיסוי</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">אינפלציה שנתית</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-inflation-macro" value="2.5" min="0" max="15" step="0.1" placeholder="2.5">
-            <span class="settings-unit">%</span>
-          </div>
-          <div class="settings-hint">ראה גם: SIM_INFLATION בסעיף תשואות</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">מס רווחי הון ריאלי</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-capital-tax" value="25" min="0" max="50" step="1" placeholder="25">
-            <span class="settings-unit">%</span>
-          </div>
-          <div class="settings-hint">ברירת מחדל: 25% (SIM_CAPITAL_TAX)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: פרופיל — v126.0 -->
-    <div class="settings-section">
-      <div class="settings-section-title">פרופיל</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">שם משתמש 1</label>
-          <div class="settings-input-row">
-            <input type="text" class="settings-input" id="stg-user1-name" value="" maxlength="20" placeholder="משתמש 1">
-          </div>
-          <div class="settings-hint">שם לתגיות תצוגה (משתמש 1)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">שם משתמש 2</label>
-          <div class="settings-input-row">
-            <input type="text" class="settings-input" id="stg-user2-name" value="" maxlength="20" placeholder="משתמש 2">
-          </div>
-          <div class="settings-hint">שם לתגיות תצוגה (משתמש 2)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">משתמש 1</span></label>
-          <div class="settings-input-row">
-            <input type="date" class="settings-input" id="stg-user1-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
-          </div>
-          <div class="settings-hint">לחישוב גיל פרישה מדויק (SIM_USER1_BIRTH)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">משתמש 2</span></label>
-          <div class="settings-input-row">
-            <input type="date" class="settings-input" id="stg-user2-birth" min="1900-01-01" placeholder="YYYY-MM-DD">
-          </div>
-          <div class="settings-hint">לחישוב גיל פרישה מדויק (SIM_USER2_BIRTH)</div>
+          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_RE_GROWTH_RATE) — צמיחה לינארית, מבודדת מתשואת השקעות</div>
         </div>
       </div>
     </div>
