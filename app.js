@@ -7954,6 +7954,7 @@ function ffsLoadProfile() {
 }
 function ffsSaveProfile() {
   try { localStorage.setItem(ffsGetActiveKey(), JSON.stringify(FFS_PROFILE)); } catch(e) {} // v169.1: scoped by mode
+  if (typeof ffsDebouncedUpdate === 'function') ffsDebouncedUpdate(); // v170.1: live sidebar
 }
 function ffsSaveField(key, val) {
   FFS_PROFILE[key] = val;
@@ -8576,26 +8577,147 @@ function ffsRenderAll() {
     if (bridgePcEl)  bridgePcEl.checked = FFS_PROFILE.bridgePensionContrib || false;
   }
   ffsUpdateDrawerTitle(); // v168.75: sync header with active name
+  if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries(); // v170.1
+  if (typeof ffsUpdateLiveSidebar  === 'function') ffsUpdateLiveSidebar();  // v170.1
 }
 function openFFSDrawer() {
   ffsRenderAll();
   var backdrop = document.getElementById('ffs-backdrop');
   var drawer   = document.getElementById('ffs-drawer');
   if (!backdrop || !drawer) return;
-  backdrop.style.display = 'block';
-  drawer.style.display   = 'block';
-  setTimeout(function() { drawer.style.transform = 'translateX(0)'; }, 10);
+  backdrop.style.display    = 'block';
+  drawer.style.display      = 'flex';
+  drawer.style.flexDirection = 'column';
+  drawer.style.opacity      = '0';
+  drawer.style.transform    = 'translate(-50%, -47%) scale(0.97)';
+  setTimeout(function() {
+    drawer.style.opacity   = '1';
+    drawer.style.transform = 'translate(-50%, -50%) scale(1)';
+  }, 10);
+  ffsUpdateNavSummaries();
+  ffsUpdateLiveSidebar();
 }
 function closeFFSDrawer() {
   var drawer   = document.getElementById('ffs-drawer');
   var backdrop = document.getElementById('ffs-backdrop');
   if (!drawer) return;
-  drawer.style.transform = 'translateX(-100%)';
+  drawer.style.opacity   = '0';
+  drawer.style.transform = 'translate(-50%, -47%) scale(0.97)';
   setTimeout(function() {
-    if (drawer)   drawer.style.display   = 'none';
+    if (drawer)   drawer.style.display = 'none';
     if (backdrop) backdrop.style.display = 'none';
-  }, 280);
+  }, 250);
 }
+// v170.1: FFS Command Center — navigation, live sidebar, debounced update
+var ffsActiveSection = 'profile';
+var _ffsDebTimer = null;
+var _ffsSections = ['profile', 'income', 'expenses', 'realestate', 'investments', 'pension'];
+
+function ffsNavTo(section) {
+  ffsActiveSection = section;
+  _ffsSections.forEach(function(s) {
+    var panel  = document.getElementById('ffs-section-' + s);
+    var navBtn = document.getElementById('ffs-nav-' + s);
+    if (panel) panel.style.display = (s === section) ? 'block' : 'none';
+    if (navBtn) {
+      if (s === section) {
+        navBtn.classList.add('ffs-nav-active');
+      } else {
+        navBtn.classList.remove('ffs-nav-active');
+      }
+    }
+  });
+  var center = document.getElementById('ffs-drawer-body');
+  if (center) center.scrollTop = 0;
+}
+
+function ffsUpdateNavSummaries() {
+  var profEl = document.getElementById('ffs-nav-summary-profile');
+  if (profEl) {
+    var name = FFS_PROFILE.name || '';
+    var ageStr = '';
+    if (FFS_PROFILE.birthDate) {
+      var bd = new Date(FFS_PROFILE.birthDate);
+      if (!isNaN(bd.getTime())) ageStr = ', גיל ' + (new Date().getFullYear() - bd.getFullYear());
+    }
+    profEl.textContent = name ? (name + ageStr) : '';
+  }
+  var invEl = document.getElementById('ffs-nav-summary-investments');
+  if (invEl) {
+    var inv = FFS_PROFILE.investments || [];
+    if (inv.length) {
+      var invTot = inv.reduce(function(s,x){return s+(x.balance||0);},0);
+      invEl.textContent = inv.length + ' נכסים, ' + (invTot/1000).toFixed(1) + 'M';
+    } else { invEl.textContent = ''; }
+  }
+  var reEl = document.getElementById('ffs-nav-summary-realestate');
+  if (reEl) {
+    var re = FFS_PROFILE.realEstate || [];
+    if (re.length) {
+      var reTot = re.reduce(function(s,x){return s+(x.value||0);},0);
+      reEl.textContent = re.length + ' נכסים, ' + (reTot/1000).toFixed(1) + 'M ₪';
+    } else { reEl.textContent = ''; }
+  }
+  var penEl = document.getElementById('ffs-nav-summary-pension');
+  if (penEl) {
+    var pen = FFS_PROFILE.pension || [];
+    penEl.textContent = pen.length ? (pen.length + ' פוליסות') : '';
+  }
+  var incEl = document.getElementById('ffs-nav-summary-income');
+  if (incEl) {
+    var sav = FFS_PROFILE.monthlySavings || 0;
+    incEl.textContent = sav > 0 ? ('₪' + sav.toLocaleString('he-IL') + '/חודש') : '';
+  }
+  var expEl2 = document.getElementById('ffs-nav-summary-expenses');
+  if (expEl2) {
+    var exp = FFS_PROFILE.retirementExpense || 0;
+    expEl2.textContent = exp > 0 ? ('₪' + exp.toLocaleString('he-IL') + '/חודש') : '';
+  }
+}
+
+function ffsUpdateLiveSidebar() {
+  var wealthEl = document.getElementById('ffs-live-wealth');
+  var gapEl    = document.getElementById('ffs-live-gap');
+  var penEl    = document.getElementById('ffs-live-pension');
+  var invEl2   = document.getElementById('ffs-live-inv');
+  var reEl2    = document.getElementById('ffs-live-re');
+  var penAccEl = document.getElementById('ffs-live-pen-accum');
+
+  if (invEl2) {
+    var invTot = (FFS_PROFILE.investments || []).reduce(function(s,x){return s+(x.balance||0);},0);
+    invEl2.textContent = invTot > 0 ? ((invTot/1000).toFixed(1) + 'M ₪') : '—';
+  }
+  if (reEl2) {
+    var reTot = (FFS_PROFILE.realEstate || []).reduce(function(s,x){return s+(x.value||0);},0);
+    reEl2.textContent = reTot > 0 ? ((reTot/1000).toFixed(1) + 'M ₪') : '—';
+  }
+  if (penAccEl) {
+    var penTot = (FFS_PROFILE.pension || []).reduce(function(s,x){return s+(x.accumulation||0);},0);
+    penAccEl.textContent = penTot > 0 ? ((penTot/1000).toFixed(1) + 'M ₪') : '—';
+  }
+  // Mirror main header KPIs already computed by simRenderKPI
+  var wealthMain = document.getElementById('sim-hdr-wealth-at-age');
+  var accumMain  = document.getElementById('sim-hdr-monthly-accum');
+  var penMain    = document.getElementById('sim-kpi-pension');
+  if (wealthEl && wealthMain) wealthEl.textContent = wealthMain.textContent !== '—' ? wealthMain.textContent : '—';
+  if (gapEl && accumMain) {
+    gapEl.textContent  = accumMain.textContent;
+    gapEl.style.color  = accumMain.style.color || '#4ade80';
+  }
+  if (penEl && penMain) penEl.textContent = penMain.textContent;
+}
+
+function ffsDebouncedUpdate() {
+  if (_ffsDebTimer) clearTimeout(_ffsDebTimer);
+  _ffsDebTimer = setTimeout(function() {
+    if (typeof ffsApplyToSimulator === 'function' && typeof simInited !== 'undefined' && simInited) {
+      ffsApplyToSimulator();
+    }
+    if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries();
+    if (typeof ffsUpdateLiveSidebar  === 'function') ffsUpdateLiveSidebar();
+  }, 350);
+}
+
 // v168.82: sync simulator sliders from FFS profile — strict no-leak mapping
 function ffsSyncSliders() {
   if (isExcelLoaded()) return; // v168.87: Excel active — never override sliders with FFS data
@@ -12595,8 +12717,10 @@ function clearAppState() {
 // v169.1: GLOBAL MODE SELECTOR — 3-world navigation
 // =============================================
 
-// Open Stage A accordion in FFS drawer, collapse all other sections
+// v170.1: navigate to profile section in the wide Command Center modal
 function _ffsOpenStageA() {
+  if (typeof ffsNavTo === 'function') { ffsNavTo('profile'); return; }
+  // Legacy fallback (unreachable in v170.1+)
   ['investments', 'realEstate', 'pension'].forEach(function(name) {
     var body  = document.getElementById('ffs-acc-body-' + name);
     var arrow = document.getElementById('ffs-acc-arrow-' + name);
