@@ -1,7 +1,45 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v170.1 — FFS Command Center (29/04/2026).
+גרסה v170.2 — FFS Logic Refinement & UI Restoration (29/04/2026).
+
+## שינויים אחרונים (29/04/2026 — v170.2)
+
+### v170.2 – FFS Logic Refinement & UI Restoration
+
+**1. Overview Restoration**
+- `_updateModeSelectorUI`: שינוי `display:''` → `display:'grid'` — גרידה חוזרת מפורשת (לא ריק שעלול להיפול ל-block)
+
+**2. Atomic Reset**
+- `ffsConfirmReset()`: איפוס אטומי — `localStorage.clear()` + `sessionStorage.clear()` + `location.reload()`
+- הכפתור שונה לטקסט "🗑️ אפס הכל"
+
+**3. FFS Menu Overhaul**
+- "הכנסות וחיסכון" → **"תזרים שוטף"** (nav + section header)
+- "פנסיה" → **"הכנסות פנסיוניות"** (nav + section header)
+- סדר חדש: פרטים אישיים | תזרים שוטף | השקעות | נדל"ן | הכנסות פנסיוניות | הוצאות בפרישה
+
+**4. Tooltip תוחלת חיים**
+- ℹ️ icon עם `title` המסביר את תפקיד תוחלת החיים בחישוב גיל הפרישה
+
+**5. Salary Growth Slider**
+- `ffs-savings-growth-slider` + `ffs-savings-growth-label` נוספו ב-UI (קיים בקוד כ-`savingsGrowth` — עכשיו גם ב-UI)
+- טווח: 0–10%, ברירת מחדל 0%
+
+**6. Income Phases — טווחי הכנסה**
+- `FFS_PROFILE.incomePhases = []` — שדה חדש, נטען/נשמר
+- `ffsRenderIncomePhasesUI()`, `ffsAddIncomePhase()`, `ffsRemoveIncomePhase()`, `ffsUpdateIncomePhase()`
+- UI: כפתור "+ הוסף תקופה", רשימה דינמית עם מגיל / עד גיל / ₪/חודש
+- אין שינוי בנוסחאות המנוע (Safety Guard)
+
+**7. Data Isolation (Roy Leak Fix)**
+- `ffsUpdateLiveSidebar()`: כאשר `APP_MODE === 'SIMULATOR'` או `activeDataSource === 'MANUAL'` — הסיידבר קורא **ישירות** מ-`FFS_PROFILE` (תזרים, פנסיה) ולא ממצביעי ה-Overview
+- נכסים (השקעות, נדל"ן, פנסיה צבירה) תמיד מגיעים מ-FFS_PROFILE בכל מצב
+
+**8. UI Clarity**
+- כותרת "הזנת נתונים" נוספה מעל אזור הטפסים
+- תיבת "איך זה עובד?" נוספה בתחתית הניווט
+- כותרת "תוצאות חיות ↻" בסיידבר
 
 ## שינויים אחרונים (29/04/2026 — v170.1)
 

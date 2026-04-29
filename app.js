@@ -7747,7 +7747,7 @@ var SIM_SAVINGS_FUND_NAME = 'הראל';
 var SIM_USER1_BIRTH    = '1962-08-25'; // v168.103: Roy default birth date
 var SIM_USER2_BIRTH    = '1968-06-28'; // v168.103: Yael default birth date
 var FFS_PROFILE_LS_KEY = 'ffs_profile_v1'; // v168.72: FFS side drawer profile key
-var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:0, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false }; // v168.77/90
+var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:0, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[] }; // v168.77/90 + v170.2
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_RETIRE_EXP     = 29000; // v168.101: settings-driven expected monthly retirement expense (drives slider range + KPI#3)
 var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
@@ -7947,6 +7947,7 @@ function ffsLoadProfile() {
       FFS_PROFILE.bridgeAge            = saved.bridgeAge            || 0;
       FFS_PROFILE.bridgeCashflow       = saved.bridgeCashflow       || 0;
       FFS_PROFILE.bridgePensionContrib = saved.bridgePensionContrib || false;
+      FFS_PROFILE.incomePhases         = saved.incomePhases         || []; // v170.2
       // v168.76: ensure pension items have pensionType field (backwards compat)
       FFS_PROFILE.pension.forEach(function(p) { if (!p.pensionType) p.pensionType = 'pension'; });
     }
@@ -8501,6 +8502,7 @@ function ffsRenderSection(section) {
 }
 function ffsRenderAll() {
   ['investments', 'realEstate', 'pension'].forEach(ffsRenderSection);
+  ffsRenderIncomePhasesUI(); // v170.2
   var nameEl      = document.getElementById('ffs-name');
   var birthEl     = document.getElementById('ffs-birth-date');
   var retEl       = document.getElementById('ffs-retirement-age');
@@ -8683,6 +8685,7 @@ function ffsUpdateLiveSidebar() {
   var reEl2    = document.getElementById('ffs-live-re');
   var penAccEl = document.getElementById('ffs-live-pen-accum');
 
+  // Asset summaries — always from FFS_PROFILE (safe regardless of mode)
   if (invEl2) {
     var invTot = (FFS_PROFILE.investments || []).reduce(function(s,x){return s+(x.balance||0);},0);
     invEl2.textContent = invTot > 0 ? ((invTot/1000).toFixed(1) + 'M ₪') : '—';
@@ -8695,16 +8698,84 @@ function ffsUpdateLiveSidebar() {
     var penTot = (FFS_PROFILE.pension || []).reduce(function(s,x){return s+(x.accumulation||0);},0);
     penAccEl.textContent = penTot > 0 ? ((penTot/1000).toFixed(1) + 'M ₪') : '—';
   }
-  // Mirror main header KPIs already computed by simRenderKPI
+
+  // v170.2: Data Isolation — in SIMULATOR/manual mode use FFS data directly, never Excel KPIs
+  var _isFFSMode = (APP_MODE === 'SIMULATOR') || (activeDataSource === 'MANUAL');
+  if (_isFFSMode) {
+    // Wealth: mirror sim-hdr if it has data (it was set by ffsApplyToSimulator in SIM mode)
+    if (wealthEl) {
+      var wm = document.getElementById('sim-hdr-wealth-at-age');
+      wealthEl.textContent = (wm && wm.textContent && wm.textContent !== '—') ? wm.textContent : '—';
+    }
+    // Monthly flow: directly from FFS profile (no Excel leak)
+    if (gapEl) {
+      var sav = FFS_PROFILE.monthlySavings || 0;
+      if (sav > 0) {
+        gapEl.textContent = '₪' + sav.toLocaleString('he-IL');
+        gapEl.style.color = '#4ade80';
+      } else {
+        gapEl.textContent = '—';
+        gapEl.style.color = '#4ade80';
+      }
+    }
+    // Pension: from FFS profile pension items (no Excel leak)
+    if (penEl) {
+      var penTotal = (typeof ffsTotalPensionMonthlyNIS === 'function') ? ffsTotalPensionMonthlyNIS() : 0;
+      var retInc = FFS_PROFILE.retirementIncome || 0;
+      var display = penTotal > 0 ? penTotal : retInc;
+      penEl.textContent = display > 0 ? ('₪' + display.toLocaleString('he-IL')) : '—';
+    }
+    return;
+  }
+
+  // EXCEL/DEMO mode — mirror main header KPIs (computed by simRenderKPI)
   var wealthMain = document.getElementById('sim-hdr-wealth-at-age');
   var accumMain  = document.getElementById('sim-hdr-monthly-accum');
   var penMain    = document.getElementById('sim-kpi-pension');
   if (wealthEl && wealthMain) wealthEl.textContent = wealthMain.textContent !== '—' ? wealthMain.textContent : '—';
   if (gapEl && accumMain) {
-    gapEl.textContent  = accumMain.textContent;
-    gapEl.style.color  = accumMain.style.color || '#4ade80';
+    gapEl.textContent = accumMain.textContent;
+    gapEl.style.color = accumMain.style.color || '#4ade80';
   }
   if (penEl && penMain) penEl.textContent = penMain.textContent;
+}
+
+// v170.2: Income Phases — multi-period cash flow entry
+function ffsRenderIncomePhasesUI() {
+  var listEl = document.getElementById('ffs-income-phases-list');
+  if (!listEl) return;
+  var phases = FFS_PROFILE.incomePhases || [];
+  if (!phases.length) {
+    listEl.innerHTML = '<div style="font-size:11px;color:#94a3b8;text-align:center;padding:10px 0;">אין תקופות מוגדרות — לחץ "+ הוסף תקופה"</div>';
+    return;
+  }
+  var inSt = 'width:100%;box-sizing:border-box;background:white;border:1px solid #e2e8f0;border-radius:7px;padding:8px 10px;font-family:Heebo,sans-serif;font-size:13px;color:#1e293b;outline:none;text-align:center;';
+  listEl.innerHTML = phases.map(function(p) {
+    return '<div style="display:grid;grid-template-columns:90px 90px 1fr 28px;gap:8px;align-items:center;background:#f8fafc;border-radius:9px;padding:9px 11px;border:1px solid #e2e8f0;">' +
+      '<input type="number" style="' + inSt + '" placeholder="מגיל" value="' + (p.fromAge || '') + '" oninput="ffsUpdateIncomePhase(\'' + p.id + '\',\'fromAge\',parseInt(this.value)||0)">' +
+      '<input type="number" style="' + inSt + '" placeholder="עד גיל" value="' + (p.toAge || '') + '" oninput="ffsUpdateIncomePhase(\'' + p.id + '\',\'toAge\',parseInt(this.value)||0)">' +
+      '<input type="number" style="' + inSt + '" placeholder="₪/חודש" value="' + (p.monthlyNet || '') + '" oninput="ffsUpdateIncomePhase(\'' + p.id + '\',\'monthlyNet\',parseFloat(this.value)||0)">' +
+      '<button onclick="ffsRemoveIncomePhase(\'' + p.id + '\')" style="background:transparent;border:none;color:#94a3b8;font-size:16px;cursor:pointer;line-height:1;padding:2px;">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function ffsAddIncomePhase() {
+  if (!FFS_PROFILE.incomePhases) FFS_PROFILE.incomePhases = [];
+  FFS_PROFILE.incomePhases.push({ id: 'ip_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), fromAge: 0, toAge: 0, monthlyNet: 0 });
+  ffsSaveProfile();
+  ffsRenderIncomePhasesUI();
+}
+
+function ffsRemoveIncomePhase(id) {
+  FFS_PROFILE.incomePhases = (FFS_PROFILE.incomePhases || []).filter(function(p) { return p.id !== id; });
+  ffsSaveProfile();
+  ffsRenderIncomePhasesUI();
+}
+
+function ffsUpdateIncomePhase(id, key, val) {
+  var p = (FFS_PROFILE.incomePhases || []).find(function(x) { return x.id === id; });
+  if (p) { p[key] = val; ffsSaveProfile(); }
 }
 
 function ffsDebouncedUpdate() {
@@ -8752,12 +8823,11 @@ function ffsResetAndReload() {
 function ffsConfirmReset() {
   var modal = document.getElementById('ffs-reset-modal');
   if (modal) modal.style.display = 'none';
-  // v168.89: instant reset without page reload — clears FFS profile only
-  // Excel data (CF_DATA, PENSION_ASSETS, FUNDS) remains intact in memory
-  try { localStorage.removeItem(ffsGetActiveKey()); } catch(e) {} // v169.1: scoped by mode
-  try { localStorage.removeItem(_SIM_EVENTS_LS_KEY); } catch(e) {}
-  SIM_USER_EVENTS = [];
-  ffsStartFreshProfile(); // resets in-memory FFS + re-renders drawer + simulator
+  closeFFSDrawer();
+  // v170.2: Atomic full wipe — clear ALL storage and hard-reload to Guest / 0 state
+  try { localStorage.clear(); } catch(e) {}
+  try { sessionStorage.clear(); } catch(e) {}
+  setTimeout(function() { location.reload(); }, 200);
 }
 function ffsCancelReset() {
   var modal = document.getElementById('ffs-reset-modal');
@@ -10476,6 +10546,7 @@ function ffsStartFreshProfile() {
   FFS_PROFILE.investments         = [];
   FFS_PROFILE.pension             = [];
   FFS_PROFILE.realEstate          = [];
+  FFS_PROFILE.incomePhases        = []; // v170.2
   try { localStorage.removeItem(ffsGetActiveKey()); } catch(e) {} // v169.1: scoped by mode
   // Reset name label to guest + zero ghost sliders
   SIM_USER1_NAME = '';
@@ -12747,7 +12818,7 @@ function _updateModeSelectorUI(mode) {
   var _ph = document.getElementById('ov-mode0-placeholder');
   var _gr = document.getElementById('ov-grid-main');
   if (_ph) _ph.style.display = mode ? 'none' : 'flex';
-  if (_gr) _gr.style.display = mode ? '' : 'none';
+  if (_gr) _gr.style.display = mode ? 'grid' : 'none'; // v170.2: explicit 'grid' (not '' which can fall back wrong)
 }
 
 // =============================================
@@ -12843,6 +12914,7 @@ function absoluteInternalReset() {
   FFS_PROFILE.investments          = [];
   FFS_PROFILE.pension              = [];
   FFS_PROFILE.realEstate           = [];
+  FFS_PROFILE.incomePhases         = []; // v170.2
 
   // ── 6. Clear settings UI personal fields ──
   _clearPrivacyFields();
