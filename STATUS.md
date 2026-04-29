@@ -1,7 +1,125 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v170.2 — FFS Logic Refinement & UI Restoration (29/04/2026).
+גרסה v170.5 — Safe Landing Logic & UI Finalization (30/04/2026).
+
+## שינויים אחרונים (30/04/2026 — v170.5)
+
+### v170.5 – Safe Landing Logic & UI Finalization
+
+**1. אבטחה — גרד אישור לפני "דף חלק"**
+- `switchMode('BLANK')`: מיירט לפני כל reset ומציג מודל אישור `#blank-slate-modal`
+- ברירת מחדל: focus על כפתור "ביטול" (`blank-slate-cancel-btn`)
+- `ffsBlankConfirm()`: מוחק רק `ffs_profile_v1` + `sim_user_events` ← atomic & targeted
+- `ffsBlankCancel()`: סוגר מודל ומחזיר selector למצב הקודם
+- z-index: 10400 (גבוה מכל שאר המודלים)
+
+**2. RTL Navigation — תיקון חיצים ועדכון טקסט**
+- `⮕` → `←` (שני הסמנים בשורת ההוראות)
+- טקסט: "הכנס נתונים ← בדוק מדדי צבירה ← לחץ 'החל ועדכן' לצפייה בגרפים"
+
+**3. מיזוג אירועים לתוך לשונית פרישה**
+- "הוצאות בפרישה" → **"פרישה"** (nav + section header → 🔴 פרישה)
+- כפתור ניווט "אירועים מיוחדים" (ffs-nav-events) — **הוסר**
+- תוכן האירועים (`ffs-events-list` + כפתור הוספה) **הוטמע בתוך ffs-section-expenses**
+- `ffsUpdateNavSummaries`: summary של פרישה מציג גם מספר אירועים ("₪X/חודש · N אירועים")
+
+**4. Sidebar — 5 פריטים בסדר: תזרים נטו | השקעות | נדל"ן | פנסיה | פרישה**
+- הוחלפו 3 KPI cards + 3 breakdown rows ב-5 שורות compact
+- `ffs-live-cashflow` (חדש) = monthlySavings ₪/חודש
+- `ffs-live-retire` (חדש) = retirementExpense ₪/חודש
+- `ffs-live-gap` ו-`ffs-live-pension` — הוסרו
+- `ffsUpdateLiveSidebar()` עודכן בהתאם
+
+**5. Logic Bridge — תיקון קריטי ב-ffsApplyToSimulator**
+- `SIM_END = { y: SIM_BIRTH_YEAR_ROY + (FFS_PROFILE.lifeExpectancy || 84), m: 12 }` ← תוחלת חיים אמיתית
+- `SIM_P2_START`: אם `bridgeAge > 0` → `SIM_BIRTH_YEAR_ROY + bridgeAge`; אחרת `= SIM_P3_START`
+- לפני: `SIM_P2_START = SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_YAEL` (שגוי ב-FFS)
+
+**6. אוטומציית סיום משכנתא (כלול בתזרים הנזיל)**
+- כרטיס נדל"ן: checkbox **"כלול בתזרים הנזיל"** — `item.includeInLiquid` (ברירת מחדל: true)
+- `ffsApplyToSimulator()`: לכל נכס עם `includeInLiquid:true` + משכנתא + שנת סיום → מוסיף SIM_USER_EVENTS מסוג `investment` עם `rentMonthly = mortgagePayment / 1000`
+- המשכנתא מתווספת לתזרים החודשי אוטומטית בשנת הסיום
+
+## שינויים אחרונים (30/04/2026 — v170.4)
+
+### v170.4 – Pro-Planner Precision Overhaul
+
+**1. תיקון קריטי: בידוד State (Zoom Zoom Bug)**
+- `absoluteInternalReset()`: `SIM_RETIRE_EXP = 0`, `SIM_INSTRUCTOR_SAL = 0` — ניטרלי בכל מעבר מצב
+  - EXCEL מחזיר ל-29K דרך `loadSettings()` + שורה ייעודית; DEMO דרך `loadDemoData()`; SIMULATOR דרך `ffsApplyToSimulator()`
+- גם events עם `src === 'ffs_event'` מנוקות ב-reset (בנוסף ל-`events_timeline` מ-v170.3)
+- `SIMULATOR_DEFAULTS` כבר קיים עם `retireExp:0` — ה-bug היה שה-reset השתמש ב-`ROY_DEFAULTS` במקום
+
+**2. כרטיס השקעות — שורה אחת עם תוויות מעל**
+- שורה 1: תוויות "שם הנכס (אופציונלי)" / "מספר נכס *" / "סכום (באלפי ש"ח)"
+- שורה 2: כל 3 שדות + כפתור הסרה — grid 1fr/90px/90px/28px
+- שורה 3: קטגוריה / סוג / נזילות (ללא שינוי)
+
+**3. כרטיס נדל"ן — מבנה חדש**
+- ברירת מחדל: `item.type || 'investment'` — "להשקעה" כברירת מחדל
+- שורה 1: שם הנכס + שווי (K₪) + שכ"ד (₪/חודש) + remove — grid 1fr/80px/80px/28px
+- שורה 2: סוג נכס (select) + משכנתא (₪/חודש) + סיום משכנתא (text MM/YYYY)
+- `ffsHandleMortgageEnd(el)` — פונקציית עזר שממירה MM/YYYY → שנה שלמה
+
+**4. נכסים פנסיוניים (שם חדש)**
+- שם: "הכנסות פנסיוניות" → **"נכסים פנסיוניים"** (nav + section + ffsUpdateNavSummaries)
+- סדר שדות בכרטיס: **סוג → גוף מנהל → תיאור/שם (אופציונלי)**
+- הפרשה: `step="0.01"` — מאפשר 2 ספרות אחרי הנקודה
+
+**5. אירועים מיוחדים — סקציה חדשה ב-FFS**
+- כפתור ניווט 7 "🎯 אירועים מיוחדים" → `ffs-section-events`
+- `FFS_PROFILE.ffsEvents = []` — מערך אירועים חד-פעמיים
+- כל אירוע: `{ id, label, targetAge, amountK, type: 'expense'|'income' }`
+- פונקציות: `ffsAddFfsEvent()`, `ffsRemoveFfsEvent()`, `ffsUpdateFfsEvent()`, `ffsRenderFfsEventsUI()`
+- `ffsApplyToSimulator()`: ממיר אירועי FFS ל-SIM_USER_EVENTS עם `src:'ffs_event'`
+- גיל יעד → שנה: `SIM_BIRTH_YEAR_ROY + ev.targetAge`, חודש ברירת מחדל: 6 (יוני)
+
+**6. מדדי צבירה — Current Assets בלבד**
+- KPI 1: "סה״כ צבירה נוכחית" — sum(investments.balance + realEstate.value + pension.accumulation) בK
+- KPI 2: "חיסכון חודשי נוכחי" — FFS_PROFILE.monthlySavings
+- KPI 3: "קצבה פנסיונית צפויה" — sum(pension.expectedPayout) או retirementIncome
+- פירוט: השקעות / נדל"ן / פנסיה — ללא שינוי ב-IDs
+- הוסרה: ספקולציה עתידית ("הון חזוי בגיל 67") — נשמרת בגרף הראשי
+
+**7. שורת הוראות (Instruction Bar)**
+- נוספה בין כותרת המודל ל-3 העמודות: "הזן נתונים ⮕ בדוק מדדי צבירה ⮕ לחץ החל ועדכן"
+- גובה 3-col body עודכן: `calc(88vh - 95px)` (57px header + 38px bar)
+
+**8. UX נוסף**
+- הכנסות בפרישה: hint מעודכן "קצבה פנסיונית · שכ"ד מנכס מושכר · הכנסה עצמאית"
+- כותרת "השקעות": נוספה תת-כותרת אפרפר "קרנות השתלמות, קופות גמל, גמל להשקעה..."
+
+## שינויים אחרונים (29/04/2026 — v170.3)
+
+### v170.3 – Precision UI & Clean Slate Logic
+
+**1. כותרות עמודות FFS Command Center**
+- עמודה ימנית: "ניווט" → **"תפריט ניווט"** (גדולה יותר, בולטת)
+- עמודה מרכזית: "הזנת נתונים" (נשמרה), רקע שונה מ-`#f8fafc` → **`#ffffff`** (לבן טהור)
+- עמודה שמאלית: "תוצאות חיות ↻" → **"מדדי צבירה"**
+- גבולות בין עמודות חוזקו: `rgba(255,255,255,0.06)` → `rgba(255,255,255,0.12)`
+
+**2. מצב דף חלק (Clean Slate / Privacy Shield)**
+- נוסף כפתור 4 לסרגל הניווט: **🔒 דף חלק** (`mode-btn-blank`, `switchMode('BLANK')`)
+- בעת הפעלה: מסך `#clean-slate-cover` מכסה את כל הדשבורד (z-index:99, מתחת ל-topnav z-index:100)
+- הסרגל העליון + כפתורי המצב נשארים גלויים — אפשר לעבור למצב אחר
+- `_updateModeSelectorUI` ו-`labels` מכירים ב-'blank'
+
+**3. Tooltip CSS אמיתי (לא title HTML)**
+- נוסף קלאס `.ffs-tip` + `.ffs-tip-body` — floating tooltip כהה עם border-radius:9px
+- ℹ️ תוחלת חיים: tooltip מפורט עם הסבר שימוש
+- ℹ️ שלב הגישור: tooltip מסביר מהו שלב הגישור ואיך מממנים אותו
+
+**4. כרטיס השקעות Pro**
+- נוסף שדה **"מספר נכס" (required)** — key: `assetNum`
+- "שם הנכס" מסומן **(אופציונלי)**
+- placeholder יתרה: "יתרה (K)" → **"באלפי ש״ח"**
+- נזילות: "פרטי" → **"השקעה עצמית"**
+
+**5. תיקון spike אוקטובר 2029**
+- `absoluteInternalReset()`: מנקה אוטומטית events עם `src === 'events_timeline'` (אירועי אקסל) — מונע זיהום בין EXCEL לSIMULATOR
+- `DOMContentLoaded`: `_simRestoreUserEvents()` נקרא **ללא תנאי** (גם ללא נתוני אקסל) — אירועי משתמש בסימולטור שורדים טעינה מחדש
 
 ## שינויים אחרונים (29/04/2026 — v170.2)
 
