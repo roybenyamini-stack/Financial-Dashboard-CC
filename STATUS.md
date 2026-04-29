@@ -1,7 +1,39 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v169.11 — Ghost 8.4M Exorcism (25/04/2026).
+גרסה v170.1 — FFS Command Center (29/04/2026).
+
+## שינויים אחרונים (29/04/2026 — v170.1)
+
+### v170.1 – FFS Command Center Transformation
+
+**1. מודל רחב במקום Drawer (UI בלבד)**
+- ה-FFS Drawer הצר (500px) הוחלף במודל מרכזי רחב: `96vw × 88vh`, `max-width: 1380px`
+- אנימציה: כניסה fade+scale מהמרכז (לא slide מהצד)
+- כל ה-IDs, ה-oninput handlers, וה-ffsSaveField/ffsUpdateItem — **לא שונו**
+
+**2. מבנה 3-עמודות**
+- עמודה ימנית (210px): תפריט ניווט אנכי עם 6 קטגוריות + כפתור "החל ועדכן" + כפתור איפוס
+- עמודה מרכזית (flex:1): פנל תצוגה אחת בכל פעם — פרטים אישיים / הכנסות / הוצאות / נדל"ן / השקעות / פנסיה
+- עמודה שמאלית (250px): סיידבר "תוצאות חיות" כהה
+
+**3. ניווט חדש — ffsNavTo()**
+- `ffsNavTo(section)` — מחליף בין פאנלים, מסמן כפתור ניווט פעיל
+- `_ffsOpenStageA()` עודכן: קורא ל-`ffsNavTo('profile')` במקום accordion toggle
+
+**4. סיידבר תוצאות חיות**
+- KPI הון חזוי בגיל 67 (מ-`sim-hdr-wealth-at-age`)
+- KPI תזרים נטו חודשי (מ-`sim-hdr-monthly-accum`)
+- KPI קצבה פנסיונית (מ-`sim-kpi-pension`)
+- סיכום נכסים: השקעות / נדל"ן / פנסיה (צבירה)
+
+**5. עדכון Live Debounce**
+- `ffsDebouncedUpdate()` — 350ms debounce, מופעל אוטומטית מ-`ffsSaveProfile()` (כולל כל נתיבי השמירה)
+- `ffsUpdateNavSummaries()` — עדכון שורת סיכום תחת כל כפתור ניווט
+- `ffsUpdateLiveSidebar()` — מסנכרן מה-DOM של הסימולטור הראשי (ללא חישוב כפול)
+
+**6. ללא שינוי בנוסחאות**
+- כל לוגיקת החישוב (`simRunEngine`, `ffsSaveField`, `ffsUpdateItem`, FFS_PROFILE) — **ללא שינוי**
 
 ## שינויים אחרונים (25/04/2026 — v169.11)
 
