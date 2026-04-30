@@ -8949,23 +8949,23 @@ function ffsLoadYoavProfile() {
 function ffsLoadYoavConfirm() {
   var modal = document.getElementById('yoav-overwrite-modal');
   if (modal) modal.style.display = 'none';
-  // v170.7: Yoav 2.0 — balanced demo dataset (Age 45, income 28K, expenses 20K, savings 8K/month)
+  // v170.8: Yoav 3.0 — Senior Professional (Age 45, income 32K, expenses 22K, savings 10K/month)
   var _uid = function() { return 'yoav_' + Math.random().toString(36).substr(2, 8); };
   FFS_PROFILE.name              = 'יואב';
   FFS_PROFILE.birthDate         = '1981-01-15';
   FFS_PROFILE.retirementAge     = 67;
   FFS_PROFILE.lifeExpectancy    = 85;
-  FFS_PROFILE.monthlySavings    = 8000;   // net savings (28K income - 20K expenses)
+  FFS_PROFILE.monthlySavings    = 10000;  // net savings (32K income - 22K expenses)
   FFS_PROFILE.savingsGrowth     = 3;
-  FFS_PROFILE.retirementExpense = 20000;  // 20K monthly retirement expenses
-  FFS_PROFILE.retirementIncome  = 7000;   // from pension fund expected payout
+  FFS_PROFILE.retirementExpense = 22000;  // 22K monthly retirement expenses
+  FFS_PROFILE.retirementIncome  = 11500;  // monthly pension (מנורה מבטחים)
   FFS_PROFILE.bridgeAge         = 0;
   FFS_PROFILE.bridgeCashflow    = 0;
   FFS_PROFILE.bridgePensionContrib = false;
   FFS_PROFILE.ffsEvents         = [];
-  // Income phases: one active phase showing gross salary for demonstration
+  // Income phases: one active phase showing current senior salary
   FFS_PROFILE.incomePhases = [{
-    id: _uid(), fromAge: 45, toAge: 67, monthlyNet: 28000
+    id: _uid(), fromAge: 45, toAge: 67, monthlyNet: 32000
   }];
   FFS_PROFILE.investments = [{
     id: _uid(), name: 'קרן השתלמות מנהלים', assetNum: 'KH-2024',
@@ -8976,11 +8976,17 @@ function ffsLoadYoavConfirm() {
     value: 2200, monthlyRent: 5500, type: 'investment',
     mortgagePayment: 3200, mortgageEndYear: 2035, includeInLiquid: true
   }];
-  FFS_PROFILE.pension = [{
-    id: _uid(), pensionType: 'pension', name: 'קרן פנסיה מקיפה', provider: 'מגדל',
-    monthlyPension: 0, expectedPayout: 7000, contributionPct: 6.25,
-    survivorsEnabled: false
-  }];
+  FFS_PROFILE.pension = [
+    {
+      id: _uid(), pensionType: 'pension', name: 'קרן פנסיה מקיפה', provider: 'מנורה מבטחים',
+      monthlyPension: 11500, expectedPayout: 18000, contributionPct: 18.5,
+      survivorsEnabled: false
+    },
+    {
+      id: _uid(), pensionType: 'manager', name: 'ביטוח מנהלים', provider: 'מנורה מבטחים',
+      accumulation: 1400, conversionFactor: 200, lifeInsurance: 1400
+    }
+  ];
   ffsSaveProfile();
   if (typeof ffsRenderAll === 'function') ffsRenderAll();
   if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries();
@@ -10925,6 +10931,52 @@ function ovRenderCashflowChart() {
   var canvas  = document.getElementById('ov-cf-chart');
   var emptyEl = document.getElementById('ov-cf-empty');
   if (!canvas) return;
+  // v170.8: SIMULATOR mode — synthesize cashflow bars from FFS income phase + savings
+  if (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR') {
+    var _ffsCFIncome = 0;
+    var _ageNow = 40;
+    if (FFS_PROFILE.birthDate) { _ageNow = new Date().getFullYear() - parseInt(FFS_PROFILE.birthDate.split('-')[0]); }
+    var _activePhase = (FFS_PROFILE.incomePhases || []).find(function(ph) { return ph.fromAge <= _ageNow && ph.toAge >= _ageNow; });
+    if (_activePhase) _ffsCFIncome = _activePhase.monthlyNet || 0;
+    if (_ffsCFIncome <= 0) {
+      if (ovCFChart) { ovCFChart.destroy(); ovCFChart = null; }
+      canvas.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = 'flex';
+      return;
+    }
+    var _ffsCFExp = Math.max(0, _ffsCFIncome - (FFS_PROFILE.monthlySavings || 0));
+    var _heMonthsC = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+    var _nowC = new Date(), _mlblsC = [], _incArrC = [], _expArrC = [];
+    for (var _miC = 11; _miC >= 0; _miC--) {
+      var _dC = new Date(_nowC.getFullYear(), _nowC.getMonth() - _miC, 1);
+      _mlblsC.push(_heMonthsC[_dC.getMonth()]);
+      _incArrC.push(_ffsCFIncome);
+      _expArrC.push(_ffsCFExp);
+    }
+    canvas.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (ovCFChart) { ovCFChart.destroy(); ovCFChart = null; }
+    canvas.height = 185;
+    ovCFChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: _mlblsC, datasets: [
+        { label: 'הכנסות', data: _incArrC, backgroundColor: 'rgba(74,222,128,0.78)', borderRadius: 4, borderSkipped: false },
+        { label: 'הוצאות', data: _expArrC, backgroundColor: 'rgba(248,113,113,0.78)', borderRadius: 4, borderSkipped: false }
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 9, family: 'Heebo' }, color: '#6b7280', boxWidth: 10, padding: 6 } },
+          tooltip: { rtl: true, callbacks: { label: function(c) { return ' ' + c.dataset.label + ': ' + Math.abs(c.raw).toLocaleString('he-IL') + ' ₪'; } } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280' }, grid: { display: false } },
+          y: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280', callback: function(v) { return Math.round(v); } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+    return;
+  }
   if (!CF_DATA || CF_DATA.length === 0) {
     if (ovCFChart) { ovCFChart.destroy(); ovCFChart = null; }
     canvas.style.display = 'none';
@@ -11088,6 +11140,47 @@ function ovRenderInvestChart() {
   var canvas  = document.getElementById('ov-inv-chart');
   var emptyEl = document.getElementById('ov-inv-empty');
   if (!canvas) return;
+  // v170.8: SIMULATOR mode — show FFS investment portfolio as a 13-month growth projection
+  if (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR') {
+    var _ffsLiqI = (typeof ffsGetLiquidCapital === 'function') ? ffsGetLiquidCapital() : 0;
+    if (_ffsLiqI <= 0) {
+      if (ovInvChart) { ovInvChart.destroy(); ovInvChart = null; }
+      canvas.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = 'flex';
+      return;
+    }
+    canvas.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+    var _heMonthsI = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+    var _nowI = new Date(), _lblsI = [], _valsI = [];
+    for (var _miI = 12; _miI >= 0; _miI--) {
+      var _dI = new Date(_nowI.getFullYear(), _nowI.getMonth() - _miI, 1);
+      _lblsI.push(_heMonthsI[_dI.getMonth()]);
+      _valsI.push(Math.round(_ffsLiqI * Math.pow(1 + 0.04 / 12, 12 - _miI) * 10) / 10);
+    }
+    if (ovInvChart) { ovInvChart.destroy(); ovInvChart = null; }
+    canvas.height = 185;
+    var _ctxI = canvas.getContext('2d');
+    var _gradI = _ctxI.createLinearGradient(0, 0, 0, 185);
+    _gradI.addColorStop(0, 'rgba(59,130,246,0.3)');
+    _gradI.addColorStop(1, 'rgba(59,130,246,0.02)');
+    ovInvChart = new Chart(_ctxI, {
+      type: 'line',
+      data: { labels: _lblsI, datasets: [{ data: _valsI, borderColor: '#3b82f6', backgroundColor: _gradI, fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#3b82f6' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { rtl: true, callbacks: { label: function(c) { var v = c.raw || 0; return ' ' + (v >= 1000 ? (v/1000).toFixed(2)+'M' : Math.round(v).toLocaleString('he-IL')) + ' K₪'; } } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280' }, grid: { display: false } },
+          y: { ticks: { font: { size: 10, family: 'Heebo' }, color: '#6b7280', callback: function(v) { return v >= 1000 ? (v/1000).toFixed(1)+'M' : Math.round(v); } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+    return;
+  }
   // v168.12: ALL_TOTALS starts as 15 zeros on fresh load — treat as empty unless any value > 0
   var _hasInvData = ALL_TOTALS && ALL_TOTALS.some(function(v) { return v > 0; });
   if (!_hasInvData) {
@@ -11154,6 +11247,34 @@ function ovTogglePnsHarel() {
 function ovRenderPensionCards() {
   var el = document.getElementById('ov-pension-content');
   if (!el) return;
+  // v170.8: SIMULATOR mode — show FFS pension summary
+  if (typeof APP_MODE !== 'undefined' && APP_MODE === 'SIMULATOR') {
+    var _ffsPenItems = FFS_PROFILE.pension || [];
+    if (!_ffsPenItems.length) {
+      el.innerHTML = '<div style="color:#475569;font-size:12px;padding:12px 0;">הכנס נתוני פנסיה בסימולטור</div>';
+      return;
+    }
+    var _ffsPenAccK = (typeof ffsGetPensionAccumK === 'function') ? ffsGetPensionAccumK() : 0;
+    var _ffsPenMonthly = (typeof ffsTotalPensionMonthlyNIS === 'function') ? ffsTotalPensionMonthlyNIS() : 0;
+    var _firstPF = _ffsPenItems.find(function(p) { return p.pensionType === 'pension'; });
+    var _contribP = _firstPF ? (_firstPF.contributionPct || 0) : 0;
+    ovPnsDisplayNet = _ffsPenMonthly;
+    function _fmtKP(k) { if (!k||k<=0) return '—'; if (k>=1000) return (k/1000).toFixed(2)+'M'; return Math.round(k).toLocaleString('he-IL')+'K'; }
+    function _fmtNP(n) { return n > 0 ? Math.round(n).toLocaleString('he-IL') : '—'; }
+    function _statP(label, val, color, suffix) {
+      return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:0;">' +
+        '<div style="font-size:11px;color:#64748b;font-weight:600;white-space:nowrap;">' + label + '</div>' +
+        '<div style="font-size:17px;font-weight:700;color:' + color + ';white-space:nowrap;">' + val + '</div>' +
+        '<div style="font-size:11px;color:#475569;">' + (suffix || '') + '</div></div>';
+    }
+    function _sepP() { return '<div style="width:1px;height:36px;background:rgba(100,116,139,0.2);flex-shrink:0;"></div>'; }
+    el.innerHTML = '<div style="display:flex;align-items:stretch;gap:0;width:100%;">' +
+      _statP('הון צבור', _fmtKP(_ffsPenAccK), '#a5b4fc', 'ש״ח') + _sepP() +
+      _statP('קצבה חודשית', _fmtNP(_ffsPenMonthly), '#4ade80', '₪/חודש') + _sepP() +
+      _statP('הפרשה', _contribP > 0 ? _contribP.toFixed(2)+'%' : '—', '#60a5fa', 'מהשכר') +
+    '</div>';
+    return;
+  }
   var hasData = (typeof PENSION_ASSETS !== 'undefined') && PENSION_ASSETS && PENSION_ASSETS.length > 0;
   if (!hasData) {
     el.innerHTML = '<div style="color:#475569;font-size:12px;padding:12px 0;">יש להעלות את קבצי הנתונים</div>';
@@ -13076,12 +13197,12 @@ function absoluteInternalReset() {
   SIM_END.y      = _genericBY + 95;
   if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
   // v170.3/v170.4: clear mode-sourced events so they don't contaminate other modes
+  // v170.8: clear from memory only — localStorage preserved so _simRestoreUserEvents() can re-inject Roy's events
   if (typeof SIM_USER_EVENTS !== 'undefined') {
     for (var _evi = SIM_USER_EVENTS.length - 1; _evi >= 0; _evi--) {
       var _evSrc = SIM_USER_EVENTS[_evi].src;
       if (_evSrc === 'events_timeline' || _evSrc === 'ffs_event') SIM_USER_EVENTS.splice(_evi, 1);
     }
-    try { localStorage.setItem(_SIM_EVENTS_LS_KEY, JSON.stringify(SIM_USER_EVENTS)); } catch(e) {}
   }
   pnsNetMonthly          = 0;
   pnsNetMonthlyWithHarel = 0;
