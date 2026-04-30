@@ -61,7 +61,7 @@
     <div id="sim-header-stats" class="header-stats sim-only-btn" style="display:none; direction:rtl; flex-shrink:1; min-width:0; gap:12px;">
       <!-- v168.96: 4 locked KPI labels — final wording (no dynamic suffixes) -->
       <div class="stat-item" style="gap:0;">
-        <div class="stat-label">הון חזוי</div>
+        <div class="stat-label">הון חזוי <span title="מחושב לפי הון נוכחי + צבירה שוטפת בתשואות שהוגדרו (נדל&quot;ן 2.5%, השקעות 4%) עד גיל הפרישה" style="font-size:9px;color:rgba(255,255,255,0.38);cursor:help;vertical-align:super;margin-right:2px;">ⓘ</span></div>
         <div class="stat-value" id="sim-hdr-wealth-at-age" style="color:#93c5fd;line-height:1.15;">—</div>
         <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">במיליוני ש״ח <span id="sim-src-tag-wealth" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
@@ -73,7 +73,7 @@
       </div>
       <div class="divider"></div>
       <div class="stat-item" style="gap:0;">
-        <div class="stat-label">תזרים נטו</div>
+        <div class="stat-label">תזרים נטו <span title="הכנסה חודשית פחות הוצאות חיים ותשלומי הלוואות" style="font-size:9px;color:rgba(255,255,255,0.38);cursor:help;vertical-align:super;margin-right:2px;">ⓘ</span></div>
         <div class="stat-value" id="sim-hdr-monthly-accum" style="color:#fbbf24;line-height:1.15;">—</div>
         <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ש״ח / חודש <span id="sim-src-tag-accum" style="display:none;font-size:8px;font-weight:700;letter-spacing:0.2px;border-radius:3px;padding:0 3px;"></span></div>
       </div>
@@ -175,7 +175,7 @@
   <!-- v104.3: Overview Header KPIs (shown only on overview tab) -->
   <div id="ov-header-stats" class="header-stats" style="display:none;direction:rtl;flex-shrink:1;min-width:0;gap:20px;padding:0 12px;">
     <div class="stat-item" style="gap:0;">
-      <div class="stat-label">רווח חודש אחרון</div>
+      <div class="stat-label">רווח חודש אחרון <span title="הכנסה חודשית פחות הוצאות חיים ותשלומי הלוואות" style="font-size:9px;color:rgba(255,255,255,0.38);cursor:help;vertical-align:super;margin-right:2px;">ⓘ</span></div>
       <div class="stat-value" id="ov-hdr-profit" style="color:#4ade80;line-height:1.15;">—</div>
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">אלפי ₪</div>
     </div>
@@ -193,7 +193,7 @@
     </div>
     <div class="divider"></div>
     <div class="stat-item" style="gap:0;">
-      <div class="stat-label" id="ov-hdr-wealth-label">הון חזוי לגיל 67</div>
+      <div class="stat-label"><span id="ov-hdr-wealth-label">הון חזוי לגיל 67</span> <span title="מחושב לפי הון נוכחי + צבירה שוטפת בתשואות שהוגדרו (נדל&quot;ן 2.5%, השקעות 4%) עד גיל הפרישה" style="font-size:9px;color:rgba(255,255,255,0.38);cursor:help;vertical-align:super;margin-right:2px;">ⓘ</span></div>
       <div class="stat-value" id="ov-hdr-wealth" style="color:#fbbf24;line-height:1.15;">—</div>
       <div style="min-height:18px;font-size:9px;color:rgba(255,255,255,0.42);font-family:Heebo,sans-serif;line-height:1;margin-top:0;">מיליון ₪</div>
     </div>
@@ -1576,13 +1576,13 @@
     </div>
   </div>
 
-  <!-- === INSTRUCTION BAR (v170.5) === -->
-  <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:9px 28px;display:flex;align-items:center;gap:8px;flex-shrink:0;direction:rtl;">
+  <!-- === INSTRUCTION BAR (v170.7) — LTR process flow with ⮕ arrows === -->
+  <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:9px 28px;display:flex;align-items:center;gap:8px;flex-shrink:0;direction:ltr;">
     <span style="font-size:13px;color:#64748b;font-weight:700;">📋</span>
-    <span style="font-size:12px;color:#64748b;font-weight:500;">הכנס נתונים</span>
-    <span style="color:#94a3b8;">←</span>
+    <span style="font-size:12px;color:#64748b;font-weight:500;">הזן נתונים</span>
+    <span style="color:#94a3b8;font-size:13px;">⮕</span>
     <span style="font-size:12px;color:#64748b;">בדוק מדדי צבירה</span>
-    <span style="color:#94a3b8;">←</span>
+    <span style="color:#94a3b8;font-size:13px;">⮕</span>
     <span style="font-size:12px;color:#64748b;">לחץ <strong style="color:#3b82f6;">החל ועדכן</strong> לצפייה בגרפים</span>
   </div>
 
@@ -1907,8 +1907,8 @@
     <div style="font-size:16px;font-weight:900;color:#1e293b;margin-bottom:10px;">טעינת פרופיל יואב</div>
     <div style="font-size:13px;color:#64748b;line-height:1.75;margin-bottom:26px;">טעינת הפרופיל של יואב תדרוס את הנתונים הקיימים. האם להמשיך?</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-direction:row-reverse;">
-      <button id="yoav-overwrite-cancel-btn" onclick="ffsLoadYoavCancel()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
-      <button onclick="ffsLoadYoavConfirm()" style="background:#059669;color:white;border:none;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, טען</button>
+      <button id="yoav-overwrite-cancel-btn" onclick="ffsLoadYoavCancel()" style="background:#f1f5f9;color:#1e293b;border:2px solid #3b82f6;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;box-shadow:0 0 0 3px rgba(59,130,246,0.18);">ביטול</button>
+      <button onclick="ffsLoadYoavConfirm()" style="background:#059669;color:white;border:2px solid transparent;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, טען</button>
     </div>
   </div>
 </div>
@@ -1920,8 +1920,8 @@
     <div style="font-size:16px;font-weight:900;color:#1e293b;margin-bottom:10px;">מעבר לדף חלק</div>
     <div style="font-size:13px;color:#64748b;line-height:1.75;margin-bottom:26px;">האם אתה בטוח? פעולה זו תמחק את כל הנתונים שהזנת בסימולטור האישי.</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-direction:row-reverse;">
-      <button id="blank-slate-cancel-btn" onclick="ffsBlankCancel()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
-      <button onclick="ffsBlankConfirm()" style="background:#0f172a;color:white;border:none;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, המשך</button>
+      <button id="blank-slate-cancel-btn" onclick="ffsBlankCancel()" style="background:#f1f5f9;color:#1e293b;border:2px solid #3b82f6;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;box-shadow:0 0 0 3px rgba(59,130,246,0.18);">ביטול</button>
+      <button onclick="ffsBlankConfirm()" style="background:#0f172a;color:white;border:2px solid transparent;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, המשך</button>
     </div>
   </div>
 </div>

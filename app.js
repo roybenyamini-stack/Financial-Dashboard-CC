@@ -8949,21 +8949,24 @@ function ffsLoadYoavProfile() {
 function ffsLoadYoavConfirm() {
   var modal = document.getElementById('yoav-overwrite-modal');
   if (modal) modal.style.display = 'none';
-  // v170.6: Yoav's balanced demo dataset (Age 45, 1 investment, 1 real estate)
+  // v170.7: Yoav 2.0 — balanced demo dataset (Age 45, income 28K, expenses 20K, savings 8K/month)
   var _uid = function() { return 'yoav_' + Math.random().toString(36).substr(2, 8); };
   FFS_PROFILE.name              = 'יואב';
   FFS_PROFILE.birthDate         = '1981-01-15';
   FFS_PROFILE.retirementAge     = 67;
   FFS_PROFILE.lifeExpectancy    = 85;
-  FFS_PROFILE.monthlySavings    = 8000;
+  FFS_PROFILE.monthlySavings    = 8000;   // net savings (28K income - 20K expenses)
   FFS_PROFILE.savingsGrowth     = 3;
-  FFS_PROFILE.retirementExpense = 22000;
-  FFS_PROFILE.retirementIncome  = 8000;
+  FFS_PROFILE.retirementExpense = 20000;  // 20K monthly retirement expenses
+  FFS_PROFILE.retirementIncome  = 7000;   // from pension fund expected payout
   FFS_PROFILE.bridgeAge         = 0;
   FFS_PROFILE.bridgeCashflow    = 0;
   FFS_PROFILE.bridgePensionContrib = false;
-  FFS_PROFILE.incomePhases      = [];
   FFS_PROFILE.ffsEvents         = [];
+  // Income phases: one active phase showing gross salary for demonstration
+  FFS_PROFILE.incomePhases = [{
+    id: _uid(), fromAge: 45, toAge: 67, monthlyNet: 28000
+  }];
   FFS_PROFILE.investments = [{
     id: _uid(), name: 'קרן השתלמות מנהלים', assetNum: 'KH-2024',
     balance: 450, category: 'קרן השתלמות', type: 'מנייתי', liquidity: 'pension67'
@@ -8973,7 +8976,11 @@ function ffsLoadYoavConfirm() {
     value: 2200, monthlyRent: 5500, type: 'investment',
     mortgagePayment: 3200, mortgageEndYear: 2035, includeInLiquid: true
   }];
-  FFS_PROFILE.pension = [];
+  FFS_PROFILE.pension = [{
+    id: _uid(), pensionType: 'pension', name: 'קרן פנסיה מקיפה', provider: 'מגדל',
+    monthlyPension: 0, expectedPayout: 7000, contributionPct: 6.25,
+    survivorsEnabled: false
+  }];
   ffsSaveProfile();
   if (typeof ffsRenderAll === 'function') ffsRenderAll();
   if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries();
