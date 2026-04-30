@@ -1,7 +1,30 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v170.5 — Safe Landing Logic & UI Finalization (30/04/2026).
+גרסה v170.6 — Persistence, Demo Logic & Safety Gates (30/04/2026).
+
+## שינויים אחרונים (30/04/2026 — v170.6)
+
+### v170.6 – Persistence, Demo Logic & Safety Gates
+
+**1. Timeline Persistence — תיקון "Roy"**
+- `switchMode('EXCEL')`: מוסיף `_simRestoreUserEvents()` אחרי `loadSettings()` → מחזיר אירועי ציר אירועים (כולל ספייק אוקטובר 2029) ב-localStorage
+- `setTimeout` ב-EXCEL mode: מוסיף `simRenderKPI() + simRenderTimeline() + simRenderChart(simRunEngine())` → גרף מתעדכן מיד בטעינה ראשונה
+
+**2. פרופיל דמו "יואב" + גארד הרשאה**
+- כפתור "🎯 טען דוגמה (יואב)" בכותרת ה-FFS (צבע ירוק-טיל)
+- `ffsLoadYoavProfile()`: בודק אם FFS ריק → אם כן, טוען מיד; אם לא, פותח מודל אישור
+- מודל `#yoav-overwrite-modal` (z-index:10410, גבוה מ-blank-slate): focus ברירת מחדל על "ביטול"
+- `ffsLoadYoavConfirm()`: נתוני יואב — גיל 45, חיסכון 8K/חודש, קרן השתלמות 450K, דירה תל אביב 2.2M ₪, שכד 5.5K
+- `ffsLoadYoavCancel()`: סוגר מודל בלבד
+
+**3. Radio Buttons — UI**
+- נדל"ן: `<select>` "סוג נכס" → 2 כפתורי radio: "להשקעה" / "דירת מגורים" (accent-color כחול)
+- פנסיה: `<select>` "סוג" → 2 כפתורי radio ב-pill מעוצב: "קרן פנסיה" / "ביטוח מנהלים"
+
+**4. Atomic Reset — דף חלק**
+- `ffsBlankConfirm()`: מוסיף מחיקת `FINANCIAL_SIM_PERSONAL_DATA` (SIMULATOR_LS_KEY) לניקוי אטומי מלא
+- קורא `ffsUpdateDrawerTitle()` + `simUpdateNameLabel()` → alias מתאפס ל-"אורח" מיד
 
 ## שינויים אחרונים (30/04/2026 — v170.5)
 
