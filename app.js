@@ -8470,10 +8470,13 @@ function ffsRenderSection(section) {
       // Row 2: type + mortgage payment + mortgage end (MM/YYYY)
       var mortgageEndDisplay = item.mortgageEndYear ? ('01/' + item.mortgageEndYear) : '';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px;">';
-      html += '<div><div style="' + lbSt + '">סוג נכס</div><select style="' + selSt + '" ' + ds + ' data-key="type" onchange="ffsHandleInput(this)">';
-      html += '<option value="investment"' + (reType === 'investment' ? ' selected' : '') + '>להשקעה</option>';
-      html += '<option value="residence"' + (reType === 'residence' ? ' selected' : '') + '>דירת מגורים</option>';
-      html += '</select></div>';
+      html += '<div>';
+      html += '<div style="' + lbSt + '">סוג נכס</div>';
+      html += '<div style="display:flex;gap:10px;align-items:center;padding:5px 2px;">';
+      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="re-type-' + eid + '" value="investment" ' + (reType === 'investment' ? 'checked' : '') + ' ' + ds + ' data-key="type" onchange="ffsHandleInput(this)" style="accent-color:#3b82f6;cursor:pointer;"> להשקעה</label>';
+      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="re-type-' + eid + '" value="residence" ' + (reType === 'residence' ? 'checked' : '') + ' ' + ds + ' data-key="type" onchange="ffsHandleInput(this)" style="accent-color:#3b82f6;cursor:pointer;"> דירת מגורים</label>';
+      html += '</div>';
+      html += '</div>';
       html += '<div><div style="' + lbSt + '">משכנתא (₪/חודש)</div><input type="number" style="' + inSt + 'text-align:center;" placeholder="0" value="' + (item.mortgagePayment || 0) + '" ' + ds + ' data-key="mortgagePayment" oninput="ffsHandleInput(this)"></div>';
       html += '<div><div style="' + lbSt + '">סיום משכנתא (MM/YYYY)</div><input type="text" style="' + inSt + 'text-align:center;" placeholder="01/2035" value="' + mortgageEndDisplay + '" ' + ds + ' data-key="mortgageEndYear" oninput="ffsHandleMortgageEnd(this)"></div>';
       html += '</div>';
@@ -8489,10 +8492,10 @@ function ffsRenderSection(section) {
       var isManager  = item.pensionType === 'manager';
       // v170.4: field order = סוג → גוף → תיאור/שם (optional)
       html += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;">';
-      html += '<select style="' + selSt + 'width:110px;" ' + ds + ' data-key="pensionType" onchange="ffsHandleInput(this);ffsRenderSection(\'pension\')">';
-      html += '<option value="pension"' + (isPension ? ' selected' : '') + '>קרן פנסיה</option>';
-      html += '<option value="manager"' + (isManager ? ' selected' : '') + '>ביטוח מנהלים</option>';
-      html += '</select>';
+      html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;flex-shrink:0;">';
+      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="pen-type-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' ' + ds + ' data-key="pensionType" onchange="ffsHandleInput(this);ffsRenderSection(\'pension\')" style="accent-color:#3b82f6;cursor:pointer;"> קרן פנסיה</label>';
+      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="pen-type-' + eid + '" value="manager" ' + (isManager ? 'checked' : '') + ' ' + ds + ' data-key="pensionType" onchange="ffsHandleInput(this);ffsRenderSection(\'pension\')" style="accent-color:#3b82f6;cursor:pointer;"> ביטוח מנהלים</label>';
+      html += '</div>';
       html += '<input type="text" list="ffs-providers-dl" style="' + inSt + 'width:100px;" placeholder="גוף מנהל" value="' + (item.provider || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="provider" oninput="ffsHandleInput(this)">';
       html += '<input type="text" style="' + inSt + 'flex:1;" placeholder="תיאור / שם (אופציונלי)" value="' + (item.name || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="name" oninput="ffsHandleInput(this)">';
       html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="' + rmSt + '">✕</button>';
@@ -8898,15 +8901,19 @@ function ffsCancelReset() {
 function ffsBlankConfirm() {
   var modal = document.getElementById('blank-slate-modal');
   if (modal) modal.style.display = 'none';
-  // Purge only the FFS/simulator-specific storage keys
+  // v170.6: purge ALL FFS/simulator-specific storage keys (atomic clean slate)
   try { localStorage.removeItem('ffs_profile_v1'); } catch(e) {}
   try { localStorage.removeItem('sim_user_events'); } catch(e) {}
+  try { localStorage.removeItem('FINANCIAL_SIM_PERSONAL_DATA'); } catch(e) {}
   // Now actually switch to BLANK — bypass the guard by calling the core logic directly
   var _csCover = document.getElementById('clean-slate-cover');
   if (_csCover) _csCover.style.display = 'none';
   absoluteInternalReset();
   APP_MODE = 'BLANK';
   _updateModeSelectorUI('BLANK');
+  // v170.6: reset alias display to "אורח" after blank confirm
+  if (typeof ffsUpdateDrawerTitle === 'function') ffsUpdateDrawerTitle();
+  if (typeof simUpdateNameLabel   === 'function') simUpdateNameLabel();
   var _blankCover = document.getElementById('clean-slate-cover');
   if (_blankCover) _blankCover.style.display = 'flex';
 }
@@ -8915,6 +8922,66 @@ function ffsBlankCancel() {
   if (modal) modal.style.display = 'none';
   // Revert mode selector to previous mode (or SIMULATOR if undefined)
   _updateModeSelectorUI(APP_MODE || 'SIMULATOR');
+}
+// v170.6: Yoav demo profile — check if FFS is empty before loading
+function ffsLoadYoavProfile() {
+  var hasData = !!(
+    FFS_PROFILE.name ||
+    (FFS_PROFILE.investments && FFS_PROFILE.investments.length > 0) ||
+    (FFS_PROFILE.realEstate  && FFS_PROFILE.realEstate.length  > 0) ||
+    (FFS_PROFILE.pension     && FFS_PROFILE.pension.length     > 0) ||
+    FFS_PROFILE.monthlySavings > 0 ||
+    FFS_PROFILE.retirementExpense > 0
+  );
+  if (!hasData) {
+    ffsLoadYoavConfirm();
+  } else {
+    var modal = document.getElementById('yoav-overwrite-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      setTimeout(function() {
+        var cancelBtn = document.getElementById('yoav-overwrite-cancel-btn');
+        if (cancelBtn) cancelBtn.focus();
+      }, 50);
+    }
+  }
+}
+function ffsLoadYoavConfirm() {
+  var modal = document.getElementById('yoav-overwrite-modal');
+  if (modal) modal.style.display = 'none';
+  // v170.6: Yoav's balanced demo dataset (Age 45, 1 investment, 1 real estate)
+  var _uid = function() { return 'yoav_' + Math.random().toString(36).substr(2, 8); };
+  FFS_PROFILE.name              = 'יואב';
+  FFS_PROFILE.birthDate         = '1981-01-15';
+  FFS_PROFILE.retirementAge     = 67;
+  FFS_PROFILE.lifeExpectancy    = 85;
+  FFS_PROFILE.monthlySavings    = 8000;
+  FFS_PROFILE.savingsGrowth     = 3;
+  FFS_PROFILE.retirementExpense = 22000;
+  FFS_PROFILE.retirementIncome  = 8000;
+  FFS_PROFILE.bridgeAge         = 0;
+  FFS_PROFILE.bridgeCashflow    = 0;
+  FFS_PROFILE.bridgePensionContrib = false;
+  FFS_PROFILE.incomePhases      = [];
+  FFS_PROFILE.ffsEvents         = [];
+  FFS_PROFILE.investments = [{
+    id: _uid(), name: 'קרן השתלמות מנהלים', assetNum: 'KH-2024',
+    balance: 450, category: 'קרן השתלמות', type: 'מנייתי', liquidity: 'pension67'
+  }];
+  FFS_PROFILE.realEstate = [{
+    id: _uid(), name: 'דירה להשקעה — תל אביב',
+    value: 2200, monthlyRent: 5500, type: 'investment',
+    mortgagePayment: 3200, mortgageEndYear: 2035, includeInLiquid: true
+  }];
+  FFS_PROFILE.pension = [];
+  ffsSaveProfile();
+  if (typeof ffsRenderAll === 'function') ffsRenderAll();
+  if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries();
+  if (typeof ffsUpdateDrawerTitle  === 'function') ffsUpdateDrawerTitle();
+}
+function ffsLoadYoavCancel() {
+  var modal = document.getElementById('yoav-overwrite-modal');
+  if (modal) modal.style.display = 'none';
 }
 // v168.77: compute total monthly pension NIS from FFS profile pension items
 function ffsTotalPensionMonthlyNIS() {
@@ -13153,6 +13220,7 @@ function switchMode(mode) {
       // v169.11: 29,000 lock — loadSettings may restore a stale Demo expense (20K) from localStorage
       SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp; // hard re-enforce Roy's baseline after settings load
       if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
+      _simRestoreUserEvents(); // v170.6: restore Roy's timeline events (October 2029 retirement spike)
       var _taxSl = document.getElementById('pns-tax-slider');
       if (typeof pensionSliderChange === 'function') pensionSliderChange(_taxSl ? _taxSl.value : '35');
     } else {
@@ -13165,6 +13233,12 @@ function switchMode(mode) {
       setTimeout(function() {
         overviewInited = true;
         if (typeof overviewRender === 'function') overviewRender();
+        // v170.6: force re-render of simulator with restored timeline events
+        if (simInited && typeof simRenderChart === 'function' && typeof simRunEngine === 'function') {
+          simRenderKPI();
+          simRenderTimeline();
+          simRenderChart(simRunEngine());
+        }
       }, 200);
     }
     return;

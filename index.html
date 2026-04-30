@@ -1571,6 +1571,7 @@
         <button id="ffs-switch-btn" onclick="ffsToggleDataSource()" style="padding:7px 14px;border:none;border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:white;cursor:pointer;background:#dc2626;transition:background 0.15s;">✏️ עבור למצב הזנה ידנית (FFS)</button>
       </div>
       <button id="ffs-new-profile-btn" onclick="ffsStartFreshProfile()" style="display:none;padding:7px 14px;border:1px solid rgba(248,113,113,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#fca5a5;cursor:pointer;background:rgba(239,68,68,0.12);">התחל פרופיל חדש 🆕</button>
+      <button onclick="ffsLoadYoavProfile()" title="טען פרופיל דוגמה מאוזן לדמו מהיר" style="padding:7px 14px;border:1px solid rgba(52,211,153,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#6ee7b7;cursor:pointer;background:rgba(52,211,153,0.12);white-space:nowrap;">🎯 טען דוגמה (יואב)</button>
       <span onclick="closeFFSDrawer()" style="color:rgba(255,255,255,0.5);cursor:pointer;font-size:22px;line-height:1;padding:3px 8px;border-radius:7px;transition:color 0.15s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">✕</span>
     </div>
   </div>
@@ -1898,6 +1899,19 @@
   </div><!-- end 3-column body -->
 
 </div><!-- end #ffs-drawer -->
+
+<!-- Yoav Sample Profile Overwrite Guard Modal v170.6 -->
+<div id="yoav-overwrite-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10410;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
+  <div style="background:white;border-radius:16px;padding:30px 26px;max-width:400px;width:92%;box-shadow:0 16px 48px rgba(0,0,0,0.35);text-align:center;font-family:Heebo,sans-serif;direction:rtl;">
+    <div style="font-size:38px;margin-bottom:12px;">🎯</div>
+    <div style="font-size:16px;font-weight:900;color:#1e293b;margin-bottom:10px;">טעינת פרופיל יואב</div>
+    <div style="font-size:13px;color:#64748b;line-height:1.75;margin-bottom:26px;">טעינת הפרופיל של יואב תדרוס את הנתונים הקיימים. האם להמשיך?</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-direction:row-reverse;">
+      <button id="yoav-overwrite-cancel-btn" onclick="ffsLoadYoavCancel()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
+      <button onclick="ffsLoadYoavConfirm()" style="background:#059669;color:white;border:none;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, טען</button>
+    </div>
+  </div>
+</div>
 
 <!-- Blank-Slate Guard Modal v170.5 -->
 <div id="blank-slate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10400;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
