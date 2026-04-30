@@ -8949,28 +8949,38 @@ function ffsLoadYoavProfile() {
 function ffsLoadYoavConfirm() {
   var modal = document.getElementById('yoav-overwrite-modal');
   if (modal) modal.style.display = 'none';
-  // v170.8: Yoav 3.0 — Senior Professional (Age 45, income 32K, expenses 22K, savings 10K/month)
+  // v170.9: Yoav 4.0 — High-Net-Worth Optimist (23-year career, ~5.5M total assets, retirement surplus)
   var _uid = function() { return 'yoav_' + Math.random().toString(36).substr(2, 8); };
   FFS_PROFILE.name              = 'יואב';
   FFS_PROFILE.birthDate         = '1981-01-15';
   FFS_PROFILE.retirementAge     = 67;
   FFS_PROFILE.lifeExpectancy    = 85;
-  FFS_PROFILE.monthlySavings    = 10000;  // net savings (32K income - 22K expenses)
+  FFS_PROFILE.monthlySavings    = 10000;  // 32K income - 22K expenses
   FFS_PROFILE.savingsGrowth     = 3;
-  FFS_PROFILE.retirementExpense = 22000;  // 22K monthly retirement expenses
-  FFS_PROFILE.retirementIncome  = 11500;  // monthly pension (מנורה מבטחים)
+  FFS_PROFILE.retirementExpense = 23500;  // 23.5K/month in retirement
+  FFS_PROFILE.retirementIncome  = 28500;  // pension 11.5K + insurance 7K + RE income 10K
   FFS_PROFILE.bridgeAge         = 0;
   FFS_PROFILE.bridgeCashflow    = 0;
   FFS_PROFILE.bridgePensionContrib = false;
   FFS_PROFILE.ffsEvents         = [];
-  // Income phases: one active phase showing current senior salary
+  // Income phases: current senior salary (career since age 22, now 45 → 23 years seniority)
   FFS_PROFILE.incomePhases = [{
     id: _uid(), fromAge: 45, toAge: 67, monthlyNet: 32000
   }];
-  FFS_PROFILE.investments = [{
-    id: _uid(), name: 'קרן השתלמות מנהלים', assetNum: 'KH-2024',
-    balance: 450, category: 'קרן השתלמות', type: 'מנייתי', liquidity: 'pension67'
-  }];
+  FFS_PROFILE.investments = [
+    {
+      id: _uid(), name: 'תיק מנייתי', assetNum: 'EQ-2024',
+      balance: 1250, category: 'מניות', type: 'מנייתי', liquidity: 'liquid'
+    },
+    {
+      id: _uid(), name: 'קרן השתלמות מנהלים', assetNum: 'KH-2024',
+      balance: 450, category: 'קרן השתלמות', type: 'מנייתי', liquidity: 'pension67'
+    },
+    {
+      id: _uid(), name: 'חסכון טכנולוגי', assetNum: 'TK-2024',
+      balance: 750, category: 'מזומן', type: 'כספי', liquidity: 'liquid'
+    }
+  ];
   FFS_PROFILE.realEstate = [{
     id: _uid(), name: 'דירה להשקעה — תל אביב',
     value: 2200, monthlyRent: 5500, type: 'investment',
@@ -8979,7 +8989,7 @@ function ffsLoadYoavConfirm() {
   FFS_PROFILE.pension = [
     {
       id: _uid(), pensionType: 'pension', name: 'קרן פנסיה מקיפה', provider: 'מנורה מבטחים',
-      monthlyPension: 11500, expectedPayout: 18000, contributionPct: 18.5,
+      monthlyPension: 11500, expectedPayout: 18500, contributionPct: 18.5,
       survivorsEnabled: false
     },
     {
@@ -9755,8 +9765,22 @@ var SIM_LAST_RESULT = null; // v168.69: cache last engine output for AI context
 // v158.0: save/restore user events; v162.0: save/restore ALL events (including permanent Excel ones)
 var _SIM_EVENTS_LS_KEY = 'sim_user_events';
 function _simSaveUserEvents() {
-  // v162.0: save entire SIM_USER_EVENTS array (permanent Excel events + user-added events)
-  try { localStorage.setItem(_SIM_EVENTS_LS_KEY, JSON.stringify(SIM_USER_EVENTS)); } catch(e) {}
+  // v170.9: always preserve events_timeline entries — SIMULATOR/FFS saves must not erase Roy's pension-sheet spike
+  var _toSave = SIM_USER_EVENTS.slice();
+  if (!_toSave.some(function(ev) { return ev.src === 'events_timeline'; })) {
+    try {
+      var _raw = localStorage.getItem(_SIM_EVENTS_LS_KEY);
+      if (_raw) {
+        var _prev = JSON.parse(_raw) || [];
+        _prev.forEach(function(ev) {
+          if (ev.src === 'events_timeline' && !_toSave.some(function(e) { return e.yr === ev.yr && e.mo === ev.mo && e.src === 'events_timeline'; })) {
+            _toSave.push(ev);
+          }
+        });
+      }
+    } catch(e) {}
+  }
+  try { localStorage.setItem(_SIM_EVENTS_LS_KEY, JSON.stringify(_toSave)); } catch(e) {}
 }
 function _simRestoreUserEvents() {
   try {
