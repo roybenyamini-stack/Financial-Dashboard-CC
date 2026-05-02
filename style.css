@@ -2,6 +2,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Heebo', sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
 
+/* v171.5: FFS instruction box — pulsing border for Guest attention */
+@keyframes ffs-pulse-border {
+  0%, 100% { border-color: rgba(99,102,241,0.25); box-shadow: none; }
+  50%       { border-color: rgba(99,102,241,0.75); box-shadow: 0 0 8px rgba(99,102,241,0.3); }
+}
+.ffs-instructions-pulse { animation: ffs-pulse-border 2.8s ease-in-out infinite; }
+
 #top-fixed { padding: 0; position: sticky; top: 0; z-index: 100; background: #1a1a2e; width: 100%; box-sizing: border-box; }
 #categories-scroll { padding: 0 20px 40px 20px; width: 100%; box-sizing: border-box; }
 

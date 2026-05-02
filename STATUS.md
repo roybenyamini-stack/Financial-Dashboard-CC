@@ -1,7 +1,259 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v170.9 — Optimized Persistence & Yoav 4.0 (30/04/2026).
+גרסה v171.9 — Hard Isolation & Real-Time Sync (02/05/2026).
+
+## שינויים אחרונים (02/05/2026 — v171.9)
+
+### v171.9 – Hard Isolation & Real-Time Sync
+
+**1. תיקון קלט ידני — עדכון KPI בזמן אמת**
+- **שורש הבעיה**: `ffsDebouncedUpdate` מוגר על `simInited === true` — אם הסימולטור לא אותחל עדיין, הקלדה לא עושה כלום
+- **התיקון**: `ffsHandleRetirementAge` משתמש ב-`_ffsRetAgeTimer` נפרד שקורא ל-`ffsApplyToSimulator()` **ישירות** ללא גדר `simInited`
+- `oninput` (במקום `onkeyup`) — כולל paste, drag-drop, כל שינוי ערך
+- שמירה ל-localStorage: ישירות ל-`FFS_PROFILE.retirementAge` + `localStorage.setItem()` — לא דרך `ffsSaveField` (שמוביל לפגיעה בביצועים)
+- debounce: 250ms — מהיר, לא מציף
+
+**2. תיקון שגיאת 0.0 ב-Overview "הון חזוי"**
+- **שורש הבעיה**: `_idx >= _res.royData.length` — כשה-targetAge מוביל לשנה מחוץ לטווח הסימולציה, הערך מוחזר כ-0
+- **התיקון**: `if (_res.royData && _idx >= _res.royData.length) _idx = Math.max(0, _res.royData.length - 1)` — clamp עליון לנקודת הנתון האחרונה
+- `targetAge` guard: `SIM_TARGET_AGE >= 60` לפני שימוש (מניעת ערכים לא תקינים)
+
+**3. אומת**
+- Burgundy `#800020` — קיים ב-"הזן נתונים" ✓
+- Help Toggle (?) — פאנל צף, לא דוחף תפריט ✓
+- `SIM_TARGET_AGE = 67` בכניסה ל-EXCEL (v171.8 בעינו) ✓
+
+**4. גרסה: v171.9**
+
+## שינויים אחרונים (02/05/2026 — v171.8)
+
+### v171.8 – Absolute State Isolation
+
+**1. UI Sync — מעבר מצב מאפס גיל פרישה מיידית**
+- `switchMode('EXCEL')`: מיד אחרי `_simRestoreExcelEvents()`:
+  - `SIM_TARGET_AGE = 67` — מאפס ציר גיל הפרישה לברירת מחדל של רועי
+  - DOM sync: `ffs-retirement-age` → 67, `sim-target-age-input` → 67, tooltip מוסתר
+  - מבטיח שהתווית "הון חזוי לגיל X" ב-Overview תמיד מציגה 67 בכניסה לנתוני אמת
+- `switchMode('SIMULATOR')`: מיד אחרי `ffsLoadProfile()`:
+  - `SIM_TARGET_AGE = FFS_PROFILE.retirementAge || 67`
+  - DOM sync: `ffs-retirement-age` ← ערך FFS_PROFILE, tooltip מנוקה
+  - מבטיח שהסימולטור תמיד מציג את גיל הנכון בכניסה
+
+**2. KPI Display Guard**
+- `SIM_TARGET_AGE = 67` בכניסה ל-EXCEL mode — כעת כל קריאה ל-`ovRenderKPIs()` מציגה "הון חזוי לגיל 67" ברירת מחדל
+- שינוי מכוון (via `simSetTargetAge()`) ב-EXCEL mode עדיין נשמר בתוך ה-session (כצפוי)
+
+**3. Cleanup Warning — ניקוי מפורש לפני הזרקת נתוני רועי**
+- בבלוק האזהרה (SIMULATOR → כל מצב אחר):
+  - אחרי אישור המשתמש: לולאה מפורשת שמוחקת כל `ffs_event` מ-`SIM_USER_EVENTS`
+  - Belt-and-suspenders: `absoluteInternalReset()` ממשיך לפעול אחרי (כולל `simEngine.purgeAllEvents()`)
+  - מבטיח שאין אירועי FFS שמזהמים את הזרקת נתוני האקסל של רועי
+
+**4. גרסה: v171.8**
+
+## שינויים אחרונים (02/05/2026 — v171.7)
+
+### v171.7 – Manual Input Synchronization & Validation
+
+**1. תיקון באג הקלדה ידנית — גיל פרישה**
+- **שורש הבעיה**: `parseInt(el.value) || 67` החזיר 67 בזמן שהמשתמש מוחק תו ומקליד מחדש
+- **תיקון**: `parseInt(el.value)` ← בדיקת `isNaN` לפני כל פעולה; אם ריק — לא מכסה, ממתין
+- `onkeyup` (חדש) — עדכון live בכל הקשת מקש: `ffsHandleRetirementAge(this, false)`
+- `onchange` (חדש) — עדכון סופי בשינוי ערך: `ffsHandleRetirementAge(this, true)`
+- `onblur` — snap לערך מוגבל (קיים מ-v171.6)
+- הוסרה תלות ב-`oninput` (הוחלף ב-`onkeyup`)
+
+**2. משוב ויזואלי — חריגה מתוחלת חיים**
+- border אדום `#dc2626` בזמן הקלדה כשהערך > lifeExpectancy
+- tooltip: `id="ffs-ret-age-tip"` — "גיל הפרישה אינו יכול לעלות על תוחלת החיים"
+- מתבטל אוטומטית על `onblur` + snap לערך חוקי
+
+**3. Persistence**
+- `ffsSaveField('retirementAge', pushVal)` — שמירה מיידית ל-localStorage בכל קלט תקין
+- ערך mid-type: `Math.max(55, raw)` (לא `clamped`) — מאפשר הקלדה חופשית, מגביל בסוף
+
+**4. Burgundy אומת**: `#800020` קיים בסרגל ההוראות מ-v171.6 ✓
+
+**5. גרסה: v171.7**
+
+## שינויים אחרונים (02/05/2026 — v171.6)
+
+### v171.6 – Surgical Precision & UX Polish
+
+**1. גיל פרישה — תיקון ממוקד (SIMULATOR בלבד)**
+- פונקציה חדשה `ffsHandleRetirementAge(el, isFinal)` ב-app.js
+- בודקת `APP_MODE === 'SIMULATOR'` לפני כל פעולה — Roy לא נגעת
+- `oninput`: עדכון live עם `ffsDebouncedUpdate()` — כולל הקלדה ידנית (לא רק חיצים)
+- `onblur`: snaps DOM לערך המוגבל (`isFinal=true`)
+- Cap: `Math.max(55, Math.min(val, FFS_PROFILE.lifeExpectancy || 84))`
+- שינוי `max` attribute מ-75 ל-99 (JS מטפל בגבול האמיתי)
+
+**2. איפוס ממוקד — אסור לנגוע ב-ROY_EXCEL_EVENTS**
+- `ffsConfirmReset()` מוחק בלבד: `FINANCIAL_SIM_PERSONAL_DATA`, `ffs_profile_v1`, `sim_user_events`
+- **לא נמחק**: `ROY_EXCEL_EVENTS` + כל נתוני Excel של רועי
+- ניקוי in-memory FFS_PROFILE לגיסט + מחיקת SIM_USER_EVENTS (לא events_timeline)
+- מעבר ל-`switchMode('SIMULATOR')` ללא page reload
+- טקסט דיאלוג מעודכן: מציין במפורש שנתוני רועי לא נמחקים (ירוק)
+
+**3. UI — קוקפיט נקי**
+- הקופסה הסטטית "איך זה עובד?" (v171.5) הוחלפה בכפתור (?) עגול בראש הניווט
+- פאנל צף (`position:fixed`, z-index:10250) מופיע ליד הכפתור — ללא דחיפת ניווט
+- "הזן נתונים" בסרגל הוראות — צבע Burgundy `#800020` (שלב ראשון בולט)
+- חיצי ← ממשיכים בכיוון RTL (v171.5 בעינו)
+
+**4. גרסה: v171.6**
+
+## שינויים אחרונים (02/05/2026 — v171.5)
+
+### v171.5 – Instruction & Flow Overhaul
+
+**1. קופסת "איך זה עובד?" — הועברה לראש הניווט**
+- הוסרה מתחתית ה-nav (מתחת לכפתורי הניווט)
+- נוספה בראש ה-nav ישירות אחרי תווית "תפריט ניווט" — גלויה מיד עם פתיחת הסימולטור
+- עיצוב: `border:1.5px solid` + animation class `.ffs-instructions-pulse` (2.8s pulse)
+- style.css: `@keyframes ffs-pulse-border` — border + box-shadow בעוצמה משתנה
+
+**2. תוכן מעודכן — 3 שלבים ברורים**
+- **הזן נתונים** בתפריט הניווט מימין.
+- **בדוק מדדי צבירה** בחלונית משמאל.
+- לחץ **החל ועדכן** לראות ההשפעה על הגרפים.
+
+**3. סרגל ההוראות העליון — תיקון RTL**
+- שינוי `direction:ltr` → `direction:rtl`
+- החלפת חיצי `⮕` ב-`←` (`&larr;`) — RTL נכון
+- כל תוויות הצעדים כעת `font-weight:800` (bold וברורות)
+- תזרים ויזואלי: הזן נתונים ← בדוק מדדי צבירה ← לחץ החל ועדכן
+
+**4. גרסה: v171.5**
+
+## שינויים אחרונים (02/05/2026 — v171.4)
+
+### v171.4 – Personal Simulator "Guest Protocol"
+
+**1. מצב ברירת מחדל: אורח (Guest)**
+- `switchMode('SIMULATOR')`: לפני `ffsLoadProfile()` — מאפס את `FFS_PROFILE` in-memory לאפס מוחלט
+- מונע מנתוני יואב (שנטענו בסשן) "לדלוף" חזרה לממשק
+
+**2. דגל `isDemo` — הגנה מטעינה אוטומטית**
+- `ffsLoadYoavConfirm()`: מוסיף `FFS_PROFILE.isDemo = true` לפני `ffsSaveProfile()`
+- `ffsLoadProfile()`: אם `saved.isDemo === true` — return מוקדם, פרופיל יואב לא נטען אוטומטית
+- תוצאה: יואב מופיע **רק** בלחיצה על "טען נתוני דוגמה (יואב)" — לא בכניסה חוזרת למצב
+
+**3. קידום לנתונים אמיתיים**
+- `ffsUpdateItem()`: `delete FFS_PROFILE.isDemo` — עריכה ידנית של שדה הופכת את הפרופיל לנתוני משתמש אמיתיים
+- `ffsSaveField()`: אותו הגנון — עריכת שדה גלובלי (שם, גיל, הוצאה) מבטלת את סימון הדמו
+- תוצאה: מי שמעדכן נתונים על גבי יואב "מפוי" — הנתונים יישמרו ויטענו אוטומטית בפעם הבאה
+
+**4. שמירת מגן רועי**
+- `ROY_EXCEL_EVENTS` לא נמחק (v171.3 בעינו)
+- `_simRestoreExcelEvents()` ממשיך לפעול ב-EXCEL mode בכל כניסה
+
+**5. עיצוב זברה — אומת**
+- הרצועות `['#f1f5f9', '#ffffff']` מוגדרות ב-`ffsRenderSection()` ופעילות; אין CSS חיצוני שדורס
+
+**6. סקאלת ציר Y**
+- רועי: 60M ₪ (EXCEL mode)
+- יואב/Guest: 40M ₪ (SIMULATOR mode + `ffsLoadYoavConfirm`)
+- Overview mini-chart: `Math.max(SIM_Y_SCALE, dynMax)` (v171.3 בעינו)
+
+**7. גרסה: v171.4**
+
+## שינויים אחרונים (02/05/2026 — v171.3)
+
+### v171.3 – Absolute Persistence & Overview Scaling
+
+**1. Event Firewall — ROY_EXCEL_EVENTS חסין ל-Clean Slate**
+- הוסר `localStorage.removeItem('ROY_EXCEL_EVENTS')` מתוך `ffsBlankConfirm()`
+- הסבר: Clean Slate מנקה רק נתוני FFS/Guest — אירועי ציר הזמן של רועי (שמקורם בקובץ Excel) אינם שייכים לנתוני Guest ולכן לא נמחקים
+- `sim_user_events` ו-`ffs_profile_v1` עדיין נמחקים כרגיל
+
+**2. Overview Mini-Chart — סקאלת ציר Y מודע-מצב**
+- `ovRenderSimMini()`: `suggestedMax` כעת = `Math.max(SIM_Y_SCALE, dynMax)`
+- רועי (EXCEL): SIM_Y_SCALE=60,000 → ציר Y תמיד לפחות 60M ₪
+- יואב/Guest (SIMULATOR): SIM_Y_SCALE=40,000 → ציר Y תמיד לפחות 40M ₪
+- dynMax (20% headroom) ממשיך לפעול כ-floor ביחס לנתונים בפועל
+
+**3. גרסה: v171.3**
+
+## שינויים אחרונים (02/05/2026 — v171.2)
+
+### v171.2 – Scale & Persistence Final Lock
+
+**1. Mode-Specific Default Scaling (קריטי)**
+- `switchMode('EXCEL')`: מאפס ציר Y ל-60M ₪ (קיים מ-v171.1) 
+- `switchMode('SIMULATOR')`: מאפס ציר Y ל-40M ₪ (חדש) — כל מעבר למצב FFS/Guest מגדיר 40M אוטומטית
+
+**2. Roy's Event Auto-Rehydration**
+- `_simRestoreExcelEvents()` מועברת **לפני** בלוק `if (_hasExcelData)` — נקראת תמיד במצב EXCEL
+- פתרון: אירועים מופיעים גם לאחר Clean Slate, כי הפונקציה קוראת ישירות מ-`ROY_EXCEL_EVENTS` ב-localStorage
+
+**3. יואב 6.1 — Wealth Consolidation (11.5M ₪ מובנה)**
+- **השקעות: 4,500K** — תיק גלובלי 2,000K + מנייתי 1,200K + השתלמות מנהלים 600K + פוליסה 450K + חסכון טכנולוגי 250K
+- **נדל"ן: 4,800K** — תל אביב 2,800K (שכ"ד 6,500 ₪) + הרצליה 2,000K (שכ"ד 4,500 ₪)
+- **פנסיה/ביטוח: 2,200K** — קרן פנסיה מקיפה + ביטוח מנהלים הון 2,200K
+- **סה"כ: 11,500K = 11.5M ₪ בדיוק** ✓
+
+**4. גרסה: v171.2**
+
+## שינויים אחרונים (02/05/2026 — v171.1)
+
+### v171.1 – Multi-Table Excel Parser & The 11M NIS Yoav
+
+**1. פרסר רב-טבלאות — "ציר אירועים" (Critical Fix)**
+- `_parseTimelineDataRows()`: פונקציית עזר משותפת — מטפלת בשני הפורמטים (גיליון עצמאי ו-embedded)
+- `_parseEmbeddedTimelineTable()`: פונקציה חדשה — סורקת כל גיליון לתוך טבלת "ציר אירועים" מוטמעת
+  - מאתרת שורת כותרת עם "ציר אירועים"
+  - מאתרת שורת headers: "סוג האירוע", "תאריך יעד צפוי", "סכום משוער"
+  - מפרסרת נתונים מתחת ל-headers עם mapping דינמי לעמודות
+- `parseEventsTimelineSheet()`: שתי אסטרטגיות:
+  - Strategy 1: גיליון עצמאי בשם "ציר אירועים" (backward-compatible)
+  - Strategy 2: טבלה מוטמעת בכל גיליון (כולל "תכנון פרישה")
+- מפתח localStorage: שונה ל-`ROY_EXCEL_EVENTS` (קבוע: `_SIM_EXCEL_EVENTS_LS_KEY`)
+
+**2. יואב 6.0 — "The Diversified High-Flyer" (~11.5M ₪)**
+- השקעות 7 נכסים (7,650K ₪):
+  - תיק מנייתי: 1,250K | תיק מניות גלובלי: 2,500K | קרן השתלמות מנהלים: 450K
+  - קרן השתלמות: 650K | קופת גמל: 1,200K | פוליסת חיסכון: 850K | חסכון טכנולוגי: 750K
+- נדל"ן: 2,200K | ביטוח מנהלים: 1,650K (עלה מ-1,400K)
+- סה"כ: 11,500K = 11.5M ₪ ✓
+- ציר Y נשאר 40M ₪
+
+**3. UI/UX & Scaling Stability**
+- Per-Mode Scaling: מצב EXCEL מאפס ציר Y ל-60M ₪ (`switchMode('EXCEL')`)
+- No-Purge Protection: `ffsApplyToSimulator()` — הגנה מפורשת: מוחקת רק `ffs_event`, לא `events_timeline`
+
+**4. גרסה: v171.1**
+
+## שינויים אחרונים (02/05/2026 — v171.0)
+
+### v171.0 – Surgical Isolation & Executive UI Calibration
+
+**1. חומת אש אטומית — בידוד אירועים (Isolation Firewall)**
+- `simEngine.purgeAllEvents()`: פונקציה חדשה שמנקה את `SIM_USER_EVENTS` לחלוטין בזיכרון ללא נגיעה ב-localStorage
+- `absoluteInternalReset()`: החלפת ניקוי סלקטיבי ב-`simEngine.purgeAllEvents()` — כל מעבר מצב מבצע ניקוי מלא
+- **הפרדת Storage**: אירועי Excel (רועי) נשמרים ב-`sim_excel_events`; אירועי FFS ידניים (יואב) נשמרים ב-`sim_user_events`
+- `_simRestoreExcelEvents()`: פונקציה חדשה שמשחזרת אירועי ציר מ-Excel בלבד (מצב REAL)
+- `_simRestoreUserEvents()`: עודכנה — משחזרת רק אירועי FFS/ידניים (מצב GUEST)
+- Re-hydration של רועי: מצב EXCEL קורא ל-`_simRestoreExcelEvents()` מיד אחרי שחזור הנתונים, מבטיח הופעת ספייק אוקטובר 2029 ב-render הראשון
+- Startup: שחזור אירועים מודע-למצב — EXCEL מקבל `_simRestoreExcelEvents()`, SIMULATOR מקבל `_simRestoreUserEvents()`
+
+**2. יואב 5.0 — "הקפטן הסניור" (Optimistic Demo)**
+- השקעות — 4 נכסים (8M כולל):
+  - תיק מנייתי: 1,250K ₪
+  - קרן השתלמות מנהלים: 450K ₪
+  - חסכון טכנולוגי: 750K ₪
+  - **תיק מניות גלובלי: 2,000K ₪** (חדש!)
+- סה"כ השקעות: ~4.45M + נדל"ן 2.2M + ביטוח מנהלים 1.4M = ~8M ₪
+- מאזן פרישה: הכנסה 28,500 ₪ | הוצאות 23,500 ₪ | עודף 5,000 ₪/חודש
+- ציר Y מוגדר ל-40M ₪ לאחר טעינת הפרופיל
+
+**3. פרוטוקול Anti-Wrap (UI Alignment)**
+- `lbSt` ב-`ffsRenderSection()`: עודכן ל-`font-size:0.8rem; color:gray; font-weight:600; margin-bottom:4px; height:1.5rem; overflow:hidden; white-space:nowrap`
+- מונע גלישת כותרות שדות בכל תנאי — כפתורים מתרחבים, KPI ארוכים
+
+**4. גרסה**
+- עודכנה ל-v171.0 בכותרת ובתגובת HTML
 
 ## שינויים אחרונים (30/04/2026 — v170.9)
 
