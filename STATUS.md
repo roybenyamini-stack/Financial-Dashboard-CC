@@ -1,7 +1,86 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v171.9 — Hard Isolation & Real-Time Sync (02/05/2026).
+גרסה v172.2 — Perfect Mode-Switch Recovery (03/05/2026).
+
+## שינויים אחרונים (03/05/2026 — v172.2)
+
+### v172.2 – Perfect Mode-Switch Recovery
+
+**1. תיקון הבהוב `---` במעבר חזרה ל-EXCEL (Mode-Switch)**
+- **שורש הבעיה**: `absoluteInternalReset()` ב-`switchMode()` מוחק `SIM_LAST_RESULT` ו-`OV_CACHED_WEALTH`, ה-80ms render (מ-`switchTab('overview')`) מצא `null` → הציג `---`
+- **הפתרון**: הוספת `activeDataSource = 'EXCEL'` **בתחילת** בלוק ה-EXCEL ב-`switchMode()` (לפני כל קריאת נתונים)
+- **Mode-Switch Sync**: ריצה סינכרונית של `simRunEngine()` בתוך `if (_hasExcelData)` **לפני** `switchTab('overview')`
+  - מסנכרן `SIM_TARGET_EXP` מ-`SIM_RETIRE_EXP` (29K)
+  - מחשב `SIM_PENSION_MONTHLY` מ-`pnsNetMonthlyNoHarel + rental`
+  - שומר תוצאה ב-`SIM_LAST_RESULT` ← ה-80ms render ישתמש בה ישירות
+  - מחשב `OV_CACHED_WEALTH` ← fallback אם gate נכשל
+
+**2. Spike Guard ב-200ms (mode-switch) — Refresh Authority**
+- `_simRestoreExcelEvents()` + `SIM_LAST_RESULT = simRunEngine()` לפני `overviewRender()`
+- מבטיח שה-spike של 1,126,087 ₪ ב-01/10/2029 מוזרק גם לאחר מעבר מצב
+
+**3. Persona Integrity — אומת**
+- Burgundy `#800020` — "הזן נתונים" bold ✓ (שורה 1593 ב-index.html)
+- גרסה עודכנה ל-v172.2 ב-index.html (הערה + תווית header)
+
+**4. גרסה: v172.2**
+
+## שינויים אחרונים (03/05/2026 — v172.1)
+
+### v172.1 – Instant Meter Fix
+
+**1. ריצת מנוע סינכרונית לפני הרנדר הראשון (Instant Meter)**
+- **שורש הבעיה**: `SIM_LAST_RESULT = null` בטעינה, ורק ב-200ms מנוע רץ → ה-80ms render מציג `---`
+- **הפתרון**: הוספת בלוק "Instant Meter" ב-DOMContentLoaded **לפני** `switchTab('overview')`
+  - מריץ `simRunEngine()` **סינכרונית** — לפני שה-80ms setTimeout בכלל נרשם
+  - שומר תוצאה ב-`SIM_LAST_RESULT` ← ה-80ms render ישתמש בה ישירות
+  - מחשב `OV_CACHED_WEALTH` ← fallback אם `ovAllDataReady()` gate נכשל (ללא פנסיה)
+- **תוצאה**: "הון חזוי" מוצג מיד בפריסה ראשונה (25.2M ולא `---`)
+
+**2. Spike Guard ב-200ms — Refresh Authority**
+- הפך ל-"refresh" בלבד: מנקה SIM_LAST_RESULT ומריץ מחדש
+- הסיר כפילות של SIM_TARGET_EXP + SIM_PENSION_MONTHLY (טופל בבלוק Instant Meter)
+- `_simRestoreExcelEvents()` נשאר כ-belt-and-suspenders
+
+**3. Persona Integrity — אומת**
+- Burgundy `#800020` — "הזן נתונים" bold ✓
+- `ffsConfirmReset()` — ממוקד, לא נוגע ב-ROY_EXCEL_EVENTS ✓
+- בטעינה ב-EXCEL mode: simInited=false, הסימולטור מתחיל כ-אורח נקי בכל כניסה לטאב ✓
+
+**4. גרסה: v172.1**
+
+## שינויים אחרונים (03/05/2026 — v172.0)
+
+### v172.0 – Deep Persistence & Full Auto-Ignition
+
+**1. Auto-Ignition Logic — אתחול מלא ב-DOMContentLoaded**
+- **שורש הבעיה**: `activeDataSource = 'MANUAL'` ב-startup גרם ל-`isExcelLoaded()` להחזיר `false`
+- כתוצאה: מנוע הסימולציה לא הזריק נתוני פנסיה מ-PENSION_ASSETS ו-`SIM_PENSION_MONTHLY` נשאר 0
+- **התיקון**: בתוך בלוק `if (_assetsOk || _cfOk || _pensionOk)`:
+  - `activeDataSource = 'EXCEL'` — מפעיל את `isExcelLoaded()` מיד בסטארטאפ
+  - `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` — נועל 29K, לא מאפשר ל-settings ישנות לדרוס
+  - `SIM_LAST_RESULT = null` — מבטיח ריצת מנוע טרייה
+  - `simSetYScale(60000)` — מגדיר ציר Y ל-60M (Roy default)
+  - `syncBirthYearsFromSettings()` — מסנכרן גבולות פאזה אחרי שכל הנתונים נטענו
+
+**2. Spike Guard — "כוח שלישי" במתזמן 200ms**
+- לפני `overviewRender()`: ריצה מלאה ועצמאית של מנוע הסימולציה
+- `_simRestoreExcelEvents()` — belt-and-suspenders: מבטיח שה-spike של 1,126,087 ₪ ב-01/10/2029 בתוך `SIM_USER_EVENTS`
+- `SIM_TARGET_EXP` מסונכרן ל-`SIM_RETIRE_EXP` (29K) לפני הריצה
+- חישוב `SIM_PENSION_MONTHLY` מנתוני Excel (pnsNetMonthlyNoHarel + rental)
+- `SIM_LAST_RESULT = simRunEngine()` — pre-warms cache לפני הרנדר
+
+**3. KPI Integrity — הון חזוי**
+- `overviewRender()` קורא ל-`ovRenderKPIs()` שמשתמש ב-`SIM_LAST_RESULT` שנבנה בשלב ה-Spike Guard
+- מבטיח שהתוצאה ~25M+ ולא ערך חלקי כמו 7.1M
+
+**4. Persona Stability — אומת**
+- `ffsConfirmReset()` ("אפס הכל") — נשמר ממוקד: מוחק רק FFS/SIMULATOR storage, לא נוגע ב-`ROY_EXCEL_EVENTS` ✓
+- Burgundy `#800020` — "הזן נתונים" bold ✓
+- Profile isolation — בגרסאות קודמות ✓
+
+**5. גרסה: v172.0**
 
 ## שינויים אחרונים (02/05/2026 — v171.9)
 
