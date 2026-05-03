@@ -6036,6 +6036,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // v169.7: returning user with real data → auto-select Excel mode (skip Mode 0 placeholder)
     APP_MODE = 'EXCEL';
     if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI('EXCEL');
+    // v172.0: Auto-Ignition — fully initialize simulation engine immediately on startup
+    // activeDataSource must be 'EXCEL' so isExcelLoaded()=true and the engine uses Excel pension data
+    activeDataSource = 'EXCEL';
+    SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp; // hard re-enforce Roy's 29K baseline (never let stale demo settings override)
+    SIM_LAST_RESULT = null; // guarantee a fresh engine run on first overview render
+    if (typeof simSetYScale === 'function') simSetYScale(60000); else SIM_Y_SCALE = 60000;
+    if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
   } else {
     // v169.7: no data in localStorage → stay in Mode 0 (null), show placeholder
     if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI(null);
@@ -6069,6 +6076,27 @@ document.addEventListener('DOMContentLoaded', function() {
   if (APP_MODE === 'EXCEL') _simRestoreExcelEvents();
   else _simRestoreUserEvents();
 
+  // v172.1: Instant Meter — synchronous engine pre-run BEFORE switchTab queues the 80ms render
+  // Guarantees הון חזוי displays immediately on first paint, with no '---' flash
+  if (APP_MODE === 'EXCEL' && typeof simRunEngine === 'function') {
+    if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP;
+    var _pnsSync = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
+      ? pnsNetMonthlyNoHarel : (typeof simGetRoyPension === 'function' ? simGetRoyPension() : 0);
+    var _rentSync = typeof simGetRoyRentalIncome === 'function' ? simGetRoyRentalIncome() : 0;
+    if (_pnsSync + _rentSync > 0) SIM_PENSION_MONTHLY = _pnsSync + _rentSync;
+    SIM_LAST_RESULT = simRunEngine(); // synchronous cache — 80ms render uses this directly
+    // pre-seed OV_CACHED_WEALTH as fallback for cases where ovAllDataReady() gate fails
+    if (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0) {
+      var _igAge = (typeof SIM_TARGET_AGE !== 'undefined' && SIM_TARGET_AGE >= 60) ? SIM_TARGET_AGE : 67;
+      var _igIdx = typeof simMonthIdx === 'function'
+        ? simMonthIdx(SIM_BIRTH_YEAR_ROY + _igAge, (SIM_P3_START && SIM_P3_START.m) || 9) : 0;
+      if (_igIdx < 0) _igIdx = 0;
+      if (_igIdx >= SIM_LAST_RESULT.royData.length) _igIdx = SIM_LAST_RESULT.royData.length - 1;
+      var _igW = SIM_LAST_RESULT.royData[_igIdx] || 0;
+      if (_igW > 0) OV_CACHED_WEALTH = (_igW / 1000).toFixed(1);
+    }
+  }
+
   // v168.9: always boot on overview tab — ignore any saved tab; ensure demo mode is off
   document.body.classList.remove('demo-mode');
   switchTab('overview');
@@ -6077,6 +6105,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Fires at 200ms (after switchTab's 80ms lazy-init) to ensure all charts populate on page load
   if (_assetsOk || _cfOk || _pensionOk) {
     setTimeout(function() {
+      // v172.0/172.1: Spike Guard refresh — re-run engine with full event set as final authority
+      if (APP_MODE === 'EXCEL' && typeof simRunEngine === 'function') {
+        _simRestoreExcelEvents(); // belt-and-suspenders: ensure spike in SIM_USER_EVENTS
+        SIM_LAST_RESULT = null;   // force fresh re-run (discards synchronous pre-run)
+        SIM_LAST_RESULT = simRunEngine();
+      }
       if (typeof overviewRender === 'function') {
         if (!overviewInited) overviewInited = true;
         overviewRender();
@@ -13494,6 +13528,8 @@ function switchMode(mode) {
     // v171.1: per-mode Y-axis — Roy always gets 60M default scale
     if (typeof simSetYScale === 'function') simSetYScale(60000);
     else SIM_Y_SCALE = 60000;
+    // v172.2: ensure isExcelLoaded()=true immediately so engine uses Excel pension data
+    activeDataSource = 'EXCEL';
     // Restore real Excel data from localStorage (each restore returns false if key missing)
     var _assetOk = _dashRestoreAssets();
     var _cfOk    = _dashRestoreCF();
@@ -13533,6 +13569,26 @@ function switchMode(mode) {
       if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
       var _taxSl = document.getElementById('pns-tax-slider');
       if (typeof pensionSliderChange === 'function') pensionSliderChange(_taxSl ? _taxSl.value : '35');
+      // v172.2: Mode-Switch Sync — synchronous engine pre-run BEFORE switchTab queues 80ms render
+      // absoluteInternalReset() cleared SIM_LAST_RESULT; re-compute now so first paint shows 25M+ not '---'
+      if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP;
+      var _msSync = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
+        ? pnsNetMonthlyNoHarel : (typeof simGetRoyPension === 'function' ? simGetRoyPension() : 0);
+      var _msRent = typeof simGetRoyRentalIncome === 'function' ? simGetRoyRentalIncome() : 0;
+      if (_msSync + _msRent > 0) SIM_PENSION_MONTHLY = _msSync + _msRent;
+      if (typeof simRunEngine === 'function') {
+        SIM_LAST_RESULT = simRunEngine(); // cache synchronously — 80ms render uses this directly
+        // pre-seed OV_CACHED_WEALTH as persistent fallback (survives data-gate failures)
+        if (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0) {
+          var _msAge = (typeof SIM_TARGET_AGE !== 'undefined' && SIM_TARGET_AGE >= 60) ? SIM_TARGET_AGE : 67;
+          var _msIdx = typeof simMonthIdx === 'function'
+            ? simMonthIdx(SIM_BIRTH_YEAR_ROY + _msAge, (SIM_P3_START && SIM_P3_START.m) || 9) : 0;
+          if (_msIdx < 0) _msIdx = 0;
+          if (_msIdx >= SIM_LAST_RESULT.royData.length) _msIdx = SIM_LAST_RESULT.royData.length - 1;
+          var _msW = SIM_LAST_RESULT.royData[_msIdx] || 0;
+          if (_msW > 0) OV_CACHED_WEALTH = (_msW / 1000).toFixed(1);
+        }
+      }
     } else {
       // No Excel data in localStorage — clean blank slate, no Roy/Dan fallback
       _clearPrivacyFields();
@@ -13541,6 +13597,12 @@ function switchMode(mode) {
     switchTab('overview');
     if (_hasExcelData) {
       setTimeout(function() {
+        // v172.2: Spike Guard refresh — final authority re-run after DOM settles
+        if (typeof simRunEngine === 'function') {
+          _simRestoreExcelEvents(); // belt-and-suspenders
+          SIM_LAST_RESULT = null;
+          SIM_LAST_RESULT = simRunEngine();
+        }
         overviewInited = true;
         if (typeof overviewRender === 'function') overviewRender();
         // v170.6: force re-render of simulator with restored timeline events
