@@ -2813,6 +2813,11 @@ function smartUploadRouter(input) {
           try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
           showToast('✅ עודכנו נתוני תכנון פרישה', '#10b981', 5000);
           loadSettings(); // v169.2: lift privacy shield after data loaded
+          // v174.0: Bidirectional Binding — pension upload path returns early (no _excelEngineSync below).
+          // Re-enforce Roy's authoritative retireExp and push to Settings UI field immediately.
+          SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp;
+          SIM_TARGET_EXP = SIM_RETIRE_EXP;
+          (function() { var _pef = document.getElementById('stg-retire-exp'); if (_pef) _pef.value = SIM_RETIRE_EXP; })();
           // אם הטאב פנסיה פעיל — רנדר מחדש; אחרת — אפס כדי לאלץ init
           var activePanel = document.querySelector('.tab-panel.active');
           if (activePanel && activePanel.id === 'tab-pension') {
@@ -3322,14 +3327,29 @@ function loadExcelFileCore(wb) {
       updateNavButtons();
       
       try { sessionStorage.setItem('hasUploadedFiles', '1'); } catch(e) {} // v169.6
+      // v172.6: On Excel upload, ensure we are in EXCEL mode and all overlays are cleared
+      if (typeof APP_MODE !== 'undefined' && APP_MODE !== 'EXCEL') {
+        APP_MODE = 'EXCEL';
+        activeDataSource = 'EXCEL';
+        if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI('EXCEL');
+      }
+      (function() {
+        var _bsm = document.getElementById('blank-slate-modal');
+        if (_bsm) _bsm.style.display = 'none';
+        var _csc = document.getElementById('clean-slate-cover');
+        if (_csc) _csc.style.display = 'none';
+      })();
       showToast('✅ עודכנו נתוני השקעות – ' + newLabels.length + ' חודשים', '#4ade80', 5000);
       loadSettings(); // v169.2: lift privacy shield after Excel data loaded
       _dashSaveAssets(); // v160.0: persist investment data
 
+      // v173.5: unified engine sync — lock → identity+coupling → sanitize → data → engine → cache
+      _excelEngineSync();
+
       // v102.5: עדכן סימולטור עם הון רועי/יעל מהקובץ החדש
       if (simInited) simRefresh();
 
-      // v104.7: סנכרון מבט-על לאחר טעינת נתוני השקעות
+      // v104.7: סנכרון מבט-על לאחר טעינת נתוני השקעות (now uses fresh SIM_LAST_RESULT from above)
       if (overviewInited) {
         if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
         if (typeof ovRenderInvestChart === 'function') ovRenderInvestChart();
@@ -5978,6 +5998,17 @@ function switchTab(id){
   }
 
   if(isSim && !simInited){ simInited=true; setTimeout(simInit,80); }
+
+  // v172.4: when navigating to settings, sync profile labels to active mode
+  if (isSettings && typeof syncProfileLabels === 'function') syncProfileLabels();
+
+  // v172.6: when returning to overview with active data mode, ensure blank-slate-modal is dismissed
+  if (isOv && typeof APP_MODE !== 'undefined' && APP_MODE && APP_MODE !== 'BLANK') {
+    var _bsModalOv = document.getElementById('blank-slate-modal');
+    if (_bsModalOv && _bsModalOv.style.display !== 'none') _bsModalOv.style.display = 'none';
+    var _csCoverOv = document.getElementById('clean-slate-cover');
+    if (_csCoverOv && _csCoverOv.style.display !== 'none') _csCoverOv.style.display = 'none';
+  }
 }
 
 // חיבור כפתור העדכון ל-fileInput
@@ -5989,40 +6020,46 @@ function switchTab(id){
 // v56.1: הפעל טאב ברירת מחדל ב-DOMContentLoaded — מפעיל את כל ה-show/hide logic
 // v56.2: קרא updateTableCells כדי לאפס תאי HTML לאפס כשאין localStorage
 document.addEventListener('DOMContentLoaded', function() {
-  loadSettings(); // v124.0: restore saved settings before any render
+  // v173.8: TOTAL BLACKOUT — runs before loadSettings() so no stale cache or wrong identity survives.
+  // Zero all pension + simulation state first so the engine always starts from a clean slate.
+  pnsNetMonthly          = 0;
+  pnsNetMonthlyWithHarel = 0;
+  pnsNetMonthlyNoHarel   = 0;
+  ovPnsDisplayNet        = 0;
+  SIM_LAST_RESULT            = null;
+  SIM_LAST_CALCULATED_RESULT = null;
+  OV_CACHED_WEALTH           = null;
+  // v176.1: Version migration — purge stale cached wealth value from older builds
+  try {
+    if (localStorage.getItem('_dash_version') !== 'v176.1') {
+      localStorage.removeItem('OV_CACHED_WEALTH'); // safety purge (runtime-only global, but clear if ever persisted)
+      localStorage.setItem('_dash_version', 'v176.1');
+    }
+  } catch(e) {}
+  // v173.8: UI Barrier — show '—' in all KPI slots until the engine completes its first run.
+  if (typeof clearAppState === 'function') clearAppState();
+  // v173.8: Synchronous Identity Injection — Roy/Yael constants hard-set BEFORE loadSettings()
+  // guarantees engine never runs with wrong birth years even if localStorage holds stale data.
+  if (typeof _applyExcelIdentity === 'function') _applyExcelIdentity();
 
-  // v168.11: if last session was demo, wipe all persisted demo data + reset contaminated globals
+  loadSettings(); // v124.0: restore saved settings before any render
+  if (typeof syncProfileLabels === 'function') syncProfileLabels(); // v172.4: sync profile tab labels on mount
+
+  // v172.8: DEMO session cleanup — scoped to demo-only keys; Roy's Excel data is NEVER touched.
+  // Root cause of "empty on wake-up": old code (v168.11) deleted dashboard_assets_v1/_cf/_pension
+  // when _wasDemo=true — destroying Roy's data on a browser reload after a DEMO session.
+  // Fix: only remove _dash_is_demo + sim_user_events (possibly contains demo events).
+  // Settings / main data keys are NEVER written by DEMO mode (v169.5), so they remain clean.
   var _wasDemo = false;
   try { _wasDemo = localStorage.getItem('_dash_is_demo') === '1'; } catch(e) {}
   if (_wasDemo) {
     try {
-      localStorage.removeItem(_DASH_ASSETS_LS_KEY);
-      localStorage.removeItem(_DASH_CF_LS_KEY);
-      localStorage.removeItem(_DASH_PENSION_LS_KEY);
-      localStorage.removeItem(_SIM_EVENTS_LS_KEY);
-      localStorage.removeItem('_dash_is_demo');
-      // strip demo names/DOBs from settings so real user data is not contaminated
-      var _sRaw = localStorage.getItem(SETTINGS_LS_KEY);
-      if (_sRaw) {
-        try {
-          var _sObj = JSON.parse(_sRaw) || {};
-          _sObj.user1Name = ''; _sObj.user2Name = '';
-          _sObj.user1Birth = ''; _sObj.user2Birth = '';
-          localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(_sObj));
-        } catch(e) {}
-      }
+      localStorage.removeItem(_SIM_EVENTS_LS_KEY); // remove demo-injected sim events
+      localStorage.removeItem('_dash_is_demo');    // clear the demo-session flag
     } catch(e) {}
-    // reset in-memory globals that loadSettings() already applied from demo settings
-    SIM_USER1_NAME = ''; SIM_USER2_NAME = '';
-    SIM_USER1_BIRTH = ''; SIM_USER2_BIRTH = '';
-    SIM_BIRTH_YEAR_ROY = new Date().getFullYear() - 30;
-    SIM_BIRTH_YEAR_YAEL = new Date().getFullYear() - 30;
-    userCurrentAge = 30;
-    if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
-    if (typeof applyUserNames === 'function') applyUserNames();
-    // clear DOM name inputs
-    ['stg-user1-name','stg-user2-name'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-    ['stg-user1-birth','stg-user2-birth'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    isDemoMode = false;
+    document.body.classList.remove('demo-mode');
+    // loadSettings() already loaded Roy's real names/births above — do NOT override them here
   }
 
   // v160.0: restore persisted Excel data so page refresh doesn't wipe the dashboard
@@ -6036,13 +6073,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // v169.7: returning user with real data → auto-select Excel mode (skip Mode 0 placeholder)
     APP_MODE = 'EXCEL';
     if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI('EXCEL');
-    // v172.0: Auto-Ignition — fully initialize simulation engine immediately on startup
-    // activeDataSource must be 'EXCEL' so isExcelLoaded()=true and the engine uses Excel pension data
-    activeDataSource = 'EXCEL';
-    SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp; // hard re-enforce Roy's 29K baseline (never let stale demo settings override)
-    SIM_LAST_RESULT = null; // guarantee a fresh engine run on first overview render
+    // v172.6: Robust Auto-Ignition — explicitly clear all overlays so no stale UI covers the data
+    (function() {
+      var _bsm = document.getElementById('blank-slate-modal');
+      if (_bsm) _bsm.style.display = 'none';
+      var _csc = document.getElementById('clean-slate-cover');
+      if (_csc) _csc.style.display = 'none';
+    })();
     if (typeof simSetYScale === 'function') simSetYScale(60000); else SIM_Y_SCALE = 60000;
-    if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
   } else {
     // v169.7: no data in localStorage → stay in Mode 0 (null), show placeholder
     if (typeof _updateModeSelectorUI === 'function') _updateModeSelectorUI(null);
@@ -6076,26 +6114,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (APP_MODE === 'EXCEL') _simRestoreExcelEvents();
   else _simRestoreUserEvents();
 
-  // v172.1: Instant Meter — synchronous engine pre-run BEFORE switchTab queues the 80ms render
-  // Guarantees הון חזוי displays immediately on first paint, with no '---' flash
-  if (APP_MODE === 'EXCEL' && typeof simRunEngine === 'function') {
-    if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP;
-    var _pnsSync = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
-      ? pnsNetMonthlyNoHarel : (typeof simGetRoyPension === 'function' ? simGetRoyPension() : 0);
-    var _rentSync = typeof simGetRoyRentalIncome === 'function' ? simGetRoyRentalIncome() : 0;
-    if (_pnsSync + _rentSync > 0) SIM_PENSION_MONTHLY = _pnsSync + _rentSync;
-    SIM_LAST_RESULT = simRunEngine(); // synchronous cache — 80ms render uses this directly
-    // pre-seed OV_CACHED_WEALTH as fallback for cases where ovAllDataReady() gate fails
-    if (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0) {
-      var _igAge = (typeof SIM_TARGET_AGE !== 'undefined' && SIM_TARGET_AGE >= 60) ? SIM_TARGET_AGE : 67;
-      var _igIdx = typeof simMonthIdx === 'function'
-        ? simMonthIdx(SIM_BIRTH_YEAR_ROY + _igAge, (SIM_P3_START && SIM_P3_START.m) || 9) : 0;
-      if (_igIdx < 0) _igIdx = 0;
-      if (_igIdx >= SIM_LAST_RESULT.royData.length) _igIdx = SIM_LAST_RESULT.royData.length - 1;
-      var _igW = SIM_LAST_RESULT.royData[_igIdx] || 0;
-      if (_igW > 0) OV_CACHED_WEALTH = (_igW / 1000).toFixed(1);
-    }
-  }
+  // v173.5: Instant Meter — synchronous engine pre-run BEFORE switchTab queues the 80ms render
+  if (APP_MODE === 'EXCEL') _excelEngineSync();
 
   // v168.9: always boot on overview tab — ignore any saved tab; ensure demo mode is off
   document.body.classList.remove('demo-mode');
@@ -6108,8 +6128,15 @@ document.addEventListener('DOMContentLoaded', function() {
       // v172.0/172.1: Spike Guard refresh — re-run engine with full event set as final authority
       if (APP_MODE === 'EXCEL' && typeof simRunEngine === 'function') {
         _simRestoreExcelEvents(); // belt-and-suspenders: ensure spike in SIM_USER_EVENTS
-        SIM_LAST_RESULT = null;   // force fresh re-run (discards synchronous pre-run)
-        SIM_LAST_RESULT = simRunEngine();
+        SIM_LAST_RESULT = null;
+        SIM_LAST_CALCULATED_RESULT = null; // v176.1: sync both caches before fresh run
+        var _bootResult = simRunEngine();
+        SIM_LAST_RESULT = _bootResult;
+        SIM_LAST_CALCULATED_RESULT = _bootResult; // ensures simInit reads latest engine state
+        // v176.3: Nuclear — force correct age KPI via proven slider path on boot
+        if (typeof simSetTargetAge === 'function') {
+          simSetTargetAge(SIM_TARGET_AGE || (typeof SIM_RETIREMENT_AGE_ROY !== 'undefined' ? SIM_RETIREMENT_AGE_ROY : 67));
+        }
       }
       if (typeof overviewRender === 'function') {
         if (!overviewInited) overviewInited = true;
@@ -7807,7 +7834,7 @@ var SIM_CAPITAL_TAX    = 25;    // % real capital gains tax — v120.0
 var SIM_PENSION_ACC    = 0;     // ₪ current pension accumulation — v124.0
 var SIM_RENTAL_INCOME  = 0;     // ₪/month rental income — v124.0
 var SIM_USER1_NAME     = ''; // v168.72: empty until FFS profile or Excel loaded
-var SIM_USER2_NAME     = 'User B'; // v168.59: generic placeholder until real data loaded
+var SIM_USER2_NAME     = ''; // v168.59/173.2: empty until mode loaded — prevents "User B" ghost label
 // v161.0: hardcoded personal labels (removed Settings inputs — MVP focus)
 var SIM_PENSION_FUND_NAME = 'הפניקס+מבטחים';
 var SIM_SAVINGS_FUND_NAME = 'הראל';
@@ -7845,8 +7872,8 @@ var SIM_HAREL_MODE = 'without'; // v102.4: 'with' | 'without' — syncs with pen
 // Phase boundaries — v103.13-sim: P2/P3 start years derived from birth + retirement age constants
 var _simNow = new Date(); // v168.69: simulation anchor = current calendar month
 var SIM_P1_START = { y: _simNow.getFullYear(), m: _simNow.getMonth() + 1 };
-var SIM_P2_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_YAEL, m:9 }; // User A phase 2: 1962+64=2026
-var SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY,  m:9 }; // User A phase 3: 1962+67=2029
+var SIM_P2_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_YAEL, m:8 }; // User A phase 2: 1962+64=2026, Aug (Roy's birth month)
+var SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY,  m:8 }; // User A phase 3: 1962+67=2029, Aug (Roy's birth month 25/08)
 var SIM_END        = { y: SIM_BIRTH_YEAR_ROY + 95, m:12 }; // cap at User A age 95: 1962+95=2057
 var SIM_TARGET_AGE = 67; // v103.33: default target age 67 (retirement year)
 var SIM_Y_SCALE    = 60000; // v103.31: Y-axis ceiling in K (default 60M); user-adjustable
@@ -8961,10 +8988,15 @@ function ffsConfirmReset() {
   var modal = document.getElementById('ffs-reset-modal');
   if (modal) modal.style.display = 'none';
   closeFFSDrawer();
-  // v171.6: SCOPED reset — only FFS/SIMULATOR storage; ROY_EXCEL_EVENTS and Roy's Excel data are NEVER touched
-  try { localStorage.removeItem('FINANCIAL_SIM_PERSONAL_DATA'); } catch(e) {}
-  try { localStorage.removeItem('ffs_profile_v1'); } catch(e) {}
-  try { localStorage.removeItem('sim_user_events'); } catch(e) {}
+  // v172.3: SCOPED reset — only FFS_/GUEST_-prefixed keys + known simulator keys; ROY_EXCEL_EVENTS and Roy's Excel data are NEVER touched
+  try {
+    Object.keys(localStorage).forEach(function(k) {
+      if (k.startsWith('FFS_') || k.startsWith('GUEST_')) { try { localStorage.removeItem(k); } catch(e2) {} }
+    });
+    localStorage.removeItem('FINANCIAL_SIM_PERSONAL_DATA');
+    localStorage.removeItem('ffs_profile_v1');
+    localStorage.removeItem('sim_user_events');
+  } catch(e) {}
   // Clear in-memory FFS profile (Guest state)
   FFS_PROFILE.name = ''; FFS_PROFILE.birthDate = ''; FFS_PROFILE.retirementAge = 67;
   FFS_PROFILE.lifeExpectancy = 84; FFS_PROFILE.investments = []; FFS_PROFILE.realEstate = [];
@@ -9200,10 +9232,10 @@ function ffsApplyToSimulator() {
   // v168.78: sync all FFS-driven sliders (anti-ghosting)
   ffsSyncSliders();
   // v170.5: Recalculate phase boundaries using FFS profile data
-  SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY, m: 9 };
+  SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY, m: 8 };
   var _bridgeAge = parseInt(FFS_PROFILE.bridgeAge) || 0;
   SIM_P2_START = _bridgeAge > 0
-    ? { y: SIM_BIRTH_YEAR_ROY + _bridgeAge, m: 9 }
+    ? { y: SIM_BIRTH_YEAR_ROY + _bridgeAge, m: 8 }
     : { y: SIM_P3_START.y, m: SIM_P3_START.m };
   SIM_END = { y: SIM_BIRTH_YEAR_ROY + (parseInt(FFS_PROFILE.lifeExpectancy) || 84), m: 12 };
   // v171.1: No-Purge protection — remove ONLY ffs_event entries; events_timeline (Roy's Excel spike) is NEVER wiped here
@@ -9281,6 +9313,24 @@ function simSetHarelMode(mode) {
 function simMonthIdx(y, m) {
   return (y - SIM_P1_START.y) * 12 + (m - SIM_P1_START.m);
 }
+// v175.0: Label-aware index lookup — royData[] has more entries than totalMonths when event
+// months generate two snapshots (pre-event + post-event via double-point trick).
+// simMonthIdx() returns a bare month-count that is always ≤ the true array index.
+// This function searches labels[] for "YYYY-MM" and returns the LAST match
+// (post-event = canonical post-lump-sum wealth). Falls back to nearest preceding month.
+function simFindLabelIdx(result, year, month) {
+  if (!result || !result.labels || !result.labels.length) return -1;
+  var target = year + '-' + (month < 10 ? '0' + month : String(month));
+  // v176.2: FIRST occurrence — pre-event snapshot (birthday wealth before that month's events)
+  for (var _i = 0; _i < result.labels.length; _i++) {
+    if (result.labels[_i] === target) return _i;
+  }
+  var _best = -1;
+  for (var _i = 0; _i < result.labels.length; _i++) {
+    if (result.labels[_i] <= target) _best = _i;
+  }
+  return _best;
+}
 function simIdxToYM(idx) {
   var total = idx + (SIM_P1_START.y * 12 + SIM_P1_START.m - 1);
   var y = Math.floor(total / 12);
@@ -9290,29 +9340,38 @@ function simIdxToYM(idx) {
 
 // ── Projection Engine ─────────────────────────
 function simRunEngine() {
+  // v173.8: Identity Firewall — engine forbidden to run with wrong birth years in EXCEL mode.
+  // If stale localStorage somehow set wrong years, re-inject Roy/Yael constants before any calculation.
+  if (isExcelLoaded() && (SIM_BIRTH_YEAR_ROY !== 1962 || SIM_BIRTH_YEAR_YAEL !== 1968)) {
+    if (typeof _applyExcelIdentity === 'function') _applyExcelIdentity();
+  }
   // v103.4: 3-layer split — liquid / phoenix / harel; filter isolation for Roy-only view
   // v103.38: liquid-only starting capital (no dira) — real estate tracked separately to avoid double-counting yield
   // v103.41: royRealEstateK is now dynamic — grows at SIM_RE_GROWTH_RATE annually + investment events add to it
-  // v168.92/93: FIREWALL — enforce strict source isolation before every engine run
+  // v173.6: Pure Function Rule — snapshot ALL inputs before the loop.
+  // FUNDS/CF_DATA/PENSION_ASSETS are read-only here; the loop never writes to external state.
+  // v168.92/93: FIREWALL — enforce strict source isolation; capture result as local _psnForLoop.
+  // v173.7: Sterile Engine — snapshot pension income locally; engine NEVER writes to SIM_PENSION_MONTHLY.
+  // SIM_PENSION_MONTHLY is set BEFORE the engine call by _excelEngineSync() or simInit().
+  var _psnForLoop = SIM_PENSION_MONTHLY; // capture current authoritative value
   if (isExcelLoaded()) {
-    // Excel mode: ensure SIM_PENSION_MONTHLY = net pension + rental income, not stale FFS value
+    // Excel mode: override snapshot with live Excel-authoritative value if available
     var _fwNetPns  = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
       ? pnsNetMonthlyNoHarel : simGetRoyPension();
     var _fwRentNIS = simGetRoyRentalIncome();
     var _fwFixed   = _fwNetPns + _fwRentNIS;
-    // v169.7: ALWAYS override with Excel-authoritative value — removes the === 0 guard that
-    // allowed Demo ghost incomes (25K) to persist in Excel mode after a mode switch.
-    if (_fwFixed > 0) SIM_PENSION_MONTHLY = _fwFixed;
+    if (_fwFixed > 0) _psnForLoop = _fwFixed; // local snapshot only — no global write
   }
-  var royLiquid        = simGetRoyCapital(); // K — stocks, cash, funds (excludes apartment)
-  var royRealEstateK   = simGetRoyRealEstate(); // K — dynamic base (grows with RE growth rate)
-  var totalPenK        = simGetRoyPensionAccum() / 1000;       // K — total pension accumulation
-  var harelK           = simGetRoyHarelAccum() / 1000;         // K — Harel portion
-  var royPhoenixCap    = totalPenK - harelK;                   // K — Layer 2: Phoenix/regular pension
-  var royHarelCap      = harelK;                               // K — Layer 3: Harel insurance (הון לירושה)
-  var totalPremium     = simGetRoyMonthlyPremium();            // NIS/month
-  var harelPremium     = simGetRoyHarelPremium();              // NIS/month
-  var phoenixPremium   = totalPremium - harelPremium;          // NIS/month
+  // v173.6: read-only deepClone snapshot of all starting capitals
+  var royLiquid        = simGetRoyCapital();               // K — liquid (stocks, cash, funds; no apartment)
+  var royRealEstateK   = simGetRoyRealEstate();            // K — dynamic base (grows with RE growth rate)
+  var totalPenK        = simGetRoyPensionAccum() / 1000;  // K — total pension accumulation
+  var harelK           = simGetRoyHarelAccum() / 1000;    // K — Harel portion
+  var royPhoenixCap    = totalPenK - harelK;              // K — Layer 2: Phoenix/regular pension
+  var royHarelCap      = harelK;                          // K — Layer 3: Harel insurance (הון לירושה)
+  var totalPremium     = simGetRoyMonthlyPremium();       // NIS/month
+  var harelPremium     = simGetRoyHarelPremium();         // NIS/month
+  var phoenixPremium   = totalPremium - harelPremium;     // NIS/month
   // v103.4: filter isolation — Yael zeroed in Roy-only view
   var yaelCapital      = (SIM_VIEW === 'roy') ? 0 : simGetYaelCapital();
 
@@ -9327,13 +9386,14 @@ function simRunEngine() {
   var instructorSal    = SIM_INSTRUCTOR_SAL;
   var royPhoenixPension = simGetRoyPension();        // NIS/month — used for Layer 2 capital draw
   var royHarelPension   = simGetRoyHarelPension();   // NIS/month — used for Layer 3 capital draw
-  // v103.30: Phase 3 liquid income = "הכנסה קבועה" slider (SIM_PENSION_MONTHLY) so slider is live
-  var totalPensionIncome = SIM_PENSION_MONTHLY > 0
-    ? SIM_PENSION_MONTHLY
+  // v103.30: Phase 3 liquid income uses _psnForLoop (snapshot) — immune to mid-run external changes
+  var totalPensionIncome = _psnForLoop > 0
+    ? _psnForLoop
     : royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0);
 
   var phase2Idx   = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
   var phase3Idx   = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
+  var instructorStartIdx = simMonthIdx(SIM_BIRTH_YEAR_ROY + 65, 9); // v177.0: Sep 2027 (age 65) — instructor income window start
   var totalMonths = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
   var reGrowthMonthly = SIM_RE_GROWTH_RATE / 100 / 12; // v103.41: monthly RE appreciation rate
   // v168.72/84: FFS monthly savings — only when no Excel loaded (strict isolation)
@@ -9465,7 +9525,8 @@ function simRunEngine() {
       var _phase1Base = (currentNetCashflow !== 0) ? currentNetCashflow : (currentSalary - targetExp);
       royLiquid += (_inBridge ? _bridgeCashflow : _phase1Base) / 1000;
     } else if (i < phase3Idx) {
-      royLiquid += ((_inBridge ? _bridgeCashflow : instructorSal) - targetExp) / 1000;
+      var _effInstructorSal = (i >= instructorStartIdx) ? instructorSal : 0; // v177.0: gate to Sep 2027 (age 65)
+      royLiquid += ((_inBridge ? _bridgeCashflow : _effInstructorSal) - targetExp) / 1000;
     } else {
       royLiquid += (totalPensionIncome - targetExp) / 1000;
     }
@@ -9551,7 +9612,8 @@ var simBgPlugin = {
 function simRenderChart(result) {
   var wrap = document.getElementById('sim-chart-wrap');
   if (!wrap) return;
-  SIM_LAST_RESULT = result; // v168.69: cache full (pre-zoom) result for AI context
+  SIM_LAST_RESULT = result;            // v168.69: cache full (pre-zoom) result for AI context
+  SIM_LAST_CALCULATED_RESULT = result; // v173.6: canonical source of truth (Overview + Simulator sync)
   // v103.40: apply zoom slice before rendering
   var zr = simGetZoomRange();
   result = simSliceResult(result, zr.start, zr.end);
@@ -9915,7 +9977,8 @@ function simUpdateLegend(datasets) {
 
 // ── v103.36: Financial Events Timeline ────────
 var SIM_USER_EVENTS = []; // user-added events — persisted to localStorage (v158.0)
-var SIM_LAST_RESULT = null; // v168.69: cache last engine output for AI context
+var SIM_LAST_RESULT            = null; // v168.69: cache last engine output for AI context
+var SIM_LAST_CALCULATED_RESULT = null; // v173.6: canonical single source of truth — both Overview and Simulator read from this
 
 // v158.0: save/restore user events; v171.0: segregated storage — Excel vs FFS events
 var _SIM_EVENTS_LS_KEY       = 'sim_user_events';   // FFS/manual events (Yoav / SIMULATOR)
@@ -10427,34 +10490,38 @@ function simRenderKPI() {
 
   // v103.29: 4-metric header KPIs — fully wired + subtitle context
 
-  // 1. הון חזוי — wealth at target age (v168.114: fully reactive to SIM_TARGET_AGE)
-  // Use SIM_LAST_RESULT (cached by simRenderChart) — avoids running engine twice and diverging values
-  var _hdrResult = (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0)
-      ? SIM_LAST_RESULT
-      : simRunEngine();
+  // 1. הון חזוי — wealth at target age (v173.6: passive subscriber — reads SIM_LAST_CALCULATED_RESULT only)
+  var _hdrResult = (SIM_LAST_CALCULATED_RESULT && SIM_LAST_CALCULATED_RESULT.royData &&
+                    SIM_LAST_CALCULATED_RESULT.royData.length > 0)
+    ? SIM_LAST_CALCULATED_RESULT
+    : ((SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0)
+        ? SIM_LAST_RESULT : null);
   // v168.114: index = birth year + TARGET AGE (not hardcoded P3_START) — fully reactive
   var _kpiAge    = (SIM_TARGET_AGE && SIM_TARGET_AGE >= 60) ? SIM_TARGET_AGE : SIM_RETIREMENT_AGE_ROY;
   var _kpiYear   = SIM_BIRTH_YEAR_ROY + _kpiAge;
-  var _kpiMonth  = SIM_P3_START.m || 9;
-  var _targetIdx = simMonthIdx(_kpiYear, _kpiMonth);
+  var _kpiMonth  = 8; // Roy born 25/08/1962 — birthday-month lookup
+  var _targetIdx = (_hdrResult && typeof simFindLabelIdx === 'function')
+    ? simFindLabelIdx(_hdrResult, _kpiYear, _kpiMonth)
+    : (_hdrResult ? simMonthIdx(_kpiYear, _kpiMonth) : -1);
   if (_targetIdx < 0) _targetIdx = 0;
-  if (_targetIdx >= _hdrResult.royData.length) _targetIdx = _hdrResult.royData.length - 1;
+  if (_hdrResult && _targetIdx >= _hdrResult.royData.length) _targetIdx = _hdrResult.royData.length - 1;
+  console.log('[KPI v176.3] age=' + _kpiAge + ' y=' + _kpiYear + ' m=' + _kpiMonth + ' idx=' + _targetIdx + ' val=' + (_hdrResult && _hdrResult.royData ? (_hdrResult.royData[_targetIdx]||'?') : 'no-result'));
   var _wealthAtAge = 0;
-  if (_targetIdx >= 0 && _hdrResult.royData && _hdrResult.royData.length > 0) {
+  if (_hdrResult && _targetIdx >= 0 && _hdrResult.royData && _hdrResult.royData.length > 0) {
     // v168.113: הון חזוי = total wealth (liquid + pension + real estate) — matches "הון נוכחי" definition
     _wealthAtAge = (_hdrResult.royData[_targetIdx] || 0);
     if (SIM_VIEW === 'combined') _wealthAtAge += (_hdrResult.yaelData[_targetIdx] || 0);
     if (SIM_VIEW === 'yael')     _wealthAtAge  = (_hdrResult.yaelData[_targetIdx] || 0);
   }
-  // v169.11: SHARED WEALTH — Simulator reads from OV_CACHED_WEALTH (same global as Overview).
-  // This eliminates the 8.4M vs 26.6M divergence by forcing both tabs to one source of truth.
-  // Only for Roy view; Yael/Combined use their own engine data (no OV_CACHED_WEALTH equivalent).
+  // v175.2: Direct binding — _wealthAtAge is computed by simFindLabelIdx for exact SIM_TARGET_AGE.
+  // OV_CACHED_WEALTH is Overview-tab source of truth only; Simulator always uses _wealthAtAge.
+  // Keeps OV_CACHED_WEALTH in sync so Overview stays consistent when user changes age slider.
   if (el('sim-hdr-wealth-at-age')) {
-    var _ovWealth = (typeof OV_CACHED_WEALTH !== 'undefined' && OV_CACHED_WEALTH !== null
-                     && SIM_VIEW !== 'yael' && SIM_VIEW !== 'combined')
-      ? OV_CACHED_WEALTH
-      : simFmtM(_wealthAtAge);
-    el('sim-hdr-wealth-at-age').textContent = _ovWealth;
+    var _dispWealth = simFmtM(_wealthAtAge);
+    el('sim-hdr-wealth-at-age').textContent = _dispWealth;
+    if (SIM_VIEW !== 'yael' && SIM_VIEW !== 'combined' && _wealthAtAge > 0) {
+      OV_CACHED_WEALTH = (_wealthAtAge / 1000).toFixed(1);
+    }
   }
 
   // v168.114: subtitle is fully reactive — updates immediately when target age changes
@@ -10613,13 +10680,48 @@ function simSetView(v) {
 // v103.22: target age input handler
 function simSetTargetAge(val) {
   var n = parseInt(val);
-  if (isNaN(n) || n < 60 || n > 100) return; // v103.33: min 60 to allow retirement age 67
+  if (isNaN(n) || n < 60 || n > 100) return;
   SIM_TARGET_AGE = n;
   var inp = document.getElementById('sim-target-age-input');
   if (inp && parseInt(inp.value) !== n) inp.value = n;
+  // v176.0 Hard Reset: null caches and re-run engine fresh to eliminate hysteresis
+  SIM_LAST_RESULT = null;
+  SIM_LAST_CALCULATED_RESULT = null;
+  var _fresh = simRunEngine();
+  SIM_LAST_RESULT = _fresh;
+  SIM_LAST_CALCULATED_RESULT = _fresh;
   simRenderKPI();
-  // v104.1: sync overview header KPI label if rendered
   if (typeof ovRenderKPIs === 'function') ovRenderKPIs();
+}
+
+// v175.2: Lab diagnostic — zero-expense baseline run, age 67-100, no state pollution.
+// Saves/restores SIM_TARGET_EXP and SIM_RETIRE_EXP so UI is never polluted.
+// Call from browser console: simDebugAgeTable()
+// Monotonically rising wealth confirms engine + simFindLabelIdx are correct.
+function simDebugAgeTable() {
+  var _savedExp = SIM_TARGET_EXP;
+  var _savedRet = SIM_RETIRE_EXP;
+  SIM_TARGET_EXP = 0;
+  SIM_RETIRE_EXP = 0;
+  var result  = simRunEngine();
+  SIM_TARGET_EXP = _savedExp;
+  SIM_RETIRE_EXP = _savedRet;
+
+  var birthYr = SIM_BIRTH_YEAR_ROY || 1962;
+  var retireM = 8; // Roy born 25/08/1962 — birthday-month lookup
+  var rows = [];
+  for (var _age = 67; _age <= 100; _age++) {
+    var _yr      = birthYr + _age;
+    var _idx     = simFindLabelIdx(result, _yr, retireM);
+    var _wealthK = (_idx >= 0 && result.royData && result.royData[_idx]) ? result.royData[_idx] : 0;
+    rows.push({ Age: _age, Year: _yr, Idx: _idx, WealthM: (_wealthK / 1000).toFixed(2) });
+  }
+  console.table(rows);
+  // Refresh UI with correct (expense-restored) engine output
+  SIM_LAST_RESULT = simRunEngine();
+  SIM_LAST_CALCULATED_RESULT = SIM_LAST_RESULT;
+  simRenderKPI();
+  return rows;
 }
 
 // v103.31: Y-axis scale selector handler
@@ -10842,10 +10944,11 @@ function simInit() {
 
   // v137.0: apply saved default zoom before rendering so chart + timeline use correct range
   if (SIM_DEFAULT_ZOOM && SIM_DEFAULT_ZOOM !== SIM_ZOOM) SIM_ZOOM = SIM_DEFAULT_ZOOM;
-  simRenderKPI();
+  // v176.3: Nuclear — delegate to simSetTargetAge (proven slider path: null+run+KPI+ovKPIs)
+  simSetTargetAge(SIM_TARGET_AGE || SIM_RETIREMENT_AGE_ROY || 67);
   simRenderEvents();
-  simRenderTimeline(); // v103.36: events timeline below chart
-  simRenderChart(simRunEngine());
+  simRenderTimeline();
+  simRenderChart(SIM_LAST_RESULT || simRunEngine());
   // v137.0: update zoom button active state to reflect the applied default
   ['full','retirement','decade'].forEach(function(m) {
     var _zBtn = document.getElementById('sim-zoom-' + m);
@@ -11082,21 +11185,18 @@ function ovRenderKPIs() {
         if (SIM_TARGET_EXP === 0 && typeof SIM_RETIRE_EXP !== 'undefined' && SIM_RETIRE_EXP > 0) {
           SIM_TARGET_EXP = SIM_RETIRE_EXP;
         }
-        // v168.114: use cached engine result when available — avoids duplicate run when target age changes
-        var _hadCachedResult = !!(typeof SIM_LAST_RESULT !== 'undefined' && SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0);
-        var _res = _hadCachedResult ? SIM_LAST_RESULT : simRunEngine();
-        // v169.10: cache fresh result so Simulator tab (simRenderKPI) reads SAME data — prevents 26.6M vs 8.4M divergence
-        if (!_hadCachedResult && _res && _res.royData && typeof SIM_LAST_RESULT !== 'undefined') {
-          SIM_LAST_RESULT = _res;
-        }
+        // v173.5: Passive Subscriber — no independent engine run; reads SIM_LAST_RESULT exclusively
+        var _res = (typeof SIM_LAST_RESULT !== 'undefined' && SIM_LAST_RESULT &&
+                    SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0)
+          ? SIM_LAST_RESULT : null;
         var _yr  = (typeof SIM_BIRTH_YEAR_ROY !== 'undefined') ? SIM_BIRTH_YEAR_ROY + targetAge : 2029;
-        var _retireM = (typeof SIM_P3_START !== 'undefined') ? (SIM_P3_START.m || 9) : 9;
-        var _idx = (typeof simMonthIdx === 'function') ? simMonthIdx(_yr, _retireM) : (_yr - 2026);
+        var _retireM = 8; // Roy born 25/08/1962 — birthday-month lookup
+        var _idx = (typeof simFindLabelIdx === 'function' && _res)
+          ? simFindLabelIdx(_res, _yr, _retireM)
+          : (typeof simMonthIdx === 'function' ? simMonthIdx(_yr, _retireM) : (_yr - 2026));
         if (_idx < 0) _idx = 0;
-        // v171.9: clamp upper bound — prevents 0.0 when target year is beyond simulation horizon
-        if (_res.royData && _idx >= _res.royData.length) _idx = Math.max(0, _res.royData.length - 1);
-        // v168.113: total wealth (liquid + pension + real estate) — aligns with "הון נוכחי" card
-        var _w = (_idx >= 0 && _res.royData && _idx < _res.royData.length) ? _res.royData[_idx] : 0;
+        if (_res && _res.royData && _idx >= _res.royData.length) _idx = Math.max(0, _res.royData.length - 1);
+        var _w = (_res && _idx >= 0 && _res.royData && _idx < _res.royData.length) ? _res.royData[_idx] : 0;
         if (_w > 0) {
           OV_CACHED_WEALTH = (_w / 1000).toFixed(1);
           wealthEl.textContent = OV_CACHED_WEALTH;
@@ -12523,6 +12623,99 @@ function syncBirthYearsFromSettings() {
   SIM_END.y      = SIM_BIRTH_YEAR_ROY + 95;
 }
 
+// v172.3: Settings sub-tab navigation
+function switchSettingsSubTab(tab) {
+  ['profiles', 'system'].forEach(function(t) {
+    var panel = document.getElementById('stg-sub-' + t);
+    var btn   = document.getElementById('stg-subtab-' + t);
+    if (panel) { panel.style.display = (t === tab) ? 'block' : 'none'; panel.classList.toggle('active', t === tab); }
+    if (btn)   btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'profiles') syncProfileLabels();
+}
+
+// v172.4: Sync profile labels and input values based on active mode
+// Called from: switchSettingsSubTab('profiles'), applyUserNames(), switchMode(), switchTab('settings')
+function syncProfileLabels() {
+  var mode = (typeof APP_MODE !== 'undefined') ? APP_MODE : 'EXCEL';
+
+  // Determine display names per mode
+  var n1, n2, ph1, ph2;
+  if (mode === 'DEMO') {
+    n1 = 'דן';       n2 = 'דינה';
+    ph1 = 'דן';      ph2 = 'דינה';
+  } else if (mode === 'SIMULATOR') {
+    n1 = 'משתתף 1';  n2 = 'משתתף 2';
+    ph1 = 'שם פרטי'; ph2 = 'ריק = משתתף יחיד';
+  } else { // EXCEL / default
+    n1 = (typeof SIM_USER1_NAME !== 'undefined' && SIM_USER1_NAME) ? SIM_USER1_NAME : 'רועי';
+    n2 = (typeof SIM_USER2_NAME !== 'undefined' && SIM_USER2_NAME) ? SIM_USER2_NAME : 'יעל';
+    ph1 = 'רועי';    ph2 = 'יעל';
+  }
+
+  // Update name-label spans
+  var lbl1 = document.getElementById('stg-lbl-name1');
+  var lbl2 = document.getElementById('stg-lbl-name2');
+  if (lbl1) lbl1.textContent = n1;
+  if (lbl2) lbl2.textContent = n2;
+
+  // Update placeholders (never leaks Dan/Dina into EXCEL mode)
+  var inp1 = document.getElementById('stg-user1-name');
+  var inp2 = document.getElementById('stg-user2-name');
+  if (inp1) inp1.placeholder = ph1;
+  if (inp2) inp2.placeholder = ph2;
+
+  // v172.9: Strictly Exclusive Input Values — force correct value per mode; no "only if empty" leakage
+  var b1 = document.getElementById('stg-user1-birth');
+  var b2 = document.getElementById('stg-user2-birth');
+  if (mode === 'EXCEL') {
+    if (inp1) inp1.value = (typeof SIM_USER1_NAME !== 'undefined' && SIM_USER1_NAME) ? SIM_USER1_NAME : 'רועי';
+    if (inp2) inp2.value = (typeof SIM_USER2_NAME !== 'undefined' && SIM_USER2_NAME) ? SIM_USER2_NAME : 'יעל';
+    if (b1) b1.value = (typeof SIM_USER1_BIRTH !== 'undefined' && SIM_USER1_BIRTH) ? SIM_USER1_BIRTH : '';
+    if (b2) b2.value = (typeof SIM_USER2_BIRTH !== 'undefined' && SIM_USER2_BIRTH) ? SIM_USER2_BIRTH : '';
+  } else if (mode === 'DEMO') {
+    if (inp1) inp1.value = 'דן';
+    if (inp2) inp2.value = 'דינה';
+    if (b1) b1.value = '1975-01-01';
+    if (b2) b2.value = '1978-05-15';
+  } else { // SIMULATOR — purge contaminated foreign names; user-typed values are preserved
+    if (inp1 && ['דן','רועי'].indexOf(inp1.value) !== -1) inp1.value = '';
+    if (inp2 && ['דינה','יעל'].indexOf(inp2.value) !== -1) inp2.value = '';
+    if (b1 && b1.value === '1975-01-01') b1.value = '';
+    if (b2 && b2.value === '1978-05-15') b2.value = '';
+  }
+
+  // Retirement age fields
+  var ra1 = document.getElementById('stg-retire-age-roy');
+  var ra2 = document.getElementById('stg-retire-age-yael');
+  if (mode === 'DEMO') {
+    // v173.1: DEMO Hard-Lock on retirement ages — Dan = 67, Dina = 64 (fixed for demo scenario)
+    if (ra1) ra1.value = '67';
+    if (ra2) ra2.value = '64';
+  } else {
+    // EXCEL / SIMULATOR — restore from globals
+    if (ra1 && typeof SIM_RETIREMENT_AGE_ROY  !== 'undefined') ra1.value = SIM_RETIREMENT_AGE_ROY;
+    if (ra2 && typeof SIM_RETIREMENT_AGE_YAEL !== 'undefined') ra2.value = SIM_RETIREMENT_AGE_YAEL;
+  }
+
+  // v172.5/173.1: DEMO Hard-Lock — disable Name, DOB, and Retirement Age fields in DEMO mode
+  var _isDemo = (mode === 'DEMO');
+  var _lockFields = [inp1, inp2, b1, b2, ra1, ra2];
+  _lockFields.forEach(function(f) {
+    if (!f) return;
+    f.disabled = _isDemo;
+    // CSS .settings-input:disabled handles background/color/opacity/cursor via !important rules
+    // Only clear inline style overrides when unlocking so CSS takes over cleanly
+    if (!_isDemo) {
+      f.style.opacity    = '';
+      f.style.cursor     = '';
+      f.style.background = '';
+    }
+  });
+  var _hint = document.getElementById('demo-identity-lock-hint');
+  if (_hint) _hint.style.display = _isDemo ? 'block' : 'none';
+}
+
 function loadSettings() {
   var raw = localStorage.getItem(SETTINGS_LS_KEY);
   var s = null;
@@ -12544,6 +12737,8 @@ function loadSettings() {
     if (s.pensionAcc     !== undefined) SIM_PENSION_ACC     = parseFloat(s.pensionAcc)    || 0;
     if (s.rentalIncome   !== undefined) SIM_RENTAL_INCOME   = parseFloat(s.rentalIncome)  || 0;
     if (s.retireExp      !== undefined) SIM_RETIRE_EXP      = parseInt(s.retireExp, 10)   || SIM_RETIRE_EXP;
+    // v174.0: Expense State Anchor — SIM_RETIRE_EXP must never be 0; restore Roy default if blank/corrupt
+    if (!SIM_RETIRE_EXP || SIM_RETIRE_EXP === 0) SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp;
     if (s.user1Name      !== undefined) SIM_USER1_NAME      = s.user1Name  || SIM_USER1_NAME;
     if (s.user2Name      !== undefined) SIM_USER2_NAME      = s.user2Name  || SIM_USER2_NAME;
     if (s.user1Birth     !== undefined) SIM_USER1_BIRTH     = s.user1Birth || '';
@@ -12684,11 +12879,13 @@ function saveSettings() {
   var user1NameEl    = document.getElementById('stg-user1-name');
   var user1Name      = (user1NameEl && user1NameEl.value.trim()) ? user1NameEl.value.trim() : SIM_USER1_NAME;
   var user2NameEl    = document.getElementById('stg-user2-name');
-  var user2Name      = (user2NameEl && user2NameEl.value.trim()) ? user2NameEl.value.trim() : SIM_USER2_NAME;
+  // v172.3: if user2 name field exists and is explicitly blank, clear it (single-participant mode)
+  var user2Name      = user2NameEl ? user2NameEl.value.trim() : SIM_USER2_NAME;
   var user1BirthEl   = document.getElementById('stg-user1-birth');
   var user1Birth     = (user1BirthEl && user1BirthEl.value) ? user1BirthEl.value : SIM_USER1_BIRTH; // v169.2: fall back to global when blank (privacy mode)
   var user2BirthEl   = document.getElementById('stg-user2-birth');
-  var user2Birth     = (user2BirthEl && user2BirthEl.value) ? user2BirthEl.value : SIM_USER2_BIRTH; // v169.2: fall back to global when blank
+  // v172.3: if user2 birth field exists and is explicitly blank, clear global (single-participant)
+  var user2Birth     = user2BirthEl ? user2BirthEl.value : SIM_USER2_BIRTH;
 
   // Validate — fallback to current global if input is NaN
   if (isNaN(retireRoy))      retireRoy      = SIM_RETIREMENT_AGE_ROY;
@@ -12727,6 +12924,18 @@ function saveSettings() {
   // v156.0: push updated globals into simulator slider DOM immediately
   syncSettingsToSliders();
 
+  // v173.2: Identity Guard — never persist DEMO identity (Dan/Dina) to SETTINGS_LS_KEY.
+  // If user clicks "שמור" while in DEMO mode, save Roy/Yael constants instead of Dan/Dina DOM values.
+  // This guarantees Demo→Excel transitions always restore Roy's real identity via loadSettings().
+  // v173.2/v173.7: Identity Guard — never persist DEMO values to SETTINGS_LS_KEY.
+  // If user clicks "שמור" while in DEMO mode, save Roy/Yael constants instead of Demo DOM values.
+  var _isDemoSave = (typeof APP_MODE !== 'undefined' && APP_MODE === 'DEMO');
+  var _saveUser1Name  = _isDemoSave ? 'רועי'                       : user1Name;
+  var _saveUser2Name  = _isDemoSave ? 'יעל'                        : user2Name;
+  var _saveUser1Birth = _isDemoSave ? '1962-08-25'                  : user1Birth;
+  var _saveUser2Birth = _isDemoSave ? '1968-06-28'                  : user2Birth; // Yael's correct date
+  var _saveRetireExp  = _isDemoSave ? ROY_DEFAULTS.retireExp        : retireExp; // v173.7: prevent DEMO expense contaminating cold-start
+
   // Persist to localStorage
   localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify({
     retireRoy:      retireRoy,
@@ -12740,11 +12949,11 @@ function saveSettings() {
     capitalTax:     capitalTax,
     pensionAcc:     pensionAcc,
     rentalIncome:   rentalIncome,
-    retireExp:      retireExp,
-    user1Name:        user1Name,
-    user2Name:        user2Name,
-    user1Birth:       user1Birth,
-    user2Birth:       user2Birth,
+    retireExp:      _saveRetireExp,
+    user1Name:        _saveUser1Name,
+    user2Name:        _saveUser2Name,
+    user1Birth:       _saveUser1Birth,
+    user2Birth:       _saveUser2Birth,
   }));
 
   // v120.0: Show success feedback; keep button disabled after save (dirty-state logic)
@@ -12770,24 +12979,38 @@ function saveSettings() {
 
 // v125.0 / v126.0: Apply user names to all dynamic labels across the dashboard
 function applyUserNames() {
+  // v172.5: Identity Guard — Roy/Yael names only appear in EXCEL mode
+  var _apMode = (typeof APP_MODE !== 'undefined') ? APP_MODE : 'EXCEL';
+  var n1, n2;
+  if (_apMode === 'SIMULATOR') {
+    n1 = SIM_USER1_NAME || 'משתתף 1';
+    n2 = SIM_USER2_NAME || 'משתתף 2';
+  } else if (_apMode === 'DEMO') {
+    n1 = SIM_USER1_NAME || 'דן';
+    n2 = SIM_USER2_NAME || 'דינה';
+  } else {
+    n1 = SIM_USER1_NAME || 'רועי';
+    n2 = SIM_USER2_NAME || 'יעל';
+  }
+
   // Simulator view buttons
   var btnRoy = document.getElementById('sim-btn-roy');
   var btnYael = document.getElementById('sim-btn-yael');
-  if (btnRoy)  btnRoy.textContent  = SIM_USER1_NAME;
-  if (btnYael) btnYael.textContent = SIM_USER2_NAME;
+  if (btnRoy)  btnRoy.textContent  = n1;
+  if (btnYael) btnYael.textContent = n2;
 
   // Pension view select options
   var pnsSelect = document.getElementById('pns-view-select');
   if (pnsSelect && pnsSelect.options.length >= 2) {
-    pnsSelect.options[0].textContent = SIM_USER1_NAME;
-    pnsSelect.options[1].textContent = SIM_USER2_NAME;
+    pnsSelect.options[0].textContent = n1;
+    pnsSelect.options[1].textContent = n2;
   }
 
   // Investment view select options
   var invSelect = document.getElementById('inv-view-select');
   if (invSelect && invSelect.options.length >= 2) {
-    invSelect.options[0].textContent = SIM_USER1_NAME;
-    invSelect.options[1].textContent = SIM_USER2_NAME;
+    invSelect.options[0].textContent = n1;
+    invSelect.options[1].textContent = n2;
   }
 
   // v126.0 / v129.0: All labelled spans across the UI (settings tab + modal)
@@ -12806,13 +13029,15 @@ function applyUserNames() {
   ];
   spans1.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) el.textContent = SIM_USER1_NAME;
+    if (el) el.textContent = n1;
   });
   spans2.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) el.textContent = SIM_USER2_NAME;
+    if (el) el.textContent = n2;
   });
 
+  // v172.4: keep profiles sub-tab labels in sync
+  if (typeof syncProfileLabels === 'function') syncProfileLabels();
 }
 
 // v126.0: Calculate the calendar year of retirement given a birth date string and retirement age
@@ -13228,15 +13453,116 @@ function loadDemoData() {
 }
 
 // =============================================
-// v166.0: CLEAR DATA / LOGOUT
+// v173.2: EXCEL IDENTITY FIREWALL — hard-set Roy/Yael constants after any settings load.
+// Called after loadSettings() in switchMode('EXCEL') and DOMContentLoaded to guarantee
+// that Demo-contaminated localStorage values (Dan/Dina) never bleed into EXCEL mode.
+// =============================================
+function _applyExcelIdentity() {
+  SIM_USER1_NAME          = 'רועי';
+  SIM_USER2_NAME          = 'יעל';
+  SIM_USER1_BIRTH         = '1962-08-25'; // Roy — constant, never changes
+  SIM_USER2_BIRTH         = '1968-06-28'; // Yael — v173.3: corrected (was '1978-05-15' which is Dina's date)
+  SIM_RETIREMENT_AGE_ROY  = 67;
+  SIM_RETIREMENT_AGE_YAEL = 64;
+  // v173.4: Dynamic coupling — targetAge always follows retirementAge, never hard-coded
+  SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY;
+  var _taEl = document.getElementById('sim-target-age-input');
+  if (_taEl) _taEl.value = SIM_TARGET_AGE;
+  if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
+  if (typeof syncProfileLabels          === 'function') syncProfileLabels();
+  if (typeof applyUserNames             === 'function') applyUserNames();
+}
+
+// =============================================
+// v173.5: UNIFIED EXCEL ENGINE SYNC
+// Single authoritative sequence shared by all 3 EXCEL loading paths
+// (loadExcelFileCore, switchMode('EXCEL'), DOMContentLoaded).
+// Call AFTER loadSettings() and after localStorage data is restored.
+// Sequence: Lock → Identity+Coupling → Sanitize → Data → Final Fire → Cache
+// =============================================
+function _excelEngineSync() {
+  activeDataSource   = 'EXCEL';
+  SIM_RETIRE_EXP     = ROY_DEFAULTS.retireExp;
+  SIM_INSTRUCTOR_SAL = ROY_DEFAULTS.instructorSal; // v177.1: Roy-specific — only Excel mode gets 35000
+  // v174.0: Bidirectional Binding — push authoritative retireExp to Settings UI immediately
+  (function() { var _ef = document.getElementById('stg-retire-exp'); if (_ef) _ef.value = SIM_RETIRE_EXP; })();
+  _applyExcelIdentity();                              // identity constants + SIM_TARGET_AGE coupling
+  if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
+  SIM_TARGET_EXP = SIM_RETIRE_EXP;                  // restore after resetCalculationMemory zeroed it
+  (function() {
+    var _sl = document.getElementById('pns-tax-slider');
+    if (typeof pensionSliderChange === 'function') pensionSliderChange(_sl ? _sl.value : '35');
+    var _pm = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
+      ? pnsNetMonthlyNoHarel : (typeof simGetRoyPension === 'function' ? simGetRoyPension() : 0);
+    var _rm = typeof simGetRoyRentalIncome === 'function' ? simGetRoyRentalIncome() : 0;
+    if (_pm + _rm > 0) SIM_PENSION_MONTHLY = _pm + _rm;
+  })();
+  SIM_LAST_RESULT            = null;
+  SIM_LAST_CALCULATED_RESULT = null;
+  if (typeof simRunEngine === 'function') {
+    SIM_LAST_RESULT = simRunEngine();
+    SIM_LAST_CALCULATED_RESULT = SIM_LAST_RESULT; // v173.6: keep canonical result in sync
+    if (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0) {
+      var _age = SIM_TARGET_AGE;
+      var _idx = typeof simFindLabelIdx === 'function'
+        ? simFindLabelIdx(SIM_LAST_RESULT, SIM_BIRTH_YEAR_ROY + _age, 8)
+        : 0;
+      if (_idx < 0) _idx = 0;
+      var _w = SIM_LAST_RESULT.royData[_idx] || 0;
+      if (_w > 0) OV_CACHED_WEALTH = (_w / 1000).toFixed(1);
+    }
+  }
+}
+
+// =============================================
+// v173.0: NAVBAR CLEAR — resets UI to Welcome screen without deleting any localStorage data
+// =============================================
+function navbarClearAll() {
+  absoluteInternalReset();
+  APP_MODE = null;
+  _updateModeSelectorUI(null);
+  switchTab('overview');
+}
+
+// =============================================
+// v172.5: CLEAR DEMO DATA — scoped to DEMO_ prefix only; returns to Welcome screen, never auto-loads Roy's data
 // =============================================
 function clearDashboardData() {
-  if (!confirm('האם למחוק את כל הנתונים ולחזור למסך הפתיחה?\nפעולה זו אינה ניתנת לביטול.')) return;
-  isDemoMode = false; // v168.12
-  APP_MODE = 'EXCEL'; // v169.1: reset mode
-  try { sessionStorage.removeItem('hasUploadedFiles'); } catch(e) {} // v169.6: clear session upload flag
+  if (!confirm('האם לנקות את נתוני הדמו ולחזור למצב רגיל?\nנתוני אמת לא יושפעו.')) return;
+  isDemoMode = false;
   document.body.classList.remove('demo-mode');
-  localStorage.clear();
+  // Delete only DEMO_-prefixed keys + the demo flag; never touches ROY_ / dashboard_ / fd_settings_ etc.
+  try {
+    Object.keys(localStorage).forEach(function(k) {
+      if (k.startsWith('DEMO_')) { try { localStorage.removeItem(k); } catch(e2) {} }
+    });
+    localStorage.removeItem('_dash_is_demo');
+  } catch(e) {}
+  try { sessionStorage.removeItem('hasUploadedFiles'); } catch(e) {}
+  // v172.5: Return to Welcome/Select-Source screen — never auto-switch to EXCEL
+  absoluteInternalReset();
+  APP_MODE = null;
+  _updateModeSelectorUI(null);
+  switchTab('overview');
+}
+
+// =============================================
+// v172.4: MASTER RESET — full localStorage.clear() with double confirmation
+// =============================================
+function masterResetDashboard() {
+  if (!confirm('זהירות! פעולה זו תמחק את כל הנתונים, כולל נתוני אמת וקבצי אקסל. האם להמשיך?')) return;
+  if (!confirm('אישור סופי: כל הנתונים יימחקו לצמיתות. ללא אפשרות שחזור. להמשיך?')) return;
+  try { localStorage.clear(); } catch(e) {}
+  try { sessionStorage.clear(); } catch(e) {}
+  // Reset hard-coded defaults before reload so first paint is clean
+  if (typeof SIM_RATE          !== 'undefined') SIM_RATE          = 4;
+  if (typeof SIM_INFLATION     !== 'undefined') SIM_INFLATION     = 2.5;
+  if (typeof SIM_CAPITAL_TAX   !== 'undefined') SIM_CAPITAL_TAX   = 25;
+  if (typeof SIM_PENSION_RATE  !== 'undefined') SIM_PENSION_RATE  = 3;
+  if (typeof SIM_RE_GROWTH_RATE!== 'undefined') SIM_RE_GROWTH_RATE= 2.5;
+  if (typeof SIM_RETIRE_EXP    !== 'undefined') SIM_RETIRE_EXP    = 29000;
+  if (typeof SIM_RETIREMENT_AGE_ROY  !== 'undefined') SIM_RETIREMENT_AGE_ROY  = 67;
+  if (typeof SIM_RETIREMENT_AGE_YAEL !== 'undefined') SIM_RETIREMENT_AGE_YAEL = 64;
   location.reload();
 }
 
@@ -13353,8 +13679,9 @@ function setAppState(nullState) {
 // =============================================
 function absoluteInternalReset() {
   // ── 1. Wipe simulation engine cache ──
-  SIM_LAST_RESULT  = null;
-  OV_CACHED_WEALTH = null;
+  SIM_LAST_RESULT            = null;
+  SIM_LAST_CALCULATED_RESULT = null; // v173.6: canonical result — must be cleared on every mode reset
+  OV_CACHED_WEALTH           = null;
 
   // ── 2. Clear all header KPIs immediately ──
   clearAppState();
@@ -13394,6 +13721,8 @@ function absoluteInternalReset() {
   SIM_P2_START.y = _genericBY + SIM_RETIREMENT_AGE_YAEL;
   SIM_P3_START.y = _genericBY + SIM_RETIREMENT_AGE_ROY;
   SIM_END.y      = _genericBY + 95;
+  SIM_P2_START.m = 8; // v177.1: always reset — prevents Demo's m:9 from persisting
+  SIM_P3_START.m = 8;
   if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
   // v171.0: full in-memory purge on every mode switch — localStorage is preserved;
   // each mode re-hydrates its own events after reset (EXCEL: _simRestoreExcelEvents, SIMULATOR: _simRestoreUserEvents)
@@ -13405,7 +13734,7 @@ function absoluteInternalReset() {
   // v170.4: reset to 0 on every mode switch — each mode restores its own values:
   //  EXCEL: loadSettings() + line 13032 re-enforce; DEMO: loadDemoData(); SIMULATOR: ffsApplyToSimulator()
   SIM_RETIRE_EXP     = 0;
-  SIM_INSTRUCTOR_SAL = 0;
+  SIM_INSTRUCTOR_SAL = 0; // v177.1: always zero on mode switch — each mode sets its own value
   SIM_RENTAL_INCOME  = 0;
 
   // ── 5. Clear FFS profile to blank template (no Roy/Dan data) ──
@@ -13506,6 +13835,9 @@ function switchMode(mode) {
   // v170.3: hide clean-slate cover on every mode switch (will re-show if mode===BLANK)
   var _csCover = document.getElementById('clean-slate-cover');
   if (_csCover) _csCover.style.display = 'none';
+  // v172.6: also dismiss the blank-slate confirmation modal if still visible
+  var _bsModalDismiss = document.getElementById('blank-slate-modal');
+  if (_bsModalDismiss) _bsModalDismiss.style.display = 'none';
 
   // v169.4: IRON DOME — absolute reset is the FIRST action after all guards pass
   absoluteInternalReset();
@@ -13542,14 +13874,14 @@ function switchMode(mode) {
     // even after Clean Slate; the function is a no-op if localStorage is empty
     _simRestoreExcelEvents();
 
-    // v171.8: UI Sync — entering Roy's mode always resets retirement age state to 67
-    SIM_TARGET_AGE = 67;
+    // v171.8/v173.4: UI Sync — entering Roy's mode resets retirement age state dynamically
+    SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY || 67; // v173.4: dynamic, not hard-coded
     (function() {
       var _rEl = document.getElementById('ffs-retirement-age');
       var _tEl = document.getElementById('sim-target-age-input');
       var _tip = document.getElementById('ffs-ret-age-tip');
-      if (_rEl) { _rEl.value = 67; _rEl.style.borderColor = '#e2e8f0'; }
-      if (_tEl && parseInt(_tEl.value) !== 67) _tEl.value = 67;
+      if (_rEl) { _rEl.value = SIM_RETIREMENT_AGE_ROY || 67; _rEl.style.borderColor = '#e2e8f0'; }
+      if (_tEl && parseInt(_tEl.value) !== SIM_TARGET_AGE) _tEl.value = SIM_TARGET_AGE;
       if (_tip) _tip.style.display = 'none';
     })();
 
@@ -13563,32 +13895,8 @@ function switchMode(mode) {
       if (typeof updateDynamicStats === 'function') updateDynamicStats();
       if (typeof updateNavButtons   === 'function') updateNavButtons();
       if (typeof selectView         === 'function') selectView(currentView || 'all');
-      loadSettings(); // populates birth dates, names, rates from saved settings
-      // v169.11: 29,000 lock — loadSettings may restore a stale Demo expense (20K) from localStorage
-      SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp; // hard re-enforce Roy's baseline after settings load
-      if (typeof syncBirthYearsFromSettings === 'function') syncBirthYearsFromSettings();
-      var _taxSl = document.getElementById('pns-tax-slider');
-      if (typeof pensionSliderChange === 'function') pensionSliderChange(_taxSl ? _taxSl.value : '35');
-      // v172.2: Mode-Switch Sync — synchronous engine pre-run BEFORE switchTab queues 80ms render
-      // absoluteInternalReset() cleared SIM_LAST_RESULT; re-compute now so first paint shows 25M+ not '---'
-      if (SIM_TARGET_EXP === 0 && SIM_RETIRE_EXP > 0) SIM_TARGET_EXP = SIM_RETIRE_EXP;
-      var _msSync = (typeof pnsNetMonthlyNoHarel !== 'undefined' && pnsNetMonthlyNoHarel > 0)
-        ? pnsNetMonthlyNoHarel : (typeof simGetRoyPension === 'function' ? simGetRoyPension() : 0);
-      var _msRent = typeof simGetRoyRentalIncome === 'function' ? simGetRoyRentalIncome() : 0;
-      if (_msSync + _msRent > 0) SIM_PENSION_MONTHLY = _msSync + _msRent;
-      if (typeof simRunEngine === 'function') {
-        SIM_LAST_RESULT = simRunEngine(); // cache synchronously — 80ms render uses this directly
-        // pre-seed OV_CACHED_WEALTH as persistent fallback (survives data-gate failures)
-        if (SIM_LAST_RESULT && SIM_LAST_RESULT.royData && SIM_LAST_RESULT.royData.length > 0) {
-          var _msAge = (typeof SIM_TARGET_AGE !== 'undefined' && SIM_TARGET_AGE >= 60) ? SIM_TARGET_AGE : 67;
-          var _msIdx = typeof simMonthIdx === 'function'
-            ? simMonthIdx(SIM_BIRTH_YEAR_ROY + _msAge, (SIM_P3_START && SIM_P3_START.m) || 9) : 0;
-          if (_msIdx < 0) _msIdx = 0;
-          if (_msIdx >= SIM_LAST_RESULT.royData.length) _msIdx = SIM_LAST_RESULT.royData.length - 1;
-          var _msW = SIM_LAST_RESULT.royData[_msIdx] || 0;
-          if (_msW > 0) OV_CACHED_WEALTH = (_msW / 1000).toFixed(1);
-        }
-      }
+      loadSettings(); // populates non-identity data (pension tax rates, etc.) from saved settings
+      _excelEngineSync(); // v173.5: lock → identity+coupling → sanitize → data → engine → cache
     } else {
       // No Excel data in localStorage — clean blank slate, no Roy/Dan fallback
       _clearPrivacyFields();
@@ -13655,6 +13963,8 @@ function switchMode(mode) {
 
     // Update name label immediately — shows saved name or "אורח" before any render
     if (typeof simUpdateNameLabel === 'function') simUpdateNameLabel();
+    if (typeof syncProfileLabels  === 'function') syncProfileLabels(); // v172.4: sync settings labels to SIMULATOR mode
+    if (typeof applyUserNames     === 'function') applyUserNames();    // v172.5: clear Roy/Yael names from display spans
 
     switchTab('simulator');
 

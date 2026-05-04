@@ -270,6 +270,8 @@ body{background:var(--bg,#f0f2f5);}
 .mode-btn { border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-family:Heebo,sans-serif; font-weight:700; cursor:pointer; color:rgba(255,255,255,0.5); background:transparent; transition:background .15s,color .15s,box-shadow .15s; white-space:nowrap; }
 .mode-btn:hover:not(.active) { background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.85); }
 .mode-btn.active { background:#3b82f6; color:#fff; box-shadow:0 2px 6px rgba(59,130,246,0.4); }
+.mode-btn-clear { color:rgba(239,68,68,0.55) !important; border-right:1px solid rgba(255,255,255,0.1); padding-right:10px; margin-right:2px; }
+.mode-btn-clear:hover:not(.active) { background:rgba(239,68,68,0.15) !important; color:rgba(239,68,68,0.9) !important; }
 #mode-source-label { font-size:9px; color:rgba(255,255,255,0.35); font-family:Heebo,sans-serif; font-weight:500; padding-right:2px; white-space:nowrap; }
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
@@ -549,10 +551,57 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
   font-family: Heebo, sans-serif;
 }
 .settings-header {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   border-bottom: 2px solid rgba(255,255,255,0.1);
   padding-bottom: 16px;
 }
+/* v172.3: Settings sub-tab navigation */
+.stg-subtab-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+  padding-bottom: 0;
+}
+.stg-subtab-btn {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-family: Heebo, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.stg-subtab-btn:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.06); }
+.stg-subtab-btn.active {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+  background: rgba(96,165,250,0.08);
+}
+.stg-subpanel { display: none; }
+.stg-subpanel.active { display: block; }
+/* v172.3: Master Reset button */
+.master-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: rgba(220,38,38,0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: 9px;
+  font-family: Heebo, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.master-reset-btn:hover { background: rgba(220,38,38,0.28); border-color: rgba(220,38,38,0.7); color: #f87171; }
 .settings-title {
   font-size: 20px;
   font-weight: 800;
@@ -726,6 +775,14 @@ input[type="date"] {
   color-scheme: dark;
   color: white !important;
   -webkit-text-fill-color: white !important;
+}
+/* v172.7: DEMO Hard-Lock — disabled inputs stay readable; overrides browser grey-out and inline styles */
+.settings-input:disabled {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
 }
 .modal-input[type="date"]::-webkit-calendar-picker-indicator,
 .settings-input[type="date"]::-webkit-calendar-picker-indicator {
