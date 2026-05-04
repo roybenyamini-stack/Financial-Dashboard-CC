@@ -1,4 +1,4 @@
-<!-- v172.2 -->
+<!-- v177.1 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -42,7 +42,7 @@
       <button class="mode-btn" id="mode-btn-excel" onclick="switchMode('EXCEL')">נתוני אמת</button>
       <button class="mode-btn" id="mode-btn-demo" onclick="switchMode('DEMO')">מצב דמו</button>
       <button class="mode-btn" id="mode-btn-simulator" onclick="switchMode('SIMULATOR')">סימולטור אישי</button>
-      <button class="mode-btn" id="mode-btn-blank" onclick="switchMode('BLANK')" style="border-color:rgba(148,163,184,0.35);color:#94a3b8;" title="הסתר את כל הנתונים — מסך ריק ללא נתונים">🔒 דף חלק</button>
+      <button class="mode-btn mode-btn-clear" id="mode-btn-clear" onclick="navbarClearAll()" title="נקה הכל וחזור למסך פתיחה">🗑 נקה הכל</button>
     </div>
     <div id="mode-source-label">בחר מקור נתונים</div>
   </div>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v172.2</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.1</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -238,15 +238,10 @@
   <div style="text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; margin-right:auto;">
     <div style="display:flex; align-items:center; gap:8px;">
       <!-- Overview upload buttons (far-left, visible only on overview tab) — RTL order: תזרים שוטף (right) | Asset Data (middle) | תכנון פרישה (left) -->
-      <button class="ov-only-btn" onclick="openSettingsModal()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 13px;font-size:14px;font-family:Heebo,sans-serif;" title="הגדרות">⚙️</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תזרים שוטף</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 Asset Data</button>
       <button class="ov-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none;cursor:pointer;align-items:center;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:7px 14px;font-size:12px;font-family:Heebo,sans-serif;">📂 תכנון פרישה</button>
-      <!-- v164.0: admin controls (demo + clear) — visible overview tab only, via .admin-controls CSS -->
-      <div class="admin-controls">
-        <button class="admin-btn" onclick="switchMode('DEMO')" title="טען נתוני דמו להצגה">🎭 נתוני דמו</button>
-        <button class="admin-btn" onclick="clearDashboardData()" title="נקה נתונים וטען קובץ חדש">🗑 נקה</button>
-      </div>
+      <!-- v173.1: admin controls removed — moved to top navbar (v173.0) -->
       <button class="inv-only-btn" onclick="document.getElementById('fileInput').click()" style="cursor:pointer; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון Asset Data</button>
       <button class="cf-only-btn" onclick="document.getElementById('fileInput').click()" style="display:none; cursor:pointer; align-items:center; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:8px; padding:7px 14px; font-size:12px; font-family:Heebo,sans-serif;">📂 עדכון תזרים שוטף</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
@@ -1499,8 +1494,8 @@
         <!-- 1 (rightmost) — הכנסה כמדריך -->
         <div id="sim-instr-group" class="sim-ctrl-group">
           <div class="sim-ctrl-label">הכנסה כמדריך</div>
-          <input type="number" id="sim-instr-num" class="sim-num-input" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
-          <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="20000" oninput="simSetInstructor(this.value)">
+          <input type="number" id="sim-instr-num" class="sim-num-input" min="5000" max="60000" step="1000" value="35000" oninput="simSetInstructor(this.value)">
+          <input type="range" id="sim-instr-slider" class="sim-slider" min="5000" max="60000" step="1000" value="35000" oninput="simSetInstructor(this.value)">
           <div class="sim-slider-bounds"><span>60K ₪</span><span>5K ₪</span></div>
         </div>
         <!-- 2 — הכנסה פנויה בפרישה -->
@@ -2079,97 +2074,147 @@
       <h2 class="settings-title">הגדרות</h2>
     </div>
 
-    <!-- Section: גיל פרישה -->
-    <div class="settings-section">
-      <div class="settings-section-title">גיל פרישה ותאריכי לידה</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">משתמש 1</span></label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-retire-age-roy" value="67" min="55" max="80" placeholder="67">
-            <span class="settings-unit">שנים</span>
+    <!-- v172.3: dual sub-tab navigation -->
+    <div class="stg-subtab-nav">
+      <button class="stg-subtab-btn active" id="stg-subtab-profiles" onclick="switchSettingsSubTab('profiles')">👤 פרופילים</button>
+      <button class="stg-subtab-btn" id="stg-subtab-system" onclick="switchSettingsSubTab('system')">⚙️ הגדרות מערכת</button>
+    </div>
+
+    <!-- SUB-TAB A: פרופילים -->
+    <div class="stg-subpanel active" id="stg-sub-profiles">
+
+      <!-- Section: שמות -->
+      <div class="settings-section">
+        <div class="settings-section-title">פרטי משתתפים</div>
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="settings-label">שם — <span id="stg-lbl-name1">משתתף 1</span></label>
+            <input type="text" class="settings-input" id="stg-user1-name" maxlength="20" placeholder="משתתף 1" style="text-align:right;">
           </div>
-          <div class="settings-hint">ברירת מחדל: 67 (גיל פרישה חוקי לגברים)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">גיל פרישה — <span id="display-user2-name-retire">משתמש 2</span></label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-retire-age-yael" value="64" min="55" max="80" placeholder="64">
-            <span class="settings-unit">שנים</span>
+          <div class="settings-field">
+            <label class="settings-label">שם — <span id="stg-lbl-name2">משתתף 2</span> <span style="font-weight:400;opacity:0.55;">(אופציונלי)</span></label>
+            <input type="text" class="settings-input" id="stg-user2-name" maxlength="20" placeholder="ריק = משתתף יחיד" style="text-align:right;">
           </div>
-          <div class="settings-hint">ברירת מחדל: 65 (גיל פרישה חוקי לנשים)</div>
         </div>
-        <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">משתמש 1</span></label>
-          <div class="settings-input-row">
-            <input type="date" class="settings-input" id="stg-user1-birth" value="1962-08-25" min="1900-01-01" max="2005-01-01" style="direction:ltr;">
+        <!-- v172.5: DEMO lock hint — shown only in DEMO mode -->
+        <div id="demo-identity-lock-hint" style="display:none;margin-top:8px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:6px 10px;direction:rtl;font-family:Heebo,sans-serif;">🔒 נתוני דמו הם קבועים לצורכי המחשה</div>
+      </div>
+
+      <!-- Section: תאריכי לידה -->
+      <div class="settings-section">
+        <div class="settings-section-title">תאריכי לידה</div>
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="settings-label">תאריך לידה — <span id="display-user1-name-birth">משתמש 1</span></label>
+            <div class="settings-input-row">
+              <input type="date" class="settings-input" id="stg-user1-birth" value="1962-08-25" min="1900-01-01" max="2005-01-01" style="direction:ltr;">
+            </div>
+            <div class="settings-hint">ברירת מחדל: 25/08/1962 — קובע את ציר הזמן</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 25/08/1962 — קובע את ציר הזמן</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">משתמש 2</span></label>
-          <div class="settings-input-row">
-            <input type="date" class="settings-input" id="stg-user2-birth" value="1968-06-28" min="1900-01-01" max="2005-01-01" style="direction:ltr;">
+          <div class="settings-field">
+            <label class="settings-label">תאריך לידה — <span id="display-user2-name-birth">משתמש 2</span></label>
+            <div class="settings-input-row">
+              <input type="date" class="settings-input" id="stg-user2-birth" min="1900-01-01" max="2005-01-01" style="direction:ltr;" placeholder="">
+            </div>
+            <div class="settings-hint">ריק = חישוב עבור משתתף 1 בלבד</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 28/06/1968</div>
         </div>
+      </div>
+
+      <!-- Section: גיל פרישה -->
+      <div class="settings-section">
+        <div class="settings-section-title">גיל פרישה</div>
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="settings-label">גיל פרישה — <span id="display-user1-name-retire">משתמש 1</span></label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-retire-age-roy" value="67" min="55" max="80" placeholder="67">
+              <span class="settings-unit">שנים</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 67 (גיל פרישה חוקי לגברים)</div>
+          </div>
+          <div class="settings-field">
+            <label class="settings-label">גיל פרישה — <span id="display-user2-name-retire">משתמש 2</span></label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-retire-age-yael" value="64" min="55" max="80" placeholder="64">
+              <span class="settings-unit">שנים</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 64 (גיל פרישה חוקי לנשים)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save button -->
+      <div class="settings-footer">
+        <button class="settings-save-btn" onclick="saveSettings()">💾 שמור הגדרות</button>
+        <span class="settings-save-note"></span>
       </div>
     </div>
 
-    <!-- Section: תשואות -->
-    <div class="settings-section">
-      <div class="settings-section-title">תשואות ואינפלציה</div>
-      <div class="settings-grid">
-        <div class="settings-field">
-          <label class="settings-label">תשואה שנתית על השקעות</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-inv-rate" value="4" min="0" max="20" step="0.5" placeholder="4">
-            <span class="settings-unit">%</span>
+    <!-- SUB-TAB B: הגדרות מערכת -->
+    <div class="stg-subpanel" id="stg-sub-system">
+
+      <!-- Section: תשואות ואינפלציה -->
+      <div class="settings-section">
+        <div class="settings-section-title">תשואות ואינפלציה</div>
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="settings-label">תשואה שנתית על השקעות</label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-inv-rate" value="4" min="0" max="20" step="0.5" placeholder="4">
+              <span class="settings-unit">%</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 4%</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 4% (SIM_RATE)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">תשואה שנתית — הון פנסיוני</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-pension-rate" value="3" min="0" max="15" step="0.5" placeholder="3">
-            <span class="settings-unit">%</span>
+          <div class="settings-field">
+            <label class="settings-label">תשואה שנתית — הון פנסיוני</label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-pension-rate" value="3" min="0" max="15" step="0.5" placeholder="3">
+              <span class="settings-unit">%</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 3%</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 3% (SIM_PENSION_RATE)</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">שיעור אינפלציה שנתי</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-inflation" value="2.5" min="0" max="15" step="0.5" placeholder="2.5">
-            <span class="settings-unit">%</span>
+          <div class="settings-field">
+            <label class="settings-label">שיעור אינפלציה שנתי</label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-inflation" value="2.5" min="0" max="15" step="0.5" placeholder="2.5">
+              <span class="settings-unit">%</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 2.5%</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_INFLATION)</div>
-        </div>
-        <div class="settings-field" id="stg-retire-exp-field">
-          <label class="settings-label">הוצאה חודשית בפרישה</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-retire-exp" value="29000" min="5000" max="80000" step="1000" placeholder="29000">
-            <span class="settings-unit">₪</span>
+          <div class="settings-field" id="stg-retire-exp-field">
+            <label class="settings-label">הוצאה חודשית בפרישה</label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-retire-exp" value="29000" min="5000" max="80000" step="1000" placeholder="29000">
+              <span class="settings-unit">₪</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 29,000 ₪</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 29,000 ₪ — מגדיר את הסליידר ואת KPI תזרים נטו</div>
-        </div>
-        <div class="settings-field">
-          <label class="settings-label">צמיחת נדל״ן שנתית</label>
-          <div class="settings-input-row">
-            <input type="number" class="settings-input" id="stg-re-growth" value="2.5" min="0" max="15" step="0.1" placeholder="2.5">
-            <span class="settings-unit">%</span>
+          <div class="settings-field">
+            <label class="settings-label">צמיחת נדל״ן שנתית</label>
+            <div class="settings-input-row">
+              <input type="number" class="settings-input" id="stg-re-growth" value="2.5" min="0" max="15" step="0.1" placeholder="2.5">
+              <span class="settings-unit">%</span>
+            </div>
+            <div class="settings-hint">ברירת מחדל: 2.5%</div>
           </div>
-          <div class="settings-hint">ברירת מחדל: 2.5% (SIM_RE_GROWTH_RATE) — צמיחה לינארית, מבודדת מתשואת השקעות</div>
         </div>
+      </div>
+
+      <!-- Save button -->
+      <div class="settings-footer">
+        <button class="settings-save-btn" onclick="saveSettings()">💾 שמור הגדרות</button>
+        <span class="settings-save-note"></span>
+      </div>
+
+      <!-- v172.3: Master Reset -->
+      <div class="settings-section" style="margin-top:24px;border-color:rgba(220,38,38,0.25);">
+        <div class="settings-section-title" style="color:rgba(252,165,165,0.7);">אזור סכנה</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.7;margin-bottom:16px;">איפוס מלא ימחק את כל הנתונים — כולל נתוני אמת, קובצי אקסל, וכל ההגדרות. פעולה זו אינה ניתנת לביטול.</div>
+        <button class="master-reset-btn" onclick="masterResetDashboard()">🗑️ איפוס דשבורד מלא</button>
       </div>
     </div>
 
-    <!-- Save button — v120.0: dirty-state wired -->
-    <div class="settings-footer">
-      <button class="settings-save-btn" onclick="saveSettings()">
-        💾 שמור הגדרות
-      </button>
-      <span class="settings-save-note"></span>
-    </div>
   </div>
 </div>
 

@@ -1,7 +1,503 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v172.2 — Perfect Mode-Switch Recovery (03/05/2026).
+גרסה v177.1 — Profile Isolation Fix: Dan leakage + 100K gap (04/05/2026).
+
+## שינויים אחרונים (04/05/2026 — v177.1)
+
+### v177.1 – Instructor Income: Profile Isolation + Phase Boundary Month Reset
+
+**1. Revert + Scope נכון ל-SIM_INSTRUCTOR_SAL**
+- `absoluteInternalReset()` שורה 13737: חזרה ל-`SIM_INSTRUCTOR_SAL = 0` (כל מצב מגדיר ערך משלו)
+- `_excelEngineSync()` שורה 13486: `SIM_INSTRUCTOR_SAL = ROY_DEFAULTS.instructorSal` (35000) — **רק מצב Excel**
+- תוצאה: Demo/Dan מקבל 0 (נכון), Excel/Roy מקבל 35,000 (נכון)
+
+**2. איפוס `.m` ב-absoluteInternalReset() שורות 13724–13725**
+- נוספו: `SIM_P2_START.m = 8; SIM_P3_START.m = 8;`
+- תוצאה: אחרי Demo→Excel, `phase2Idx` חוזר ל-3 (אוג 2026) במקום 4 (ספט 2026) → סוגר פער 100K
+
+## שינויים אחרונים (04/05/2026 — v177.0)
+
+### v177.0 – Instructor Income: 3-Bug Fix (700K Gap + Age Gate + Slider Default)
+
+**1. תיקון A — `absoluteInternalReset()` שורה 13734**
+- שינוי `SIM_INSTRUCTOR_SAL = 0` ל-`SIM_INSTRUCTOR_SAL = ROY_DEFAULTS.instructorSal` (35,000)
+- סיבה: איפוס ל-0 גרם ל-Demo-off path להשתמש ב-instructorSal=0 בפאזה 2 → −29K/חודש במקום +6K/חודש → פער 700K בהשקעות עד מרץ 2028
+
+**2. תיקון C — `simRunEngine()` שורות 9396+9528**
+- נוסף `instructorStartIdx = simMonthIdx(SIM_BIRTH_YEAR_ROY + 65, 9)` — ספטמבר 2027 (גיל 65)
+- הכנסת המדריך מוגבלת: `_effInstructorSal = (i >= instructorStartIdx) ? instructorSal : 0`
+- לפני ספטמבר 2027: Phase 2 חישוב = (0 − 29,000) → −29K/חודש (נכון)
+- מספטמבר 2027: Phase 2 חישוב = (35,000 − 29,000) → +6K/חודש (נכון)
+
+**3. תיקון B — `index.html` שורות 1497–1498**
+- ברירת מחדל של `sim-instr-num` ו-`sim-instr-slider` שונתה מ-20,000 ל-35,000
+
+**אימות:**
+```js
+console.table({
+  'SIM_INSTRUCTOR_SAL': SIM_INSTRUCTOR_SAL,
+  'instructorStartIdx (expected 16)': simMonthIdx(SIM_BIRTH_YEAR_ROY + 65, 9),
+  'royData[22] (Mar 2028)': SIM_LAST_RESULT && SIM_LAST_RESULT.royData[22],
+  'royData[39] (Age 67)':  SIM_LAST_RESULT && SIM_LAST_RESULT.royData[39]
+});
+```
+קריטריון הצלחה: `royData[22]` ו-`royData[39]` זהים ב-Startup וב-Demo-off.
+
+## שינויים אחרונים (04/05/2026 — v175.0)
+
+### v175.0 – Simulation Engine: 3-Bug Fix
+
+**1. הוצאה מוסתרת הוסרה — `simRunEngine()`**
+- הוסר Guard שדרס `SIM_TARGET_EXP=0` ל-29,000 בכל הרצת מנוע (שורות 9316-9320 לשעבר)
+- Guard זה גרם: (א) גיל 67 < גיל 66 כשמשתמש מגדיר הוצאות=0, (ב) התוצאה ב-cold start שגויה
+- האתחול הנכון בטוח: `_excelEngineSync()` מגדיר `SIM_TARGET_EXP = SIM_RETIRE_EXP` לפני כל cold start
+
+**2. אינדקס חכם — `simFindLabelIdx()` חדש**
+- נוספה פונקציה לפני `simMonthIdx` שמחפשת לפי תווית "YYYY-MM" במקום ספירת חודשים
+- פותרת את ה-Hysteresis: מערך `royData[]` גדול מ-totalMonths בגלל double-points באירועים
+- מחזירה את ה-index האחרון של התווית (post-event snapshot = ערך קנוני)
+
+**3. תיקון בשלושה מקומות (simMonthIdx → simFindLabelIdx)**
+- `_excelEngineSync()`: קביעת `OV_CACHED_WEALTH` — פתרון Cold Start 26.3M
+- `overviewRender()`: רינדור Overview tab
+- `simRenderKPI()`: קריאת הון לגיל X — פתרון Hysteresis
+
+**4. חודש פרישה — m:8 (אוגוסט) במקום m:9**
+- `SIM_P2_START.m` ו-`SIM_P3_START.m` עודכנו ל-8 בהתאם לתאריך לידת רועי 25/08/1962
+- 4 מיקומים עודכנו (שורות 7861, 7862, 9221, 9224) — Demo/Dan לא נגע
+
+**5. גרסה: v175.0**
+
+## שינויים אחרונים (04/05/2026 — v174.0)
+
+### v174.0 – The Expense Sync Fix
+
+**1. Expense State Anchor — `loadSettings()`**
+- אחרי קריאת `s.retireExp` מ-localStorage, נוסף guard: אם `SIM_RETIRE_EXP === 0` → `ROY_DEFAULTS.retireExp`
+- מבטיח שגם אם localStorage ריק/שגוי, הערך לעולם לא נשאר 0
+
+**2. Bidirectional Binding — `_excelEngineSync()`**
+- מיד אחרי `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp`, מתעדכן גם שדה ה-UI `stg-retire-exp`
+- מבטיח שה-Settings מראה תמיד את הערך הסמכותי (29,000) — לא ערך ישן מ-localStorage
+
+**3. Bidirectional Binding — נתיב טעינת גיליון פנסיה ב-`loadExcelFileCore`**
+- נתיב הפנסיה מסתיים ב-`return` מוקדם לפני `_excelEngineSync()` ← לא היה מסנכרן
+- נוסף dispatch מפורש: `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` + עדכון שדה `stg-retire-exp`
+
+**4. Cold Start Audit — `simRunEngine()`**
+- Guard נוסף לאחר Identity Firewall: אם `isExcelLoaded() && SIM_TARGET_EXP === 0` → שחזור מ-`SIM_RETIRE_EXP`
+- המנוע אסור לחשב עם הוצאה=0 במצב Excel (תוצאה "26.3M" — ללא הוצאות פרישה)
+
+**5. גרסה: v174.0**
+
+## שינויים אחרונים (04/05/2026 — v173.8)
+
+### v173.8 – Factory Reset Startup Logic
+
+**1. Total Blackout — מועד לפני `loadSettings()`**
+- כל בלוק האיפוס (`pnsNetMonthly=0`, `SIM_LAST_RESULT=null`, `SIM_LAST_CALCULATED_RESULT=null`, `OV_CACHED_WEALTH=null`) הועבר לתחילת `DOMContentLoaded`, לפני `loadSettings()`
+- מבטיח שאין cache ישן שורד לתוך הרצת המנוע הראשונה
+
+**2. UI Barrier — KPIs מציגים '—' עד השלמת המנוע**
+- נוסף `clearAppState()` מיד אחרי האיפוס — מציב '—' בכל תאי ה-KPI בטעינה
+- ה-KPIs מתאכלסים רק לאחר ש-`_excelEngineSync()` (ואחריו `overviewRender()` ב-200ms) מסיים
+
+**3. Synchronous Identity Injection — לפני `loadSettings()`**
+- נוסף `_applyExcelIdentity()` לפני `loadSettings()` ב-`DOMContentLoaded`
+- מבטיח שקבועי רועי/יעל (1962/1968) נזרקים לסטייט לפני כל קריאה ל-localStorage
+- גם אם `loadSettings()` יקרא ערכים ישנים — `_excelEngineSync()` שאחריו יחזיר לנכון
+
+**4. `simRunEngine()` — Identity Firewall**
+- נוסף guard בתחילת הפונקציה: אם `isExcelLoaded()` וגם `SIM_BIRTH_YEAR_ROY !== 1962` או `SIM_BIRTH_YEAR_YAEL !== 1968` — קוראים `_applyExcelIdentity()` לפני כל חישוב
+- המנוע **אסור** לרוץ עם שנות לידה שגויות במצב Excel
+
+**5. גרסה: v173.8**
+
+## שינויים אחרונים (04/05/2026 — v173.7)
+
+### v173.7 – Sterile Engine & Forced Synchronization
+
+**1. `simRunEngine()` — Sterile (אפס כתיבה לגלובלים)**
+- הוסרה לחלוטין שורת `SIM_PENSION_MONTHLY = _fwFixed` מבלוק ה-FIREWALL
+- המנוע משתמש ב-`_psnForLoop` (local snapshot) בלבד — לא כותב לאף גלובל במהלך ריצתו
+- `SIM_PENSION_MONTHLY` מוגדר ידי `_excelEngineSync()` או `simInit()` לפני קריאת המנוע
+
+**2. `absoluteInternalReset()` — מנקה `SIM_LAST_CALCULATED_RESULT`**
+- נוסף: `SIM_LAST_CALCULATED_RESULT = null` לצד `SIM_LAST_RESULT = null` ו-`OV_CACHED_WEALTH = null`
+- מבטיח שאחרי כל מעבר מצב, גם ה-canonical result מנוקה
+
+**3. `DOMContentLoaded` — Mirror Demo→Real**
+- נוספו לפני שחזור הנתונים: `pnsNetMonthly=0`, `pnsNetMonthlyNoHarel=0`, `ovPnsDisplayNet=0`, `SIM_LAST_RESULT=null`, `SIM_LAST_CALCULATED_RESULT=null`, `OV_CACHED_WEALTH=null`
+- מבטיח שה-cold start עובר דרך אותה נקודת אפס כמו Demo→Real (שם `absoluteInternalReset()` מבצע זאת)
+
+**4. `saveSettings()` — Guard `retireExp` במצב DEMO**
+- נוסף `_saveRetireExp = _isDemoSave ? ROY_DEFAULTS.retireExp : retireExp`
+- אם המשתמש לוחץ "שמור" במצב DEMO, ה-retireExp של רועי (29,000) נשמר — לא ה-20,000 של הדמו
+- מונע קריאת SIM_RETIRE_EXP=20000 ב-loadSettings() ב-cold start הבא
+
+**5. גרסה: v173.7**
+
+## שינויים אחרונים (04/05/2026 — v173.6)
+
+### v173.6 – Total Engine Idempotency & State Reset
+
+**1. `simRunEngine()` — Pure Function Rule**
+- נוספה משתנה מקומי `_psnForLoop`: מצלם את הכנסת הפנסיה ב-FIREWALL לפני הלולאה
+- הלולאה משתמשת ב-`_psnForLoop` (local snapshot) ולא ב-`SIM_PENSION_MONTHLY` (global) → חסינה לשינויים חיצוניים mid-run
+- גלובל `SIM_PENSION_MONTHLY` עדיין מתעדכן ע"י ה-FIREWALL לסנכרון slider/UI
+- הוספת הערות explicit "read-only snapshot" לכל משתני ההון ההתחלתיים
+
+**2. `SIM_LAST_CALCULATED_RESULT` — מקור האמת היחיד**
+- נוסף כ-global חדש ליד `SIM_LAST_RESULT`
+- `_excelEngineSync()`: מאפס ומסנכרן `SIM_LAST_CALCULATED_RESULT = SIM_LAST_RESULT` לאחר כל הרצת מנוע
+- `simRenderChart()`: מסנכרן `SIM_LAST_CALCULATED_RESULT = result` בכל רינדור גרף
+
+**3. `simRenderKPI()` — Passive Subscriber**
+- הוסרה קריאת `simRunEngine()` עצמאית (כגיבוי)
+- ה-KPI קורא **בלבד** מ-`SIM_LAST_CALCULATED_RESULT` (ואם אין — fallback ל-`SIM_LAST_RESULT`)
+- אם שניהם ריקים: `_wealthAtAge = 0` + `OV_CACHED_WEALTH` fallback
+
+**4. `simInit()` — שימוש בתוצאה הקנונית**
+- שינוי: `simRenderChart(simRunEngine())` → `simRenderChart(SIM_LAST_CALCULATED_RESULT || simRunEngine())`
+- אם `_excelEngineSync()` כבר רץ ויצר תוצאה קנונית — הסימולטור מציג אותה ישירות (ללא הרצה נוספת)
+- גיבוי: אם אין תוצאה קנונית (load ראשון בלי `_excelEngineSync`) — מריץ מנוע רגיל
+
+**5. גרסה: v173.6**
+
+## שינויים אחרונים (04/05/2026 — v173.5)
+
+### v173.5 – Logic-Driven State Synchronization
+
+**1. פונקציה חדשה: `_excelEngineSync()`**
+- סדרה אחת ממשית משותפת לכל 3 נתיבי טעינת EXCEL
+- Sequence: `activeDataSource='EXCEL'` → `SIM_RETIRE_EXP` → `_applyExcelIdentity()` → `resetCalculationMemory()` → `SIM_TARGET_EXP` → `pensionSliderChange()` → `SIM_PENSION_MONTHLY` → `SIM_LAST_RESULT = simRunEngine()` → `OV_CACHED_WEALTH`
+- מחליפה קוד כפול שהיה בכל 3 מקומות
+
+**2. `loadExcelFileCore` — רפקטורינג**
+- החלפת ~30 שורות בלוק Engine Sync בקריאה אחת: `_excelEngineSync()`
+
+**3. `switchMode('EXCEL')` — רפקטורינג**
+- החלפת `loadSettings() + SIM_RETIRE_EXP + _applyExcelIdentity() + pensionSliderChange() + engine run + OV_CACHED_WEALTH` בשתי שורות: `loadSettings(); _excelEngineSync();`
+
+**4. `DOMContentLoaded` — רפקטורינג**
+- הסרת הגדרות `activeDataSource`, `SIM_RETIRE_EXP`, `SIM_LAST_RESULT=null`, `_applyExcelIdentity` מבלוק ה-auto-ignition הראשון
+- החלפת בלוק ה-engine run (~20 שורות) בשורה אחת: `if (APP_MODE === 'EXCEL') _excelEngineSync();`
+
+**5. `ovRenderKPIs()` — Passive Subscriber**
+- הוסרה קריאת `simRunEngine()` עצמאית מה-KPI "הון חזוי"
+- ה-KPI קורא **בלבד** מ-`SIM_LAST_RESULT` (שנקבע על-ידי `_excelEngineSync`)
+- אם `SIM_LAST_RESULT` ריק — fallback ל-`OV_CACHED_WEALTH`, אחר-כך `'—'`
+
+**6. גרסה: v173.5**
+
+## שינויים אחרונים (03/05/2026 — v173.4)
+
+### v173.4 – Dynamic Age Coupling
+
+**1. `_applyExcelIdentity()` — צימוד דינמי של `SIM_TARGET_AGE`**
+- נוסף בתוך הפונקציה: `SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY;` מיד לאחר קביעת גיל הפרישה
+- נוסף sync של DOM: `document.getElementById('sim-target-age-input').value = SIM_TARGET_AGE`
+- עקרון: `targetAge` הוא **עבד** של `retirementAge` — לא ערך קשיח עצמאי
+
+**2. `switchMode('EXCEL')` — הסרת 67 הקשיח**
+- שורה `SIM_TARGET_AGE = 67;` שונתה ל-`SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY || 67;`
+- ה-DOM sync של `sim-target-age-input` ו-`ffs-retirement-age` מבוסס כעת על `SIM_RETIREMENT_AGE_ROY`
+- `_applyExcelIdentity()` (שנקראת לאחר מכן בבלוק `_hasExcelData`) מחזקת את הצימוד גם שם
+
+**3. `loadExcelFileCore` — הסרת שורה כפולה**
+- שורת `SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY || 67;` שהופיעה אחרי `_applyExcelIdentity()` הוסרה
+- `_applyExcelIdentity()` מטפלת בכך פנימית — אין כפילות
+
+**4. גרסה: v173.4**
+
+## שינויים אחרונים (03/05/2026 — v173.3)
+
+### v173.3 – Surgical Identity & Calculation Fix
+
+**1. תיקון תאריך לידה יעל — Bug ב-v173.2**
+- v173.2 הכניסה בטעות `'1978-05-15'` (תאריך לידת דינה) כקבוע יעל
+- **תוקן ב-3 מקומות**: `_applyExcelIdentity()` · guard של `saveSettings()` · הוסבר בתיעוד
+- הקבועים הנכונים: **רועי** `1962-08-25` / **יעל** `1968-06-28`
+- **השפעה על KPI**: תאריך לידה שגוי של יעל גרם ל-`SIM_P2_START.y = 1978+64 = 2042` במקום `1968+64 = 2032` — Phase 2 היה מאוחר בעשור, וגרם לתנודות בהון חזוי לגיל 67
+
+**2. Unified Init ב-`loadExcelFileCore`**
+- נוסף `_applyExcelIdentity()` לבלוק Engine Sync **לפני** `resetCalculationMemory()`
+- הסדר כעת זהה ל-`switchMode('EXCEL')`: זהות → ניקוי → פנסיה → מנוע
+- מבטיח `SIM_BIRTH_YEAR_YAEL` נכון **לפני** `syncBirthYearsFromSettings()` רץ
+
+**3. Sanitize ב-DOMContentLoaded (Auto-Ignition)**
+- נוסף `resetCalculationMemory()` + `SIM_TARGET_EXP = SIM_RETIRE_EXP` לפני `simRunEngine()`
+- מבטיח שה-cache של `SIM_PENSION_MONTHLY` שנשמר ב-localStorage לא מזהם את ה-KPI הראשון
+- כעת שלושת הנתיבים (cold start · upload · mode switch) מריצים את המנוע עם state נקי זהה
+
+**4. KPI "הון חזוי לגיל 67" — רועי בלבד**
+- הבעיה הייתה `SIM_P2_START` שגוי → תוקן על-ידי תיקון תאריך לידה יעל
+- `simRunEngine()` מחזיר `royData` המייצג רועי בלבד (Yael מוסיפה ל-`combinedData` בנפרד)
+
+**5. גרסה: v173.3**
+
+## שינויים אחרונים (03/05/2026 — v173.2)
+
+### v173.2 – Absolute Identity & Settings Isolation
+
+**1. זיהוי שורש הבעיה — "User B" + דן/דינה במצב EXCEL**
+- `SIM_USER2_NAME` היה מאוחל ל-`'User B'` — גורם לתווית שגויה לפני טעינת מצב
+- `saveSettings()` שמר ב-`SETTINGS_LS_KEY` את שמות דן/דינה אם המשתמש לחץ "שמור הגדרות" במצב DEMO
+- `loadSettings()` ב-EXCEL mode שחזר את הנתונים המזוהמים
+
+**2. `_applyExcelIdentity()` — חומת אש זהות חדשה**
+- פונקציה חדשה: מאלצת `SIM_USER1_NAME='רועי'`, `SIM_USER2_NAME='יעל'`, `SIM_USER1_BIRTH='1962-08-25'`, `SIM_USER2_BIRTH='1978-05-15'`, `SIM_RETIREMENT_AGE_ROY=67`, `SIM_RETIREMENT_AGE_YAEL=64`
+- קוראת ל-`syncBirthYearsFromSettings()` + `syncProfileLabels()` + `applyUserNames()`
+- נקראת בשני מקומות: `switchMode('EXCEL')` (לאחר `loadSettings()`) + `DOMContentLoaded` (auto-ignition)
+
+**3. Guard ב-`saveSettings()`**
+- אם `APP_MODE === 'DEMO'`: כותב ללוקאלסטורג' 'רועי'/'יעל'/'1962-08-25'/'1978-05-15' (במקום ערכי DEMO)
+- ערכי דן/דינה לעולם לא נשמרים ב-`SETTINGS_LS_KEY`
+
+**4. תיקון default `SIM_USER2_NAME`**
+- שינוי מ-`'User B'` ל-`''` (ריק) — "User B" לעולם לא יופיע שוב כתווית ברירת מחדל
+
+**5. סדר הפעולות ב-EXCEL mode**
+- 1. Switch Mode → 2. `absoluteInternalReset()` → 3. שחזור נתוני לוקאלסטורג' → 4. `loadSettings()` → 5. **`_applyExcelIdentity()`** → 6. `pensionSliderChange()` → 7. `simRunEngine()` → 25.2M ✓
+
+**6. גרסה: v173.2**
+
+## שינויים אחרונים (03/05/2026 — v173.1)
+
+### v173.1 – Calc Stability & Demo Visibility Lock
+
+**1. תיקון Calculation Drift — "26.5M vs 25.2M"**
+- **שורש הבעיה**: `loadSettings()` משחזר `SIM_PENSION_MONTHLY` מלוקאלסטורג' (ערך ישן) ואת `SIM_TARGET_EXP`; כאשר המנוע רץ לפני שנוקה הזיכרון הזמני, הוא משתמש בערכים מהסשן הקודם
+- **התיקון** (app.js לאחר `loadSettings()`): סדר קפדני:
+  1. `activeDataSource = 'EXCEL'` — firewall המנוע פעיל
+  2. `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` — נעילה לפני הניקוי
+  3. `SIM_TARGET_AGE = SIM_RETIREMENT_AGE_ROY` — יישור גיל יעד (מונע drift של 1.3M)
+  4. `resetCalculationMemory()` — **חדש**: מאפס `SIM_PENSION_MONTHLY` + `SIM_CURRENT_SALARY` + `SIM_RENTAL_INCOME`
+  5. `SIM_TARGET_EXP = SIM_RETIRE_EXP` — שחזור אחרי הניקוי
+  6. `pensionSliderChange()` → `SIM_PENSION_MONTHLY` מחודש
+  7. `simRunEngine()` — ריצה אחת, נקייה
+
+**2. נעילת גיל פרישה ב-DEMO — High-Contrast Lock**
+- **בעיה**: שדות `stg-retire-age-roy` ו-`stg-retire-age-yael` לא היו נעולים במצב DEMO
+- **התיקון** (`syncProfileLabels()`):
+  - DEMO: מאלץ `ra1.value = '67'`, `ra2.value = '64'`; מוסיף ra1, ra2 ל-`_lockFields`
+  - CSS `.settings-input:disabled` (מ-v172.7) מטפל בנראות: רקע כהה, טקסט לבן, opacity 1
+  - EXCEL/SIMULATOR: ערכים נשמרים מ-globals (ללא שינוי)
+
+**3. UI Integrity — אומת**
+- נאבבר: נתוני אמת · מצב דמו · סימולטור אישי · 🗑 נקה הכל ✓
+- EXCEL mode: labels מראים "רועי"/"יעל" בלבד ✓
+
+**4. גרסה: v173.1**
+
+## שינויים אחרונים (03/05/2026 — v173.0)
+
+### v173.0 – UI Centralization & Calc Reliability
+
+**1. UI Refactor — כפתורי ניווט מרוכזים בנאבבר**
+- **הוסר**: div `admin-controls` עם "נתוני דמו" ו-"נקה" מה-Overview tab (לא יופיעו יותר בכותרת)
+- **נוסף**: כפתור `🗑 נקה הכל` בנאבבר העליון (בתוך `#mode-selector-group`) — קורא ל-`navbarClearAll()`
+- נאבבר כעת מכיל את כל 4 הפעולות: נתוני אמת · מצב דמו · סימולטור אישי · נקה הכל
+- `navbarClearAll()`: מבצע `absoluteInternalReset()` + `APP_MODE = null` + חזרה למסך פתיחה
+
+**2. תיקון Race Condition — "7.0M vs 25.2M"**
+- **שורש הבעיה**: `loadExcelFileCore` קרא ל-`loadSettings()` (מעדכן גיל פרישה / תאריכי לידה) אך לא הריץ מחדש את מנוע הסימולציה לאחר מכן — `ovRenderKPIs` השתמש ב-`SIM_LAST_RESULT` ישן (לפני עדכון ההגדרות)
+- **התיקון** (app.js לאחר `loadSettings()`):
+  1. `activeDataSource = 'EXCEL'` — מבטיח `isExcelLoaded()=true`
+  2. `SIM_RETIRE_EXP = ROY_DEFAULTS.retireExp` — נעילת 29K של רועי
+  3. `pensionSliderChange()` — מחשב מחדש `pnsNetMonthlyNoHarel` + `SIM_PENSION_MONTHLY`
+  4. `SIM_LAST_RESULT = null; SIM_LAST_RESULT = simRunEngine()` — ריצה סינכרונית טרייה
+  5. Pre-seed `OV_CACHED_WEALTH` — מבטיח שה-25.2M נראה מיידית
+
+**3. Identity Labels — נשמר מ-v172.9**
+- EXCEL → "רועי"/"יעל" | DEMO → "דן"/"דינה" | SIMULATOR → "משתתף 1"/"משתתף 2" ✓
+
+**4. Auto-Ignition Robust — נשמר מ-v172.8**
+- ROY_EXCEL_DATA בלוקאלסטורג'` → מתעורר ב-EXCEL mode עם 25.2M ✓
+
+**5. גרסה: v173.0**
+
+## שינויים אחרונים (03/05/2026 — v172.9)
+
+### v172.9 – Emergency Identity & Logic Separation
+
+**1. תיקון Identity Collision — `syncProfileLabels()` קפדנית**
+- **שורש הבעיה**: "Input Unlock" המותנה (`if (!inp1.value)`) לא הכריח ניקוי — שם 'דן' מסשן DEMO נשאר בשדה גם לאחר מעבר למצב EXCEL, בזמן שהתוויות עודכנו ל'רועי'
+- **התיקון** (app.js שורה ~12587): הוחלף לוגיקה קפדנית (`if/else if/else` לפי מצב):
+  - **EXCEL**: `inp1.value` מאולץ ל-`SIM_USER1_NAME || 'רועי'` ללא תנאי; DOB מ-globals
+  - **DEMO**: `inp1.value = 'דן'`, `inp2.value = 'דינה'`, DOB קבועות `1975-01-01` / `1978-05-15`
+  - **SIMULATOR**: מנקה רק שמות "זרים" ('דן','רועי','דינה','יעל') — שמות שהמשתמש הקליד נשמרים
+- **תוצאה**: אין דליפת זהות בין מצבים
+
+**2. Auto-Ignition, DEMO CSS, כפתור Clear — נשמרים ואומתו**
+- Auto-Ignition (v172.8): נתוני רועי 25.2M + spike 2029 מוצגים מיד בפתיחה ✓
+- `.settings-input:disabled` CSS — נראות DEMO שמורה מ-v172.7 ✓
+- `clearDashboardData()` — מחזיר ל-Welcome Screen (null mode) מ-v172.5 ✓
+
+**3. גרסה: v172.9**
+
+## שינויים אחרונים (03/05/2026 — v172.8)
+
+### v172.8 – Ignition & Visibility Lock
+
+**1. תיקון קריטי: Auto-Ignition — "ריק בהתעוררות"**
+- **שורש הבעיה**: קוד ישן (v168.11) מחק את `dashboard_assets_v1`, `dashboard_cf_v1`, `dashboard_pension_v1` כאשר `_wasDemo=true` (פתיחת דפדפן לאחר סשן DEMO)
+  - תוצאה: נתוני האקסל של רועי נמחקו → דשבורד נפתח ריק
+- **התיקון** (app.js DOMContentLoaded):
+  - הוסרו שורות מחיקת המפתחות הראשיים (3 שורות)
+  - כעת `_wasDemo` מנקה רק: `_SIM_EVENTS_LS_KEY` (אירועי דמו) + `_dash_is_demo` (הדגל)
+  - נתוני Settings / Assets / CF / Pension לא נמחקים לעולם בסטארטאפ
+- **הצדקה**: `loadDemoData()` לעולם לא כותב ל-`dashboard_assets_v1` (v169.5) — אין מה לנקות
+- **תוצאה**: ה-25.2M של רועי וה-spike של 1,126,087 ₪ מוצגים מיד בפתיחה
+
+**2. נראות DEMO — נשמר מ-v172.7**
+- `style.css`: `.settings-input:disabled` — white text, transparent background, opacity 1 ✓
+
+**3. Identity Guard + UI Integrity — אומת**
+- `applyUserNames()`: SIMULATOR → "משתתף 1"/"משתתף 2" ✓
+- סאב-טאבים (פרופילים / הגדרות מערכת): מבנה קיים נשמר ✓
+- גיל פרישה ברירת מחדל 67 ✓
+
+**4. גרסה: v172.8**
+
+## שינויים אחרונים (03/05/2026 — v172.7)
+
+### v172.7 – Demo Visibility Fix (Surgical CSS)
+
+**תיקון נראות שדות DEMO**
+- קובץ: `style.css` — נוסף rule חדש: `.settings-input:disabled`
+- `background-color: rgba(255, 255, 255, 0.05) !important` — רקע כהה (לא לבן)
+- `color: #ffffff !important` + `-webkit-text-fill-color: #ffffff !important` — טקסט לבן נראה
+- `opacity: 1 !important` — מבטל grey-out של הדפדפן ואת inline opacity מ-v172.6
+- `cursor: not-allowed !important` — נעילה ויזואלית נשמרת
+- שאר הלוגיקה (disabled, hint, persistence) לא השתנתה
+
+**גרסה: v172.7**
+
+## שינויים אחרונים (03/05/2026 — v172.6)
+
+### v172.6 – UI Persistence & Visibility
+
+**1. תיקון Modal "דביק" — Blank Slate**
+- `switchMode()`: מוסיף `blank-slate-modal.style.display = 'none'` בכל מעבר מצב (לצד הסתרת `clean-slate-cover`)
+  - מונע מהמודאל להישאר על המסך כאשר לוחצים על מצב אחר בזמן שהמודאל פתוח
+- `switchTab('overview')`: אם APP_MODE פעיל ואינו BLANK — מסתיר גם blank-slate-modal וגם clean-slate-cover
+- `loadExcelFileCore()`: אחרי טעינה מוצלחת — מבטיח EXCEL mode + מסיר את שני ה-overlays
+
+**2. הצגת נתוני דמו (דן ודינה)**
+- `syncProfileLabels()`: שינוי opacity מ-`0.6` ל-`0.95` עבור שדות DEMO הנעולים
+- הנתונים קריאים בבירור; הנעילה מוצגת רק דרך אייקון המנעול ורקע אפרפר
+
+**3. Auto-Ignition חזק**
+- DOMContentLoaded: כאשר נתוני EXCEL מזוהים — הסתרה מפורשת של blank-slate-modal ו-clean-slate-cover
+- מבטיח שאף overlay לא יכסה את הנתונים בעת טעינה ראשונית
+
+**4. אימות Identity Guard**
+- `applyUserNames()` (v172.5): SIMULATOR → "משתתף 1"/"משתתף 2" — נשמר ✓
+- `ffsConfirmReset()` ("אפס הכל"): סורק רק FFS_/GUEST_ + 3 מפתחות ידועים; ROY_EXCEL_EVENTS ו-dashboard_assets_v1 אינם נמחקים ✓
+
+**5. גרסה: v172.6**
+
+## שינויים אחרונים (03/05/2026 — v172.5)
+
+### v172.5 – Logic Isolation & Label Sync
+
+**1. תיקון לוגיקת ניקוי דמו (clearDashboardData)**
+- כפתור "מחק" (DEMO) כעת מחזיר למסך "בחר מקור נתונים" — לא עובר אוטומטית ל-EXCEL
+- `absoluteInternalReset()` + `APP_MODE = null` + `_updateModeSelectorUI(null)` + `switchTab('overview')`
+- **מניעה קשה**: נתוני אמת של רועי לא נטענים אלא בלחיצה מפורשת על "נתוני אמת"
+
+**2. סנכרון תוויות — סימולטור אישי**
+- `applyUserNames()` עודכן עם Identity Guard: מצב SIMULATOR → "משתתף 1"/"משתתף 2" כברירת מחדל
+- מצב DEMO → "דן"/"דינה"; מצב EXCEL → "רועי"/"יעל" (כבעבר)
+- `switchMode('SIMULATOR')` קורא עכשיו גם ל-`applyUserNames()` — מנקה spans ישנים של "רועי"/"יעל" מה-DOM
+
+**3. נעילת שדות DEMO (DEMO Hard-Lock)**
+- `syncProfileLabels()`: בGrade DEMO — שדות שם ותאריך לידה מושבתים (`disabled=true`)
+- UI ויזואלי: `opacity:0.6`, `cursor:not-allowed`, `background:#f9fafb`
+- hint חדש ב-HTML: `#demo-identity-lock-hint` — מציג "🔒 נתוני דמו הם קבועים לצורכי המחשה"
+- מוצנע: `display:none` כברירת מחדל, מופעל רק ב-DEMO mode
+
+**4. Auto-Ignition + Core Values — אומת**
+- v172.0/v172.2 Auto-Ignition נשמר במלואו ✓
+- Spike 1,126,087 ₪ ב-01/10/2029 נטען ב-`_simRestoreExcelEvents()` ✓
+- גיל ברירת מחדל 67 ✓
+
+**5. גרסה: v172.5**
+
+## שינויים אחרונים (03/05/2026 — v172.4)
+
+### v172.4 – Identity & State Recovery
+
+**1. תוויות דינמיות בסאב-טאב "פרופילים"**
+- פונקציה חדשה: `syncProfileLabels()` — מעדכנת תוויות ופלייסהולדרים בהתאם ל-APP_MODE
+  - **EXCEL mode**: תוויות שם מציגות "רועי" / "יעל", placeholder "רועי" / "יעל"
+  - **DEMO mode**: "דן" / "דינה"
+  - **SIMULATOR mode**: "משתתף 1" / "משתתף 2", placeholders ניטרליים
+- span IDs חדשים ב-HTML: `stg-lbl-name1`, `stg-lbl-name2` — ניתנים לעדכון דינמי
+- **אין עוד "דן"/"דינה" בשדות EXCEL mode** — מניעה של זליגת זהות דמו לתצוגת נתוני אמת
+
+**2. נקודות הפעלה של `syncProfileLabels()`**
+- `switchTab('settings')` — עם כניסה לטאב הגדרות
+- `switchSettingsSubTab('profiles')` — עם לחיצה על סאב-טאב פרופילים
+- `applyUserNames()` — בסוף, כל עדכון שם מסנכרן גם את הסאב-טאב
+- `switchMode('SIMULATOR')` — אחרי `simUpdateNameLabel()`
+- `DOMContentLoaded` — בטעינה ראשונה אחרי `loadSettings()`
+- DEMO mode: מופעל דרך `applyUserNames()` בתוך `loadDemoData()`
+
+**3. Input Unlock — שחרור שדות עריכה**
+- `syncProfileLabels()` משחזרת ערכים מגלובלים כשהשדות ריקים (privacy shield לא חל בטאב הגדרות)
+- גיל פרישה: תמיד משחזר מ-SIM_RETIREMENT_AGE_ROY / YAEL
+- תאריך לידה: משחזר אם SIM_USER1_BIRTH / USER2_BIRTH מאוכלסים
+- השדות ניתנים לעריכה ידנית גם לפני טעינת קובץ אקסל
+
+**4. Master Reset — אישור כפול**
+- `masterResetDashboard()`: עדכן מאישור יחיד לאישור כפול
+  - אישור 1: "זהירות! פעולה זו תמחק..."
+  - אישור 2: "אישור סופי: כל הנתונים יימחקו לצמיתות..."
+
+**5. Auto-Ignition + Spike Guard + Burgundy — אומת**
+- v172.0/v172.1/v172.2 Auto-Ignition נשמר במלואו ✓
+- Spike 1,126,087 ₪ ב-01/10/2029 נטען ב-`_simRestoreExcelEvents()` ✓
+- `#800020` bold על "הזן נתונים" ✓
+- גיל ברירת מחדל 67 ✓
+
+**6. גרסה: v172.4**
+
+## שינויים אחרונים (03/05/2026 — v172.3)
+
+### v172.3 – The Command Center Upgrade
+
+**1. הגדרות — ממשק כפול (Dual Sub-Tabs)**
+- טאב "הגדרות" מחולק כעת לשני סאב-טאבים:
+  - **פרופילים**: שמות משתתפים (שדות חדשים stg-user1-name, stg-user2-name), תאריכי לידה, גיל פרישה
+  - **הגדרות מערכת**: פרמטרים גלובליים (תשואות, אינפלציה, הוצאה חודשית) + כפתור איפוס
+- פונקציה חדשה: `switchSettingsSubTab(tab)` — מנהל הצגת/הסתרת הפאנלים
+- CSS חדש: `.stg-subtab-nav`, `.stg-subtab-btn`, `.stg-subpanel`, `.master-reset-btn`
+
+**2. הסרת אלמנטים מיותרים**
+- נמחק כפתור "🔒 דף חלק" מבחירת מצב ניווט
+- נמחק אייקון ⚙️ גיר מאזור כותרת טאב "מבט על"
+
+**3. חומת אש נתונים — Data Firewall**
+- `clearDashboardData()` ("נקה" בכותרת) מחדש: מוחק **רק** מפתחות DEMO_ + `_dash_is_demo`, ואז קורא `switchMode('EXCEL')`. אסור לפגוע ב-ROY_ keys
+- `ffsConfirmReset()` ("אפס הכל" בסימולטור) מחדש: סורק כל ה-localStorage ומוחק **רק** מפתחות FFS_/GUEST_ + 3 המפתחות הספציפיים הקיימים
+- **Master Reset (חדש)**: כפתור אדום "🗑️ איפוס דשבורד מלא" בסאב-טאב "הגדרות מערכת"
+  - תיבת אישור "זהירות! פעולה זו תמחק את כל הנתונים..." לפני הביצוע
+  - `localStorage.clear()` + reset ל-defaults קשיחים (אינפלציה 2.5%, מס 25%, תשואה 4%)
+  - `location.reload()`
+
+**4. Participant 2 — Null Handling**
+- `stg-user2-birth` ב-HTML: הוסר default value — משתתף 2 אופציונלי לחלוטין
+- `saveSettings()`: שדות ריקים של user2 מנקים את הגלובלים (SIM_USER2_BIRTH, SIM_USER2_NAME), לא נופלים ל-fallback
+- המנוע מחזיר 0 עבור yaelData כאשר אין נתוני פנסיה/השקעה של משתתף 2
+
+**5. Burgundy + ברירת מחדל גיל 67 — אומת**
+- `#800020` bold על "הזן נתונים" בסימולטור ✓ (שורה 1591 ב-index.html)
+- גיל פרישה ברירת מחדל 67 — שמור בכל מחשבוני המנוע ✓
+
+**6. גרסה: v172.3**
 
 ## שינויים אחרונים (03/05/2026 — v172.2)
 
