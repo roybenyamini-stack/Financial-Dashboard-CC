@@ -921,3 +921,21 @@ body.demo-mode #stg-retire-exp-field {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* v177.6: Smart Investment + Pension Dropzone */
+#ffs-inv-dropzone.ffs-dropzone-active,
+#ffs-pen-dropzone.ffs-dropzone-active {
+  border-color: #2563eb !important;
+  background: rgba(59,130,246,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.22);
+}
+.ffs-inv-field-required {
+  background: #fef9c3 !important;
+  border-color: #ca8a04 !important;
+}
+.ffs-inv-hint {
+  font-size: 10px;
+  color: #b45309;
+  margin-top: 3px;
+  font-family: Heebo, sans-serif;
+}
