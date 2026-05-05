@@ -1,4 +1,4 @@
-<!-- v177.3 -->
+<!-- v177.4 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.3</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.4</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -403,6 +403,13 @@
 </div>
 
 <div class="tab-panel" id="tab-investments" style="padding-top:0;">
+
+<!-- v177.4: Privacy guard — shown when no Excel data is active -->
+<div id="inv-no-excel-msg" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:260px;gap:12px;color:#94a3b8;font-family:Heebo,sans-serif;">
+  <div style="font-size:44px;opacity:0.5;">📊</div>
+  <div style="font-size:15px;font-weight:700;">יש להעלות נתוני אקסל להצגת ההשקעות</div>
+  <div style="font-size:12px;">העלה קובץ אקסל או עבור למצב נתונים אמיתיים</div>
+</div>
 
 <!-- MASTER-DETAIL PANEL (v98.4): רמה 1 = כרטיסיות קרנות | רמה 2 = טבלת פירוט קרן -->
 <div id="inv-master-detail" style="display:none;">
