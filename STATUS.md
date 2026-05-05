@@ -1,7 +1,33 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v177.1 — Profile Isolation Fix: Dan leakage + 100K gap (04/05/2026).
+גרסה v177.5 — Smart Investment Dropzone: Vision AI + Manual Modal (05/05/2026).
+
+## שינויים אחרונים (05/05/2026 — v177.5)
+
+### v177.5 – Smart Investment Dropzone
+
+**תיאור:** הפיכת לחצן "הוסף נכס השקעה" ל-Dropzone חכם עם שני מצבי קלט.
+
+**Action A — קליק (הזנה ידנית):**
+- קליק על הלחצן פותח מודאל ייעודי עם 6 שדות: סכום, מספר פוליסה, חברה מנהלת, מסלול, סוג השקעה, נזילות
+- שמירה מבצעת ולידציה (סכום ומספר פוליסה הם שדות חובה)
+
+**Action B — גרירת תמונה (Vision AI):**
+- גרירת קובץ תמונה על הלחצן מדגישה אותו בכחול
+- שחרור שולח את התמונה ל-Claude Vision API דרך ה-Worker הקיים
+- המודאל נפתח עם שדות ממולאים אוטומטית; שדות שה-AI לא זיהה — מודגשים בצהוב עם "נדרשת השלמה ידנית"
+
+**קבצים שהשתנו:**
+- `index.html` שורה 1840: שינוי לחצן + הוספת מודאל HTML לפני `</body>`
+- `app.js` שורות 14003–14176: הוספת 7 פונקציות חדשות (ffsOpenInvModal, ffsCloseInvModal, ffsSaveInvFromModal, ffsDropzoneDragOver, ffsDropzoneDragLeave, ffsDropzoneDrop, ffsExtractFromImage)
+- `style.css`: הוספת סגנונות Dropzone ומודאל
+
+**אין שינוי ב:** ffsAddItem, ffsSaveProfile, ffsRenderSection, מבנה נתוני investments, Worker URL.
+
+## שינויים אחרונים (04/05/2026 — v177.4)
+
+הערה: גרסאות v177.2–v177.4 עדכנו Privacy Guard ו-Yael/Joint views — ראה היסטוריה בגיט.
 
 ## שינויים אחרונים (04/05/2026 — v177.1)
 
