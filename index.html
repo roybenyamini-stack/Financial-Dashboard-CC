@@ -266,6 +266,8 @@
       <!-- pension view select — standalone -->
       <select id="pns-view-select" class="pns-only-btn" onchange="pensionSetView(this.value)" style="display:none;cursor:pointer;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:0 10px;font-size:12px;font-weight:600;font-family:Heebo,sans-serif;outline:none;height:34px;direction:rtl;min-width:96px;">
         <option value="mine" id="pns-view-opt-mine">רועי</option>
+        <option value="yael" id="pns-view-opt-yael">יעל</option>
+        <option value="all"  id="pns-view-opt-all">משותף</option>
       </select>
       <span class="pns-only-btn" onclick="togglePnsChat()" style="display:none;cursor:pointer;color:white;font-size:22px;opacity:0.85;" title="צ׳אט AI פנסיה">💬</span>
       <!-- v168.69: Overview tab global AI chat -->
@@ -1419,13 +1421,6 @@
           <button id="sim-xaxis-year"  onclick="simSetXAxisMode('year')"  style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שנה</button>
           <button id="sim-xaxis-age"   onclick="simSetXAxisMode('age')"   style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">גיל</button>
           <button id="sim-xaxis-both"  onclick="simSetXAxisMode('both')"  style="padding:2px 9px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שניהם</button>
-        </div>
-
-        <!-- POS 1.5: Profile view (רועי / יעל / משותף) — restored v177.2 -->
-        <div id="sim-profile-btns" style="display:flex;flex-direction:row;align-items:center;gap:4px;flex:0 0 auto;">
-          <button id="sim-btn-roy"      onclick="simSetView('roy')"      style="padding:2px 9px;border-radius:20px;border:1.5px solid #3b82f6;background:#3b82f6;color:white;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">רועי</button>
-          <button id="sim-btn-yael"     onclick="simSetView('yael')"     style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">יעל</button>
-          <button id="sim-btn-combined" onclick="simSetView('combined')" style="padding:2px 9px;border-radius:20px;border:1.5px solid rgba(0,0,0,0.18);background:rgba(0,0,0,0.05);color:#374151;font-size:9px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">משותף</button>
         </div>
 
         <!-- POS 2: Nominal / Real (נומינלי #000080 Navy | ריאלי #800000 Bordeaux) -->
