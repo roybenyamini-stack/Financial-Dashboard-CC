@@ -5897,6 +5897,8 @@ function switchTab(id){
   var isOv       = (id === 'overview');
   var isMkt      = (id === 'market');
   var isSettings = (id === 'settings');
+  // v177.4: privacy guard — real data (FUNDS/PENSION) only shown in EXCEL mode
+  var _isExcel = (typeof APP_MODE !== 'undefined' && APP_MODE === 'EXCEL');
 
   // v107.0: market tab — keep title group visible (title aligns right), show search area in header
   var hdrTitleGroup = document.getElementById('hdr-title-group');
@@ -5907,11 +5909,11 @@ function switchTab(id){
 
   // Header stats
   var invStats = document.getElementById('inv-header-stats');
-  if(invStats) invStats.style.display = isInv ? '' : 'none';
+  if(invStats) invStats.style.display = (isInv && _isExcel) ? '' : 'none';
   var cfStats = document.getElementById('cf-header-stats');
   if(cfStats) cfStats.style.display = isCF ? 'flex' : 'none';
   var pnsStats = document.getElementById('pns-header-stats');
-  if(pnsStats) pnsStats.style.display = isPns ? 'flex' : 'none';
+  if(pnsStats) pnsStats.style.display = (isPns && _isExcel) ? 'flex' : 'none';
   var simStats = document.getElementById('sim-header-stats');
   if(simStats) simStats.style.display = isSim ? 'flex' : 'none';
   var ovStats = document.getElementById('ov-header-stats');
@@ -5921,7 +5923,7 @@ function switchTab(id){
 
   // Cards row
   var invCards = document.getElementById('inv-cards-row');
-  if(invCards) invCards.style.display = isInv ? '' : 'none';
+  if(invCards) invCards.style.display = (isInv && _isExcel) ? '' : 'none';
   var cfCards = document.getElementById('cf-cards-row');
   if(cfCards) cfCards.style.display = isCF ? 'grid' : 'none';
   var cfLblSM = document.getElementById('cf-label-summary-month');
@@ -5929,10 +5931,13 @@ function switchTab(id){
 
   // Chart section
   var invChart = document.getElementById('inv-chart-section');
-  if(invChart) invChart.style.display = isInv ? '' : 'none';
+  if(invChart) invChart.style.display = (isInv && _isExcel) ? '' : 'none';
+  // v177.4: investment placeholder — shown when not in Excel mode
+  var _invNoEx = document.getElementById('inv-no-excel-msg');
+  if (_invNoEx) _invNoEx.style.display = (isInv && !_isExcel) ? 'flex' : 'none';
 
   // Header buttons
-  document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = isInv ? '' : 'none'; });
+  document.querySelectorAll('.inv-only-btn').forEach(function(b){ b.style.display = (isInv && _isExcel) ? '' : 'none'; });
   document.querySelectorAll('.cf-only-btn').forEach(function(b){ b.style.display = isCF ? 'flex' : 'none'; });
   document.querySelectorAll('.pns-only-btn').forEach(function(b){ b.style.display = isPns ? 'flex' : 'none'; });
   document.querySelectorAll('.sim-only-btn').forEach(function(b){ b.style.display = isSim ? 'flex' : 'none'; });
@@ -5953,11 +5958,13 @@ function switchTab(id){
     document.querySelectorAll('.card, .card-total').forEach(function(c){ c.classList.remove('active'); });
     var _cardAll = document.getElementById('card-all');
     if (_cardAll) _cardAll.classList.add('active');
-    if (invViewMode === 'roee') {
-      hideEmptyChart();
-      updateChart(getFilteredAllTotals ? getFilteredAllTotals() : ALL_TOTALS, '#2563eb', (CAT_NAMES && CAT_NAMES.all) || 'הכל');
-    } else {
-      showEmptyChart();
+    if (_isExcel) { // v177.4: privacy guard — render chart only in Excel mode
+      if (invViewMode === 'roee') {
+        hideEmptyChart();
+        updateChart(getFilteredAllTotals ? getFilteredAllTotals() : ALL_TOTALS, '#2563eb', (CAT_NAMES && CAT_NAMES.all) || 'הכל');
+      } else {
+        showEmptyChart();
+      }
     }
   } else {
     // leaving investments: hide Master-Detail
@@ -5973,7 +5980,15 @@ function switchTab(id){
   if (pnsChatOpen) { pnsChatOpen = false; var _pnscp = document.getElementById('pns-cp'); if(_pnscp) _pnscp.style.display='none'; }
 
   if(isCF && !cfInited){ cfInited=true; setTimeout(cfInit,80); }
-  if(isPns && !pensionInited){ pensionInited=true; setTimeout(pensionInit,80); }
+  // v177.4: privacy guard — pension renders only in Excel mode; show empty state otherwise
+  if(isPns) {
+    if (_isExcel) {
+      if (!pensionInited) { pensionInited = true; setTimeout(pensionInit, 80); }
+    } else {
+      if (typeof pensionShowEmpty === 'function') pensionShowEmpty();
+      pensionInited = false; // reset so Excel mode re-init fires correctly later
+    }
+  }
   if(isOv){
     if(!overviewInited){ overviewInited=true; }
     // v169.3: in SIMULATOR mode, ensure sim engine is ready before overview renders
