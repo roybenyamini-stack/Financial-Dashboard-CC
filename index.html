@@ -1,4 +1,4 @@
-<!-- v177.4 -->
+<!-- v177.11 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.4</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.11</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1837,7 +1837,7 @@
         </div>
         <div id="ffs-acc-body-investments" style="display:block;">
           <div id="ffs-investments-list"></div>
-          <button onclick="ffsAddItem('investments')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;">+ הוסף נכס השקעה</button>
+          <button id="ffs-inv-dropzone" onclick="ffsOpenInvModal(null,'investments')" ondragover="ffsDropzoneDragOver(event,'investments')" ondragleave="ffsDropzoneDragLeave(event,'investments')" ondrop="ffsDropzoneDrop(event,'investments')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף נכס השקעה</button>
         </div>
         <span id="ffs-acc-arrow-investments" style="display:none;">▼</span>
       </div>
@@ -1847,7 +1847,7 @@
         <div style="font-size:20px;font-weight:900;color:#1e293b;margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid #e2e8f0;">🏦 נכסים פנסיוניים</div>
         <div id="ffs-acc-body-pension" style="display:block;">
           <div id="ffs-pension-list"></div>
-          <button onclick="ffsAddItem('pension')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;">+ הוסף פוליסה</button>
+          <button id="ffs-pen-dropzone" onclick="ffsOpenInvModal(null,'pension')" ondragover="ffsDropzoneDragOver(event,'pension')" ondragleave="ffsDropzoneDragLeave(event,'pension')" ondrop="ffsDropzoneDrop(event,'pension')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף פוליסה</button>
         </div>
         <span id="ffs-acc-arrow-pension" style="display:none;">▼</span>
         <datalist id="ffs-providers-dl">
@@ -2328,6 +2328,87 @@
 
 <!-- v169.2: Floating Toast — replaces header excel-status for upload/mode notifications -->
 <div id="upload-toast"></div>
+
+<!-- v177.7: Smart Investment Dropzone — Modal (Universal: investments + pension) -->
+<div id="ffs-inv-backdrop" onclick="ffsCloseInvModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10200;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
+<div id="ffs-inv-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:480px;background:#fff;border-radius:18px;z-index:10201;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div id="ffs-inv-modal-title" style="font-size:16px;font-weight:900;color:#1e293b;">📈 הוספת נכס השקעה</div>
+    <span onclick="ffsCloseInvModal()" style="font-size:20px;color:#94a3b8;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;" onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'">✕</span>
+  </div>
+  <!-- Wizard Header (shown only when image-sourced, multi-asset) -->
+  <div id="ffs-wizard-header" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;font-weight:700;color:#1d4ed8;">
+    🔍 קולטים נכסים מהתמונה: נכס <span id="ffs-wizard-current">1</span> מתוך <span id="ffs-wizard-total">1</span> שזוהו
+  </div>
+  <!-- AI Loader -->
+  <div id="ffs-inv-loader" style="display:none;text-align:center;padding:18px 0 10px;color:#2563eb;font-size:13px;font-weight:700;">
+    <div style="font-size:22px;margin-bottom:8px;">🤖</div>
+    מנתח תמונה עם AI...
+  </div>
+  <!-- Form -->
+  <div id="ffs-inv-form-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <!-- סכום -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סכום (באלפי ש"ח) *</div>
+        <input id="ffs-inv-f-balance" type="number" placeholder="0" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+        <div id="ffs-inv-h-balance" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+      </div>
+      <!-- מספר פוליסה -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מספר פוליסה / קרן / קופה *</div>
+        <input id="ffs-inv-f-assetNum" type="text" placeholder="מס׳ / שם" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;box-sizing:border-box;outline:none;">
+        <div id="ffs-inv-h-assetNum" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+      </div>
+    </div>
+    <!-- חברה מנהלת -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">חברה מנהלת</div>
+      <input id="ffs-inv-f-name" type="text" placeholder="למשל: מיטב, הראל, הפניקס..." oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
+      <div id="ffs-inv-h-name" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+      <!-- סוג נכס / קטגוריה — options set dynamically by JS -->
+      <div>
+        <div id="ffs-inv-label-category" style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סוג נכס / קטגוריה</div>
+        <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+          <option value="">בחר...</option>
+        </select>
+        <div id="ffs-inv-h-category" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+      </div>
+      <!-- מסלול (מנייתי/כללי/כספי) -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מסלול</div>
+        <select id="ffs-inv-f-type" onchange="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+          <option value="">בחר...</option>
+          <option value="מנייתי">מנייתי</option>
+          <option value="כללי">כללי</option>
+          <option value="כספי">כספי</option>
+        </select>
+        <div id="ffs-inv-h-type" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+      </div>
+      <!-- נזילות — hidden for pension context -->
+      <div id="ffs-inv-liquidity-wrap">
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">נזילות</div>
+        <select id="ffs-inv-f-liquidity" onchange="ffsCheckLiquidityWarning(); this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+          <option value="" disabled selected>בחר...</option>
+          <option value="liquid">נזיל</option>
+          <option value="private">השקעה עצמית</option>
+          <option value="pension67">גיל 67+</option>
+        </select>
+        <div id="ffs-inv-h-liquidity" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
+        <div id="ffs-liquidity-warning" style="display:none;color:#dc2626;font-size:11px;margin-top:4px;line-height:1.4;">⚠️ לתשומת לבך: מומלץ מאד לא לגעת בקרן השתלמות עד גיל הפרישה כדי לשמור על הפטור ממס.</div>
+      </div>
+    </div>
+    <!-- Buttons -->
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="ffsCloseInvModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
+      <button id="ffs-inv-skip-btn" onclick="ffsSkipWizardAsset()" style="display:none;padding:9px 18px;border:1.5px solid #fb923c;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#ea580c;background:#fff7ed;cursor:pointer;">דלג ←</button>
+      <button id="ffs-inv-save-btn" onclick="ffsSaveInvFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">💾 שמור</button>
+    </div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body></html>
