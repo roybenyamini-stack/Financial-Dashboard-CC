@@ -8439,11 +8439,135 @@ function ffsAddItem(section) {
   ffsSaveProfile();
   ffsRenderSection(section);
 }
+var ffsItemToDelete    = null;
+var ffsSectionToDelete = null;
+var ffsCurrentPensionId = null;
+var ffsCurrentInvId = null;
 function ffsRemoveItem(section, id) {
-  FFS_PROFILE[section] = FFS_PROFILE[section].filter(function(x) { return x.id !== id; });
-  ffsSaveProfile();
-  ffsRenderSection(section);
+  ffsSectionToDelete = section;
+  ffsItemToDelete    = id;
+  var modal = document.getElementById('ffs-custom-confirm');
+  if (modal) modal.style.display = 'flex';
 }
+function ffsConfirmDelete() {
+  var modal = document.getElementById('ffs-custom-confirm');
+  if (modal) modal.style.display = 'none';
+  if (!ffsSectionToDelete || !ffsItemToDelete) return;
+  FFS_PROFILE[ffsSectionToDelete] = (FFS_PROFILE[ffsSectionToDelete] || []).filter(function(x) { return x.id !== ffsItemToDelete; });
+  ffsSaveProfile();
+  ffsRenderSection(ffsSectionToDelete);
+  showToast('הנכס נמחק', '#64748b', 2500);
+  ffsSectionToDelete = null;
+  ffsItemToDelete    = null;
+}
+function ffsCancelDelete() {
+  var modal = document.getElementById('ffs-custom-confirm');
+  if (modal) modal.style.display = 'none';
+  ffsSectionToDelete = null;
+  ffsItemToDelete    = null;
+}
+
+// v177.20: Dedicated Pension Modal functions
+function ffsOpenPensionModal(item) {
+  ffsCurrentPensionId = item ? item.id : null;
+  var title = document.getElementById('ffs-pen-modal-title');
+  var titleTextEdit = '\u{1F3E6} עריכת נכס פנסיוני';
+  var titleTextAdd  = '\u{1F3E6} הוספת נכס פנסיוני';
+  if (title) title.textContent = item ? titleTextEdit : titleTextAdd;
+  var isManager = item && item.pensionType === 'manager';
+  document.getElementById('ffs-pen-modal-type-pension').checked = !isManager;
+  document.getElementById('ffs-pen-modal-type-manager').checked = !!isManager;
+  document.getElementById('ffs-pen-modal-name').value     = item ? (item.name || '') : '';
+  document.getElementById('ffs-pen-modal-provider').value = item ? (item.provider || '') : '';
+  document.getElementById('ffs-pen-modal-monthly').value  = item ? (item.monthlyPension || 0) : '';
+  document.getElementById('ffs-pen-modal-expected').value = item ? (item.expectedPayout || 0) : '';
+  document.getElementById('ffs-pen-modal-contrib').value  = item ? (item.contributionPct || 0) : '';
+  var survEl = document.getElementById('ffs-pen-modal-survivors');
+  if (survEl) survEl.checked = item ? (!!item.survivorsEnabled) : false;
+  document.getElementById('ffs-pen-survivors-fields').style.display = (item && item.survivorsEnabled) ? 'block' : 'none';
+  document.getElementById('ffs-pen-modal-spouse').value    = item ? (item.spousePct || 0) : '';
+  document.getElementById('ffs-pen-modal-orphan').value    = item ? (item.orphanPct || 0) : '';
+  document.getElementById('ffs-pen-modal-children').value  = item ? (item.childrenAges || '') : '';
+  document.getElementById('ffs-pen-modal-accum').value    = item ? (item.accumulation || 0) : '';
+  document.getElementById('ffs-pen-modal-factor').value   = item ? (item.conversionFactor || '') : '';
+  document.getElementById('ffs-pen-modal-life').value     = item ? (item.lifeInsurance || 0) : '';
+  document.getElementById('ffs-pen-modal-active').checked = item ? (!!item.isActive) : false;
+  document.getElementById('ffs-pen-modal-notes').value    = item ? (item.notes || '') : '';
+  ffsTogglePensionType();
+  document.getElementById('ffs-pension-backdrop').style.display = 'block';
+  document.getElementById('ffs-pension-modal').style.display    = 'block';
+}
+function ffsClosePensionModal() {
+  document.getElementById('ffs-pension-backdrop').style.display = 'none';
+  document.getElementById('ffs-pension-modal').style.display    = 'none';
+  ffsCurrentPensionId = null;
+}
+function ffsTogglePensionType() {
+  var isPension = document.getElementById('ffs-pen-modal-type-pension').checked;
+  document.getElementById('pension-fund-fields').style.display   = isPension ? '' : 'none';
+  document.getElementById('exec-insurance-fields').style.display = isPension ? 'none' : '';
+}
+function ffsSavePensionFromModal() {
+  var isEdit    = !!ffsCurrentPensionId;
+  var isPension = document.getElementById('ffs-pen-modal-type-pension').checked;
+  var nameVal   = (document.getElementById('ffs-pen-modal-name').value    || '').trim();
+  var provVal   = (document.getElementById('ffs-pen-modal-provider').value || '').trim();
+  var activeVal = !!(document.getElementById('ffs-pen-modal-active').checked);
+  var notesVal  = (document.getElementById('ffs-pen-modal-notes').value   || '').trim();
+  var newData = {
+    name: nameVal,
+    provider: provVal,
+    pensionType: isPension ? 'pension' : 'manager',
+    isActive: activeVal,
+    notes: notesVal
+  };
+  if (isPension) {
+    newData.monthlyPension   = parseFloat(document.getElementById('ffs-pen-modal-monthly').value)  || 0;
+    newData.expectedPayout   = parseFloat(document.getElementById('ffs-pen-modal-expected').value) || 0;
+    newData.contributionPct  = parseFloat(document.getElementById('ffs-pen-modal-contrib').value)  || 0;
+    newData.survivorsEnabled = !!(document.getElementById('ffs-pen-modal-survivors').checked);
+    newData.spousePct        = parseFloat(document.getElementById('ffs-pen-modal-spouse').value)   || 0;
+    newData.orphanPct        = parseFloat(document.getElementById('ffs-pen-modal-orphan').value)   || 0;
+    newData.childrenAges     = (document.getElementById('ffs-pen-modal-children').value || '').trim();
+    newData.accumulation = 0; newData.conversionFactor = 0; newData.lifeInsurance = 0;
+  } else {
+    var accumVal = parseFloat(document.getElementById('ffs-pen-modal-accum').value)  || 0;
+    var lifeVal  = parseFloat(document.getElementById('ffs-pen-modal-life').value)   || 0;
+    newData.accumulation     = accumVal;
+    newData.conversionFactor = parseFloat(document.getElementById('ffs-pen-modal-factor').value) || 0;
+    newData.lifeInsurance    = lifeVal || accumVal;
+    newData.monthlyPension = 0; newData.expectedPayout = 0; newData.contributionPct = 0;
+    newData.survivorsEnabled = false; newData.spousePct = 0; newData.orphanPct = 0; newData.childrenAges = '';
+  }
+  if (isEdit) {
+    var existing = (FFS_PROFILE.pension || []).find(function(x) { return x.id === ffsCurrentPensionId; });
+    if (existing) { Object.keys(newData).forEach(function(k) { existing[k] = newData[k]; }); }
+  } else {
+    newData.id = 'ffs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    FFS_PROFILE.pension = FFS_PROFILE.pension || [];
+    FFS_PROFILE.pension.push(newData);
+  }
+  ffsSaveProfile();
+  ffsRenderSection('pension');
+  ffsClosePensionModal();
+  var _toastMsg = isEdit ? 'הפוליסה עודכנה' : 'הפוליסה נוספה';
+  showToast(_toastMsg, '#10b981', 2500);
+}
+function ffsHandleEditPension(el) {
+  var id   = el.getAttribute('data-id');
+  var item = (FFS_PROFILE.pension || []).find(function(x) { return x.id === id; });
+  if (item) ffsOpenPensionModal(item);
+}
+function ffsHandleEditInv(el) {
+  var id   = el.getAttribute('data-id');
+  var item = (FFS_PROFILE.investments || []).find(function(x) { return x.id === id; });
+  if (item) ffsOpenInvModal(item, 'investments');
+}
+function ffsShowNotes(el) {
+  var _noteHeader = 'הערות:\n';
+  alert(_noteHeader + (el.getAttribute('data-notes') || ''));
+}
+
 function ffsUpdateItem(section, id, key, val) {
   var item = FFS_PROFILE[section].find(function(x) { return x.id === id; });
   // v171.4: manual edit promotes profile from demo to real user data
@@ -8514,6 +8638,88 @@ function ffsHandleRemove(el) {
   ffsRemoveItem(el.getAttribute('data-section'), el.getAttribute('data-id'));
 }
 // v168.75: full rewrite — investments/realEstate/pension with advanced fields
+var ffsReorderMode = {}; // v177.14: {investments: bool, pension: bool}
+
+function ffsToggleReorder(section) {
+  ffsReorderMode[section] = !ffsReorderMode[section];
+  var btn = document.getElementById('ffs-reorder-btn-' + section);
+  if (btn) {
+    btn.style.background  = ffsReorderMode[section] ? '#dbeafe' : '#f8fafc';
+    btn.style.color       = ffsReorderMode[section] ? '#1d4ed8' : '#475569';
+    btn.style.borderColor = ffsReorderMode[section] ? '#93c5fd' : '#cbd5e1';
+  }
+  ffsRenderSection(section);
+}
+
+function ffsMoveItem(section, idx, dir) {
+  var arr = FFS_PROFILE[section];
+  if (!arr) return;
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  var tmp = arr[idx]; arr[idx] = arr[newIdx]; arr[newIdx] = tmp;
+  ffsSaveProfile();
+  ffsRenderSection(section);
+}
+
+function ffsMoveInvInCat(itemId, dir) {
+  var arr = FFS_PROFILE.investments || [];
+  var _liq = [];
+  _liq.push('עו"ש');
+  _liq.push('עו"ש $');
+  _liq.push('קרן כספית');
+  var _liquidKey2 = 'נזיל';
+  var _nC2 = function(s) { return (s || '').replace(/"/g, '').replace(/״/g, ''); };
+  var _getK2 = function(item) {
+    var raw = item.category || 'אחר';
+    return _liq.some(function(l) { return _nC2(l) === _nC2(raw); }) ? _liquidKey2 : raw;
+  };
+  var targetIdx = -1;
+  arr.forEach(function(item, i) { if (item.id === itemId) targetIdx = i; });
+  if (targetIdx < 0) return;
+  var targetKey = _getK2(arr[targetIdx]);
+  var sameIdxs = [];
+  arr.forEach(function(item, i) { if (_getK2(item) === targetKey) sameIdxs.push(i); });
+  var pos = sameIdxs.indexOf(targetIdx);
+  var swapPos = pos + dir;
+  if (swapPos < 0 || swapPos >= sameIdxs.length) return;
+  var swapIdx = sameIdxs[swapPos];
+  var tmp = arr[targetIdx]; arr[targetIdx] = arr[swapIdx]; arr[swapIdx] = tmp;
+  ffsSaveProfile();
+  ffsRenderSection('investments');
+}
+
+function ffsMoveInvCat(catKey, dir) {
+  var arr = FFS_PROFILE.investments || [];
+  var _liq = [];
+  _liq.push('עו"ש');
+  _liq.push('עו"ש $');
+  _liq.push('קרן כספית');
+  var _liquidKey3 = 'נזיל';
+  var _nC3 = function(s) { return (s || '').replace(/"/g, '').replace(/״/g, ''); };
+  var _getK3 = function(item) {
+    var raw = item.category || 'אחר';
+    return _liq.some(function(l) { return _nC3(l) === _nC3(raw); }) ? _liquidKey3 : raw;
+  };
+  var catOrder = [];
+  var catItems = {};
+  arr.forEach(function(item) {
+    var k = _getK3(item);
+    if (!catItems[k]) { catItems[k] = []; catOrder.push(k); }
+    catItems[k].push(item);
+  });
+  var catPos = catOrder.indexOf(catKey);
+  var swapPos = catPos + dir;
+  if (catPos < 0 || swapPos < 0 || swapPos >= catOrder.length) return;
+  var tmp = catOrder[catPos]; catOrder[catPos] = catOrder[swapPos]; catOrder[swapPos] = tmp;
+  var newArr = [];
+  catOrder.forEach(function(k) {
+    catItems[k].forEach(function(item) { newArr.push(item); });
+  });
+  FFS_PROFILE.investments = newArr;
+  ffsSaveProfile();
+  ffsRenderSection('investments');
+}
+
 function ffsRenderSection(section) {
   var listId = section === 'realEstate' ? 'ffs-realestate-list' : 'ffs-' + section + '-list';
   var listEl = document.getElementById(listId);
@@ -8525,44 +8731,266 @@ function ffsRenderSection(section) {
   var lbSt = 'font-size:0.8rem;color:gray;font-weight:600;margin-bottom:4px;height:1.5rem;overflow:hidden;white-space:nowrap;display:block;';
   var zebra = ['#f1f5f9', '#ffffff']; // v168.81: higher contrast zebra striping
 
+  if (section === 'investments') {
+    var _items = FFS_PROFILE.investments || [];
+    var _catOrder = [];
+    var _catMap   = {};
+    var _liquidKey = 'נזיל';
+    var _liquidCats = [];
+    _liquidCats.push('עו"ש');
+    _liquidCats.push('עו"ש $');
+    _liquidCats.push('קרן כספית');
+    var normCat = function(s) {
+      return (s || '').replace(/"/g, '').replace(/״/g, '');
+    };
+    _items.forEach(function(item) {
+      var _rawC = item.category || 'אחר';
+      var _normRawC = normCat(_rawC);
+      var _isLiquid = _liquidCats.some(function(lc) { return normCat(lc) === _normRawC; });
+      var _c = _isLiquid ? _liquidKey : _rawC;
+      if (!_catMap[_c]) { _catMap[_c] = []; _catOrder.push(_c); }
+      _catMap[_c].push(item);
+    });
+    var _gIdx = 0;
+    var _hdrSt = 'font-size:12px;font-weight:800;color:#1e293b;letter-spacing:0.5px;padding:8px 0 6px;margin-bottom:6px;border-bottom:2px solid #e2e8f0;';
+    var _iSt   = 'border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.02);margin-bottom:8px;padding:14px;position:relative;';
+    _catOrder.forEach(function(cat) {
+      var _grpColor = '#f8fafc';
+      var _normCatKey = normCat(cat);
+      if (cat === 'נזיל')            { _grpColor = '#eff6ff'; }
+      if (cat === 'קרן השתלמות')    { _grpColor = '#fef2f2'; }
+      if (_normCatKey === 'קופג')   { _grpColor = '#fff7ed'; }
+      if (cat === 'פוליסת חיסכון') { _grpColor = '#fefce8'; }
+      if (cat === 'גמל להשקעה')    { _grpColor = '#faf5ff'; }
+      var _grpSt = 'background:' + _grpColor + ';border-radius:14px;padding:10px 10px 2px;margin-bottom:18px;';
+      var displayCat = cat;
+      if (cat === 'פוליסת חיסכון') { displayCat = 'פוליסות חיסכון'; }
+      if (cat === 'קרן השתלמות')   { displayCat = 'קרנות השתלמות'; }
+      if (cat === 'גמל להשקעה')    { displayCat = 'קופות גמל להשקעה'; }
+      if (_normCatKey === 'קופג')  { displayCat = 'קופות גמל'; }
+      var _catBtnSt = 'background:transparent;border:none;cursor:pointer;color:#94a3b8;font-size:10px;padding:1px 4px;line-height:1;';
+      var _safeCatAttr = cat.replace(/"/g, '&quot;');
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;' + _hdrSt + '">';
+      html += '<span>';
+      html += displayCat;
+      html += '</span>';
+      html += '<span style="display:flex;gap:2px;">';
+      html += '<button data-ck="' + _safeCatAttr + '" onclick="ffsMoveInvCat(this.dataset.ck,-1)" style="' + _catBtnSt + '" title="העלה קבוצה">▲</button>';
+      html += '<button data-ck="' + _safeCatAttr + '" onclick="ffsMoveInvCat(this.dataset.ck,1)" style="' + _catBtnSt + '" title="הורד קבוצה">▼</button>';
+      html += '</span>';
+      html += '</div>';
+      html += '<div style="' + _grpSt + '">';
+      _catMap[cat].forEach(function(item) {
+        var _bg   = (_gIdx % 2 === 0) ? '#ffffff' : '#f8fafc';
+        var _cardSt = 'background:' + _bg + ';' + _iSt;
+        var eid   = item.id;
+        var ds    = 'data-section="investments" data-id="' + eid + '"';
+        html += '<div style="' + _cardSt + '">';
+        html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:#cbd5e1;font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;z-index:10;pointer-events:auto;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#cbd5e1\'">✕</button>';
+        html += '<button data-id="' + eid + '" onclick="ffsMoveInvInCat(this.dataset.id,-1)" style="position:absolute;top:8px;left:28px;background:transparent;border:none;font-size:11px;cursor:pointer;color:#94a3b8;padding:1px 2px;line-height:1;z-index:1;" title="העלה בקבוצה">▲</button>';
+        html += '<button data-id="' + eid + '" onclick="ffsMoveInvInCat(this.dataset.id,1)" style="position:absolute;top:8px;left:44px;background:transparent;border:none;font-size:11px;cursor:pointer;color:#94a3b8;padding:1px 2px;line-height:1;z-index:1;" title="הורד בקבוצה">▼</button>';
+        var _indi = '';
+        if (item.isActive) _indi += ' 🟢';
+        if ((item.notes || '').length > 0) {
+          var _safeN = (item.notes || '').replace(/"/g, '&quot;');
+          _indi += ' <span title="' + _safeN + '" style="cursor:pointer;">📝</span>';
+        }
+        html += '<div style="margin-bottom:10px;">';
+        html += '<span style="font-size:12px;font-weight:900;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:8px;display:inline-block;">' + (_gIdx + 1) + '</span>';
+        html += _indi;
+        html += '</div>';
+        var _lNameAsset = 'שם הנכס / גוף מנהל';
+        var _lAssetNum  = 'מספר נכס';
+        var _lBalance   = 'סכום (K ₪)';
+        var _lCategory  = 'קטגוריה';
+        var _lType      = 'סוג';
+        var _lLiquidity = 'נזילות';
+        var roSelSt     = selSt + 'pointer-events:none;';
+        html += '<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:5px;align-items:end;margin-bottom:3px;">';
+        html += '<div style="' + lbSt + '">';
+        html += _lNameAsset;
+        html += '</div>';
+        html += '<div style="' + lbSt + '">';
+        html += _lAssetNum;
+        html += '</div>';
+        html += '<div style="' + lbSt + '">';
+        html += _lBalance;
+        html += '</div>';
+        html += '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:5px;align-items:center;margin-bottom:7px;">';
+        html += '<input type="text" readonly style="' + inSt + '" value="' + (item.name || '').replace(/"/g, '&quot;') + '">';
+        html += '<input type="text" readonly style="' + inSt + 'text-align:center;" value="' + (item.assetNum || '').replace(/"/g, '&quot;') + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.balance || 0) + '">';
+        html += '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;">';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">';
+        html += _lCategory;
+        html += '</div>';
+        html += '<select style="' + roSelSt + '">';
+        var _catOpts = [''];
+        _catOpts.push('מניות/ETF');
+        _catOpts.push('קרן נאמנות');
+        _catOpts.push('קרן השתלמות');
+        _catOpts.push('קופ"ג');
+        _catOpts.push('גמל להשקעה');
+        _catOpts.push('פוליסת חיסכון');
+        _catOpts.push('קרן כספית');
+        _catOpts.push('עו"ש');
+        _catOpts.push('עו"ש $');
+        _catOpts.push('קריפטו');
+        _catOpts.push('טרייד');
+        _catOpts.push('אחר');
+        _catOpts.forEach(function(c) {
+          html += '<option value="' + c.replace(/"/g, '&quot;') + '"' + (normCat(item.category || '') === normCat(c) ? ' selected' : '') + '>';
+          html += c;
+          html += '</option>';
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">';
+        html += _lType;
+        html += '</div>';
+        html += '<select style="' + roSelSt + '">';
+        var _typeOpts = [''];
+        _typeOpts.push('מנייתי');
+        _typeOpts.push('כללי');
+        _typeOpts.push('כספי');
+        _typeOpts.push('אחר');
+        _typeOpts.forEach(function(t) {
+          html += '<option value="' + t + '"' + ((item.type || '') === t ? ' selected' : '') + '>';
+          html += t;
+          html += '</option>';
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">';
+        html += _lLiquidity;
+        html += '</div>';
+        html += '<select style="' + roSelSt + '">';
+        var _liqOpts = [
+          {v: 'liquid',    l: 'נזיל'},
+          {v: 'private',   l: 'השקעה עצמית'},
+          {v: 'pension67', l: 'גיל 67+'}
+        ];
+        _liqOpts.forEach(function(lq) {
+          html += '<option value="' + lq.v + '"' + ((item.liquidity || 'liquid') === lq.v ? ' selected' : '') + '>';
+          html += lq.l;
+          html += '</option>';
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div style="display:flex;justify-content:flex-end;">';
+        html += '<button data-id="' + eid + '" onclick="ffsHandleEditInv(this)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">&#x270E; ';
+        html += 'ערוך';
+        html += '</button>';
+        html += '</div>';
+        html += '</div>';
+        _gIdx++;
+      });
+      html += '</div>';
+    });
+    listEl.innerHTML = html;
+    return;
+  }
+
   (FFS_PROFILE[section] || []).forEach(function(item, idx) {
-    var iSt = 'background:' + zebra[idx % 2] + ';border-radius:8px;padding:10px 11px;margin-bottom:6px;border:1px solid #e2e8f0;';
+    var bg  = (idx % 2 === 0) ? '#ffffff' : '#f8fafc';
+    var iSt = 'background:' + bg + ';border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.02);margin-bottom:12px;padding:14px;position:relative;';
     var eid = item.id;
     var ds  = 'data-section="' + section + '" data-id="' + eid + '"';
     html += '<div style="' + iSt + '">';
+    // v177.16: X button absolutely positioned top-left
+    html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:#cbd5e1;font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;z-index:10;pointer-events:auto;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#cbd5e1\'">✕</button>';
+    if (ffsReorderMode[section]) {
+      html += '<button onclick="ffsMoveItem(\'' + section + '\',' + idx + ',-1)" style="position:absolute;top:6px;left:28px;background:transparent;border:none;font-size:12px;cursor:pointer;padding:1px 2px;line-height:1;z-index:1;" title="העלה">⬆️</button>';
+      html += '<button onclick="ffsMoveItem(\'' + section + '\',' + idx + ',1)"  style="position:absolute;top:6px;left:46px;background:transparent;border:none;font-size:12px;cursor:pointer;padding:1px 2px;line-height:1;z-index:1;" title="הורד">⬇️</button>';
+    }
+    var _indi = '';
+    if (item.isActive) _indi += ' 🟢';
+    if ((item.notes || '').length > 0) {
+      var safeNotes = (item.notes || '').replace(/"/g, '&quot;');
+      _indi += ' <span title="' + safeNotes + '" style="cursor:pointer;">📝</span>';
+    }
+    html += '<div style="margin-bottom:10px;">';
+    html += '<span style="font-size:12px;font-weight:900;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:8px;display:inline-block;">' + (idx + 1) + '</span>';
+    html += _indi;
+    html += '</div>';
 
     if (section === 'investments') {
+      // v177.22: readonly input layout (visual style restored from v177.20)
+      var _lNameAsset = 'שם הנכס / גוף מנהל';
+      var _lAssetNum  = 'מספר נכס';
+      var _lBalance   = 'סכום (K ₪)';
+      var _lCategory  = 'קטגוריה';
+      var _lType      = 'סוג';
+      var _lLiquidity = 'נזילות';
+      var roSelSt     = selSt + 'pointer-events:none;';
       // Row 1: labels
-      html += '<div style="display:grid;grid-template-columns:1fr 90px 90px 28px;gap:5px;align-items:end;margin-bottom:3px;">';
-      html += '<div style="' + lbSt + '">שם הנכס (אופציונלי)</div>';
-      html += '<div style="' + lbSt + '">מספר נכס *</div>';
-      html += '<div style="' + lbSt + '">סכום (באלפי ש"ח)</div>';
-      html += '<div></div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:5px;align-items:end;margin-bottom:3px;">';
+      html += '<div style="' + lbSt + '">' + _lNameAsset + '</div>';
+      html += '<div style="' + lbSt + '">' + _lAssetNum + '</div>';
+      html += '<div style="' + lbSt + '">' + _lBalance + '</div>';
       html += '</div>';
-      // Row 2: inputs (all on same row)
-      html += '<div style="display:grid;grid-template-columns:1fr 90px 90px 28px;gap:5px;align-items:center;margin-bottom:7px;">';
-      html += '<input type="text" style="' + inSt + '" placeholder="שם הנכס" value="' + (item.name || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="name" oninput="ffsHandleInput(this)">';
-      html += '<input type="text" style="' + inSt + 'text-align:center;" placeholder="מס׳ / שם" value="' + (item.assetNum || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="assetNum" oninput="ffsHandleInput(this)">';
-      html += '<input type="number" style="' + inSt + 'text-align:center;" placeholder="0" value="' + (item.balance || 0) + '" ' + ds + ' data-key="balance" oninput="ffsHandleInput(this)">';
-      html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="' + rmSt + '">✕</button>';
+      // Row 2: readonly inputs
+      html += '<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:5px;align-items:center;margin-bottom:7px;">';
+      html += '<input type="text" readonly style="' + inSt + '" value="' + (item.name || '').replace(/"/g, '&quot;') + '">';
+      html += '<input type="text" readonly style="' + inSt + 'text-align:center;" value="' + (item.assetNum || '').replace(/"/g, '&quot;') + '">';
+      html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.balance || 0) + '">';
       html += '</div>';
-      // Row 3: category, type, liquidity
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">';
-      html += '<div><div style="' + lbSt + '">קטגוריה</div><select style="' + selSt + '" ' + ds + ' data-key="category" onchange="ffsHandleInput(this)">';
-      ['','קרן השתלמות','קופ"ג','גמל להשקעה','פוליסת חיסכון','מניות/ETF','אחר'].forEach(function(c) {
+      // Row 3: category | type | liquidity selects (pointer-events:none — no grayout)
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;">';
+      html += '<div>';
+      html += '<div style="' + lbSt + '">' + _lCategory + '</div>';
+      html += '<select style="' + roSelSt + '">';
+      var catOpts = [''];
+      catOpts.push('מניות/ETF');
+      catOpts.push('קרן השקעה');
+      catOpts.push('קרן השתלמות');
+      catOpts.push('קופ"ג');
+      catOpts.push('גמל להשקעה');
+      catOpts.push('פוליסת חיסכון');
+      catOpts.push('קרן כספית');
+      catOpts.push('עו"ש');
+      catOpts.push('עו"ש $');
+      catOpts.push('אחר');
+      catOpts.forEach(function(c) {
         html += '<option value="' + c.replace(/"/g, '&quot;') + '"' + ((item.category || '') === c ? ' selected' : '') + '>' + c + '</option>';
       });
-      html += '</select></div>';
-      html += '<div><div style="' + lbSt + '">סוג</div><select style="' + selSt + '" ' + ds + ' data-key="type" onchange="ffsHandleInput(this)">';
-      ['','מנייתי','כללי','כספי'].forEach(function(t) {
+      html += '</select>';
+      html += '</div>';
+      html += '<div>';
+      html += '<div style="' + lbSt + '">' + _lType + '</div>';
+      html += '<select style="' + roSelSt + '">';
+      var typeOpts = ['', 'מנייתי', 'כללי', 'כספי'];
+      typeOpts.forEach(function(t) {
         html += '<option value="' + t + '"' + ((item.type || '') === t ? ' selected' : '') + '>' + t + '</option>';
       });
-      html += '</select></div>';
-      html += '<div><div style="' + lbSt + '">נזילות</div><select style="' + selSt + '" ' + ds + ' data-key="liquidity" onchange="ffsHandleInput(this)">';
-      [{v:'liquid',l:'נזיל'},{v:'private',l:'השקעה עצמית'},{v:'pension67',l:'גיל 67+'}].forEach(function(lq) {
+      html += '</select>';
+      html += '</div>';
+      html += '<div>';
+      html += '<div style="' + lbSt + '">' + _lLiquidity + '</div>';
+      html += '<select style="' + roSelSt + '">';
+      var liqOpts = [
+        {v: 'liquid',    l: 'נזיל'},
+        {v: 'private',   l: 'השקעה עצמית'},
+        {v: 'pension67', l: 'גיל 67+'}
+      ];
+      liqOpts.forEach(function(lq) {
         html += '<option value="' + lq.v + '"' + ((item.liquidity || 'liquid') === lq.v ? ' selected' : '') + '>' + lq.l + '</option>';
       });
-      html += '</select></div>';
+      html += '</select>';
+      html += '</div>';
+      html += '</div>';
+      // Edit button
+      html += '<div style="display:flex;justify-content:flex-end;">';
+      html += '<button data-id="' + eid + '" onclick="ffsHandleEditInv(this)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">';
+      html += '&#x270E; ';
+      html += 'ערוך';
+      html += '</button>';
       html += '</div>';
 
     } else if (section === 'realEstate') {
@@ -8602,51 +9030,108 @@ function ffsRenderSection(section) {
       html += '</label>';
 
     } else if (section === 'pension') {
-      // Row 1: name, provider, type selector, remove
       var isPension  = !item.pensionType || item.pensionType === 'pension';
       var isManager  = item.pensionType === 'manager';
-      // v170.4: field order = סוג → גוף → תיאור/שם (optional)
+      var _penLabel  = 'קרן פנסיה';
+      var _manLabel  = 'ביטוח מנהלים';
+      var roRadioSt  = 'accent-color:#3b82f6;cursor:default;pointer-events:none;';
+      // Row 1: type radio + provider + name
       html += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;">';
       html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;flex-shrink:0;">';
-      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="pen-type-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' ' + ds + ' data-key="pensionType" onchange="ffsHandleInput(this);ffsRenderSection(\'pension\')" style="accent-color:#3b82f6;cursor:pointer;"> קרן פנסיה</label>';
-      html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="pen-type-' + eid + '" value="manager" ' + (isManager ? 'checked' : '') + ' ' + ds + ' data-key="pensionType" onchange="ffsHandleInput(this);ffsRenderSection(\'pension\')" style="accent-color:#3b82f6;cursor:pointer;"> ביטוח מנהלים</label>';
+      html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
+      html += '<input type="radio" name="pen-ro-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
+      html += _penLabel;
+      html += '</label>';
+      html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
+      html += '<input type="radio" name="pen-ro-' + eid + '" value="manager" ' + (isManager ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
+      html += _manLabel;
+      html += '</label>';
       html += '</div>';
-      html += '<input type="text" list="ffs-providers-dl" style="' + inSt + 'width:100px;" placeholder="גוף מנהל" value="' + (item.provider || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="provider" oninput="ffsHandleInput(this)">';
-      html += '<input type="text" style="' + inSt + 'flex:1;" placeholder="תיאור / שם (אופציונלי)" value="' + (item.name || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="name" oninput="ffsHandleInput(this)">';
-      html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="' + rmSt + '">✕</button>';
+      html += '<input type="text" readonly style="' + inSt + 'width:100px;" value="' + (item.provider || '').replace(/"/g, '&quot;') + '">';
+      html += '<input type="text" readonly style="' + inSt + 'flex:1;" value="' + (item.name || '').replace(/"/g, '&quot;') + '">';
       html += '</div>';
       if (isPension) {
-        // קרן פנסיה: payout + contribution + survivors
+        var _lMonthly   = 'קצבה נוכחית (₪)';
+        var _lExpected  = 'קצבה צפויה (₪)';
+        var _lContrib   = 'הפרשה (%)';
+        var _lSurvivors = 'כיסוי שארים';
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px;">';
-        html += '<div><div style="' + lbSt + '">קצבה נוכחית (₪)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.monthlyPension || 0) + '" ' + ds + ' data-key="monthlyPension" oninput="ffsHandleInput(this)"></div>';
-        html += '<div><div style="' + lbSt + '">קצבה צפויה (₪)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.expectedPayout || 0) + '" ' + ds + ' data-key="expectedPayout" oninput="ffsHandleInput(this)"></div>';
-        html += '<div><div style="' + lbSt + '">הפרשה (%)</div><input type="number" step="0.01" style="' + inSt + 'text-align:center;" placeholder="0.00" value="' + (item.contributionPct || 0) + '" ' + ds + ' data-key="contributionPct" oninput="ffsHandleInput(this)"></div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lMonthly + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.monthlyPension || 0) + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lExpected + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.expectedPayout || 0) + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lContrib + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.contributionPct || 0) + '">';
+        html += '</div>';
         html += '</div>';
         html += '<div style="border-top:1px solid #f1f5f9;padding-top:6px;">';
-        html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:#475569;font-weight:600;margin-bottom:' + (item.survivorsEnabled ? '7' : '0') + 'px;">';
-        html += '<input type="checkbox" ' + ds + ' data-key="survivorsEnabled"' + (item.survivorsEnabled ? ' checked' : '') + ' onchange="ffsHandleCheckbox(this)" style="accent-color:#3b82f6;width:14px;height:14px;"> כיסוי שארים';
+        html += '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;font-weight:600;margin-bottom:' + (item.survivorsEnabled ? '7' : '0') + 'px;">';
+        html += '<input type="checkbox" ' + (item.survivorsEnabled ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="accent-color:#3b82f6;width:14px;height:14px;pointer-events:none;"> ';
+        html += _lSurvivors;
         html += '</label>';
         if (item.survivorsEnabled) {
+          var _lSpouse   = 'בן/בת זוג (%)';
+          var _lOrphan   = 'יתומים (%)';
+          var _lChildren = 'גילאי ילדים';
           html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">';
-          html += '<div><div style="' + lbSt + '">בן/בת זוג (%)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.spousePct || 0) + '" ' + ds + ' data-key="spousePct" oninput="ffsHandleInput(this)"></div>';
-          html += '<div><div style="' + lbSt + '">יתומים (%)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.orphanPct || 0) + '" ' + ds + ' data-key="orphanPct" oninput="ffsHandleInput(this)"></div>';
-          html += '<div><div style="' + lbSt + '">גילאי ילדים</div><input type="text" style="' + inSt + '" placeholder="5,8,12" value="' + (item.childrenAges || '').replace(/"/g, '&quot;') + '" ' + ds + ' data-key="childrenAges" oninput="ffsHandleInput(this)"></div>';
+          html += '<div>';
+          html += '<div style="' + lbSt + '">' + _lSpouse + '</div>';
+          html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.spousePct || 0) + '">';
+          html += '</div>';
+          html += '<div>';
+          html += '<div style="' + lbSt + '">' + _lOrphan + '</div>';
+          html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.orphanPct || 0) + '">';
+          html += '</div>';
+          html += '<div>';
+          html += '<div style="' + lbSt + '">' + _lChildren + '</div>';
+          html += '<input type="text" readonly style="' + inSt + 'text-align:center;" value="' + (item.childrenAges || '').replace(/"/g, '&quot;') + '">';
+          html += '</div>';
           html += '</div>';
         }
         html += '</div>';
       } else {
-        // ביטוח מנהלים: הון צבור + מקדם + ביטוח חיים
+        var _lAccum     = 'הון צבור (K₪)';
+        var _lFactor    = 'מקדם המרה';
+        var _lLifeIns   = 'ביטוח חיים (₪)';
+        var _estateNote = 'הון ביטוח מנהלים = נכס עיזבון (לא נמשך כקצבה)';
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:4px;">';
-        html += '<div><div style="' + lbSt + '">הון צבור (K₪)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.accumulation || 0) + '" ' + ds + ' data-key="accumulation" oninput="ffsHandleInput(this)"></div>';
-        html += '<div><div style="' + lbSt + '">מקדם המרה</div><input type="number" style="' + inSt + 'text-align:center;" placeholder="200" value="' + (item.conversionFactor || '') + '" ' + ds + ' data-key="conversionFactor" oninput="ffsHandleInput(this)"></div>';
-        html += '<div><div style="' + lbSt + '">ביטוח חיים (₪)</div><input type="number" style="' + inSt + 'text-align:center;" value="' + (item.lifeInsurance || 0) + '" ' + ds + ' data-key="lifeInsurance" oninput="ffsHandleInput(this)"></div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lAccum + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.accumulation || 0) + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lFactor + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.conversionFactor || '') + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lLifeIns + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.lifeInsurance || 0) + '">';
+        html += '</div>';
         html += '</div>';
         if (item.accumulation > 0 && item.conversionFactor > 0) {
-          var _monthly = Math.round(item.accumulation * 1000 / item.conversionFactor);
-          html += '<div style="font-size:10px;color:#3b82f6;font-weight:600;margin-top:3px;">קצבה מחושבת: ' + _monthly.toLocaleString() + ' ₪/חודש (הון ÷ מקדם)</div>';
+          var _monthly    = Math.round(item.accumulation * 1000 / item.conversionFactor);
+          var _calcPrefix = 'קצבה מחושבת: ';
+          var _calcSuffix = ' ₪/חודש';
+          html += '<div style="font-size:10px;color:#3b82f6;font-weight:600;margin-top:3px;">';
+          html += _calcPrefix + _monthly.toLocaleString() + _calcSuffix;
+          html += '</div>';
+          html += '<div style="font-size:9px;color:#94a3b8;margin-top:3px;">';
+          html += _estateNote;
+          html += '</div>';
         }
-        html += '<div style="font-size:9px;color:#94a3b8;margin-top:3px;">הון ביטוח מנהלים = נכס עיזבון (לא נמשך כקצבה)</div>';
       }
+      // Edit button
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;">';
+      html += '<button data-id="' + eid + '" onclick="ffsHandleEditPension(this)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">';
+      html += '&#x270E; ';
+      html += 'ערוך';
+      html += '</button>';
+      html += '</div>';
     }
     html += '</div>';
   });
@@ -8798,31 +9283,13 @@ function ffsUpdateNavSummaries() {
     profEl.textContent = name ? (name + ageStr) : '';
   }
   var invEl = document.getElementById('ffs-nav-summary-investments');
-  if (invEl) {
-    var inv = FFS_PROFILE.investments || [];
-    if (inv.length) {
-      var invTot = inv.reduce(function(s,x){return s+(x.balance||0);},0);
-      invEl.textContent = inv.length + ' נכסים, ' + (invTot/1000).toFixed(1) + 'M';
-    } else { invEl.textContent = ''; }
-  }
+  if (invEl) invEl.textContent = '';
   var reEl = document.getElementById('ffs-nav-summary-realestate');
-  if (reEl) {
-    var re = FFS_PROFILE.realEstate || [];
-    if (re.length) {
-      var reTot = re.reduce(function(s,x){return s+(x.value||0);},0);
-      reEl.textContent = re.length + ' נכסים, ' + (reTot/1000).toFixed(1) + 'M ₪';
-    } else { reEl.textContent = ''; }
-  }
+  if (reEl) reEl.textContent = '';
   var penEl = document.getElementById('ffs-nav-summary-pension');
-  if (penEl) {
-    var pen = FFS_PROFILE.pension || [];
-    penEl.textContent = pen.length ? (pen.length + ' נכסים') : '';
-  }
+  if (penEl) penEl.textContent = '';
   var incEl = document.getElementById('ffs-nav-summary-income');
-  if (incEl) {
-    var sav = FFS_PROFILE.monthlySavings || 0;
-    incEl.textContent = sav > 0 ? ('₪' + sav.toLocaleString('he-IL') + '/חודש') : '';
-  }
+  if (incEl) incEl.textContent = '';
   var expEl2 = document.getElementById('ffs-nav-summary-expenses');
   if (expEl2) {
     var exp = FFS_PROFILE.retirementExpense || 0;
@@ -8880,6 +9347,18 @@ function ffsRenderFfsEventsUI() {
 
 // v170.5: Sidebar 5-item breakdown: תזרים נטו | השקעות | נדל"ן | פנסיה | פרישה
 function ffsUpdateLiveSidebar() {
+  var profileHdrEl = document.getElementById('ffs-profile-header-name');
+  if (profileHdrEl) {
+    var _phName = FFS_PROFILE.name || '';
+    var _phAge  = ffsCalcAge();
+    var _phTxt  = '';
+    if (_phName) {
+      var _phPrefix = 'התיק של ';
+      _phTxt = _phPrefix + _phName;
+      if (_phAge) { _phTxt += ', ' + _phAge; }
+    }
+    profileHdrEl.textContent = _phTxt;
+  }
   var wealthEl   = document.getElementById('ffs-live-wealth');
   var cashflowEl = document.getElementById('ffs-live-cashflow');
   var invEl2     = document.getElementById('ffs-live-inv');
@@ -8888,10 +9367,21 @@ function ffsUpdateLiveSidebar() {
   var retireEl   = document.getElementById('ffs-live-retire');
 
   // Always compute from FFS_PROFILE — current snapshot, no mode dependency
-  var invTot = (FFS_PROFILE.investments || []).reduce(function(s,x){return s+(x.balance||0);},0); // K
-  var reTot  = (FFS_PROFILE.realEstate  || []).reduce(function(s,x){return s+(x.value||0);},0);  // K
-  var penTot = (FFS_PROFILE.pension     || []).reduce(function(s,x){return s+(x.accumulation||0);},0); // K
-  var totalK = invTot + reTot + penTot;
+  var invTot   = (FFS_PROFILE.investments || []).reduce(function(s,x){return s+(x.balance||0);},0); // K
+  var reTot    = (FFS_PROFILE.realEstate  || []).reduce(function(s,x){return s+(x.value||0);},0);  // K
+  var penTot   = (FFS_PROFILE.pension     || []).reduce(function(s,x){return s+(x.accumulation||0);},0); // K
+  var totalK   = invTot + reTot + penTot;
+  var invCount = (FFS_PROFILE.investments || []).length;
+  var reCount  = (FFS_PROFILE.realEstate  || []).length;
+  var penCount = (FFS_PROFILE.pension     || []).length;
+  var _cntSt = 'font-size:11px;color:#94a3b8;margin-top:2px;font-weight:normal;';
+  var getCountStr = function(c) {
+    var _one = 'נכס אחד';
+    var _many = ' נכסים';
+    if (c === 0) return '';
+    if (c === 1) return _one;
+    return c + _many;
+  };
 
   function fmtK(k) {
     if (!k || k === 0) return '—';
@@ -8908,9 +9398,24 @@ function ffsUpdateLiveSidebar() {
   }
 
   // Breakdown rows: השקעות | נדל"ן | פנסיה
-  if (invEl2)   invEl2.textContent   = invTot > 0 ? fmtK(invTot) + ' ₪' : '—';
-  if (reEl2)    reEl2.textContent    = reTot  > 0 ? fmtK(reTot)  + ' ₪' : '—';
-  if (penAccEl) penAccEl.textContent = penTot > 0 ? fmtK(penTot) + ' ₪' : '—';
+  if (invEl2) {
+    var _invV = invTot > 0 ? fmtK(invTot) + ' ₪' : '—';
+    var _invStr = getCountStr(invCount);
+    if (_invStr) _invV += '<div style="' + _cntSt + '">' + _invStr + '</div>';
+    invEl2.innerHTML = _invV;
+  }
+  if (reEl2) {
+    var _reV = reTot > 0 ? fmtK(reTot) + ' ₪' : '—';
+    var _reStr = getCountStr(reCount);
+    if (_reStr) _reV += '<div style="' + _cntSt + '">' + _reStr + '</div>';
+    reEl2.innerHTML = _reV;
+  }
+  if (penAccEl) {
+    var _penV = penTot > 0 ? fmtK(penTot) + ' ₪' : '—';
+    var _penStr = getCountStr(penCount);
+    if (_penStr) _penV += '<div style="' + _cntSt + '">' + _penStr + '</div>';
+    penAccEl.innerHTML = _penV;
+  }
 
   // פרישה — monthly retirement expense
   if (retireEl) {
@@ -9247,12 +9752,13 @@ function ffsApplyToSimulator() {
   // v168.78: sync all FFS-driven sliders (anti-ghosting)
   ffsSyncSliders();
   // v170.5: Recalculate phase boundaries using FFS profile data
+  SIM_BIRTH_YEAR_ROY = (SIM_BIRTH_YEAR_ROY && !isNaN(SIM_BIRTH_YEAR_ROY)) ? SIM_BIRTH_YEAR_ROY : (new Date().getFullYear() - 40);
   SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY, m: 8 };
   var _bridgeAge = parseInt(FFS_PROFILE.bridgeAge) || 0;
   SIM_P2_START = _bridgeAge > 0
     ? { y: SIM_BIRTH_YEAR_ROY + _bridgeAge, m: 8 }
     : { y: SIM_P3_START.y, m: SIM_P3_START.m };
-  SIM_END = { y: SIM_BIRTH_YEAR_ROY + (parseInt(FFS_PROFILE.lifeExpectancy) || 84), m: 12 };
+  SIM_END = { y: Math.max(SIM_P1_START.y + 1, SIM_BIRTH_YEAR_ROY + (parseInt(FFS_PROFILE.lifeExpectancy) || 85)), m: 12 };
   // v171.1: No-Purge protection — remove ONLY ffs_event entries; events_timeline (Roy's Excel spike) is NEVER wiped here
   for (var _fi = SIM_USER_EVENTS.length - 1; _fi >= 0; _fi--) {
     if (SIM_USER_EVENTS[_fi].src === 'ffs_event') SIM_USER_EVENTS.splice(_fi, 1);
@@ -9283,9 +9789,65 @@ function ffsApplyToSimulator() {
   simUpdateNameLabel(); // v168.73: refresh header label after FFS apply
 }
 function ffsApplyAndClose() {
-  ffsApplyToSimulator();
+  var dob  = FFS_PROFILE.birthDate || '';
+  var year = parseInt(dob.split('-')[0]) || 0;
+  if (year < 1900 || year > 2100) {
+    var _dobEl = document.getElementById('ffs-birth-date');
+    if (_dobEl) { _dobEl.style.border = '2px solid #dc2626'; _dobEl.focus(); }
+    return;
+  }
   closeFFSDrawer();
-  simFullRefresh(); // v168.86: full cleanup + re-render after FFS save
+  try { ffsApplyToSimulator(); simFullRefresh(); } catch(e) { console.warn('[FFS] Simulation error after apply:', e); }
+}
+
+// v177.16: Backup / Restore
+function ffsCalcAge() {
+  if (!FFS_PROFILE.birthDate) return null;
+  var _bd = new Date(FFS_PROFILE.birthDate);
+  if (isNaN(_bd.getTime())) return null;
+  return new Date().getFullYear() - _bd.getFullYear();
+}
+
+function ffsExportData() {
+  var json = JSON.stringify(FFS_PROFILE, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var _expRaw  = (FFS_PROFILE.name || '').replace(/[^א-תa-zA-Z0-9]/g, '_');
+  var _expName = _expRaw || 'Untitled';
+  var _expAge  = ffsCalcAge();
+  var _agePart = _expAge ? '_Age_' + _expAge : '';
+  var _expNow  = new Date();
+  var _expDD   = String(_expNow.getDate()).padStart(2, '0');
+  var _expMM   = String(_expNow.getMonth() + 1).padStart(2, '0');
+  var _expYY   = String(_expNow.getFullYear()).slice(2);
+  a.download = 'Profile_' + _expName + _agePart + '_' + _expDD + '-' + _expMM + '-' + _expYY + '.json';
+  a.click();
+  showToast('גיבוי הורד בהצלחה', '#10b981', 3000);
+}
+
+function ffsImportData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var parsed = JSON.parse(e.target.result);
+      if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid');
+      FFS_PROFILE = parsed;
+      if (FFS_PROFILE.birthDate) {
+        var _bdParsed = new Date(FFS_PROFILE.birthDate);
+        if (!isNaN(_bdParsed.getTime())) FFS_PROFILE.birthDate = _bdParsed.toISOString().slice(0, 10);
+      }
+      ffsSaveProfile();
+      ffsRenderAll();
+      showToast('גיבוי נטען בהצלחה', '#10b981', 3000);
+    } catch(err) {
+      showToast('שגיאה בקובץ הגיבוי', '#dc2626', 3000);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 // v168.78: update header name label — targets nested text span (icon stays separate)
@@ -9360,6 +9922,8 @@ function simRunEngine() {
   if (isExcelLoaded() && (SIM_BIRTH_YEAR_ROY !== 1962 || SIM_BIRTH_YEAR_YAEL !== 1968)) {
     if (typeof _applyExcelIdentity === 'function') _applyExcelIdentity();
   }
+  // v177.14: fallback guard — prevent canvas crash when birth year is missing/NaN
+  if (!SIM_BIRTH_YEAR_ROY || isNaN(SIM_BIRTH_YEAR_ROY)) SIM_BIRTH_YEAR_ROY = new Date().getFullYear() - 40;
   // v103.4: 3-layer split — liquid / phoenix / harel; filter isolation for Roy-only view
   // v103.38: liquid-only starting capital (no dira) — real estate tracked separately to avoid double-counting yield
   // v103.41: royRealEstateK is now dynamic — grows at SIM_RE_GROWTH_RATE annually + investment events add to it
@@ -9409,7 +9973,11 @@ function simRunEngine() {
   var phase2Idx   = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
   var phase3Idx   = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
   var instructorStartIdx = simMonthIdx(SIM_BIRTH_YEAR_ROY + 65, 9); // v177.0: Sep 2027 (age 65) — instructor income window start
-  var totalMonths = simMonthIdx(SIM_END.y, SIM_END.m) + 1;
+  var totalMonths = Math.max(1, simMonthIdx(SIM_END.y, SIM_END.m) + 1);
+  if (phase2Idx < 0) phase2Idx = 0;
+  if (phase3Idx < 0) phase3Idx = 0;
+  if (phase2Idx >= totalMonths) phase2Idx = totalMonths - 1;
+  if (phase3Idx >= totalMonths) phase3Idx = totalMonths - 1;
   var reGrowthMonthly = SIM_RE_GROWTH_RATE / 100 / 12; // v103.41: monthly RE appreciation rate
   // v168.72/84: FFS monthly savings — only when no Excel loaded (strict isolation)
   var _ffsSavingsK = (!isExcelLoaded() && FFS_PROFILE.monthlySavings) ? FFS_PROFILE.monthlySavings / 1000 : 0;
@@ -14008,7 +14576,7 @@ function _ffsSetCategoryOptions(context) {
   sel.innerHTML = '<option value="">בחר...</option>';
   var opts = context === 'pension'
     ? ['קרן פנסיה', 'ביטוח מנהלים', 'קופת גמל לקצבה', 'קרן ותיקה', 'אחר']
-    : ['קרן השתלמות', 'קופ"ג', 'גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'אחר'];
+    : ['קרן השתלמות', 'קופ"ג', 'גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'קרן להשקעה', 'קרן כספית', 'עו״ש', 'עו״ש $', 'אחר'];
   opts.forEach(function(o) {
     var opt = document.createElement('option');
     opt.value = o; opt.textContent = o;
@@ -14038,7 +14606,25 @@ function _ffsPopulateInvForm(item, context) {
       }
     }
   });
+  // v177.20: fix custom category roundtrip — if saved value not in select options, show Other + fill text input
+  var catSel = document.getElementById('ffs-inv-f-category');
+  var catOth = document.getElementById('ffs-inv-f-category-other');
+  if (catSel && catOth && item && item.category && catSel.value !== item.category) {
+    catSel.value = 'אחר';
+    catOth.value = item.category;
+    catOth.style.display = 'block';
+  }
   ffsCheckLiquidityWarning();
+  // ── v177.13: reset custom Other fields on form open ──
+  var coEl = document.getElementById('ffs-inv-f-category-other');
+  if (coEl) { coEl.value = ''; coEl.style.display = 'none'; }
+  var toEl = document.getElementById('ffs-inv-f-type-other');
+  if (toEl) { toEl.value = ''; toEl.style.display = 'none'; }
+  // ── v177.14: Active + Notes ──
+  var activeEl = document.getElementById('ffs-inv-f-active');
+  if (activeEl) activeEl.checked = item ? (!!item.isActive) : false;
+  var notesEl = document.getElementById('ffs-inv-f-notes');
+  if (notesEl) notesEl.value = item ? (item.notes || '') : '';
 }
 
 function ffsCheckLiquidityWarning() {
@@ -14047,6 +14633,14 @@ function ffsCheckLiquidityWarning() {
   var warn = document.getElementById('ffs-liquidity-warning');
   if (!warn) return;
   warn.style.display = (liq && liq.value === 'liquid' && cat && cat.value === 'קרן השתלמות') ? 'block' : 'none';
+}
+
+// ── v177.12: hide hint when user clears a dropdown field error ──────────────
+function ffsClearFieldError(fieldId, hintId) {
+  var el = document.getElementById(fieldId);
+  if (el) el.classList.remove('ffs-inv-field-required');
+  var h = document.getElementById(hintId);
+  if (h) h.style.display = 'none';
 }
 
 // ── Core Modal Functions ─────────────────────────────────────────────────────
@@ -14063,6 +14657,7 @@ function ffsOpenInvModal(prefillOrArray, context) {
   var title        = document.getElementById('ffs-inv-modal-title');
   var liqWrap      = document.getElementById('ffs-inv-liquidity-wrap');
   if (!modal) return;
+  ffsCurrentInvId = (prefillOrArray && !Array.isArray(prefillOrArray) && prefillOrArray.id) ? prefillOrArray.id : null;
 
   loader.style.display   = 'none';
   formBody.style.display = 'block';
@@ -14130,12 +14725,37 @@ function ffsSaveInvFromModal() {
   });
   if (!valid) return;
 
+  // ── v177.12: block save when dropdown fields are still on placeholder ──
+  var dropRequired = ['category', 'type'];
+  if (ffsWizardContext !== 'pension') dropRequired.push('liquidity');
+  dropRequired.forEach(function(k) {
+    var el   = document.getElementById('ffs-inv-f-' + k);
+    var hint = document.getElementById('ffs-inv-h-' + k);
+    if (!el) return;
+    if (!el.value) {
+      el.classList.add('ffs-inv-field-required');
+      if (hint) hint.style.display = 'block';
+      valid = false;
+    }
+  });
+  if (!valid) return;
+
   var id      = 'ffs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  var isActiveVal = !!(document.getElementById('ffs-inv-f-active') || {}).checked;
+  var notesVal    = ((document.getElementById('ffs-inv-f-notes') || {}).value || '').trim();
   var nameVal = (document.getElementById('ffs-inv-f-name').value     || '').trim();
   var assetVal= (document.getElementById('ffs-inv-f-assetNum').value || '').trim();
   var balVal  = parseFloat(document.getElementById('ffs-inv-f-balance').value) || 0;
   var catVal  = (document.getElementById('ffs-inv-f-category').value || '').trim();
+  if (catVal === 'אחר') {
+    var catOther = (document.getElementById('ffs-inv-f-category-other') || {value:''}).value.trim();
+    if (catOther) catVal = catOther;
+  }
   var typeVal = (document.getElementById('ffs-inv-f-type').value     || '').trim();
+  if (typeVal === 'אחר') {
+    var typeOther = (document.getElementById('ffs-inv-f-type-other') || {value:''}).value.trim();
+    if (typeOther) typeVal = typeOther;
+  }
   var liqVal  = (document.getElementById('ffs-inv-f-liquidity').value || 'liquid');
 
   if (ffsWizardContext === 'pension') {
@@ -14154,19 +14774,41 @@ function ffsSaveInvFromModal() {
       spousePct:        0,
       orphanPct:        0,
       childrenAges:     '',
-      lifeInsurance:    0
+      lifeInsurance:    0,
+      isActive:         isActiveVal,
+      notes:            notesVal
     });
   } else {
-    FFS_PROFILE.investments.push({
-      id:       id,
-      name:     nameVal,
-      assetNum: assetVal,
-      balance:  balVal,
-      category: catVal,
-      type:     typeVal,
-      liquidity:liqVal
-    });
+    if (ffsCurrentInvId) {
+      var _editIdx = -1;
+      (FFS_PROFILE.investments || []).forEach(function(x, i) {
+        if (x.id === ffsCurrentInvId) _editIdx = i;
+      });
+      if (_editIdx >= 0) {
+        FFS_PROFILE.investments[_editIdx].name      = nameVal;
+        FFS_PROFILE.investments[_editIdx].assetNum  = assetVal;
+        FFS_PROFILE.investments[_editIdx].balance   = balVal;
+        FFS_PROFILE.investments[_editIdx].category  = catVal;
+        FFS_PROFILE.investments[_editIdx].type      = typeVal;
+        FFS_PROFILE.investments[_editIdx].liquidity = liqVal;
+        FFS_PROFILE.investments[_editIdx].isActive  = isActiveVal;
+        FFS_PROFILE.investments[_editIdx].notes     = notesVal;
+      }
+    } else {
+      FFS_PROFILE.investments.push({
+        id:       id,
+        name:     nameVal,
+        assetNum: assetVal,
+        balance:  balVal,
+        category: catVal,
+        type:     typeVal,
+        liquidity:liqVal,
+        isActive: isActiveVal,
+        notes:    notesVal
+      });
+    }
   }
+  ffsCurrentInvId = null;
   ffsSaveProfile();
 
   if (ffsWizardAssets.length > 0) {
@@ -14254,9 +14896,9 @@ function ffsExtractFromImage(base64Data, mediaType, context) {
   var systemPrompt;
 
   if (context === 'pension') {
-    systemPrompt = 'You are a financial document analyzer for Israeli pension instruments. The document may contain one or more pension assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":accumulation_in_thousands_ILS_or_null,"name":"policy_name_or_number_or_null","provider":"managing_company_name_or_null","category":"one of: קרן פנסיה | ביטוח מנהלים | קופת גמל לקצבה | קרן ותיקה | אחר | null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"pension67"}]\nRULES:\n1. balance: the total accumulated amount in thousands of ILS (e.g., 250000 ILS → 250).\n2. name: Look for "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" and "ח.פ".\n3. provider: the managing company name (e.g., הראל, מגדל, הפניקס, מיטב, כלל).\n4. liquidity: always "pension67" for pension assets. Never null.\n5. Return a JSON ARRAY. Never return a plain object.';
+    systemPrompt = 'You are a financial document analyzer for Israeli pension instruments. The document may contain one or more pension assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":accumulation_in_thousands_ILS_or_null,"name":"policy_name_or_number_or_null","provider":"managing_company_name_or_null","category":"one of: קרן פנסיה | ביטוח מנהלים | קופת גמל לקצבה | קרן ותיקה | אחר | null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"pension67","isActive":true_or_false}]\nRULES:\n1. balance: the total accumulated amount in thousands of ILS (e.g., 250000 ILS → 250).\n2. name: Look for "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" and "ח.פ".\n3. provider: the managing company name (e.g., הראל, מגדל, הפניקס, מיטב, כלל).\n4. liquidity: always "pension67" for pension assets. Never null.\n5. Return a JSON ARRAY. Never return a plain object.\n6. isActive: If the document text contains the word "תלוש" or "פעילה", set isActive to true. Otherwise false.';
   } else {
-    systemPrompt = 'You are a financial document analyzer for Israeli investment instruments. The document may contain one or more investment assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":number_in_thousands_ILS_or_null,"name":"managing_company_name_or_null","category":"one of: קרן השתלמות | קופ\\"ג | גמל להשקעה | פוליסת חיסכון | מניות/ETF | אחר | null","assetNum":"policy_or_asset_number_or_null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"one of: liquid | private | pension67 | null"}]\nBalance must be in thousands of ILS (e.g., 150000 ILS → 150). Extract the EXACT decimal value (e.g., 312.582 — do NOT round or truncate). If not found, use null.\nRULES:\n1. assetNum: Search ONLY for the label "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" (identity/ID number) and "ח.פ" (company registration) — never extract these as assetNum.\n2. category: If the document shows "סוג פוליסה: פרט" or "תכנית חסכון", you MUST classify as "פוליסת חיסכון". Only use "גמל להשקעה" if that exact term is explicitly written in the document.\n3. liquidity: If category is "פוליסת חיסכון", set liquidity to "private". If category is "קרן השתלמות", return null for liquidity — let the user decide. NEVER set liquidity to "pension67" for either פוליסת חיסכון or קרן השתלמות.\n4. Return a JSON ARRAY. Never return a plain object.\n5. name (managing company): Look at the document header, logo, or website domain (e.g., "online.as-invest.co.il" → "אלטשולר שחם"). STRICTLY IGNORE any field labeled "שם מעסיק" — that is the employer, not the managing company.\n6. category override: If the word "השתלמות" appears ANYWHERE in the document, you MUST classify the asset as "קרן השתלמות" — this rule overrides all other category rules.\n7. type: Scan for substrings — if the cell or text CONTAINS "כללי", output "כללי"; if it CONTAINS "מנייתי", output "מנייתי"; if it CONTAINS "כספי", output "כספי". The word may be part of a longer phrase (e.g., "מסלול כללי" or "הראל כללי"). If none of these substrings is found, return null.\n8. When parsing tabular data or spreadsheets (e.g., Excel), be highly flexible as formats will vary wildly. Treat each valid row as a separate asset. Intelligently deduce fields from context: numerical columns are usually "balance", IDs/digits are "assetNum", and institution names or acronyms belong to "name" or "category". Do not rely on headers or specific column orders. Do not skip or merge rows.\n9. Shorthand dictionary: "א\\"ש" or "אלטשולר" → name="אלטשולר שחם"; "ק\\"הש" or "קה\\"ש" → category="קרן השתלמות"; "גמל להשקעה" (exact phrase) → category="גמל להשקעה" (NOT "קופת גמל"); "גמל" alone → category=\'קופ"ג\'; "הראל" → name="הראל"; "הראל כללי" → name="הראל" AND type="כללי"; "מיטב דש" or "מיטב ד\\"ש" → name="מיטב דש"; "מור" → name="מור בית השקעות"; "ניהול קרנות" is a user-defined label for an asset — never use it as the name (managing company) field.';
+    systemPrompt = 'You are a financial document analyzer for Israeli investment instruments. The document may contain one or more investment assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":number_in_thousands_ILS_or_null,"name":"managing_company_name_or_null","category":"one of: קרן השתלמות | קופ\\"ג | גמל להשקעה | פוליסת חיסכון | מניות/ETF | קרן להשקעה | קרן כספית | עו\\"ש | עו\\"ש $ | null","assetNum":"policy_or_asset_number_or_null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"one of: liquid | private | pension67 | null","isActive":true_or_false}]\nBalance must be in thousands of ILS (e.g., 150000 ILS → 150). Extract the EXACT decimal value (e.g., 312.582 — do NOT round or truncate). If not found, use null.\nRULES:\n1. assetNum: Search ONLY for the label "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" (identity/ID number) and "ח.פ" (company registration) — never extract these as assetNum.\n2. category: If the document shows "סוג פוליסה: פרט" or "תכנית חסכון", you MUST classify as "פוליסת חיסכון". Only use "גמל להשקעה" if that exact term is explicitly written in the document.\n3. liquidity: If category is "פוליסת חיסכון", set liquidity to "private". If category is "קרן השתלמות", return null for liquidity — let the user decide. NEVER set liquidity to "pension67" for either פוליסת חיסכון or קרן השתלמות.\n4. Return a JSON ARRAY. Never return a plain object.\n5. name (managing company): Look at the document header, logo, or website domain (e.g., "online.as-invest.co.il" → "אלטשולר שחם"). STRICTLY IGNORE any field labeled "שם מעסיק" — that is the employer, not the managing company.\n6. category override: If the word "השתלמות" appears ANYWHERE in the document, you MUST classify the asset as "קרן השתלמות" — this rule overrides all other category rules.\n7. type: Scan for substrings — if the cell or text CONTAINS "כללי", output "כללי"; if it CONTAINS "מנייתי", output "מנייתי"; if it CONTAINS "כספי", output "כספי". The word may be part of a longer phrase (e.g., "מסלול כללי" or "הראל כללי"). If none of these substrings is found, return null.\n8. When parsing tabular data or spreadsheets (e.g., Excel), be highly flexible as formats will vary wildly. Treat each valid row as a separate asset. Intelligently deduce fields from context: numerical columns are usually "balance", IDs/digits are "assetNum", and institution names or acronyms belong to "name" or "category". Do not rely on headers or specific column orders. Do not skip or merge rows.\n9. Shorthand dictionary: "א\\"ש" or "אלטשולר" → name="אלטשולר שחם"; "ק\\"הש" or "קה\\"ש" → category="קרן השתלמות"; CRITICAL גמל rule: Use category="גמל להשקעה" ONLY if the exact word "להשקעה" appears explicitly in the document text. In ALL other cases where "גמל" appears — including "מור גמל", "הפניקס גמל", "קופת גמל", or any other "גמל" product name — you MUST map to category=\'קופ"ג\'. Never assume "גמל להשקעה" as a default for any "גמל" product. "הראל" → name="הראל"; "הראל כללי" → name="הראל" AND type="כללי"; "מיטב דש" or "מיטב ד\\"ש" → name="מיטב דש"; "מור" → name="מור בית השקעות"; "ניהול קרנות" is a user-defined label for an asset — never use it as the name (managing company) field.\n10. STRICT FALLBACK: If you cannot confidently identify the exact category or type from the document text, you MUST return null for that field. NEVER default to the word "אחר". Leave it null so the user is forced to select manually.\n11. isActive: If the document text contains the word "תלוש" or "פעילה", set isActive to true. Otherwise false.';
   }
 
   fetch(PROXY, {
