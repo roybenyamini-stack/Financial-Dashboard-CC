@@ -1,4 +1,4 @@
-<!-- v177.11 -->
+<!-- v177.32 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.11</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.32</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1257,7 +1257,7 @@
 .ffs-nav-btn.ffs-nav-active{background:rgba(99,102,241,0.22);color:white;border-color:rgba(99,102,241,0.42);}
 .ffs-tip{position:relative;display:inline-flex;align-items:center;cursor:help;color:#94a3b8;font-size:13px;vertical-align:middle;}
 .ffs-tip:hover{color:#3b82f6;}
-.ffs-tip-body{display:none;position:absolute;bottom:calc(100% + 7px);right:50%;transform:translateX(50%);background:#1e293b;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:11px;font-weight:400;padding:9px 13px;border-radius:9px;white-space:pre-wrap;max-width:230px;line-height:1.65;z-index:9999;pointer-events:none;direction:rtl;text-align:right;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);}
+.ffs-tip-body{display:none;position:absolute;bottom:calc(100% + 7px);right:50%;transform:translateX(50%);background:#1e293b;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:11px;font-weight:400;padding:9px 13px;border-radius:9px;white-space:normal;width:max-content;max-width:280px;line-height:1.65;z-index:9999;pointer-events:none;direction:rtl;text-align:right;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);}
 .ffs-tip:hover .ffs-tip-body{display:block;}
 </style>
 <div id="mkt-wrap">
@@ -1617,7 +1617,7 @@
       <button id="ffs-nav-profile" class="ffs-nav-btn ffs-nav-active" onclick="ffsNavTo('profile')">
         <span style="font-size:16px;flex-shrink:0;">👤</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">פרטים אישיים</div>
+          <div style="font-size:13px;font-weight:700;">פרטים אישיים</div>
           <div id="ffs-nav-summary-profile" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
         </div>
       </button>
@@ -1625,7 +1625,7 @@
       <button id="ffs-nav-income" class="ffs-nav-btn" onclick="ffsNavTo('income')">
         <span style="font-size:16px;flex-shrink:0;">💰</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">תזרים שוטף</div>
+          <div style="font-size:13px;font-weight:700;">תזרים שוטף</div>
           <div id="ffs-nav-summary-income" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
@@ -1633,7 +1633,7 @@
       <button id="ffs-nav-investments" class="ffs-nav-btn" onclick="ffsNavTo('investments')">
         <span style="font-size:16px;flex-shrink:0;">📈</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">השקעות</div>
+          <div style="font-size:13px;font-weight:700;">השקעות</div>
           <div id="ffs-nav-summary-investments" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
@@ -1641,7 +1641,7 @@
       <button id="ffs-nav-realestate" class="ffs-nav-btn" onclick="ffsNavTo('realestate')">
         <span style="font-size:16px;flex-shrink:0;">🏠</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">נדל&quot;ן</div>
+          <div style="font-size:13px;font-weight:700;">נדל&quot;ן</div>
           <div id="ffs-nav-summary-realestate" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
@@ -1649,7 +1649,7 @@
       <button id="ffs-nav-pension" class="ffs-nav-btn" onclick="ffsNavTo('pension')">
         <span style="font-size:16px;flex-shrink:0;">🏦</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">נכסים פנסיוניים</div>
+          <div style="font-size:13px;font-weight:700;">נכסים פנסיוניים</div>
           <div id="ffs-nav-summary-pension" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
@@ -1657,14 +1657,22 @@
       <button id="ffs-nav-expenses" class="ffs-nav-btn" onclick="ffsNavTo('expenses')">
         <span style="font-size:16px;flex-shrink:0;">🔴</span>
         <div style="flex:1;text-align:right;">
-          <div style="font-size:12px;font-weight:700;">פרישה</div>
+          <div style="font-size:13px;font-weight:700;">פרישה</div>
           <div id="ffs-nav-summary-expenses" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
 
       <div style="flex:1;min-height:20px;"></div>
 
-      <button onclick="ffsApplyAndClose()" style="width:100%;padding:11px 10px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;border:none;border-radius:10px;font-size:12px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;letter-spacing:0.1px;box-shadow:0 2px 10px rgba(59,130,246,0.35);">✓ החל ועדכן</button>
+      <!-- v177.17: Backup / Restore (top) -->
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button onclick="ffsExportData()" style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;">📤 שמור גיבוי</button>
+        <label style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;">
+          📥 טען גיבוי
+          <input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
+        </label>
+      </div>
+      <button onclick="ffsApplyAndClose()" style="width:100%;padding:11px 10px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;border:none;border-radius:10px;font-size:12px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;letter-spacing:0.1px;box-shadow:0 2px 10px rgba(59,130,246,0.35);">🚀 הפעל סימולטור</button>
       <button onclick="ffsResetAndReload()" style="width:100%;padding:8px 10px;margin-top:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.28);border-radius:8px;color:#fca5a5;font-size:10px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">🗑️ אפס הכל</button>
       <div style="font-size:9px;color:rgba(255,255,255,0.2);text-align:center;margin-top:6px;">נשמר אוטומטית בדפדפן</div>
     </nav>
@@ -1680,15 +1688,15 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:580px;">
             <div>
               <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">שם</div>
-              <input id="ffs-name" type="text" placeholder="שם פרטי" oninput="ffsSaveField('name',this.value);ffsUpdateDrawerTitle()" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;direction:rtl;">
+              <input id="ffs-name" type="text" placeholder="שם פרטי" autocomplete="off" oninput="ffsSaveField('name',this.value);ffsUpdateDrawerTitle()" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;direction:rtl;">
             </div>
             <div>
               <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">תאריך לידה</div>
-              <input id="ffs-birth-date" type="date" onchange="ffsSaveField('birthDate',this.value)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;direction:ltr;">
+              <input id="ffs-birth-date" type="date" onchange="ffsSaveField('birthDate',this.value)" oninput="this.style.border='';" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;direction:ltr;">
             </div>
             <div>
               <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">גיל פרישה</div>
-              <input id="ffs-retirement-age" type="number" min="55" max="99" value="67" oninput="ffsHandleRetirementAge(this,false)" onchange="ffsHandleRetirementAge(this,true)" onblur="ffsHandleRetirementAge(this,true)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-retirement-age" type="number" min="55" max="99" value="67" autocomplete="off" oninput="ffsHandleRetirementAge(this,false)" onchange="ffsHandleRetirementAge(this,true)" onblur="ffsHandleRetirementAge(this,true)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
               <div id="ffs-ret-age-tip" style="display:none;margin-top:4px;font-size:10px;color:#dc2626;font-weight:700;direction:rtl;">גיל הפרישה אינו יכול לעלות על תוחלת החיים</div>
             </div>
             <div>
@@ -1698,7 +1706,7 @@
 ככל שהיא גבוהה יותר, כך הסימולטור מחשב תקופה ארוכה יותר שיש לממן מהחיסכון.
 ברירת מחדל: 84 שנה.</span></span>
               </div>
-              <input id="ffs-life-expectancy" type="number" min="70" max="100" value="84" oninput="ffsSaveField('lifeExpectancy',parseInt(this.value)||84)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-life-expectancy" type="number" min="70" max="100" value="84" autocomplete="off" oninput="ffsSaveField('lifeExpectancy',parseInt(this.value)||84)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
             </div>
           </div>
         </div>
@@ -1720,7 +1728,7 @@
         <!-- חיסכון חודשי נטו -->
         <div style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;padding:22px;margin-bottom:16px;max-width:520px;">
           <div style="font-size:13px;color:#475569;font-weight:700;margin-bottom:10px;">💰 חיסכון חודשי נטו (₪) — מה נחסך כרגע</div>
-          <input id="ffs-monthly-savings" type="number" min="0" max="100000" step="500" placeholder="0" oninput="ffsSaveField('monthlySavings',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-family:Heebo,sans-serif;font-size:20px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
+          <input id="ffs-monthly-savings" type="number" min="0" max="100000" step="500" placeholder="0" autocomplete="off" oninput="ffsSaveField('monthlySavings',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-family:Heebo,sans-serif;font-size:20px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
         </div>
 
         <!-- סליידר עליית שכר -->
@@ -1761,11 +1769,11 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
             <div>
               <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">גיל שינוי הכנסה</div>
-              <input id="ffs-bridge-age" type="number" min="40" max="67" step="1" placeholder="—" oninput="ffsSaveField('bridgeAge',parseInt(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-bridge-age" type="number" min="40" max="67" step="1" placeholder="—" autocomplete="off" oninput="ffsSaveField('bridgeAge',parseInt(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
             </div>
             <div>
               <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">תזרים חודשי נטו חדש (₪)</div>
-              <input id="ffs-bridge-cashflow" type="number" min="0" max="100000" step="500" placeholder="—" oninput="ffsSaveField('bridgeCashflow',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-bridge-cashflow" type="number" min="0" max="100000" step="500" placeholder="—" autocomplete="off" oninput="ffsSaveField('bridgeCashflow',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
@@ -1791,12 +1799,12 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
             <div>
               <div style="font-size:13px;color:#64748b;font-weight:700;margin-bottom:8px;">📥 צפי הכנסות חודשיות (₪)</div>
-              <input id="ffs-retirement-income" type="number" min="0" max="200000" step="500" placeholder="0" oninput="ffsSaveField('retirementIncome',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-family:Heebo,sans-serif;font-size:18px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-retirement-income" type="number" min="0" max="200000" step="500" placeholder="0" autocomplete="off" oninput="ffsSaveField('retirementIncome',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-family:Heebo,sans-serif;font-size:18px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
               <div style="font-size:10px;color:#94a3b8;margin-top:5px;text-align:center;">קצבה פנסיונית · שכ"ד מנכס מושכר · הכנסה עצמאית</div>
             </div>
             <div>
               <div style="font-size:13px;color:#64748b;font-weight:700;margin-bottom:8px;">📤 הוצאה חודשית בפרישה (₪)</div>
-              <input id="ffs-retirement-expense" type="number" min="0" max="200000" step="500" placeholder="0" oninput="ffsSaveField('retirementExpense',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-family:Heebo,sans-serif;font-size:18px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
+              <input id="ffs-retirement-expense" type="number" min="0" max="200000" step="500" placeholder="0" autocomplete="off" oninput="ffsSaveField('retirementExpense',parseFloat(this.value)||0)" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-family:Heebo,sans-serif;font-size:18px;font-weight:800;color:#1e293b;outline:none;text-align:center;">
               <div style="font-size:10px;color:#94a3b8;margin-top:5px;text-align:center;">מסונכרן עם גרר ההוצאות</div>
             </div>
           </div>
@@ -1836,6 +1844,7 @@
           <div style="font-size:11px;color:#94a3b8;margin-top:4px;">קרנות השתלמות, קופות גמל, גמל להשקעה, פוליסות חיסכון, ETF-ים וכו׳</div>
         </div>
         <div id="ffs-acc-body-investments" style="display:block;">
+          <button id="ffs-reorder-btn-investments" onclick="ffsToggleReorder('investments')" style="font-size:11px;font-weight:700;font-family:Heebo,sans-serif;padding:4px 10px;border:1.5px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;cursor:pointer;margin-bottom:8px;">↕ סדר רשימה</button>
           <div id="ffs-investments-list"></div>
           <button id="ffs-inv-dropzone" onclick="ffsOpenInvModal(null,'investments')" ondragover="ffsDropzoneDragOver(event,'investments')" ondragleave="ffsDropzoneDragLeave(event,'investments')" ondrop="ffsDropzoneDrop(event,'investments')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף נכס השקעה</button>
         </div>
@@ -1846,8 +1855,9 @@
       <div id="ffs-section-pension" style="display:none;">
         <div style="font-size:20px;font-weight:900;color:#1e293b;margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid #e2e8f0;">🏦 נכסים פנסיוניים</div>
         <div id="ffs-acc-body-pension" style="display:block;">
+          <button id="ffs-reorder-btn-pension" onclick="ffsToggleReorder('pension')" style="font-size:11px;font-weight:700;font-family:Heebo,sans-serif;padding:4px 10px;border:1.5px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;cursor:pointer;margin-bottom:8px;">↕ סדר רשימה</button>
           <div id="ffs-pension-list"></div>
-          <button id="ffs-pen-dropzone" onclick="ffsOpenInvModal(null,'pension')" ondragover="ffsDropzoneDragOver(event,'pension')" ondragleave="ffsDropzoneDragLeave(event,'pension')" ondrop="ffsDropzoneDrop(event,'pension')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף פוליסה</button>
+          <button id="ffs-pen-dropzone" onclick="ffsOpenPensionModal(null)" ondragover="ffsDropzoneDragOver(event,'pension')" ondragleave="ffsDropzoneDragLeave(event,'pension')" ondrop="ffsDropzoneDrop(event,'pension')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף פוליסה</button>
         </div>
         <span id="ffs-acc-arrow-pension" style="display:none;">▼</span>
         <datalist id="ffs-providers-dl">
@@ -1869,12 +1879,13 @@
 
     <!-- === LEFT: Current Assets Sidebar (v170.5) === -->
     <div style="width:250px;flex-shrink:0;background:#0f172a;padding:20px 16px;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.12);">
-      <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.38);letter-spacing:1.6px;text-transform:uppercase;margin-bottom:18px;">מדדי צבירה</div>
+      <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.38);letter-spacing:1.6px;text-transform:uppercase;margin-bottom:6px;">מדדי צבירה</div>
+      <div id="ffs-profile-header-name" style="font-size:13px;color:#94a3b8;margin-bottom:14px;"></div>
 
       <!-- KPI: סה"כ צבירה נוכחית -->
       <div style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.32);border-radius:14px;padding:18px 16px;margin-bottom:16px;">
         <div style="font-size:11px;color:#a5b4fc;font-weight:700;margin-bottom:8px;">סה״כ צבירה נוכחית</div>
-        <div id="ffs-live-wealth" style="font-size:28px;font-weight:900;color:#c4b5fd;line-height:1;letter-spacing:-0.5px;">—</div>
+        <div id="ffs-live-wealth" style="font-size:22px;font-weight:900;color:#c4b5fd;line-height:1;letter-spacing:-0.5px;">—</div>
         <div style="font-size:10px;color:rgba(165,180,252,0.55);margin-top:5px;">נכסים פיננסיים + נדל״ן (K ₪)</div>
       </div>
 
@@ -1887,17 +1898,17 @@
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:11px;color:rgba(255,255,255,0.5);">📈 השקעות</span>
+          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">📈 השקעות</span>
           <span id="ffs-live-inv" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:11px;color:rgba(255,255,255,0.5);">🏠 נדל&quot;ן</span>
+          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🏠 נדל&quot;ן</span>
           <span id="ffs-live-re" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:11px;color:rgba(255,255,255,0.5);">🏦 פנסיה</span>
+          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🏦 פנסיה</span>
           <span id="ffs-live-pen-accum" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
@@ -2103,7 +2114,7 @@
             <input type="text" class="settings-input" id="stg-user1-name" maxlength="20" placeholder="משתתף 1" style="text-align:right;">
           </div>
           <div class="settings-field">
-            <label class="settings-label">שם — <span id="stg-lbl-name2">משתתף 2</span> <span style="font-weight:400;opacity:0.55;">(אופציונלי)</span></label>
+            <label class="settings-label">שם — <span id="stg-lbl-name2">משתתף 2</span></label>
             <input type="text" class="settings-input" id="stg-user2-name" maxlength="20" placeholder="ריק = משתתף יחיד" style="text-align:right;">
           </div>
         </div>
@@ -2329,6 +2340,18 @@
 <!-- v169.2: Floating Toast — replaces header excel-status for upload/mode notifications -->
 <div id="upload-toast"></div>
 
+<!-- v177.17: Custom Delete Confirmation Modal -->
+<div id="ffs-custom-confirm" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:999999;align-items:center;justify-content:center;direction:rtl;">
+  <div style="background:white;border-radius:12px;padding:24px 28px;text-align:center;max-width:300px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:8px;">מחיקת נכס</div>
+    <div style="font-size:13px;color:#475569;margin-bottom:20px;line-height:1.6;">האם אתה בטוח שברצונך למחוק נכס זה?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="ffsCancelDelete()" style="padding:9px 22px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
+      <button onclick="ffsConfirmDelete()" style="padding:9px 22px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:white;background:#ef4444;cursor:pointer;">מחק</button>
+    </div>
+  </div>
+</div>
+
 <!-- v177.7: Smart Investment Dropzone — Modal (Universal: investments + pension) -->
 <div id="ffs-inv-backdrop" onclick="ffsCloseInvModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10200;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
 <div id="ffs-inv-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:480px;background:#fff;border-radius:18px;z-index:10201;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);">
@@ -2352,46 +2375,49 @@
       <!-- סכום -->
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סכום (באלפי ש"ח) *</div>
-        <input id="ffs-inv-f-balance" type="number" placeholder="0" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+        <input id="ffs-inv-f-balance" type="number" min="0" placeholder="0" autocomplete="off" oninput="this.classList.remove('ffs-inv-field-required');" onkeydown="if(event.key==='-'||event.key==='e')event.preventDefault();" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-balance" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
       <!-- מספר פוליסה -->
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מספר פוליסה / קרן / קופה *</div>
-        <input id="ffs-inv-f-assetNum" type="text" placeholder="מס׳ / שם" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;box-sizing:border-box;outline:none;">
+        <input id="ffs-inv-f-assetNum" type="text" placeholder="מס׳ / שם" autocomplete="off" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-assetNum" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
     </div>
     <!-- חברה מנהלת -->
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">חברה מנהלת</div>
-      <input id="ffs-inv-f-name" type="text" placeholder="למשל: מיטב, הראל, הפניקס..." oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
+      <input id="ffs-inv-f-name" type="text" placeholder="למשל: מיטב, הראל, הפניקס..." autocomplete="off" list="ffs-providers-dl" oninput="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
       <div id="ffs-inv-h-name" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
       <!-- סוג נכס / קטגוריה — options set dynamically by JS -->
       <div>
         <div id="ffs-inv-label-category" style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סוג נכס / קטגוריה</div>
-        <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+        <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); ffsClearFieldError('ffs-inv-f-category','ffs-inv-h-category'); var co=document.getElementById('ffs-inv-f-category-other'); if(co) co.style.display=(this.value==='אחר')?'block':'none';" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
           <option value="">בחר...</option>
         </select>
+        <input type="text" id="ffs-inv-f-category-other" placeholder="פרט..." autocomplete="off" style="display:none;width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-category" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
       <!-- מסלול (מנייתי/כללי/כספי) -->
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מסלול</div>
-        <select id="ffs-inv-f-type" onchange="this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+        <select id="ffs-inv-f-type" onchange="ffsClearFieldError('ffs-inv-f-type','ffs-inv-h-type'); var to=document.getElementById('ffs-inv-f-type-other'); if(to) to.style.display=(this.value==='אחר')?'block':'none';" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
           <option value="">בחר...</option>
           <option value="מנייתי">מנייתי</option>
           <option value="כללי">כללי</option>
           <option value="כספי">כספי</option>
+          <option value="אחר">אחר</option>
         </select>
+        <input type="text" id="ffs-inv-f-type-other" placeholder="פרט..." autocomplete="off" style="display:none;width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-type" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
       <!-- נזילות — hidden for pension context -->
       <div id="ffs-inv-liquidity-wrap">
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">נזילות</div>
-        <select id="ffs-inv-f-liquidity" onchange="ffsCheckLiquidityWarning(); this.classList.remove('ffs-inv-field-required');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+        <select id="ffs-inv-f-liquidity" onchange="ffsCheckLiquidityWarning(); ffsClearFieldError('ffs-inv-f-liquidity','ffs-inv-h-liquidity');" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
           <option value="" disabled selected>בחר...</option>
           <option value="liquid">נזיל</option>
           <option value="private">השקעה עצמית</option>
@@ -2401,6 +2427,16 @@
         <div id="ffs-liquidity-warning" style="display:none;color:#dc2626;font-size:11px;margin-top:4px;line-height:1.4;">⚠️ לתשומת לבך: מומלץ מאד לא לגעת בקרן השתלמות עד גיל הפרישה כדי לשמור על הפטור ממס.</div>
       </div>
     </div>
+    <!-- v177.16: Active checkbox + Notes -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#1e293b;">
+        <input type="checkbox" id="ffs-inv-f-active" style="accent-color:#3b82f6;width:15px;height:15px;"> קופה פעילה
+      </label>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">הערות</div>
+      <textarea id="ffs-inv-f-notes" placeholder="הערות, היסטוריה, סוכן. כל הערה שהיא" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;resize:vertical;direction:rtl;"></textarea>
+    </div>
     <!-- Buttons -->
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button onclick="ffsCloseInvModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
@@ -2408,6 +2444,153 @@
       <button id="ffs-inv-save-btn" onclick="ffsSaveInvFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">💾 שמור</button>
     </div>
   </div>
+</div>
+
+<!-- v177.20: Dedicated Pension Modal -->
+<div id="ffs-pension-backdrop" onclick="ffsClosePensionModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10202;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
+<div id="ffs-pension-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:520px;background:#fff;border-radius:18px;z-index:10203;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);max-height:90vh;overflow-y:auto;">
+
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <div id="ffs-pen-modal-title" style="font-size:16px;font-weight:900;color:#1e293b;">
+      &#x1F3E6; הוספת נכס פנסיוני
+    </div>
+    <span onclick="ffsClosePensionModal()" style="font-size:20px;color:#94a3b8;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;" onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'">
+      &#x2715;
+    </span>
+  </div>
+
+  <!-- Radio: pension type -->
+  <div style="display:flex;gap:20px;align-items:center;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#1e293b;">
+      <input type="radio" id="ffs-pen-modal-type-pension" name="ffs-pen-modal-type" value="pension" checked onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
+      קרן פנסיה
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#1e293b;">
+      <input type="radio" id="ffs-pen-modal-type-manager" name="ffs-pen-modal-type" value="manager" onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
+      ביטוח מנהלים
+    </label>
+  </div>
+
+  <!-- Common top fields: name + provider -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+        שם הקופה / מסלול
+      </div>
+      <input type="text" id="ffs-pen-modal-name" autocomplete="off" placeholder="מסלול, שם קצר..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+        חברה מנהלת
+      </div>
+      <input type="text" id="ffs-pen-modal-provider" autocomplete="off" list="ffs-providers-dl" placeholder="הראל, מגדל, הפניקס..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
+    </div>
+  </div>
+
+  <!-- Pension fund fields container -->
+  <div id="pension-fund-fields">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          קצבה נוכחית (&#x20AA;)
+        </div>
+        <input type="number" id="ffs-pen-modal-monthly" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          קצבה צפויה (&#x20AA;)
+        </div>
+        <input type="number" id="ffs-pen-modal-expected" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          הפרשה (%)
+        </div>
+        <input type="number" id="ffs-pen-modal-contrib" autocomplete="off" placeholder="0" step="0.01" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+    </div>
+    <!-- Survivors section -->
+    <div style="border-top:1px solid #f1f5f9;padding-top:10px;margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:#475569;">
+        <input type="checkbox" id="ffs-pen-modal-survivors" onchange="document.getElementById('ffs-pen-survivors-fields').style.display=this.checked?'block':'none';" style="accent-color:#3b82f6;width:14px;height:14px;">
+        כיסוי שארים
+      </label>
+      <div id="ffs-pen-survivors-fields" style="display:none;margin-top:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+              בן/בת זוג (%)
+            </div>
+            <input type="number" id="ffs-pen-modal-spouse" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+              יתומים (%)
+            </div>
+            <input type="number" id="ffs-pen-modal-orphan" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+              גילאי ילדים
+            </div>
+            <input type="text" id="ffs-pen-modal-children" autocomplete="off" placeholder="5,8,12" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Executive insurance fields container (hidden by default) -->
+  <div id="exec-insurance-fields" style="display:none;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          הון צבור (K &#x20AA;)
+        </div>
+        <input type="number" id="ffs-pen-modal-accum" autocomplete="off" placeholder="0" oninput="var life = document.getElementById('ffs-pen-modal-life'); if(life) life.value = this.value;" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          מקדם המרה
+        </div>
+        <input type="number" id="ffs-pen-modal-factor" autocomplete="off" placeholder="200" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+          ביטוח חיים (&#x20AA;)
+        </div>
+        <input type="number" id="ffs-pen-modal-life" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Active checkbox -->
+  <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:12px;">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#1e293b;">
+      <input type="checkbox" id="ffs-pen-modal-active" style="accent-color:#3b82f6;width:15px;height:15px;">
+      קופה פעילה
+    </label>
+  </div>
+
+  <!-- Notes -->
+  <div style="margin-bottom:18px;">
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+      הערות
+    </div>
+    <textarea id="ffs-pen-modal-notes" autocomplete="off" placeholder="הערות, פרטים, סוכן..." rows="2" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;resize:vertical;direction:rtl;"></textarea>
+  </div>
+
+  <!-- Action buttons -->
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button onclick="ffsClosePensionModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">
+      ביטול
+    </button>
+    <button onclick="ffsSavePensionFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">
+      &#x1F4BE; שמור
+    </button>
+  </div>
+
 </div>
 
 <script src="app.js"></script>
