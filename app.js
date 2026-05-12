@@ -7899,6 +7899,20 @@ var SIM_RE_GROWTH_RATE = 2.5;    // v168.112: annual % appreciation for real est
 var _simZoomNowY = new Date().getFullYear(); // v168.61: dynamic base year
 var SIM_ZOOM_CUSTOM = { retStart: 2047, retEnd: 2051, decStart: _simZoomNowY, decEnd: _simZoomNowY + 10 }; // v168.61: default = current year + 10 (responsive to date)
 
+// v177.33: universal retirement zoom — resolves birth year from active profile (FFS/Excel/Demo)
+function _simRecalcRetirementZoom() {
+  var birthYear = null;
+  if (typeof FFS_PROFILE !== 'undefined' && FFS_PROFILE.birthDate) {
+    var _by = parseInt(FFS_PROFILE.birthDate.split('-')[0], 10);
+    if (!isNaN(_by) && _by > 1900 && _by < 2100) birthYear = _by;
+  }
+  if (!birthYear) birthYear = SIM_BIRTH_YEAR_ROY;
+  var retAge  = (SIM_RETIREMENT_AGE_ROY && !isNaN(SIM_RETIREMENT_AGE_ROY)) ? SIM_RETIREMENT_AGE_ROY : 67;
+  var retYear = birthYear + retAge;
+  SIM_ZOOM_CUSTOM.retStart = retYear - 1;
+  SIM_ZOOM_CUSTOM.retEnd   = retYear + 3; // 5-year inclusive span: retYear-1 … retYear+3
+}
+
 // v103.42 / v167.7: zoom range helpers
 // 'decade' = next 10 years from TODAY (not from retirement)
 function simGetZoomRange() {
@@ -7911,6 +7925,7 @@ function simGetZoomRange() {
   return { start: SIM_P1_START.y, end: SIM_END.y };
 }
 function simSetZoom(mode) {
+  if (mode === 'retirement') _simRecalcRetirementZoom(); // v177.33: recalc before applying
   SIM_ZOOM = mode;
   ['full','retirement','decade'].forEach(function(m) {
     var btn = document.getElementById('sim-zoom-' + m);
@@ -8590,8 +8605,10 @@ function ffsUpdateDrawerTitle() {
   var name;
   if (APP_MODE === 'SIMULATOR') {
     name = FFS_PROFILE.name || 'אורח';
-  } else if (isExcelLoaded()) {
+  } else if (!_ffsDrawerOpen && isExcelLoaded()) {
     name = SIM_USER1_NAME || 'אורח';
+  } else if (_ffsDrawerOpen) {
+    name = FFS_PROFILE.name || 'אורח'; // v177.36 Iron Dome: strict FFS isolation — no SIM_USER1_NAME fallback
   } else {
     name = FFS_PROFILE.name || SIM_USER1_NAME || 'אורח';
   }
@@ -9137,10 +9154,49 @@ function ffsRenderSection(section) {
   });
   listEl.innerHTML = html;
 }
+// v177.36: render the "ניהול אירועים" panel and update left sidebar count
+function ffsRenderEventsPanel() {
+  var fixedEvents = (SIM_USER_EVENTS || []).filter(function(ev) { return ev.isSimulation === false; });
+  var countEl = document.getElementById('ffs-live-fixed-events');
+  if (countEl) countEl.textContent = fixedEvents.length;
+
+  var area = document.getElementById('ffs-events-table-area');
+  if (!area) return;
+  if (!fixedEvents.length) { area.innerHTML = ''; return; }
+
+  var typeLabels = { income: 'הכנסה', expense: 'הוצאה', investment: 'השקעה', reminder: 'תזכורת' };
+  var rows = fixedEvents.map(function(ev, i) {
+    var realIdx = SIM_USER_EVENTS.indexOf(ev);
+    var typeLabel = typeLabels[ev.type] || ev.type;
+    var amtText   = ev.type === 'reminder' ? '—' : (Math.abs(ev.amount || 0).toLocaleString('he-IL') + ' K');
+    return '<tr style="border-bottom:1px solid #f1f5f9;">'
+      + '<td style="padding:8px 6px;font-size:12px;color:#1e293b;">' + (ev.label || '') + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + (ev.yr || '') + '/' + String(ev.mo || 1).padStart(2,'0') + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + typeLabel + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:left;">' + amtText + '</td>'
+      + '<td style="padding:8px 6px;text-align:center;">'
+      + '<button onclick="ffsShowAddFixedEventModal(' + realIdx + ')" style="padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#475569;">עריכה</button>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+
+  area.innerHTML = '<table style="width:100%;border-collapse:collapse;direction:rtl;">'
+    + '<thead><tr style="background:#f8fafc;">'
+    + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">שם</th>'
+    + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">תאריך</th>'
+    + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">סוג</th>'
+    + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:left;">סכום (K)</th>'
+    + '<th style="padding:7px 6px;"></th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+}
+
 function ffsRenderAll() {
   ['investments', 'realEstate', 'pension'].forEach(ffsRenderSection);
   ffsRenderIncomePhasesUI(); // v170.2
   ffsRenderFfsEventsUI();    // v170.4
+  ffsRenderEventsPanel();    // v177.36
   var nameEl      = document.getElementById('ffs-name');
   var birthEl     = document.getElementById('ffs-birth-date');
   var retEl       = document.getElementById('ffs-retirement-age');
@@ -9155,8 +9211,9 @@ function ffsRenderAll() {
   var bridgePcEl  = document.getElementById('ffs-bridge-pension-contrib');
 
   // v168.85/86: Excel-active state controls drawer lock and switch button
-  var _excelActive = isExcelLoaded(); // respects activeDataSource switch
-  var _hasRawExcel = _hasRawExcelData();
+  // v177.36 Iron Dome: when FFS drawer is open, always treat as manual — never show Excel lock
+  var _excelActive = _ffsDrawerOpen ? false : isExcelLoaded();
+  var _hasRawExcel = _ffsDrawerOpen ? false : _hasRawExcelData();
   var badge     = document.getElementById('ffs-excel-badge');
   var switchDiv = document.getElementById('ffs-source-switch');
   var switchBtn = document.getElementById('ffs-switch-btn');
@@ -9220,7 +9277,28 @@ function ffsRenderAll() {
   if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries(); // v170.1
   if (typeof ffsUpdateLiveSidebar  === 'function') ffsUpdateLiveSidebar();  // v170.1
 }
+var _ffsDrawerOpen = false; // v177.36 Iron Dome: true while FFS drawer is visible
+
 function openFFSDrawer() {
+  _ffsDrawerOpen = true; // v177.36: engage isolation — block Excel bleed into FFS drawer
+  // Reset in-memory FFS_PROFILE to blank, then restore from isolated localStorage
+  FFS_PROFILE.name = '';
+  FFS_PROFILE.birthDate = '';
+  FFS_PROFILE.retirementAge  = 67;
+  FFS_PROFILE.lifeExpectancy = 84;
+  FFS_PROFILE.investments = [];
+  FFS_PROFILE.realEstate  = [];
+  FFS_PROFILE.pension     = [];
+  FFS_PROFILE.monthlySavings    = 0;
+  FFS_PROFILE.savingsGrowth     = 0;
+  FFS_PROFILE.retirementExpense = 0;
+  FFS_PROFILE.retirementIncome  = 0;
+  FFS_PROFILE.bridgeAge            = 0;
+  FFS_PROFILE.bridgeCashflow       = 0;
+  FFS_PROFILE.bridgePensionContrib = false;
+  FFS_PROFILE.incomePhases = [];
+  FFS_PROFILE.ffsEvents    = [];
+  ffsLoadProfile(); // restore from localStorage if it exists; blank if not
   ffsRenderAll();
   var backdrop = document.getElementById('ffs-backdrop');
   var drawer   = document.getElementById('ffs-drawer');
@@ -9238,6 +9316,7 @@ function openFFSDrawer() {
   ffsUpdateLiveSidebar();
 }
 function closeFFSDrawer() {
+  _ffsDrawerOpen = false; // v177.36: release Iron Dome isolation
   var drawer   = document.getElementById('ffs-drawer');
   var backdrop = document.getElementById('ffs-backdrop');
   if (!drawer) return;
@@ -9251,7 +9330,7 @@ function closeFFSDrawer() {
 // v170.1: FFS Command Center — navigation, live sidebar, debounced update
 var ffsActiveSection = 'profile';
 var _ffsDebTimer = null;
-var _ffsSections = ['profile', 'income', 'expenses', 'realestate', 'investments', 'pension'];
+var _ffsSections = ['profile', 'income', 'expenses', 'realestate', 'investments', 'pension', 'events'];
 
 function ffsNavTo(section) {
   ffsActiveSection = section;
@@ -9754,6 +9833,7 @@ function ffsApplyToSimulator() {
   // v170.5: Recalculate phase boundaries using FFS profile data
   SIM_BIRTH_YEAR_ROY = (SIM_BIRTH_YEAR_ROY && !isNaN(SIM_BIRTH_YEAR_ROY)) ? SIM_BIRTH_YEAR_ROY : (new Date().getFullYear() - 40);
   SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY, m: 8 };
+  _simRecalcRetirementZoom(); // v177.33: sync retirement zoom window to current profile
   var _bridgeAge = parseInt(FFS_PROFILE.bridgeAge) || 0;
   SIM_P2_START = _bridgeAge > 0
     ? { y: SIM_BIRTH_YEAR_ROY + _bridgeAge, m: 8 }
@@ -9798,6 +9878,7 @@ function ffsApplyAndClose() {
   }
   closeFFSDrawer();
   try { ffsApplyToSimulator(); simFullRefresh(); } catch(e) { console.warn('[FFS] Simulation error after apply:', e); }
+  showToast('התיק עודכן. מומלץ לשמור גיבוי מעודכן.', '#6366f1', 4000); // v177.36
 }
 
 // v177.16: Backup / Restore
@@ -10626,17 +10707,17 @@ function simCollectEvents() {
       var yr = parseInt(dp[0]), mo = parseInt(dp[1]);
       if (isNaN(yr) || isNaN(mo)) return;
       events.push({ yr: yr, mo: mo, label: ev.label || ev.type || '', amount: ev.amount || 0,
-                    color: (ev.amount || 0) >= 0 ? '#34d399' : '#f87171', src: 'pension' });
+                    color: (ev.amount || 0) >= 0 ? '#2d5a27' : '#811d1d', src: 'pension' });
     });
   }
   SIM_USER_EVENTS.forEach(function(ev, i) {
-    var color = '#34d399'; // income (green) default
-    // v145.0: permanent Excel events checked FIRST — before type checks — so they are never overridden
-    if (ev.permanent && ev.src === 'events_timeline') color = '#1b5e20'; // dark green — permanent Excel events
-    else if (ev.permanent && ev.src === 'retirement') color = '#1b5e20'; // dark green — retirement income from Excel
-    else if (ev.type === 'expense')    color = '#f87171'; // red
-    else if (ev.type === 'investment') color = '#60a5fa'; // blue
-    else if (ev.type === 'reminder')   color = '#9ca3af'; // gray
+    var color = 'rgba(74,222,128,0.6)'; // v177.35: simulation income — light green
+    // v177.35 Roy's Palette: permanent Excel events — color by amount sign (type field is hardcoded 'expense')
+    if (ev.permanent && ev.src === 'events_timeline') color = (ev.amount < 0) ? '#811d1d' : '#2d5a27';
+    else if (ev.permanent && ev.src === 'retirement') color = (ev.amount < 0) ? '#811d1d' : '#2d5a27';
+    else if (ev.type === 'expense')    color = 'rgba(248,113,113,0.6)'; // simulation expense
+    else if (ev.type === 'investment') color = 'rgba(99,102,241,0.6)';  // simulation investment
+    else if (ev.type === 'reminder')   color = '#94a3b8'; // slate grey
     // v135.0: preserve original src and breakdown so tooltip and timeline render correctly
     events.push({ yr: ev.yr, mo: ev.mo, label: ev.label, amount: ev.amount,
                   color: color, src: ev.src || 'user', _userIdx: i, type: ev.type,
@@ -10807,8 +10888,8 @@ function simRenderTimeline() {
     var clickPart = isUser ? ' onclick="simShowAddEventModal(' + ev._userIdx + ')"' : '';
     var border = isUser ? '1.5px solid rgba(255,255,255,0.85)' : '1px solid rgba(255,255,255,0.55)';
     var cursor  = isUser ? 'pointer' : 'default';
-    // v145.0: permanent Excel events always dark green, regardless of simCollectEvents color path
-    var diamondColor = ev.permanent ? '#1b5e20' : (ev.color || '#6366f1');
+    // v177.35: use color set by simCollectEvents (Roy's Palette); fallback only if missing
+    var diamondColor = ev.color || (ev.permanent ? '#2d5a27' : 'rgba(99,102,241,0.6)');
     html += '<div' + clickPart
           + ' data-tip="' + safeTip + '"'
           + ' onmouseenter="simShowTltp(this,event)" onmouseleave="simHideTltp()"'
@@ -10844,7 +10925,8 @@ function simRenderTimeline() {
 }
 
 // v103.38: Add / Edit Event Modal — supports all 4 event types + edit mode
-var SIM_EDIT_IDX = null; // null = add mode; number = index in SIM_USER_EVENTS (edit mode)
+var SIM_EDIT_IDX   = null;  // null = add mode; number = index in SIM_USER_EVENTS (edit mode)
+var _ffsFixedMode  = false; // v177.36: true when modal opened from "ניהול אירועים" (isSimulation=false)
 
 function simShowAddEventModal(idx) {
   SIM_EDIT_IDX = (idx !== undefined && idx !== null) ? idx : null;
@@ -10879,6 +10961,37 @@ function simShowAddEventModal(idx) {
     if (titleEl) titleEl.textContent = 'הוספת אירוע סימולציה';
   }
   // Toggle add/edit buttons visibility
+  var btnAdd    = document.getElementById('sim-ev-btn-add');
+  var btnUpdate = document.getElementById('sim-ev-btn-update');
+  var btnDelete = document.getElementById('sim-ev-btn-delete');
+  if (btnAdd)    btnAdd.style.display    = SIM_EDIT_IDX === null ? '' : 'none';
+  if (btnUpdate) btnUpdate.style.display = SIM_EDIT_IDX !== null ? '' : 'none';
+  if (btnDelete) btnDelete.style.display = SIM_EDIT_IDX !== null ? '' : 'none';
+  simToggleInvestmentFields();
+  modal.style.display = 'flex';
+}
+
+// v177.36: opens modal pre-set for a "Fixed" (non-simulation) event
+function ffsShowAddFixedEventModal(idx) {
+  _ffsFixedMode = true;
+  SIM_EDIT_IDX  = (idx !== undefined && idx !== null) ? idx : null;
+  var modal = document.getElementById('sim-add-event-modal');
+  if (!modal) return;
+  _simResetEventForm();
+  if (SIM_EDIT_IDX !== null) {
+    var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
+    if (ev) {
+      var _el = function(id) { return document.getElementById(id); };
+      if (_el('sim-ev-label'))  _el('sim-ev-label').value  = ev.label || '';
+      if (_el('sim-ev-year'))   _el('sim-ev-year').value   = ev.yr   || '';
+      if (_el('sim-ev-month'))  _el('sim-ev-month').value  = ev.mo   || 1;
+      if (_el('sim-ev-amount')) _el('sim-ev-amount').value = Math.abs(ev.amount || 0);
+      var typeEl = document.getElementById('sim-ev-type-' + (ev.type || 'income'));
+      if (typeEl) typeEl.checked = true;
+    }
+  }
+  var titleEl = document.getElementById('sim-ev-modal-title');
+  if (titleEl) titleEl.textContent = SIM_EDIT_IDX !== null ? 'עריכת אירוע קבוע' : 'הוספת אירוע קבוע';
   var btnAdd    = document.getElementById('sim-ev-btn-add');
   var btnUpdate = document.getElementById('sim-ev-btn-update');
   var btnDelete = document.getElementById('sim-ev-btn-delete');
@@ -10951,6 +11064,7 @@ function simConfirmAddEvent() {
 
   // v130.0: temporary = manually added via UI; permanent = from data source (Excel/pension)
   var ev = { yr: yr, mo: mo, label: label.trim(), type: type, permanent: false };
+  if (_ffsFixedMode) ev.isSimulation = false; // v177.36: tagged as fixed (non-simulation) event
   if (type === 'income')     ev.amount = Math.abs(amt);
   if (type === 'expense')    ev.amount = -Math.abs(amt);
   if (type === 'reminder')   ev.amount = 0;
@@ -10970,9 +11084,15 @@ function simConfirmAddEvent() {
   }
   _simSaveUserEvents(); // v158.0: persist
 
+  var _wasFixed = _ffsFixedMode;
+  _ffsFixedMode = false; // reset after confirm
   simCloseEventModal();
   simRenderTimeline();
   simRenderChart(simRunEngine());
+  if (_wasFixed) {
+    ffsRenderEventsPanel(); // v177.36: refresh panel and sidebar count
+    showToast('התיק עודכן. מומלץ לשמור גיבוי מעודכן.', '#6366f1', 4000);
+  }
 }
 
 function simDeleteEditedEvent() {
@@ -11172,31 +11292,6 @@ function simRenderKPI() {
     }
   }
 
-  // v168.87/88: source transparency tags — professional pill badge under each header KPI
-  var _srcText   = isExcelLoaded() ? 'אקסל' : (_hasAnyData ? 'ידני' : '');
-  var _srcColor  = isExcelLoaded() ? '#93c5fd' : '#fde68a';
-  var _srcBorder = isExcelLoaded() ? 'rgba(147,197,253,0.35)' : 'rgba(253,224,71,0.35)';
-  var _srcBg     = isExcelLoaded() ? 'rgba(37,99,235,0.22)'   : 'rgba(161,98,7,0.22)';
-  ['sim-src-tag-wealth','sim-src-tag-income','sim-src-tag-accum','sim-src-tag-total'].forEach(function(id) {
-    var t = el(id);
-    if (!t) return;
-    if (_srcText) {
-      t.textContent      = _srcText;
-      t.style.display    = 'inline-block';
-      t.style.color      = _srcColor;
-      t.style.background = _srcBg;
-      t.style.border     = '1px solid ' + _srcBorder;
-      t.style.borderRadius = '4px';
-      t.style.padding    = '1px 4px';
-      t.style.fontSize   = '7px';
-      t.style.fontWeight = '700';
-      t.style.letterSpacing = '0.4px';
-      t.style.verticalAlign = 'middle';
-      t.style.lineHeight = '1.4';
-    } else {
-      t.style.display = 'none';
-    }
-  });
 }
 
 // ── Events Ledger ─────────────────────────────
@@ -13204,6 +13299,7 @@ function syncBirthYearsFromSettings() {
   SIM_P2_START.y = SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_YAEL;
   SIM_P3_START.y = SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY;
   SIM_END.y      = SIM_BIRTH_YEAR_ROY + 95;
+  _simRecalcRetirementZoom(); // v177.33
 }
 
 // v172.3: Settings sub-tab navigation
@@ -13975,9 +14071,8 @@ function loadDemoData() {
   SIM_P3_START.y = 1975 + SIM_RETIREMENT_AGE_ROY;  // 2042 — Dan's full retirement
   SIM_P3_START.m = 9;
   SIM_END.y      = 1975 + 95;  // 2070 — simulation end cap
-  // Sync zoom-range custom overrides to the retirement year (for retirement zoom button)
-  SIM_ZOOM_CUSTOM.retStart = SIM_P3_START.y;
-  SIM_ZOOM_CUSTOM.retEnd   = SIM_P3_START.y + 4;
+  // v177.33: use universal helper — 5-year window starting 1 year before retirement
+  _simRecalcRetirementZoom();
 
   // v168.115: demo default view = decade zoom from today (2026–2036) — forward-looking launch
   var _demoNowY = new Date().getFullYear();
@@ -14306,6 +14401,7 @@ function absoluteInternalReset() {
   SIM_END.y      = _genericBY + 95;
   SIM_P2_START.m = 8; // v177.1: always reset — prevents Demo's m:9 from persisting
   SIM_P3_START.m = 8;
+  _simRecalcRetirementZoom(); // v177.33
   if (typeof resetCalculationMemory === 'function') resetCalculationMemory();
   // v171.0: full in-memory purge on every mode switch — localStorage is preserved;
   // each mode re-hydrates its own events after reset (EXCEL: _simRestoreExcelEvents, SIMULATOR: _simRestoreUserEvents)

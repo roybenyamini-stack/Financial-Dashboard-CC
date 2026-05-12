@@ -1,4 +1,4 @@
-<!-- v177.32 -->
+<!-- v177.36 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.32</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.36</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1487,12 +1487,12 @@
       </div>
       <div id="sim-timeline"></div>
       <div style="display:flex;gap:12px;margin-top:4px;direction:rtl;font-size:8px;color:#9ca3af;font-family:Heebo,sans-serif;flex-wrap:wrap;">
-        <span><span style="display:inline-block;width:8px;height:8px;background:#60a5fa;transform:rotate(45deg);margin-left:3px;"></span>השקעה</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#34d399;transform:rotate(45deg);margin-left:3px;"></span>הכנסה</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#f87171;transform:rotate(45deg);margin-left:3px;"></span>הוצאה</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#9ca3af;transform:rotate(45deg);margin-left:3px;"></span>תזכורת</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#1b5e20;transform:rotate(45deg);margin-left:3px;"></span>הכנסה פנויה בפרישה (אקסל)</span>
-        <span><span style="display:inline-block;width:8px;height:8px;background:#881111;transform:rotate(45deg);margin-left:3px;"></span>הוצאה קבועה (אקסל)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:rgba(99,102,241,0.6);transform:rotate(45deg);margin-left:3px;"></span>השקעה (סימולציה)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:rgba(74,222,128,0.6);transform:rotate(45deg);margin-left:3px;"></span>הכנסה (סימולציה)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:rgba(248,113,113,0.6);transform:rotate(45deg);margin-left:3px;"></span>הוצאה (סימולציה)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#94a3b8;transform:rotate(45deg);margin-left:3px;"></span>תזכורת</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#2d5a27;transform:rotate(45deg);margin-left:3px;"></span>הכנסה (קבוע)</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:#811d1d;transform:rotate(45deg);margin-left:3px;"></span>הוצאה (קבוע)</span>
       </div>
     </div>
 
@@ -1662,13 +1662,21 @@
         </div>
       </button>
 
+      <button id="ffs-nav-events" class="ffs-nav-btn" onclick="ffsNavTo('events')">
+        <span style="font-size:16px;flex-shrink:0;">📅</span>
+        <div style="flex:1;text-align:right;">
+          <div style="font-size:13px;font-weight:700;">ניהול אירועים</div>
+          <div id="ffs-nav-summary-events" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
+        </div>
+      </button>
+
       <div style="flex:1;min-height:20px;"></div>
 
       <!-- v177.17: Backup / Restore (top) -->
       <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button onclick="ffsExportData()" style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;">📤 שמור גיבוי</button>
+        <button onclick="ffsExportData()" style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;">📤 גיבוי תוכנית</button>
         <label style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;">
-          📥 טען גיבוי
+          📥 טעינת תוכנית
           <input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
         </label>
       </div>
@@ -1874,6 +1882,18 @@
         </datalist>
       </div>
 
+      <!-- ─── SECTION: ניהול אירועים (v177.36) ─── -->
+      <div id="ffs-section-events" style="display:none;">
+        <div style="font-size:20px;font-weight:900;color:#1e293b;margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid #e2e8f0;">📅 ניהול אירועים</div>
+        <div style="font-size:13px;color:#64748b;font-weight:500;margin-bottom:16px;">ניהול אירועי התיק המתוכננים שלך.</div>
+        <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.18);border-radius:8px;padding:10px 14px;font-size:11px;color:#6366f1;margin-bottom:20px;direction:rtl;">
+          סימולציות What-if ניתנות לבדיקה על ציר האירועים.
+        </div>
+        <div id="ffs-events-table-area"></div>
+        <button id="ffs-add-fixed-event-btn" onclick="ffsShowAddFixedEventModal()" style="width:100%;padding:12px;border:2px dashed rgba(99,102,241,0.35);border-radius:10px;background:rgba(99,102,241,0.04);color:#6366f1;font-size:13px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;direction:rtl;margin-top:8px;">
+          + הוסף אירוע קבוע
+        </button>
+      </div>
 
     </div><!-- end #ffs-drawer-body -->
 
@@ -1915,6 +1935,11 @@
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
           <span style="font-size:11px;color:#fca5a5;font-weight:700;">🔴 פרישה</span>
           <span id="ffs-live-retire" style="font-size:12px;color:#f87171;font-weight:700;">—</span>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);">
+          <span style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:700;">📅 אירועים קבועים</span>
+          <span id="ffs-live-fixed-events" style="font-size:12px;color:#94a3b8;font-weight:700;">0</span>
         </div>
 
         <div style="margin-top:10px;padding:8px 10px;background:rgba(99,102,241,0.1);border-radius:8px;font-size:10px;color:rgba(165,180,252,0.7);text-align:center;line-height:1.5;">
