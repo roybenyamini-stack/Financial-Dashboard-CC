@@ -1,4 +1,4 @@
-<!-- v177.36 -->
+<!-- v177.45 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:11px;font-weight:700;color:#ef4444;margin-right:8px;font-family:monospace;white-space:nowrap;">v177.36</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.45</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1588,9 +1588,22 @@
         <button id="ffs-switch-btn" onclick="ffsToggleDataSource()" style="padding:7px 14px;border:none;border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:white;cursor:pointer;background:#dc2626;transition:background 0.15s;">✏️ עבור למצב הזנה ידנית (FFS)</button>
       </div>
       <button id="ffs-new-profile-btn" onclick="ffsStartFreshProfile()" style="display:none;padding:7px 14px;border:1px solid rgba(248,113,113,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#fca5a5;cursor:pointer;background:rgba(239,68,68,0.12);">התחל פרופיל חדש 🆕</button>
-      <button onclick="ffsLoadYoavProfile()" title="טען פרופיל דוגמה מאוזן לדמו מהיר" style="padding:7px 14px;border:1px solid rgba(52,211,153,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#6ee7b7;cursor:pointer;background:rgba(52,211,153,0.12);white-space:nowrap;">🎯 טען דוגמה (יואב)</button>
       <span onclick="closeFFSDrawer()" style="color:rgba(255,255,255,0.5);cursor:pointer;font-size:22px;line-height:1;padding:3px 8px;border-radius:7px;transition:color 0.15s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">✕</span>
     </div>
+  </div>
+
+  <!-- v177.45: Control Center (workflow right, destructive left) -->
+  <div id="ctrl-center" style="background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;direction:rtl;">
+    <input type="file" id="ffs-salkah-file-input" accept="image/*,.pdf" style="display:none;" onchange="ffsSalkahFileChange(event)">
+    <label style="padding:8px 16px;border:none;border-radius:8px;background:#d97706;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;display:flex;align-items:center;margin:0;">
+      📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
+    </label>
+    <button onclick="ffsExportData()" style="padding:8px 16px;border:none;border-radius:8px;background:#059669;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">💾 גיבוי</button>
+    <button onclick="ffsSalkahFilePick()" style="padding:8px 16px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🤖 יבוא מסלקה</button>
+    <button onclick="ffsApplyAndClose()" style="padding:8px 16px;border:none;border-radius:8px;background:#3b82f6;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 0 10px rgba(59,130,246,0.5);">🚀 הפעל סימולטור</button>
+    <div style="flex:1;"></div>
+    <button onclick="ffsLoadYoavProfile()" style="padding:8px 16px;border:none;border-radius:8px;background:#0d9488;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🎯 דוגמה</button>
+    <button onclick="ffsResetAndReload()" style="padding:8px 16px;border:none;border-radius:8px;background:#dc2626;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🗑️ נקה הכל</button>
   </div>
 
   <!-- === INSTRUCTION BAR (v171.5) — RTL process flow with ← arrows === -->
@@ -1670,19 +1683,6 @@
         </div>
       </button>
 
-      <div style="flex:1;min-height:20px;"></div>
-
-      <!-- v177.17: Backup / Restore (top) -->
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button onclick="ffsExportData()" style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;">📤 גיבוי תוכנית</button>
-        <label style="flex:1;padding:7px 4px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:Heebo,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.06);cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;">
-          📥 טעינת תוכנית
-          <input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
-        </label>
-      </div>
-      <button onclick="ffsApplyAndClose()" style="width:100%;padding:11px 10px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;border:none;border-radius:10px;font-size:12px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;letter-spacing:0.1px;box-shadow:0 2px 10px rgba(59,130,246,0.35);">🚀 הפעל סימולטור</button>
-      <button onclick="ffsResetAndReload()" style="width:100%;padding:8px 10px;margin-top:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.28);border-radius:8px;color:#fca5a5;font-size:10px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">🗑️ אפס הכל</button>
-      <div style="font-size:9px;color:rgba(255,255,255,0.2);text-align:center;margin-top:6px;">נשמר אוטומטית בדפדפן</div>
     </nav>
 
     <!-- === CENTER: Active Form Area (55%) === -->
@@ -1854,7 +1854,9 @@
         <div id="ffs-acc-body-investments" style="display:block;">
           <button id="ffs-reorder-btn-investments" onclick="ffsToggleReorder('investments')" style="font-size:11px;font-weight:700;font-family:Heebo,sans-serif;padding:4px 10px;border:1.5px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;cursor:pointer;margin-bottom:8px;">↕ סדר רשימה</button>
           <div id="ffs-investments-list"></div>
-          <button id="ffs-inv-dropzone" onclick="ffsOpenInvModal(null,'investments')" ondragover="ffsDropzoneDragOver(event,'investments')" ondragleave="ffsDropzoneDragLeave(event,'investments')" ondrop="ffsDropzoneDrop(event,'investments')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף נכס השקעה</button>
+          <div style="display:flex;flex-direction:column;gap:6px;max-width:520px;margin-top:10px;">
+            <button id="ffs-inv-dropzone" onclick="ffsOpenInvModal(null,'investments')" ondragover="ffsDropzoneDragOver(event,'investments')" ondragleave="ffsDropzoneDragLeave(event,'investments')" ondrop="ffsDropzoneDrop(event,'investments')" style="width:100%;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף נכס השקעה</button>
+          </div>
         </div>
         <span id="ffs-acc-arrow-investments" style="display:none;">▼</span>
       </div>
@@ -1865,7 +1867,9 @@
         <div id="ffs-acc-body-pension" style="display:block;">
           <button id="ffs-reorder-btn-pension" onclick="ffsToggleReorder('pension')" style="font-size:11px;font-weight:700;font-family:Heebo,sans-serif;padding:4px 10px;border:1.5px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;cursor:pointer;margin-bottom:8px;">↕ סדר רשימה</button>
           <div id="ffs-pension-list"></div>
-          <button id="ffs-pen-dropzone" onclick="ffsOpenPensionModal(null)" ondragover="ffsDropzoneDragOver(event,'pension')" ondragleave="ffsDropzoneDragLeave(event,'pension')" ondrop="ffsDropzoneDrop(event,'pension')" style="width:100%;max-width:520px;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:10px;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף פוליסה</button>
+          <div style="display:flex;flex-direction:column;gap:6px;max-width:520px;margin-top:10px;">
+            <button id="ffs-pen-dropzone" onclick="ffsOpenPensionModal(null)" ondragover="ffsDropzoneDragOver(event,'pension')" ondragleave="ffsDropzoneDragLeave(event,'pension')" ondrop="ffsDropzoneDrop(event,'pension')" style="width:100%;padding:11px;border-radius:10px;border:2px dashed #93c5fd;background:rgba(59,130,246,0.04);color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;">+ הוסף פוליסה</button>
+          </div>
         </div>
         <span id="ffs-acc-arrow-pension" style="display:none;">▼</span>
         <datalist id="ffs-providers-dl">
@@ -2376,6 +2380,7 @@
     </div>
   </div>
 </div>
+
 
 <!-- v177.7: Smart Investment Dropzone — Modal (Universal: investments + pension) -->
 <div id="ffs-inv-backdrop" onclick="ffsCloseInvModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10200;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
