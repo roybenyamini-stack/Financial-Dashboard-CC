@@ -8075,6 +8075,7 @@ function ffsLoadProfile() {
       FFS_PROFILE.bridgePensionContrib = saved.bridgePensionContrib || false;
       FFS_PROFILE.incomePhases         = saved.incomePhases         || []; // v170.2
       FFS_PROFILE.ffsEvents            = saved.ffsEvents            || []; // v170.4
+      FFS_PROFILE.personalId           = saved.personalId           || '';
       // v168.76: ensure pension items have pensionType field (backwards compat)
       FFS_PROFILE.pension.forEach(function(p) { if (!p.pensionType) p.pensionType = 'pension'; });
     }
@@ -8118,10 +8119,11 @@ function ffsGetLiquidCapital() {
 function ffsGetPensionAccumK() {
   if (!FFS_PROFILE.pension || !FFS_PROFILE.pension.length) return 0;
   return FFS_PROFILE.pension.reduce(function(s, x) {
-    // ביטוח מנהלים capital = inheritable asset counted in pension accumulation
+    // v177.46: strict active-only — skip inactive or zero records to prevent ghost balance
     if (x.isActive === false) return s;
     var v = Number(x.accumulation);
-    return s + (isFinite(v) ? v : 0);
+    if (!isFinite(v) || v <= 0) return s;
+    return s + v;
   }, 0);
 }
 function ffsGetRealEstateK() {
@@ -8520,11 +8522,34 @@ function ffsClosePensionModal() {
   ffsCurrentPensionId = null;
 }
 function ffsTogglePensionType() {
-  var isPension = document.getElementById('ffs-pen-modal-type-pension').checked;
+  var isPension     = document.getElementById('ffs-pen-modal-type-pension').checked;
+  var invEl         = document.getElementById('ffs-pen-modal-type-investments');
+  var isInvestments = invEl ? invEl.checked : false;
   document.getElementById('pension-fund-fields').style.display   = isPension ? '' : 'none';
-  document.getElementById('exec-insurance-fields').style.display = isPension ? 'none' : '';
+  document.getElementById('exec-insurance-fields').style.display = (!isPension && !isInvestments) ? '' : 'none';
 }
 function ffsSavePensionFromModal() {
+  var _invRadio     = document.getElementById('ffs-pen-modal-type-investments');
+  var isInvestments = _invRadio ? _invRadio.checked : false;
+  if (isInvestments && ffsCurrentPensionId) {
+    var _penIdx = (FFS_PROFILE.pension || []).findIndex(function(x) { return x.id === ffsCurrentPensionId; });
+    if (_penIdx >= 0) {
+      var _moved = FFS_PROFILE.pension.splice(_penIdx, 1)[0];
+      (FFS_PROFILE.investments = FFS_PROFILE.investments || []).push({
+        id: _moved.id, assetNum: _moved.assetNum || '',
+        name: _moved.name || _moved.provider || '',
+        balance: _moved.accumulation || 0,
+        category: null, type: null, liquidity: 'pension67',
+        isActive: _moved.isActive, notes: _moved.notes || '', needsReview: true
+      });
+      ffsSaveProfile();
+      ffsRenderSection('pension');
+      ffsRenderSection('investments');
+      ffsClosePensionModal();
+      showToast('הנכס הועבר להשקעות', '#3b82f6', 2500);
+      return;
+    }
+  }
   var isEdit    = !!ffsCurrentPensionId;
   var isPension = document.getElementById('ffs-pen-modal-type-pension').checked;
   var nameVal   = (document.getElementById('ffs-pen-modal-name').value    || '').trim();
@@ -8749,6 +8774,7 @@ function ffsRenderSection(section) {
   var rmSt = 'background:transparent;border:none;color:#94a3b8;font-size:14px;cursor:pointer;padding:2px 5px;flex-shrink:0;line-height:1;';
   var lbSt = 'font-size:0.8rem;color:gray;font-weight:600;margin-bottom:4px;height:1.5rem;overflow:hidden;white-space:nowrap;display:block;';
   var zebra = ['#f1f5f9', '#ffffff']; // v168.81: higher contrast zebra striping
+  var _nullBg = function(v) { return (v === null || v === undefined) ? 'background-color:#fdfad2;' : ''; };
 
   if (section === 'investments') {
     var _items = FFS_PROFILE.investments || [];
@@ -8848,12 +8874,12 @@ function ffsRenderSection(section) {
         html += '<div style="' + lbSt + '">';
         html += _lCategory;
         html += '</div>';
-        html += '<select style="' + roSelSt + '">';
+        html += '<select style="' + roSelSt + _nullBg(item.category) + '">';
         var _catOpts = [''];
         _catOpts.push('מניות/ETF');
         _catOpts.push('קרן נאמנות');
         _catOpts.push('קרן השתלמות');
-        _catOpts.push('קופ"ג');
+        _catOpts.push('קופת גמל');
         _catOpts.push('גמל להשקעה');
         _catOpts.push('פוליסת חיסכון');
         _catOpts.push('קרן כספית');
@@ -8873,7 +8899,7 @@ function ffsRenderSection(section) {
         html += '<div style="' + lbSt + '">';
         html += _lType;
         html += '</div>';
-        html += '<select style="' + roSelSt + '">';
+        html += '<select style="' + roSelSt + _nullBg(item.type) + '">';
         var _typeOpts = [''];
         _typeOpts.push('מנייתי');
         _typeOpts.push('כללי');
@@ -8976,7 +9002,7 @@ function ffsRenderSection(section) {
       catOpts.push('מניות/ETF');
       catOpts.push('קרן השקעה');
       catOpts.push('קרן השתלמות');
-      catOpts.push('קופ"ג');
+      catOpts.push('קופת גמל');
       catOpts.push('גמל להשקעה');
       catOpts.push('פוליסת חיסכון');
       catOpts.push('קרן כספית');
@@ -9061,9 +9087,15 @@ function ffsRenderSection(section) {
       var _penLabel  = 'קרן פנסיה';
       var _manLabel  = 'ביטוח מנהלים';
       var roRadioSt  = 'accent-color:#3b82f6;cursor:default;pointer-events:none;';
-      // Row 1: type radio + provider + name
-      html += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;">';
-      html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;flex-shrink:0;">';
+      // Labels row: type | provider | name
+      html += '<div style="display:grid;grid-template-columns:auto 100px 1fr;gap:5px;align-items:end;margin-bottom:3px;">';
+      html += '<div style="' + lbSt + '">סוג נכס</div>';
+      html += '<div style="' + lbSt + '">שם גוף מנהל</div>';
+      html += '<div style="' + lbSt + '">מספר נכס</div>';
+      html += '</div>';
+      // Inputs row: radio group | provider | name
+      html += '<div style="display:grid;grid-template-columns:auto 100px 1fr;gap:5px;align-items:center;margin-bottom:7px;">';
+      html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">';
       html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
       html += '<input type="radio" name="pen-ro-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
       html += _penLabel;
@@ -9073,52 +9105,53 @@ function ffsRenderSection(section) {
       html += _manLabel;
       html += '</label>';
       html += '</div>';
-      html += '<input type="text" readonly style="' + inSt + 'width:100px;" value="' + (item.provider || '').replace(/"/g, '&quot;') + '">';
-      html += '<input type="text" readonly style="' + inSt + 'flex:1;" value="' + (item.name || '').replace(/"/g, '&quot;') + '">';
+      html += '<input type="text" readonly style="' + inSt + '" value="' + (item.provider || '').replace(/"/g, '&quot;') + '">';
+      html += '<input type="text" readonly style="' + inSt + '" value="' + (item.name || '').replace(/"/g, '&quot;') + '">';
       html += '</div>';
       if (isPension) {
         var _lMonthly   = 'קצבה נוכחית (₪)';
         var _lExpected  = 'קצבה צפויה (₪)';
-        var _lContrib   = 'הפרשה (%)';
+        var _lContrib   = 'אחוזי קצבה צבורים';
         var _lSurvivors = 'כיסוי שארים';
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px;">';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lMonthly + '</div>';
-        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.monthlyPension || 0) + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.monthlyPension) + '" value="' + (item.monthlyPension || 0) + '">';
         html += '</div>';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lExpected + '</div>';
-        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.expectedPayout || 0) + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.expectedPayout) + '" value="' + (item.expectedPayout || 0) + '">';
         html += '</div>';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lContrib + '</div>';
-        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.contributionPct || 0) + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.contributionPct) + '" value="' + (item.contributionPct || 0) + '">';
         html += '</div>';
         html += '</div>';
+        var _survContId = 'surv-' + eid;
+        var _lSpouse   = 'פנסיית אלמנה (₪)';
+        var _lOrphan   = 'פנסיית יתום (₪)';
+        var _lChildren = 'גילאי הילדים';
         html += '<div style="border-top:1px solid #f1f5f9;padding-top:6px;">';
-        html += '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;font-weight:600;margin-bottom:' + (item.survivorsEnabled ? '7' : '0') + 'px;">';
-        html += '<input type="checkbox" ' + (item.survivorsEnabled ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="accent-color:#3b82f6;width:14px;height:14px;pointer-events:none;"> ';
+        html += '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;font-weight:600;margin-bottom:4px;cursor:pointer;">';
+        html += '<input type="checkbox" ' + (item.survivorsEnabled ? 'checked' : '') +
+                ' onchange="var c=document.getElementById(\'' + _survContId + '\');c.style.display=this.checked?\'grid\':\'none\';"' +
+                ' style="accent-color:#3b82f6;width:14px;height:14px;"> ';
         html += _lSurvivors;
         html += '</label>';
-        if (item.survivorsEnabled) {
-          var _lSpouse   = 'בן/בת זוג (%)';
-          var _lOrphan   = 'יתומים (%)';
-          var _lChildren = 'גילאי ילדים';
-          html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">';
-          html += '<div>';
-          html += '<div style="' + lbSt + '">' + _lSpouse + '</div>';
-          html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.spousePct || 0) + '">';
-          html += '</div>';
-          html += '<div>';
-          html += '<div style="' + lbSt + '">' + _lOrphan + '</div>';
-          html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.orphanPct || 0) + '">';
-          html += '</div>';
-          html += '<div>';
-          html += '<div style="' + lbSt + '">' + _lChildren + '</div>';
-          html += '<input type="text" readonly style="' + inSt + 'text-align:center;" value="' + (item.childrenAges || '').replace(/"/g, '&quot;') + '">';
-          html += '</div>';
-          html += '</div>';
-        }
+        html += '<div id="' + _survContId + '" style="display:' + (item.survivorsEnabled ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr 1fr;gap:5px;">';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lSpouse + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.spousePct || 0) + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lOrphan + '</div>';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.orphanPct || 0) + '">';
+        html += '</div>';
+        html += '<div>';
+        html += '<div style="' + lbSt + '">' + _lChildren + '</div>';
+        html += '<input type="text" readonly style="' + inSt + 'text-align:center;" value="' + (item.childrenAges || '').replace(/"/g, '&quot;') + '">';
+        html += '</div>';
+        html += '</div>';
         html += '</div>';
       } else {
         var _lAccum     = 'הון צבור (K₪)';
@@ -9171,6 +9204,7 @@ function ffsRenderSection(section) {
 function ffsImportAssets(importedAssetsArray) {
   if (!Array.isArray(importedAssetsArray) || !importedAssetsArray.length) return;
   var _pensionCats = ['קרן פנסיה', 'ביטוח מנהלים', 'קופת גמל לקצבה', 'קרן ותיקה'];
+  var _invCount = 0, _penCount = 0;
   importedAssetsArray.forEach(function(asset) {
     var _assetNum  = asset.assetNum || asset.assetNumber || '';
     var _catOrType = asset.category || asset.type || '';
@@ -9189,9 +9223,9 @@ function ffsImportAssets(importedAssetsArray) {
       } else {
         if (asset.balance   != null) ex.balance   = Math.floor(asset.balance);
         if (asset.name && !ex.name) ex.name = asset.name;
-        if (asset.category)  ex.category = asset.category;
-        if (asset.type)      ex.type     = asset.type;
-        if (asset.liquidity) ex.liquidity= asset.liquidity;
+        if (asset.category  && !ex.category)  ex.category  = asset.category;
+        if (asset.type      && !ex.type)      ex.type       = asset.type;
+        if (asset.liquidity && !ex.liquidity) ex.liquidity  = asset.liquidity;
       }
       ex.needsReview = true;
     } else {
@@ -9208,6 +9242,7 @@ function ffsImportAssets(importedAssetsArray) {
           survivorsEnabled: false, spousePct: 0, orphanPct: 0, childrenAges: '', lifeInsurance: 0,
           isActive: asset.isActive !== false, notes: asset.notes || '', needsReview: true
         };
+        _penCount++;
       } else {
         _newItem = {
           id: _newId, assetNum: _assetNum,
@@ -9216,6 +9251,7 @@ function ffsImportAssets(importedAssetsArray) {
           liquidity: asset.liquidity || 'pension67',
           isActive: asset.isActive !== false, notes: asset.notes || '', needsReview: true
         };
+        _invCount++;
       }
       _arr.push(_newItem);
     }
@@ -9223,12 +9259,32 @@ function ffsImportAssets(importedAssetsArray) {
   ffsSaveProfile();
   ffsRenderSection('investments');
   ffsRenderSection('pension');
-  showToast(importedAssetsArray.length + ' נכסים יובאו — אנא אשר את הנתונים');
+  showToast('נטענו ' + _invCount + ' נכסי השקעה ו-' + _penCount + ' נכסים פנסיוניים', '#10b981', 4000);
 }
 // v177.37: clears needsReview flag on a single asset and re-renders its section
 function ffsApproveAsset(section, id) {
+  var _pensionCats = ['קרן פנסיה', 'ביטוח מנהלים'];
   var _item = (FFS_PROFILE[section] || []).find(function(x) { return x.id === id; });
-  if (_item) { _item.needsReview = false; ffsSaveProfile(); ffsRenderSection(section); }
+  if (!_item) return;
+  _item.needsReview = false;
+  if (section === 'investments' && _pensionCats.indexOf(_item.category) !== -1) {
+    FFS_PROFILE.investments = FFS_PROFILE.investments.filter(function(x) { return x.id !== id; });
+    FFS_PROFILE.pension.push({
+      id: _item.id, assetNum: _item.assetNum,
+      name: _item.name, provider: _item.name,
+      pensionType: _item.category === 'ביטוח מנהלים' ? 'manager' : 'pension',
+      accumulation: _item.balance || 0, monthlyPension: 0, contributionPct: 0,
+      expectedPayout: 0, conversionFactor: 0, survivorsEnabled: false,
+      spousePct: 0, orphanPct: 0, childrenAges: '', lifeInsurance: 0,
+      isActive: _item.isActive, notes: _item.notes || '', needsReview: false
+    });
+    ffsSaveProfile();
+    ffsRenderSection('investments');
+    ffsRenderSection('pension');
+    return;
+  }
+  ffsSaveProfile();
+  ffsRenderSection(section);
 }
 // v177.38: AI Import Modal
 function ffsOpenImportModal() {
@@ -9302,6 +9358,7 @@ function ffsRenderAll() {
   var birthEl     = document.getElementById('ffs-birth-date');
   var retEl       = document.getElementById('ffs-retirement-age');
   var lifeEl      = document.getElementById('ffs-life-expectancy');
+  var pidEl       = document.getElementById('ffs-personal-id');
   var savEl       = document.getElementById('ffs-monthly-savings');
   var sldEl       = document.getElementById('ffs-savings-growth-slider');
   var sldLbl      = document.getElementById('ffs-savings-growth-label');
@@ -9351,6 +9408,7 @@ function ffsRenderAll() {
     if (birthEl) birthEl.value = SIM_USER1_BIRTH || '';
     if (retEl)   retEl.value   = SIM_RETIREMENT_AGE_ROY || 67;
     if (lifeEl)  lifeEl.value  = FFS_PROFILE.lifeExpectancy || 84;
+    if (pidEl)   pidEl.value   = '';
     // Clear FFS-only fields — Excel sources these differently
     if (savEl)       savEl.value         = '';
     if (sldEl)       sldEl.value         = 0;
@@ -9366,6 +9424,7 @@ function ffsRenderAll() {
     if (birthEl) birthEl.value = FFS_PROFILE.birthDate || '';
     if (retEl)   retEl.value   = FFS_PROFILE.retirementAge || 67;
     if (lifeEl)  lifeEl.value  = FFS_PROFILE.lifeExpectancy || 84;
+    if (pidEl)   pidEl.value   = FFS_PROFILE.personalId || '';
     if (savEl)  savEl.value  = FFS_PROFILE.monthlySavings || 0;
     if (sldEl) { sldEl.value = FFS_PROFILE.savingsGrowth || 0; if (sldLbl) sldLbl.textContent = (FFS_PROFILE.savingsGrowth || 0) + '%'; }
     if (expEl)  expEl.value  = FFS_PROFILE.retirementExpense || '';
@@ -9710,6 +9769,8 @@ function ffsConfirmReset() {
   }
   // Return to clean Guest state — no page reload needed
   switchMode('SIMULATOR');
+  // v177.48: 300ms > closeFFSDrawer's 250ms animation — prevents race condition
+  setTimeout(function() { openFFSDrawer(); ffsNavTo('profile'); }, 300);
 }
 // v171.9: Scoped retirement age handler — oninput for every-keystroke live KPI updates
 var _ffsRetAgeTimer = null; // dedicated debounce — separate from general _ffsDebTimer
@@ -9973,12 +10034,17 @@ function ffsApplyAndClose() {
   var dob  = FFS_PROFILE.birthDate || '';
   var year = parseInt(dob.split('-')[0]) || 0;
   if (year < 1900 || year > 2100) {
+    ffsNavTo('profile'); // v177.47: ensure profile section is visible before highlighting field
     var _dobEl = document.getElementById('ffs-birth-date');
     if (_dobEl) { _dobEl.style.border = '2px solid #dc2626'; _dobEl.focus(); }
+    showToast('חובה להזין תאריך לידה כדי להפעיל את הסימולטור', '#dc2626', 4000);
     return;
   }
   closeFFSDrawer();
-  try { ffsApplyToSimulator(); simFullRefresh(); } catch(e) { console.warn('[FFS] Simulation error after apply:', e); }
+  // v177.46: defer simulator refresh so DOM + data state are fully committed before chart re-render
+  setTimeout(function() {
+    try { ffsApplyToSimulator(); simFullRefresh(); } catch(e) { console.warn('[FFS] Simulation error after apply:', e); }
+  }, 100);
   showToast('התיק עודכן. מומלץ לשמור גיבוי מעודכן.', '#6366f1', 4000); // v177.36
 }
 
@@ -9991,6 +10057,10 @@ function ffsCalcAge() {
 }
 
 function ffsExportData() {
+  var _hasData = (FFS_PROFILE.investments && FFS_PROFILE.investments.length > 0) ||
+                 (FFS_PROFILE.pension     && FFS_PROFILE.pension.length     > 0) ||
+                 (FFS_PROFILE.realEstate  && FFS_PROFILE.realEstate.length  > 0);
+  if (!_hasData) { showToast('אין נתונים לגיבוי', '#dc2626', 3000); return; }
   var json = JSON.stringify(FFS_PROFILE, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var a = document.createElement('a');
@@ -10008,26 +10078,72 @@ function ffsExportData() {
   showToast('גיבוי הורד בהצלחה', '#10b981', 3000);
 }
 
+// v177.50: pending import state — stored between modal open and user confirm
+var _ffsPendingImportFile  = null;
+var _ffsPendingImportInput = null;
+
 function ffsImportData(event) {
   var file = event.target.files[0];
+  if (!file) return;
+  _ffsPendingImportFile  = file;
+  _ffsPendingImportInput = event.target;
+  var modal = document.getElementById('ffs-import-confirm-modal');
+  if (modal) {
+    var _titleEl = document.getElementById('ffs-import-modal-name');
+    if (_titleEl) _titleEl.textContent = FFS_PROFILE.name ? 'טעינת פרופיל ' + FFS_PROFILE.name : 'טעינת פרופיל';
+    modal.style.display = 'flex';
+    return;
+  }
+  _ffsDoImport();
+}
+
+function ffsCancelImport() {
+  var modal = document.getElementById('ffs-import-confirm-modal');
+  if (modal) modal.style.display = 'none';
+  if (_ffsPendingImportInput) _ffsPendingImportInput.value = '';
+  _ffsPendingImportFile = null;
+  _ffsPendingImportInput = null;
+}
+
+function ffsConfirmImport() {
+  var modal = document.getElementById('ffs-import-confirm-modal');
+  if (modal) modal.style.display = 'none';
+  _ffsDoImport();
+}
+
+function _ffsDoImport() {
+  var file     = _ffsPendingImportFile;
+  var _inputEl = _ffsPendingImportInput;
+  _ffsPendingImportFile = null;
+  _ffsPendingImportInput = null;
   if (!file) return;
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
       var parsed = JSON.parse(e.target.result);
       if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid');
+      // v177.46: explicit array clear before replacing profile — prevents ghost balance from stale data
+      FFS_PROFILE.pension     = [];
+      FFS_PROFILE.investments = [];
+      FFS_PROFILE.realEstate  = [];
       FFS_PROFILE = parsed;
+      FFS_PROFILE.pension     = FFS_PROFILE.pension     || [];
+      FFS_PROFILE.investments = FFS_PROFILE.investments || [];
+      FFS_PROFILE.realEstate  = FFS_PROFILE.realEstate  || [];
       if (FFS_PROFILE.birthDate) {
         var _bdParsed = new Date(FFS_PROFILE.birthDate);
         if (!isNaN(_bdParsed.getTime())) FFS_PROFILE.birthDate = _bdParsed.toISOString().slice(0, 10);
       }
+      // v177.46: update identity badge from imported profile name
+      if (FFS_PROFILE.name && typeof simUpdateNameLabel === 'function') simUpdateNameLabel();
       ffsSaveProfile();
       ffsRenderAll();
-      showToast('גיבוי נטען בהצלחה', '#10b981', 3000);
+      var _impName = FFS_PROFILE.name ? ' — ' + FFS_PROFILE.name : '';
+      showToast('גיבוי נטען בהצלחה' + _impName, '#10b981', 3000);
     } catch(err) {
       showToast('שגיאה בקובץ הגיבוי', '#dc2626', 3000);
     }
-    event.target.value = '';
+    if (_inputEl) _inputEl.value = '';
   };
   reader.readAsText(file);
 }
@@ -14771,16 +14887,14 @@ function _ffsSetCategoryOptions(context) {
   var sel = document.getElementById('ffs-inv-f-category');
   if (!sel) return;
   sel.innerHTML = '<option value="">בחר...</option>';
-  var opts = context === 'pension'
-    ? ['קרן פנסיה', 'ביטוח מנהלים', 'קופת גמל לקצבה', 'קרן ותיקה', 'אחר']
-    : ['קרן השתלמות', 'קופ"ג', 'גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'קרן להשקעה', 'קרן כספית', 'עו״ש', 'עו״ש $', 'אחר'];
+  var opts = ['קרן השתלמות', 'קופת גמל', 'גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'קרן כספית', 'עו"ש', 'עו"ש $', 'ביטוח מנהלים', 'קרן פנסיה', 'אחר'];
   opts.forEach(function(o) {
     var opt = document.createElement('option');
     opt.value = o; opt.textContent = o;
     sel.appendChild(opt);
   });
   var lbl = document.getElementById('ffs-inv-label-category');
-  if (lbl) lbl.textContent = context === 'pension' ? 'סוג פוליסה' : 'סוג נכס / קטגוריה';
+  if (lbl) lbl.textContent = 'סוג נכס / קטגוריה';
 }
 
 function _ffsPopulateInvForm(item, context) {
@@ -14990,6 +15104,25 @@ function ffsSaveInvFromModal() {
         FFS_PROFILE.investments[_editIdx].liquidity = liqVal;
         FFS_PROFILE.investments[_editIdx].isActive  = isActiveVal;
         FFS_PROFILE.investments[_editIdx].notes     = notesVal;
+        var _penCats = ['ביטוח מנהלים', 'קרן פנסיה'];
+        if (_penCats.indexOf(catVal) !== -1) {
+          var _movedItem = FFS_PROFILE.investments.splice(_editIdx, 1)[0];
+          FFS_PROFILE.pension.push({
+            id: _movedItem.id, assetNum: _movedItem.assetNum,
+            name: _movedItem.name, provider: _movedItem.name,
+            pensionType: catVal === 'ביטוח מנהלים' ? 'manager' : 'pension',
+            accumulation: _movedItem.balance || 0, monthlyPension: 0, contributionPct: 0,
+            expectedPayout: 0, conversionFactor: 0, survivorsEnabled: false,
+            spousePct: 0, orphanPct: 0, childrenAges: '', lifeInsurance: 0,
+            isActive: _movedItem.isActive, notes: _movedItem.notes || '', needsReview: true
+          });
+          ffsCurrentInvId = null;
+          ffsSaveProfile();
+          ffsRenderSection('investments');
+          ffsRenderSection('pension');
+          ffsCloseInvModal();
+          return;
+        }
       }
     } else {
       FFS_PROFILE.investments.push({
@@ -15011,7 +15144,6 @@ function ffsSaveInvFromModal() {
   if (ffsWizardAssets.length > 0) {
     ffsNextWizardStep();
   } else {
-    ffsRenderSection(ffsWizardContext);
     ffsCloseInvModal();
   }
 }
@@ -15113,9 +15245,14 @@ function ffsExtractFromImage(base64Data, mediaType, context) {
   var systemPrompt;
 
   if (context === 'pension') {
-    systemPrompt = 'You are a financial document analyzer for Israeli pension instruments. The document may contain one or more pension assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":accumulation_in_thousands_ILS_or_null,"name":"policy_name_or_number_or_null","provider":"managing_company_name_or_null","category":"one of: קרן פנסיה | ביטוח מנהלים | קופת גמל לקצבה | קרן ותיקה | אחר | null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"pension67","isActive":true_or_false}]\nRULES:\n1. balance: the total accumulated amount in thousands of ILS (e.g., 250000 ILS → 250).\n2. name: Look for "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" and "ח.פ".\n3. provider: the managing company name (e.g., הראל, מגדל, הפניקס, מיטב, כלל).\n4. liquidity: always "pension67" for pension assets. Never null.\n5. Return a JSON ARRAY. Never return a plain object.\n6. isActive: If the document text contains the word "תלוש" or "פעילה", set isActive to true. Otherwise false.\n7. type: AGGRESSIVELY SCAN THE ENTIRE DOCUMENT for any of these substrings (case-insensitive, may appear inside a longer word or phrase): "מנייתי" → type="מנייתי"; "כללי" → type="כללי"; "כספי" → type="כספי"; "מדדי" → type="מנייתי"; "מט\\"ח" → type="כללי". Examples: "מסלול מנייתי" → "מנייתי", "הראל כללי" → "כללי". If ANY of these substrings appears anywhere in the document, you MUST set type — do NOT return null.';
+    systemPrompt = 'Extract all pension assets from the document. You MUST format your output EXACTLY like this JSON template, which includes advanced metrics like Expected Payout and Contribution Pct:\n[\n  {\n    "name": "הפניקס", \n    "assetNum": "3030414015",\n    "balance": 3014,\n    "category": "ביטוח מנהלים",\n    "type": "כללי",\n    "liquidity": "pension67",\n    "isActive": true,\n    "expectedPayout": 21310,\n    "monthlyPension": null,\n    "contributionPct": null\n  },\n  {\n    "name": "מבטחים", \n    "assetNum": "57775074-2",\n    "balance": 1469,\n    "category": "קרן פנסיה",\n    "type": "כללי",\n    "liquidity": "pension67",\n    "isActive": true,\n    "expectedPayout": 11903,\n    "monthlyPension": null,\n    "contributionPct": 63.68\n  }\n]\n\nSTRICT RULES:\n1. `name`: ONLY the text name of the managing company (e.g., הפניקס, מבטחים, הראל).\n2. `assetNum`: The policy or account number.\n3. `balance`: The total accumulated amount DIVIDED BY 1000 (e.g., raw amount 3,013,867 -> 3014).\n4. `expectedPayout` & `monthlyPension`: Keep raw values (do not divide by 1000). Extract "קצבה צפויה" or "קצבה צבורה".\n5. `contributionPct`: Extract "אחוזי קצבה צבורים" (e.g., 63.68) if it exists.\n6. MERGE: Group all data for the SAME `assetNum` into one JSON object.\n7. `category`: MUST exactly match one of these terms: \'ביטוח מנהלים\', \'קרן פנסיה\', \'קופת גמל\', or \'אחר\'. Do not invent new categories.\n8. MISSING DATA: If any specific data point (like expectedPayout, contributionPct, type, or balance) is missing, unclear, or not explicitly stated in the document, you MUST return `null` for that field. NEVER guess, infer, or calculate missing values. NEVER return an empty string "" or " ". Returning `null` is mandatory.\n9. SYNONYMS: If the document contains the term "חיסכון טהור", map its category to "ביטוח מנהלים".\n10. NO GUESSING: If the category or investment type is ambiguous or not explicitly stated, return `null`. NEVER use "אחר" or "כללי" as a fallback — only `null` triggers the UI review flag.\n11. POLICY NUMBERS: Extract policy numbers even if they resemble a personal ID with a suffix or prefix (e.g., "057775074-02" is a valid policy number). The BLACKLIST applies only to the exact 9-digit standalone number.\nReturn ONLY the JSON array. Ignore 9-digit personal IDs.';
   } else {
-    systemPrompt = 'You are a financial document analyzer for Israeli investment instruments. The document may contain one or more investment assets. Extract ALL assets found and return ONLY a valid JSON ARRAY (even if only 1 asset), no markdown, no explanation:\n[{"balance":number_in_thousands_ILS_or_null,"name":"managing_company_name_or_null","category":"one of: קרן השתלמות | קופ\\"ג | גמל להשקעה | פוליסת חיסכון | מניות/ETF | קרן להשקעה | קרן כספית | עו\\"ש | עו\\"ש $ | null","assetNum":"policy_or_asset_number_or_null","type":"one of: מנייתי | כללי | כספי | null","liquidity":"one of: liquid | private | pension67 | null","isActive":true_or_false}]\nBalance must be in thousands of ILS (e.g., 150000 ILS → 150). Extract the EXACT decimal value (e.g., 312.582 — do NOT round or truncate). If not found, use null.\nRULES:\n1. assetNum: Search ONLY for the label "מספר פוליסה" or "מספר חשבון". STRICTLY IGNORE "מספר זהות" (identity/ID number) and "ח.פ" (company registration) — never extract these as assetNum.\n2. category: If the document shows "סוג פוליסה: פרט" or "תכנית חסכון", you MUST classify as "פוליסת חיסכון". Only use "גמל להשקעה" if that exact term is explicitly written in the document.\n3. liquidity: If category is "פוליסת חיסכון", set liquidity to "private". If category is "קרן השתלמות", return null for liquidity — let the user decide. NEVER set liquidity to "pension67" for either פוליסת חיסכון or קרן השתלמות.\n4. Return a JSON ARRAY. Never return a plain object.\n5. name (managing company): Look at the document header, logo, or website domain (e.g., "online.as-invest.co.il" → "אלטשולר שחם"). STRICTLY IGNORE any field labeled "שם מעסיק" — that is the employer, not the managing company.\n6. category override: If the word "השתלמות" appears ANYWHERE in the document, you MUST classify the asset as "קרן השתלמות" — this rule overrides all other category rules.\n7. type: Scan for substrings — if the cell or text CONTAINS "כללי", output "כללי"; if it CONTAINS "מנייתי", output "מנייתי"; if it CONTAINS "כספי", output "כספי". The word may be part of a longer phrase (e.g., "מסלול כללי" or "הראל כללי"). If none of these substrings is found, return null.\n8. When parsing tabular data or spreadsheets (e.g., Excel), be highly flexible as formats will vary wildly. Treat each valid row as a separate asset. Intelligently deduce fields from context: numerical columns are usually "balance", IDs/digits are "assetNum", and institution names or acronyms belong to "name" or "category". Do not rely on headers or specific column orders. Do not skip or merge rows.\n9. Shorthand dictionary: "א\\"ש" or "אלטשולר" → name="אלטשולר שחם"; "ק\\"הש" or "קה\\"ש" → category="קרן השתלמות"; CRITICAL גמל rule: Use category="גמל להשקעה" ONLY if the exact word "להשקעה" appears explicitly in the document text. In ALL other cases where "גמל" appears — including "מור גמל", "הפניקס גמל", "קופת גמל", or any other "גמל" product name — you MUST map to category=\'קופ"ג\'. Never assume "גמל להשקעה" as a default for any "גמל" product. "הראל" → name="הראל"; "הראל כללי" → name="הראל" AND type="כללי"; "מיטב דש" or "מיטב ד\\"ש" → name="מיטב דש"; "מור" → name="מור בית השקעות"; "ניהול קרנות" is a user-defined label for an asset — never use it as the name (managing company) field.\n10. STRICT FALLBACK: If you cannot confidently identify the exact category or type from the document text, you MUST return null for that field. NEVER default to the word "אחר". Leave it null so the user is forced to select manually.\n11. isActive: If the document text contains the word "תלוש" or "פעילה", set isActive to true. Otherwise false.';
+    systemPrompt = 'Extract all investment assets from the document. You MUST format your output EXACTLY like this JSON template, which reflects the user\'s actual portfolio structure:\n[\n  {\n    "name": "מור", \n    "assetNum": "1428298",\n    "balance": 500,\n    "category": "קופת גמל",\n    "type": "מנייתי"\n  },\n  {\n    "name": "מיטב", \n    "assetNum": "917-442504",\n    "balance": 943,\n    "category": "קרן השתלמות",\n    "type": "מנייתי"\n  }\n]\n\nSTRICT RULES:\n1. `name`: ONLY the text name of the managing company (e.g., מור, מיטב, אלטשולר שחם). If the document says "מור גמל", map "מור" to name and "קופת גמל" to category.\n2. `assetNum`: The policy or account number exactly as it appears.\n3. `balance`: The total accumulated amount DIVIDED BY 1000 (e.g., if the raw number is 943000, output 943. If it is already in thousands, output as is).\n4. `category`: Must be the product type (e.g., קרן השתלמות, קופת גמל).\n5. `type`: The investment track (e.g., מנייתי, כללי).\n6. MISSING DATA: If any specific data point (like expectedPayout, contributionPct, type, or balance) is missing, unclear, or not explicitly stated in the document, you MUST return `null` for that field. NEVER guess, infer, or calculate missing values. NEVER return an empty string "" or " ". Returning `null` is mandatory.\n7. BOUNDARY: NEVER extract \'ביטוח מנהלים\' or \'קרן פנסיה\'. These are pension assets and must be completely ignored by this investment prompt. If you see \'ביטוח חיים וחיסכון\', ignore it.\n8. SYNONYMS: If the document contains "חיסכון טהור", it is a pension asset — ignore it entirely per BOUNDARY rule above.\n9. NO GUESSING: If the category or type is ambiguous or not clearly stated, return `null`. NEVER use "אחר" or "כללי" as a fallback — only `null` triggers the review flag.\n10. POLICY NUMBERS: Policy numbers may include suffixes/prefixes and are still valid (e.g., "057775074-02"). The BLACKLIST applies only to the exact 9-digit standalone number.\nReturn ONLY the JSON array. Ignore 9-digit personal ID numbers.';
+  }
+
+  // v177.54: dynamic personal ID blacklist — injected into prompt if set
+  if (FFS_PROFILE.personalId && FFS_PROFILE.personalId.length === 9) {
+    systemPrompt += '\nBLACKLIST: The number ' + FFS_PROFILE.personalId + ' is the document owner\'s personal ID (מספר זהות). NEVER extract or use this number as a policy number, asset name, or any other identifier — skip it completely.';
   }
 
   fetch(PROXY, {

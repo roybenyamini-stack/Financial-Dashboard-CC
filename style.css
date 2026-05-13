@@ -976,3 +976,49 @@ body.tab-simulator .header {
 .sim-header-controls {
     flex-shrink: 0 !important;
 }
+/* v177.48: Control Center — solid, high-contrast buttons */
+.cc-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: #374151;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: Heebo, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  text-decoration: none;
+}
+.cc-btn:hover {
+  background: #4b5563;
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+.cc-btn-run {
+  background: #2563eb;
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+.cc-btn-run:hover {
+  background: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.4);
+  color: #fff;
+}
+.cc-btn-clear {
+  background: rgba(100, 116, 139, 0.10);
+  border-color: rgba(100, 116, 139, 0.22);
+  color: rgba(148, 163, 184, 0.85);
+}
+.cc-btn-clear:hover {
+  background: rgba(185, 28, 28, 0.18);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+}
