@@ -1,4 +1,4 @@
-<!-- v177.45 -->
+<!-- v177.68 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.45</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.68</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1565,9 +1565,9 @@
 <div id="ffs-help-panel" style="display:none;position:fixed;z-index:10250;width:220px;background:#1e293b;border:1.5px solid rgba(99,102,241,0.65);border-radius:12px;padding:14px 14px;box-shadow:0 8px 28px rgba(0,0,0,0.45);direction:rtl;">
   <div style="font-size:11px;font-weight:800;color:#a5b4fc;margin-bottom:8px;">✨ איך זה עובד?</div>
   <div style="font-size:11px;color:rgba(255,255,255,0.72);line-height:1.9;">
-    <div><strong style="color:#f9a8d4;">הזן נתונים</strong> בתפריט הניווט מימין.</div>
+    <div><strong style="color:#f9a8d4;">הזנת נתונים</strong> בתפריט בצד ימין.</div>
     <div><strong style="color:rgba(255,255,255,0.88);">בדוק מדדי צבירה</strong> בחלונית משמאל.</div>
-    <div>לחץ <strong style="color:#93c5fd;">החל ועדכן</strong> לראות ההשפעה.</div>
+    <div>לחץ <strong style="color:#93c5fd;">הפעל סימולטור</strong> לראות השפעה.</div>
   </div>
   <button onclick="ffsToggleHelp()" style="margin-top:10px;font-size:10px;color:rgba(255,255,255,0.38);background:none;border:none;cursor:pointer;font-family:Heebo,sans-serif;padding:0;display:block;width:100%;text-align:center;">סגור ×</button>
 </div>
@@ -1592,18 +1592,18 @@
     </div>
   </div>
 
-  <!-- v177.45: Control Center (workflow right, destructive left) -->
-  <div id="ctrl-center" style="background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;direction:rtl;">
+  <!-- v177.46: Control Center — Neat minimalist buttons -->
+  <div id="ctrl-center" style="background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 28px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;direction:rtl;">
     <input type="file" id="ffs-salkah-file-input" accept="image/*,.pdf" style="display:none;" onchange="ffsSalkahFileChange(event)">
-    <label style="padding:8px 16px;border:none;border-radius:8px;background:#d97706;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;display:flex;align-items:center;margin:0;">
+    <label class="cc-btn" title="טעינת פרופיל JSON" style="cursor:pointer;">
       📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
     </label>
-    <button onclick="ffsExportData()" style="padding:8px 16px;border:none;border-radius:8px;background:#059669;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">💾 גיבוי</button>
-    <button onclick="ffsSalkahFilePick()" style="padding:8px 16px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🤖 יבוא מסלקה</button>
-    <button onclick="ffsApplyAndClose()" style="padding:8px 16px;border:none;border-radius:8px;background:#3b82f6;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 0 10px rgba(59,130,246,0.5);">🚀 הפעל סימולטור</button>
+    <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
+    <button class="cc-btn" onclick="ffsSalkahFilePick()" title="יבוא מסמך מסלקה פנסיונית">🤖 יבוא מסלקה</button>
+    <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
     <div style="flex:1;"></div>
-    <button onclick="ffsLoadYoavProfile()" style="padding:8px 16px;border:none;border-radius:8px;background:#0d9488;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🎯 דוגמה</button>
-    <button onclick="ffsResetAndReload()" style="padding:8px 16px;border:none;border-radius:8px;background:#dc2626;color:white;font-size:12px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;">🗑️ נקה הכל</button>
+    <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
+    <button class="cc-btn cc-btn-clear" onclick="ffsResetAndReload()" title="נקה את כל הנתונים">🗑️ נקה הכל</button>
   </div>
 
   <!-- === INSTRUCTION BAR (v171.5) — RTL process flow with ← arrows === -->
@@ -1613,7 +1613,7 @@
     <span style="color:#94a3b8;font-size:16px;">&larr;</span>
     <span style="font-size:12px;color:#1e293b;font-weight:800;">בדוק מדדי צבירה</span>
     <span style="color:#94a3b8;font-size:16px;">&larr;</span>
-    <span style="font-size:12px;color:#1e293b;font-weight:800;">לחץ <strong style="color:#3b82f6;">החל ועדכן</strong></span>
+    <span style="font-size:12px;color:#1e293b;font-weight:800;">לחץ <strong style="color:#3b82f6;">הפעל סימולטור</strong></span>
   </div>
 
   <!-- === 3-COLUMN BODY === -->
@@ -1623,7 +1623,7 @@
     <nav style="width:210px;flex-shrink:0;background:#1e293b;padding:18px 10px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;border-left:1px solid rgba(255,255,255,0.12);">
       <!-- v171.6: (?) help icon replaces static box — nav header row -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0 6px;margin-bottom:10px;">
-        <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.38);letter-spacing:1.6px;text-transform:uppercase;">תפריט ניווט</div>
+        <div style="font-size:9px;font-weight:800;color:#991b1b !important;opacity:1 !important;filter:none !important;mix-blend-mode:normal !important;letter-spacing:1px;">הזנת נתונים</div>
         <button id="ffs-help-btn" onclick="ffsToggleHelp()" title="איך זה עובד?" style="width:22px;height:22px;border-radius:50%;background:rgba(99,102,241,0.22);border:1.5px solid rgba(99,102,241,0.55);color:#a5b4fc;font-size:12px;font-weight:900;cursor:pointer;font-family:Heebo,sans-serif;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">?</button>
       </div>
 
@@ -1715,6 +1715,10 @@
 ברירת מחדל: 84 שנה.</span></span>
               </div>
               <input id="ffs-life-expectancy" type="number" min="70" max="100" value="84" autocomplete="off" oninput="ffsSaveField('lifeExpectancy',parseInt(this.value)||84)" style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div style="grid-column:1/-1;">
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">תעודת זהות</div>
+              <input id="ffs-personal-id" type="text" inputmode="numeric" maxlength="9" placeholder="000000000" autocomplete="off" oninput="ffsSaveField('personalId',this.value)" style="width:140px;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;direction:ltr;letter-spacing:2px;">
             </div>
           </div>
         </div>
@@ -1991,6 +1995,18 @@
     <div style="display:flex;gap:10px;justify-content:center;">
       <button onclick="ffsConfirmReset()" style="background:#dc2626;color:white;border:none;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;box-shadow:0 2px 6px rgba(220,38,38,0.35);">כן, אפס הכל</button>
       <button onclick="ffsCancelReset()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
+    </div>
+  </div>
+</div>
+<!-- v177.51: Import Confirm Modal — horizontal buttons, dynamic profile name -->
+<div id="ffs-import-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10300;align-items:center;justify-content:center;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);">
+  <div style="background:white;border-radius:14px;padding:28px 24px;max-width:380px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,0.3);text-align:center;font-family:Heebo,sans-serif;direction:rtl;">
+    <div style="font-size:36px;margin-bottom:10px;">🎯</div>
+    <div id="ffs-import-modal-name" style="font-size:15px;font-weight:800;color:#1d4ed8;margin-bottom:8px;">טעינת פרופיל</div>
+    <div style="font-size:12px;color:#64748b;line-height:1.7;margin-bottom:22px;">טעינת הפרופיל תדרוס את הנתונים הקיימים.<br>האם להמשיך?</div>
+    <div style="display:flex;flex-direction:row;gap:10px;justify-content:center;">
+      <button onclick="ffsCancelImport()" style="flex:1;background:white;color:#1e293b;border:2px solid #2563eb;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>
+      <button onclick="ffsConfirmImport()" style="flex:1;background:#10b981;color:white;border:none;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:800;font-family:Heebo,sans-serif;cursor:pointer;">כן, טען</button>
     </div>
   </div>
 </div>
@@ -2500,6 +2516,10 @@
       <input type="radio" id="ffs-pen-modal-type-manager" name="ffs-pen-modal-type" value="manager" onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
       ביטוח מנהלים
     </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#ef4444;">
+      <input type="radio" id="ffs-pen-modal-type-investments" name="ffs-pen-modal-type" value="investments" onchange="ffsTogglePensionType()" style="accent-color:#ef4444;">
+      העבר להשקעות
+    </label>
   </div>
 
   <!-- Common top fields: name + provider -->
@@ -2535,7 +2555,7 @@
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-          הפרשה (%)
+          אחוזי קצבה צבורים
         </div>
         <input type="number" id="ffs-pen-modal-contrib" autocomplete="off" placeholder="0" step="0.01" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
       </div>
@@ -2550,19 +2570,19 @@
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-              בן/בת זוג (%)
+              פנסיית אלמנה (₪)
             </div>
             <input type="number" id="ffs-pen-modal-spouse" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-              יתומים (%)
+              פנסיית יתום (₪)
             </div>
             <input type="number" id="ffs-pen-modal-orphan" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-              גילאי ילדים
+              גילאי הילדים
             </div>
             <input type="text" id="ffs-pen-modal-children" autocomplete="off" placeholder="5,8,12" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
           </div>

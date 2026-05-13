@@ -1,7 +1,192 @@
 # סטטוס פרויקט
 
 ## שלב נוכחי
-גרסה v177.5 — Smart Investment Dropzone: Vision AI + Manual Modal (05/05/2026).
+גרסה v177.68 — Persistence, ניתוב חזרה להשקעות, דיוק AI (14/05/2026).
+
+## שינויים אחרונים (14/05/2026 — v177.68)
+
+### v177.68 – Data Persistence, Cross-Migration & AI Accuracy
+
+**1. שחזור personalId על טעינת דף (app.js שורה 8078)**
+- `ffsLoadProfile`: הוספת `FFS_PROFILE.personalId = saved.personalId || ''`
+- מספר הזהות לא יימחק עוד על רענון דף
+
+**2. כפתור "העבר להשקעות" במודאל פנסיה**
+- `index.html` שורה 2519: רדיו שלישי אדום עם id=`ffs-pen-modal-type-investments`
+- `ffsTogglePensionType` (app.js): מסתיר גם pension-fund-fields וגם exec-insurance-fields כשנבחר
+- `ffsSavePensionFromModal` (app.js): splice מ-pension + push ל-investments עם category:null, needsReview:true + toast כחול
+
+**3. כללים חדשים בפרומפטי AI (app.js שורות 15248, 15250)**
+- Pension: כלל 9 SYNONYMS, כלל 10 NO GUESSING, כלל 11 POLICY NUMBERS
+- Investments: כלל 8 SYNONYMS/BOUNDARY, כלל 9 NO GUESSING, כלל 10 POLICY NUMBERS
+
+**4. Bump גרסה → v177.68**
+
+**קבצים שהשתנו:** `app.js`, `index.html` (שורות 1, 54, 2516–2520)
+
+## שינויים אחרונים (14/05/2026 — v177.67)
+
+### v177.67 – שיפורי UX ממוקדים
+
+**1. "קופ"ג" → "קופת גמל" (3 מקומות, app.js)**
+- שורות 8858, 8980, 14864 — תואמות לפלט AI ומונעות נפילה ל-"אחר"
+
+**2. ניתוב בין-סקציה בשמירה (app.js ~שורה 15082)**
+- עריכת נכס השקעה + שינוי קטגוריה ל-"ביטוח מנהלים"/"קרן פנסיה" → הנכס מועבר מיידית ל-pension עם `splice` + `push`
+- Render לשתי הסקציות + סגירת modal
+
+**3. Checkbox "כיסוי שארים" אינטראקטיבי (app.js ~שורה 9106–9131)**
+- הוסרו `onclick="return false;"` ו-`pointer-events:none`
+- הוסף `onchange` עם toggle של container ייחודי (id=`surv-{eid}`)
+- Container תמיד ב-DOM — display:none/grid בהתאם לסטטוס הchecbox
+
+**4. רקע צהוב לשדות null (app.js)**
+- הוספת helper `_nullBg(v)` בתחילת `ffsRenderSection` (שורה 8753)
+- מוחל על: `monthlyPension`, `expectedPayout`, `contributionPct` (פנסיה)
+- מוחל על: `category` select, `type` select (השקעות)
+
+**5. Bump גרסה → v177.67**
+
+**קבצים שהשתנו:** `app.js`, `index.html` (שורות 1, 54)
+
+## שינויים אחרונים (14/05/2026 — v177.66)
+
+### v177.66 – שיפורי UI ולוגיקה קריטיים
+
+**1. קטגוריות מאוחדות + ניתוב אוטומטי (app.js שורה 14838)**
+- `_ffsSetCategoryOptions`: רשימה מאוחדת אחת לשני הקשרים (כולל `ביטוח מנהלים` ו-`קרן פנסיה`)
+- `ffsApproveAsset` (שורה 9239): בלחיצה על "אישור נתונים", נכס ב-investments עם קטגוריה פנסיונית מועבר אוטומטית ל-pension
+
+**2. עצירת "קפיצה" בשמירה (app.js שורה 15075)**
+- `ffsSaveInvFromModal`: הסרת `ffsRenderSection` — שמירה מעדכנת נתונים וסוגרת modal בלבד
+- סידור מחדש קורה רק בלחיצה על "אישור נתונים" (כתום)
+
+**3. Smart Merge — הגנת עריכות ידניות (app.js שורות 9200–9202)**
+- ייבוא AI לא ידרוס `category`/`type`/`liquidity` אם כבר קיים ערך ידני
+
+**4. כותרות כרטיס פנסיה (app.js שורות 9065–9085)**
+- נוספה שורת labels: `סוג נכס` | `שם גוף מנהל` | `מספר נכס`
+- עבר מ-flex layout ל-grid לציפור נכונה עם הכותרות
+
+**5. שינוי תוויות**
+- `הפרשה (%)` → `אחוזי קצבה צבורים` (app.js שורה 9089 + index.html שורה 2554)
+- כיסוי שארים: `בן/בת זוג (%)` → `פנסיית אלמנה (₪)`, `יתומים (%)` → `פנסיית יתום (₪)`, `גילאי ילדים` → `גילאי הילדים`
+
+**6. Bump גרסה → v177.66**
+
+**קבצים שהשתנו:** `app.js` (שורות 9065–9085, 9089, 9111–9113, 9200–9202, 9239–9262, 14838–14847, 15075–15081), `index.html` (שורות 1, 54, 2554, 2569, 2575, 2581)
+
+## שינויים אחרונים (13/05/2026 — v177.65)
+
+### v177.65 – תיקון קריטי: AI Prompts
+
+**1. BOUNDARY בפרומפט ההשקעות (app.js שורה 15182)**
+- הוספת כלל 7: `NEVER extract 'ביטוח מנהלים' or 'קרן פנסיה'` — מונע גניבת נכסי פנסיה לתוך ההשקעות
+
+**2. תיקון MISSING DATA בשני הפרומפטים (app.js שורות 15180 ו-15182)**
+- הוספת משפט: `NEVER return an empty string "" or " ". Returning null is mandatory.`
+- מבטיח שעיצוב `needsReview` (צהוב) יופעל כאשר AI מחזיר שדה ריק
+
+**3. תיקון category בפרומפט הפנסיה (app.js שורה 15180)**
+- הוספת כלל 7 מפורש: `MUST exactly match one of these terms: 'ביטוח מנהלים', 'קרן פנסיה', 'קופת גמל', or 'אחר'`
+- מונע כרטיסי פנסיה ריקים ("Ghost assets") שנגרמו מקטגוריות לא מוכרות
+
+**4. Bump גרסה → v177.65**
+
+**קבצים שהשתנו:** `app.js` (שורות 15180-15182), `index.html` (שורות 1 ו-54)
+
+**אין שינוי ב:** לוגיקת ffsImportAssets, עיצוב needsReview, Excel engine, PENSION_ASSETS.
+
+## שינויים אחרונים (13/05/2026 — v177.49)
+
+### v177.49 – Data Protection & Color Fix
+
+**1. הגנת נתונים ב-ffsImportData**
+- `app.js` שורה 10022: הוספת `confirm()` לפני קריאת הקובץ — מונע דריסת נתונים בשגגה
+- ביטול → `event.target.value = ''` (ניקוי שדה לאפשרות ניסיון חוזר)
+
+**2. צבע כותרת Sidebar**
+- `index.html` שורה 1626: `color:#b91c1c` → `color:#991b1b` (Tailwind red-800, כהה יותר)
+
+**3. Bump גרסה → v177.49**
+
+**קבצים שהשתנו:** `app.js` (שורות 10022-10025), `index.html` (שורות 1, 54, 1626)
+
+## שינויים אחרונים (13/05/2026 — v177.48)
+
+### v177.48 – UI/UX Bug Fixes
+
+**1. Race Condition ב-"נקה הכל"**
+- `ffsConfirmReset()`: שינוי setTimeout מ-50ms ל-300ms — מבטיח ש-`closeFFSDrawer()` (250ms) מסיים לפני ש-`openFFSDrawer()` רץ
+
+**2. כפתורי ctrl-center — ניגודיות מוצקה**
+- `style.css` `.cc-btn`: `background: #374151`, `border: rgba(255,255,255,0.3)`, `color: #ffffff`
+- `.cc-btn:hover`: `background: #4b5563`, `border-color: rgba(255,255,255,0.45)`
+- `.cc-btn-run`: `background: #2563eb` (מוצק, בלי gradient)
+- `.cc-btn-run:hover`: `background: #1d4ed8`
+
+**3. טקסט Breadcrumb**
+- `index.html` שורה 1616: "לחץ **החל ועדכן**" → "לחץ **הפעל סימולטור**"
+
+**4. Bump גרסה → v177.48**
+
+**קבצים שהשתנו:** `app.js` (שורה 9714), `style.css` (שורות 979-1014), `index.html` (שורות 1, 54, 1616)
+
+**אין שינוי ב:** AI prompts, לוגיקת מנוע הסימולציה, PENSION_ASSETS, Excel engine.
+
+## שינויים אחרונים (13/05/2026 — v177.47)
+
+### v177.47 – Pilot Feedback Refinements
+
+**1. UX אחרי "נקה הכל"**
+- `ffsConfirmReset()`: אחרי `switchMode('SIMULATOR')`, `setTimeout` פותח את ה-Drawer אוטומטית ומגלוש ל-`ffsNavTo('profile')`
+
+**2. ניגודיות כפתורי ctrl-center**
+- `style.css` `.cc-btn`: `background` → `rgba(45,55,72,0.6)`, `border` → `rgba(255,255,255,0.2)`
+
+**3. ולידציה "הפעל סימולטור"**
+- `ffsApplyAndClose()`: הוסף `ffsNavTo('profile')` + `showToast('חובה להזין תאריך לידה...')` כשתאריך לידה חסר
+
+**4. כיוונון AI Extraction**
+- System prompt פנסיה: +כלל 8 (אל תשתמש ב-9 ספרות כמספר פוליסה) + כלל 9 (איחוד נכסים מאותה חברה)
+- System prompt השקעות: +כלל 12 (אל תשתמש ב-9 ספרות כמספר נכס)
+
+**5. Bump גרסה → v177.47**
+
+**קבצים שהשתנו:** `app.js` (שורות 9714, 9979-9982, 15134, 15136), `style.css` (שורות 979-984), `index.html` (שורות 1, 54)
+
+**אין שינוי ב:** מנוע הסימולציה, PENSION_ASSETS, Excel engine, CF_DATA.
+
+## שינויים אחרונים (13/05/2026 — v177.46)
+
+### v177.46 – Neat UI + Logic Hardening
+
+**1. תיקון Ghost Balance (1.35M)**
+- `ffsGetPensionAccumK()`: תנאי קפדני — דלג על רשומות עם `isActive: false` ועל ערכים <= 0
+- `ffsImportData()`: ניקוי מפורש של `FFS_PROFILE.pension/investments/realEstate` לפני טעינת פרופיל חדש
+
+**2. שיפור UX כפתור הפעלה**
+- `ffsApplyAndClose()`: עטוף את קריאת `simFullRefresh` ב-`setTimeout 100ms` להבטחת עקביות DOM
+
+**3. עיצוב "Neat" לכפתורי Control Center**
+- `style.css`: הוספת מחלקות `.cc-btn` / `.cc-btn-run` / `.cc-btn-clear` — עיצוב מינימליסטי עם Hover transitions
+- `index.html`: כל כפתורי ctrl-center עודכנו לשימוש במחלקות החדשות
+- "הפעל סימולטור" 🚀: Gradient כחול-כהה ייחודי
+- "נקה הכל" 🗑️: סלייט נייטרלי שהופך אדום מעומעם ב-hover
+
+**4. ניהול זהות בייבוא JSON**
+- `ffsImportData()`: אחרי ייבוא, קורא ל-`simUpdateNameLabel()` לעדכון תג "מציג: אורח" לשם מהקובץ
+- Toast מציג את שם הפרופיל שנטען
+
+**5. Bump גרסה → v177.46**
+- `index.html`: שורה 1 + תג גרסה בכותרת
+
+**קבצים שהשתנו:**
+- `app.js`: שורות 8118–8126, 9982–9986, 10015–10044
+- `index.html`: שורה 1, 54, 1595–1607
+- `style.css`: הוסף בסוף קובץ
+
+**אין שינוי ב:** לוגיקת מנוע הסימולציה, PENSION_ASSETS, Excel engine, CF_DATA.
 
 ## שינויים אחרונים (05/05/2026 — v177.5)
 
