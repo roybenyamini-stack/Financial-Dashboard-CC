@@ -9350,8 +9350,9 @@ function ffsRenderEventsPanel() {
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + (ev.yr || '') + '/' + String(ev.mo || 1).padStart(2,'0') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + typeLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:left;">' + amtText + '</td>'
-      + '<td style="padding:8px 6px;text-align:center;">'
+      + '<td style="padding:8px 6px;text-align:center;display:flex;gap:5px;justify-content:center;">'
       + '<button onclick="ffsShowAddFixedEventModal(' + realIdx + ')" style="padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#475569;">עריכה</button>'
+      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="padding:3px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff5f5;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#ef4444;">מחק</button>'
       + '</td>'
       + '</tr>';
   }).join('');
@@ -9366,6 +9367,15 @@ function ffsRenderEventsPanel() {
     + '</tr></thead>'
     + '<tbody>' + rows + '</tbody>'
     + '</table>';
+}
+
+function ffsDeleteFixedEvent(idx) {
+  if (!window.confirm('האם אתה בטוח שברצונך למחוק אירוע זה?')) return;
+  SIM_USER_EVENTS.splice(idx, 1);
+  _simSaveUserEvents();
+  ffsRenderEventsPanel();
+  simRenderTimeline();
+  simRenderChart(simRunEngine());
 }
 
 function ffsRenderAll() {
@@ -11171,8 +11181,8 @@ function simShowAddEventModal(idx) {
   if (!modal) return;
   // Reset fields first
   _simResetEventForm();
-  var _certEl = document.getElementById('sim-ev-certainty');
-  if (_certEl) { _certEl.value = 'simulation'; _certEl.disabled = true; }
+  var _certSim = document.getElementById('sim-ev-certainty-simulation');
+  if (_certSim) _certSim.checked = true;
   // Pre-fill if editing
   if (SIM_EDIT_IDX !== null) {
     var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
@@ -11217,8 +11227,8 @@ function ffsShowAddFixedEventModal(idx) {
   var modal = document.getElementById('sim-add-event-modal');
   if (!modal) return;
   _simResetEventForm();
-  var _certEl = document.getElementById('sim-ev-certainty');
-  if (_certEl) { _certEl.value = 'fixed'; _certEl.disabled = false; }
+  var _certFixed = document.getElementById('sim-ev-certainty-fixed');
+  if (_certFixed) _certFixed.checked = true;
   if (SIM_EDIT_IDX !== null) {
     var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
     if (ev) {
@@ -11229,6 +11239,9 @@ function ffsShowAddFixedEventModal(idx) {
       if (_el('sim-ev-amount')) _el('sim-ev-amount').value = Math.abs(ev.amount || 0);
       var typeEl = document.getElementById('sim-ev-type-' + (ev.type || 'income'));
       if (typeEl) typeEl.checked = true;
+      var _evIsFixed = ev.isSimulation === false;
+      var _rEl = document.getElementById('sim-ev-certainty-' + (_evIsFixed ? 'fixed' : 'simulation'));
+      if (_rEl) _rEl.checked = true;
     }
   }
   var titleEl = document.getElementById('sim-ev-modal-title');
@@ -11257,6 +11270,8 @@ function _simResetEventForm() {
   if (_el('sim-ev-balloon'))        _el('sim-ev-balloon').value        = '';
   var typeIncome = _el('sim-ev-type-income');
   if (typeIncome) typeIncome.checked = true;
+  var _certSimReset = document.getElementById('sim-ev-certainty-simulation');
+  if (_certSimReset) _certSimReset.checked = true;
 }
 
 function simCloseEventModal() {
@@ -11305,8 +11320,8 @@ function simConfirmAddEvent() {
 
   // v130.0: temporary = manually added via UI; permanent = from data source (Excel/pension)
   var ev = { yr: yr, mo: mo, label: label.trim(), type: type, permanent: false };
-  var _certEl = document.getElementById('sim-ev-certainty');
-  var _isFixed = _certEl ? (_certEl.value === 'fixed') : _ffsFixedMode;
+  var _certChecked = document.querySelector('input[name="sim-ev-certainty"]:checked');
+  var _isFixed = _certChecked ? (_certChecked.value === 'fixed') : _ffsFixedMode;
   _ffsFixedMode = _isFixed;
   if (_isFixed) ev.isSimulation = false; // v177.78: driven by certainty dropdown
   if (type === 'income')     ev.amount = Math.abs(amt);
