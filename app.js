@@ -4211,7 +4211,12 @@ function closeCatModal() {
 }
 
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') closeCatModal();
+  if (e.key !== 'Escape') return;
+  closeCatModal();
+  var _evModal = document.getElementById('sim-add-event-modal');
+  if (_evModal && _evModal.style.display !== 'none') simCloseEventModal();
+  var _confModal = document.getElementById('ffs-custom-confirm');
+  if (_confModal && _confModal.style.display !== 'none') ffsCancelDelete();
 });
 
 
@@ -9380,14 +9385,14 @@ function ffsRenderEventsPanel() {
     else if (ev.type === 'expense')                                       { nameColor = '#ea580c'; }
     else                                                                  { nameColor = '#059669'; }
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
-      + '<td style="padding:8px 6px;font-size:12px;color:' + nameColor + ';font-weight:600;">' + (ev.label || '') + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:#1e293b;">' + (ev.label || '') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + (ev.yr || '') + '/' + String(ev.mo || 1).padStart(2,'0') + '</td>'
-      + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + typeLabel + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:' + nameColor + ';font-weight:700;">' + typeLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;">' + certLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:left;">' + amtText + '</td>'
       + '<td style="padding:8px 6px;text-align:center;display:flex;gap:5px;justify-content:center;">'
       + '<button onclick="ffsShowAddFixedEventModal(' + realIdx + ')" style="padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#475569;">עריכה</button>'
-      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="background:transparent;border:none;color:#f87171;text-decoration:underline;padding:3px 6px;cursor:pointer;font-size:11px;font-family:Heebo,sans-serif;">מחק</button>'
+      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="padding:3px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff5f5;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#ef4444;">מחק</button>'
       + '</td>'
       + '</tr>';
   }).join('');
@@ -10940,6 +10945,7 @@ var simEngine = {
 };
 
 function _simSaveUserEvents() {
+  SIM_USER_EVENTS.sort(function(a, b) { if (a.yr !== b.yr) return a.yr - b.yr; return (a.mo || 1) - (b.mo || 1); });
   // v171.0: storage segregation — Excel timeline events saved separately from FFS/manual events
   var _excelEvs = SIM_USER_EVENTS.filter(function(ev) { return ev.src === 'events_timeline'; });
   var _userEvs  = SIM_USER_EVENTS.filter(function(ev) { return ev.src !== 'events_timeline'; });
@@ -11220,6 +11226,8 @@ function simShowAddEventModal(idx) {
   if (!modal) return;
   // Reset fields first
   _simResetEventForm();
+  var _yrEl = document.getElementById('sim-ev-year');
+  if (_yrEl) _yrEl.min = new Date().getFullYear();
   var _certSim = document.getElementById('sim-ev-certainty-simulation');
   if (_certSim) _certSim.checked = true;
   // Pre-fill if editing
@@ -11266,6 +11274,8 @@ function ffsShowAddFixedEventModal(idx) {
   var modal = document.getElementById('sim-add-event-modal');
   if (!modal) return;
   _simResetEventForm();
+  var _yrEl = document.getElementById('sim-ev-year');
+  if (_yrEl) _yrEl.min = new Date().getFullYear();
   var _certFixed = document.getElementById('sim-ev-certainty-fixed');
   if (_certFixed) _certFixed.checked = true;
   if (SIM_EDIT_IDX !== null) {
@@ -11354,7 +11364,8 @@ function simConfirmAddEvent() {
   var type = typeNode ? typeNode.value : 'income';
 
   if (!label.trim())                        { window.alert('נא להזין שם אירוע'); return; }
-  if (isNaN(yr) || yr < 2026 || yr > 2080) { window.alert('שנה לא תקינה (2026–2080)'); return; }
+  var _currYear = new Date().getFullYear();
+  if (isNaN(yr) || yr < _currYear || yr > 2080) { window.alert('שנה לא תקינה (' + _currYear + '–2080)'); return; }
   if (isNaN(mo) || mo < 1 || mo > 12)      { window.alert('חודש לא תקין (1–12)'); return; }
 
   // v130.0: temporary = manually added via UI; permanent = from data source (Excel/pension)
@@ -11387,8 +11398,8 @@ function simConfirmAddEvent() {
   simCloseEventModal();
   simRenderTimeline();
   simRenderChart(simRunEngine());
+  ffsRenderEventsPanel();
   if (_wasFixed) {
-    ffsRenderEventsPanel(); // v177.36: refresh panel and sidebar count
     showToast('התיק עודכן. מומלץ לשמור גיבוי מעודכן.', '#6366f1', 4000);
   }
 }
@@ -11418,7 +11429,7 @@ function simClearAllUserEvents() {
 }
 function simPromptClearSimEvents() {
   var hasSim = (SIM_USER_EVENTS || []).some(function(ev) { return !ev.permanent && ev.isSimulation !== false; });
-  if (!hasSim) return;
+  if (!hasSim) { showToast('אין אירועי סימולציה למחיקה', '#94a3b8', 2500); return; }
   _pendingClearSimEvents = true;
   var _modal = document.getElementById('ffs-custom-confirm');
   if (_modal) {
