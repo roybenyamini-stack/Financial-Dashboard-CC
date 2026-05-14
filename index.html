@@ -1,4 +1,4 @@
-<!-- v177.68 -->
+<!-- v177.74 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.68</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.74</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2442,7 +2442,7 @@
       <div>
         <div id="ffs-inv-label-category" style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סוג נכס / קטגוריה</div>
         <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); ffsClearFieldError('ffs-inv-f-category','ffs-inv-h-category'); var co=document.getElementById('ffs-inv-f-category-other'); if(co) co.style.display=(this.value==='אחר')?'block':'none';" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
-          <option value="">בחר...</option>
+          <option value="" disabled selected></option>
         </select>
         <input type="text" id="ffs-inv-f-category-other" placeholder="פרט..." autocomplete="off" style="display:none;width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-category" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
@@ -2451,7 +2451,7 @@
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מסלול</div>
         <select id="ffs-inv-f-type" onchange="ffsClearFieldError('ffs-inv-f-type','ffs-inv-h-type'); var to=document.getElementById('ffs-inv-f-type-other'); if(to) to.style.display=(this.value==='אחר')?'block':'none';" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
-          <option value="">בחר...</option>
+          <option value="" disabled selected></option>
           <option value="מנייתי">מנייתי</option>
           <option value="כללי">כללי</option>
           <option value="כספי">כספי</option>
@@ -2584,7 +2584,7 @@
             <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
               גילאי הילדים
             </div>
-            <input type="text" id="ffs-pen-modal-children" autocomplete="off" placeholder="5,8,12" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+            <input type="text" id="ffs-pen-modal-children" autocomplete="off" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
           </div>
         </div>
       </div>
@@ -2604,7 +2604,7 @@
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
           מקדם המרה
         </div>
-        <input type="number" id="ffs-pen-modal-factor" autocomplete="off" placeholder="200" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+        <input type="number" id="ffs-pen-modal-factor" autocomplete="off" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
