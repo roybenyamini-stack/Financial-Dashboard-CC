@@ -8459,6 +8459,7 @@ function ffsAddItem(section) {
 }
 var ffsItemToDelete    = null;
 var ffsSectionToDelete = null;
+var _pendingDeleteEventIdx = null;
 var ffsCurrentPensionId = null;
 var ffsCurrentInvId = null;
 function ffsRemoveItem(section, id) {
@@ -8470,6 +8471,16 @@ function ffsRemoveItem(section, id) {
 function ffsConfirmDelete() {
   var modal = document.getElementById('ffs-custom-confirm');
   if (modal) modal.style.display = 'none';
+  if (_pendingDeleteEventIdx !== null) {
+    SIM_USER_EVENTS.splice(_pendingDeleteEventIdx, 1);
+    _simSaveUserEvents();
+    ffsRenderEventsPanel();
+    simRenderTimeline();
+    simRenderChart(simRunEngine());
+    showToast('האירוע נמחק', '#64748b', 2500);
+    _pendingDeleteEventIdx = null;
+    return;
+  }
   if (!ffsSectionToDelete || !ffsItemToDelete) return;
   FFS_PROFILE[ffsSectionToDelete] = (FFS_PROFILE[ffsSectionToDelete] || []).filter(function(x) { return x.id !== ffsItemToDelete; });
   ffsSaveProfile();
@@ -8483,6 +8494,7 @@ function ffsCancelDelete() {
   if (modal) modal.style.display = 'none';
   ffsSectionToDelete = null;
   ffsItemToDelete    = null;
+  _pendingDeleteEventIdx = null;
 }
 
 // v177.20: Dedicated Pension Modal functions
@@ -9332,27 +9344,32 @@ function ffsProcessImport() {
 }
 // v177.36: render the "ניהול אירועים" panel and update left sidebar count
 function ffsRenderEventsPanel() {
-  var fixedEvents = (SIM_USER_EVENTS || []).filter(function(ev) { return ev.isSimulation === false; });
+  var allEvents = SIM_USER_EVENTS || [];
+  var fixedCount = allEvents.filter(function(ev) { return ev.permanent || ev.isSimulation === false; }).length;
   var countEl = document.getElementById('ffs-live-fixed-events');
-  if (countEl) countEl.textContent = fixedEvents.length;
+  if (countEl) countEl.textContent = fixedCount;
 
   var area = document.getElementById('ffs-events-table-area');
   if (!area) return;
-  if (!fixedEvents.length) { area.innerHTML = ''; return; }
+  if (!allEvents.length) { area.innerHTML = ''; return; }
 
   var typeLabels = { income: 'הכנסה', expense: 'הוצאה', investment: 'השקעה', reminder: 'תזכורת' };
-  var rows = fixedEvents.map(function(ev, i) {
-    var realIdx = SIM_USER_EVENTS.indexOf(ev);
+  var rows = allEvents.map(function(ev, realIdx) {
+    var isFixed = ev.permanent || ev.isSimulation === false;
     var typeLabel = typeLabels[ev.type] || ev.type;
     var amtText   = ev.type === 'reminder' ? '—' : (Math.abs(ev.amount || 0).toLocaleString('he-IL') + ' K');
+    var certLabel = isFixed
+      ? '<span style="color:#34d399;font-weight:700;">קבוע</span>'
+      : '<span style="color:#94a3b8;">זמני</span>';
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
       + '<td style="padding:8px 6px;font-size:12px;color:#1e293b;">' + (ev.label || '') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + (ev.yr || '') + '/' + String(ev.mo || 1).padStart(2,'0') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + typeLabel + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;">' + certLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:left;">' + amtText + '</td>'
       + '<td style="padding:8px 6px;text-align:center;display:flex;gap:5px;justify-content:center;">'
       + '<button onclick="ffsShowAddFixedEventModal(' + realIdx + ')" style="padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#475569;">עריכה</button>'
-      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="padding:3px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff5f5;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#ef4444;">מחק</button>'
+      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="padding:3px 10px;border:1px solid #fca5a5;border-radius:6px;background:transparent;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#ef4444;">מחק</button>'
       + '</td>'
       + '</tr>';
   }).join('');
@@ -9362,6 +9379,7 @@ function ffsRenderEventsPanel() {
     + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">שם</th>'
     + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">תאריך</th>'
     + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">סוג</th>'
+    + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:right;">קביעות</th>'
     + '<th style="padding:7px 6px;font-size:11px;color:#64748b;font-weight:700;text-align:left;">סכום (K)</th>'
     + '<th style="padding:7px 6px;"></th>'
     + '</tr></thead>'
@@ -9370,12 +9388,14 @@ function ffsRenderEventsPanel() {
 }
 
 function ffsDeleteFixedEvent(idx) {
-  if (!window.confirm('האם אתה בטוח שברצונך למחוק אירוע זה?')) return;
-  SIM_USER_EVENTS.splice(idx, 1);
-  _simSaveUserEvents();
-  ffsRenderEventsPanel();
-  simRenderTimeline();
-  simRenderChart(simRunEngine());
+  _pendingDeleteEventIdx = idx;
+  var _modal = document.getElementById('ffs-custom-confirm');
+  if (_modal) {
+    var _divs = _modal.querySelectorAll(':scope > div > div');
+    if (_divs[0]) _divs[0].textContent = 'מחיקת אירוע';
+    if (_divs[1]) _divs[1].textContent = 'האם אתה בטוח שברצונך למחוק אירוע זה?';
+    _modal.style.display = 'flex';
+  }
 }
 
 function ffsRenderAll() {
@@ -10959,12 +10979,13 @@ function simCollectEvents() {
   SIM_USER_EVENTS.forEach(function(ev, i) {
     // v177.78 Roy's Palette: fixed = dark colors, simulation = light/warm colors
     var _isFixed = ev.permanent || ev.isSimulation === false;
-    var color = '#a7f3d0'; // simulation income — light green
-    if (_isFixed) {
+    var color;
+    if (ev.type === 'reminder') { color = '#94a3b8'; }
+    else if (_isFixed) {
       color = (ev.amount < 0 || ev.type === 'expense') ? '#7f1d1d' : '#2e7d32';
     } else if (ev.type === 'expense')    { color = '#fb923c'; }   // simulation expense — orange
       else if (ev.type === 'investment') { color = 'rgba(99,102,241,0.6)'; }
-      else if (ev.type === 'reminder')   { color = '#94a3b8'; }
+      else { color = '#a7f3d0'; } // simulation income — light green
     // v135.0: preserve original src and breakdown so tooltip and timeline render correctly
     events.push({ yr: ev.yr, mo: ev.mo, label: ev.label, amount: ev.amount,
                   color: color, src: ev.src || 'user', _userIdx: i, type: ev.type,
@@ -11239,7 +11260,7 @@ function ffsShowAddFixedEventModal(idx) {
       if (_el('sim-ev-amount')) _el('sim-ev-amount').value = Math.abs(ev.amount || 0);
       var typeEl = document.getElementById('sim-ev-type-' + (ev.type || 'income'));
       if (typeEl) typeEl.checked = true;
-      var _evIsFixed = ev.isSimulation === false;
+      var _evIsFixed = ev.permanent || ev.isSimulation === false;
       var _rEl = document.getElementById('sim-ev-certainty-' + (_evIsFixed ? 'fixed' : 'simulation'));
       if (_rEl) _rEl.checked = true;
     }
