@@ -10947,13 +10947,14 @@ function simCollectEvents() {
     });
   }
   SIM_USER_EVENTS.forEach(function(ev, i) {
-    var color = 'rgba(74,222,128,0.6)'; // v177.35: simulation income — light green
-    // v177.35 Roy's Palette: permanent Excel events — color by amount sign (type field is hardcoded 'expense')
-    if (ev.permanent && ev.src === 'events_timeline') color = (ev.amount < 0) ? '#811d1d' : '#2d5a27';
-    else if (ev.permanent && ev.src === 'retirement') color = (ev.amount < 0) ? '#811d1d' : '#2d5a27';
-    else if (ev.type === 'expense')    color = 'rgba(248,113,113,0.6)'; // simulation expense
-    else if (ev.type === 'investment') color = 'rgba(99,102,241,0.6)';  // simulation investment
-    else if (ev.type === 'reminder')   color = '#94a3b8'; // slate grey
+    // v177.78 Roy's Palette: fixed = dark colors, simulation = light/warm colors
+    var _isFixed = ev.permanent || ev.isSimulation === false;
+    var color = '#a7f3d0'; // simulation income — light green
+    if (_isFixed) {
+      color = (ev.amount < 0 || ev.type === 'expense') ? '#7f1d1d' : '#2e7d32';
+    } else if (ev.type === 'expense')    { color = '#fb923c'; }   // simulation expense — orange
+      else if (ev.type === 'investment') { color = 'rgba(99,102,241,0.6)'; }
+      else if (ev.type === 'reminder')   { color = '#94a3b8'; }
     // v135.0: preserve original src and breakdown so tooltip and timeline render correctly
     events.push({ yr: ev.yr, mo: ev.mo, label: ev.label, amount: ev.amount,
                   color: color, src: ev.src || 'user', _userIdx: i, type: ev.type,
@@ -11170,6 +11171,8 @@ function simShowAddEventModal(idx) {
   if (!modal) return;
   // Reset fields first
   _simResetEventForm();
+  var _certEl = document.getElementById('sim-ev-certainty');
+  if (_certEl) { _certEl.value = 'simulation'; _certEl.disabled = true; }
   // Pre-fill if editing
   if (SIM_EDIT_IDX !== null) {
     var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
@@ -11214,6 +11217,8 @@ function ffsShowAddFixedEventModal(idx) {
   var modal = document.getElementById('sim-add-event-modal');
   if (!modal) return;
   _simResetEventForm();
+  var _certEl = document.getElementById('sim-ev-certainty');
+  if (_certEl) { _certEl.value = 'fixed'; _certEl.disabled = false; }
   if (SIM_EDIT_IDX !== null) {
     var ev = SIM_USER_EVENTS[SIM_EDIT_IDX];
     if (ev) {
@@ -11300,7 +11305,10 @@ function simConfirmAddEvent() {
 
   // v130.0: temporary = manually added via UI; permanent = from data source (Excel/pension)
   var ev = { yr: yr, mo: mo, label: label.trim(), type: type, permanent: false };
-  if (_ffsFixedMode) ev.isSimulation = false; // v177.36: tagged as fixed (non-simulation) event
+  var _certEl = document.getElementById('sim-ev-certainty');
+  var _isFixed = _certEl ? (_certEl.value === 'fixed') : _ffsFixedMode;
+  _ffsFixedMode = _isFixed;
+  if (_isFixed) ev.isSimulation = false; // v177.78: driven by certainty dropdown
   if (type === 'income')     ev.amount = Math.abs(amt);
   if (type === 'expense')    ev.amount = -Math.abs(amt);
   if (type === 'reminder')   ev.amount = 0;
