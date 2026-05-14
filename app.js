@@ -8460,6 +8460,7 @@ function ffsAddItem(section) {
 var ffsItemToDelete    = null;
 var ffsSectionToDelete = null;
 var _pendingDeleteEventIdx = null;
+var _pendingClearSimEvents = false;
 var ffsCurrentPensionId = null;
 var ffsCurrentInvId = null;
 function ffsRemoveItem(section, id) {
@@ -8471,6 +8472,16 @@ function ffsRemoveItem(section, id) {
 function ffsConfirmDelete() {
   var modal = document.getElementById('ffs-custom-confirm');
   if (modal) modal.style.display = 'none';
+  if (_pendingClearSimEvents) {
+    SIM_USER_EVENTS = SIM_USER_EVENTS.filter(function(ev) { return ev.permanent || ev.isSimulation === false; });
+    _simSaveUserEvents();
+    ffsRenderEventsPanel();
+    simRenderTimeline();
+    simRenderChart(simRunEngine());
+    showToast('האירועים הזמניים נמחקו', '#64748b', 2500);
+    _pendingClearSimEvents = false;
+    return;
+  }
   if (_pendingDeleteEventIdx !== null) {
     SIM_USER_EVENTS.splice(_pendingDeleteEventIdx, 1);
     _simSaveUserEvents();
@@ -8495,6 +8506,7 @@ function ffsCancelDelete() {
   ffsSectionToDelete = null;
   ffsItemToDelete    = null;
   _pendingDeleteEventIdx = null;
+  _pendingClearSimEvents = false;
 }
 
 // v177.20: Dedicated Pension Modal functions
@@ -9359,17 +9371,23 @@ function ffsRenderEventsPanel() {
     var typeLabel = typeLabels[ev.type] || ev.type;
     var amtText   = ev.type === 'reminder' ? '—' : (Math.abs(ev.amount || 0).toLocaleString('he-IL') + ' K');
     var certLabel = isFixed
-      ? '<span style="color:#34d399;font-weight:700;">קבוע</span>'
+      ? '<span style="color:#475569;font-weight:700;">קבוע</span>'
       : '<span style="color:#94a3b8;">זמני</span>';
+    var nameColor;
+    if (ev.type === 'reminder')                                          { nameColor = '#94a3b8'; }
+    else if (isFixed && (ev.type === 'expense' || (ev.amount || 0) < 0)) { nameColor = '#7f1d1d'; }
+    else if (isFixed)                                                     { nameColor = '#2e7d32'; }
+    else if (ev.type === 'expense')                                       { nameColor = '#ea580c'; }
+    else                                                                  { nameColor = '#059669'; }
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
-      + '<td style="padding:8px 6px;font-size:12px;color:#1e293b;">' + (ev.label || '') + '</td>'
+      + '<td style="padding:8px 6px;font-size:12px;color:' + nameColor + ';font-weight:600;">' + (ev.label || '') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + (ev.yr || '') + '/' + String(ev.mo || 1).padStart(2,'0') + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;">' + typeLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;">' + certLabel + '</td>'
       + '<td style="padding:8px 6px;font-size:12px;color:#64748b;text-align:left;">' + amtText + '</td>'
       + '<td style="padding:8px 6px;text-align:center;display:flex;gap:5px;justify-content:center;">'
       + '<button onclick="ffsShowAddFixedEventModal(' + realIdx + ')" style="padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#475569;">עריכה</button>'
-      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="padding:3px 10px;border:1px solid #fca5a5;border-radius:6px;background:transparent;font-size:11px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;color:#ef4444;">מחק</button>'
+      + '<button onclick="ffsDeleteFixedEvent(' + realIdx + ')" style="background:transparent;border:none;color:#f87171;text-decoration:underline;padding:3px 6px;cursor:pointer;font-size:11px;font-family:Heebo,sans-serif;">מחק</button>'
       + '</td>'
       + '</tr>';
   }).join('');
@@ -11397,6 +11415,18 @@ function simClearAllUserEvents() {
   localStorage.removeItem(_SIM_EVENTS_LS_KEY); // v158.0: clear persisted events
   simRenderTimeline();
   simRenderChart(simRunEngine());
+}
+function simPromptClearSimEvents() {
+  var hasSim = (SIM_USER_EVENTS || []).some(function(ev) { return !ev.permanent && ev.isSimulation !== false; });
+  if (!hasSim) return;
+  _pendingClearSimEvents = true;
+  var _modal = document.getElementById('ffs-custom-confirm');
+  if (_modal) {
+    var _divs = _modal.querySelectorAll(':scope > div > div');
+    if (_divs[0]) _divs[0].textContent = 'מחיקת אירועי סימולציה';
+    if (_divs[1]) _divs[1].textContent = 'האם אתה בטוח שברצונך למחוק את כל האירועים הזמניים? האירועים הקבועים יישמרו.';
+    _modal.style.display = 'flex';
+  }
 }
 
 // kept for backward compat (no longer called from timeline directly)
