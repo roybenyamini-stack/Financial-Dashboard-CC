@@ -8806,12 +8806,12 @@ function ffsRenderSection(section) {
       if (cat === 'קרן השתלמות')    { _grpColor = '#fef2f2'; }
       if (_normCatKey === 'קופג')   { _grpColor = '#fff7ed'; }
       if (cat === 'פוליסת חיסכון') { _grpColor = '#fefce8'; }
-      if (cat === 'גמל להשקעה')    { _grpColor = '#faf5ff'; }
+      if (cat === 'קופת גמל להשקעה')    { _grpColor = '#faf5ff'; }
       var _grpSt = 'background:' + _grpColor + ';border-radius:14px;padding:10px 10px 2px;margin-bottom:18px;';
       var displayCat = cat;
       if (cat === 'פוליסת חיסכון') { displayCat = 'פוליסות חיסכון'; }
       if (cat === 'קרן השתלמות')   { displayCat = 'קרנות השתלמות'; }
-      if (cat === 'גמל להשקעה')    { displayCat = 'קופות גמל להשקעה'; }
+      if (cat === 'קופת גמל להשקעה')    { displayCat = 'קופות גמל להשקעה'; }
       if (_normCatKey === 'קופג')  { displayCat = 'קופות גמל'; }
       var _catBtnSt = 'background:transparent;border:none;cursor:pointer;color:#94a3b8;font-size:10px;padding:1px 4px;line-height:1;';
       var _safeCatAttr = cat.replace(/"/g, '&quot;');
@@ -8881,7 +8881,7 @@ function ffsRenderSection(section) {
         _catOpts.push('קרן נאמנות');
         _catOpts.push('קרן השתלמות');
         _catOpts.push('קופת גמל');
-        _catOpts.push('גמל להשקעה');
+        _catOpts.push('קופת גמל להשקעה');
         _catOpts.push('פוליסת חיסכון');
         _catOpts.push('קרן כספית');
         _catOpts.push('עו"ש');
@@ -9003,7 +9003,7 @@ function ffsRenderSection(section) {
       catOpts.push('קרן השקעה');
       catOpts.push('קרן השתלמות');
       catOpts.push('קופת גמל');
-      catOpts.push('גמל להשקעה');
+      catOpts.push('קופת גמל להשקעה');
       catOpts.push('פוליסת חיסכון');
       catOpts.push('קרן כספית');
       catOpts.push('עו"ש');
@@ -14930,7 +14930,7 @@ function _ffsSetCategoryOptions(context) {
   var sel = document.getElementById('ffs-inv-f-category');
   if (!sel) return;
   sel.innerHTML = '<option value="" disabled></option>';
-  var opts = ['קרן השתלמות', 'קופת גמל', 'גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'קרן כספית', 'עו"ש', 'עו"ש $', 'ביטוח מנהלים', 'קרן פנסיה', 'אחר'];
+  var opts = ['קרן השתלמות', 'קופת גמל', 'קופת גמל להשקעה', 'פוליסת חיסכון', 'מניות/ETF', 'קרן כספית', 'עו"ש', 'עו"ש $', 'ביטוח מנהלים', 'קרן פנסיה', 'אחר'];
   opts.forEach(function(o) {
     var opt = document.createElement('option');
     opt.value = o; opt.textContent = o;
