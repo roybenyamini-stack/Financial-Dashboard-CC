@@ -2051,11 +2051,15 @@
 
     <!-- קביעות האירוע -->
     <div style="margin-bottom:13px;">
-      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">קביעות האירוע</label>
-      <select id="sim-ev-certainty" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;direction:rtl;">
-        <option value="simulation">סימולציה / זמני</option>
-        <option value="fixed">קבוע</option>
-      </select>
+      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;">קביעות האירוע</label>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-certainty-simulation" name="sim-ev-certainty" value="simulation" checked style="accent-color:#94a3b8;width:14px;height:14px;" />זמני / סימולציה
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f1f5f9;cursor:pointer;">
+          <input type="radio" id="sim-ev-certainty-fixed" name="sim-ev-certainty" value="fixed" style="accent-color:#34d399;width:14px;height:14px;" />קבוע
+        </label>
+      </div>
     </div>
 
     <!-- תאריך -->
