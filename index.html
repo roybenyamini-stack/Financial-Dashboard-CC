@@ -1,4 +1,4 @@
-<!-- v177.77 -->
+<!-- v177.78 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.77</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.78</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2047,6 +2047,15 @@
     <div style="margin-bottom:13px;">
       <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">שם האירוע</label>
       <input id="sim-ev-label" type="text" placeholder="" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;direction:rtl;" />
+    </div>
+
+    <!-- קביעות האירוע -->
+    <div style="margin-bottom:13px;">
+      <label style="display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px;">קביעות האירוע</label>
+      <select id="sim-ev-certainty" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 10px;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:13px;outline:none;direction:rtl;">
+        <option value="simulation">סימולציה / זמני</option>
+        <option value="fixed">קבוע</option>
+      </select>
     </div>
 
     <!-- תאריך -->
