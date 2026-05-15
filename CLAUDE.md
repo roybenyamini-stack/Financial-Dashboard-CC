@@ -4,3 +4,7 @@
 - UI Consistency: Never use CSS `!important` unless strictly necessary. Empty/null selects should have a yellow background (`_nullBg`).
 - Data Layer: The AI extracts raw data. Do not hallucinate. The UI JS handles sanitization and defaults.
 - Category strictness: 'קופת גמל להשקעה' is the exact string. Never use 'גמל להשקעה'.
+
+## Project Documentation (SSOT)
+
+For specific module logic, semantic colors, and constraints, you MUST read the respective markdown files in the `docs/` directory BEFORE modifying code (e.g., read `docs/events_module.md` when working on Event Management).
