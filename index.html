@@ -1,4 +1,4 @@
-<!-- v177.83 -->
+<!-- v178.2 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -37,7 +37,7 @@
     <button class="tab-btn" onclick="switchTab('settings')" id="tabn-settings">⚙ הגדרות</button>
   </div>
   <!-- v169.1: Mode Selector — left side (RTL end), 3-world navigation -->
-  <div id="mode-selector">
+  <div id="mode-selector" style="margin-right:auto;">
     <div id="mode-selector-group">
       <button class="mode-btn" id="mode-btn-excel" onclick="switchMode('EXCEL')">נתוני אמת</button>
       <button class="mode-btn" id="mode-btn-demo" onclick="switchMode('DEMO')">מצב דמו</button>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v177.83</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v178.2</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -91,7 +91,7 @@
       <!-- v169.1: edit data button — shown only in SIMULATOR mode when data exists -->
       <button id="sim-edit-data-btn" onclick="openFFSDrawer()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:rgba(99,102,241,0.3);color:white;border:1px solid rgba(99,102,241,0.55);border-radius:8px;padding:7px 13px;font-size:12px;font-family:Heebo,sans-serif;font-weight:700;flex-shrink:0;white-space:nowrap;" title="עריכת נתונים אישיים">📝 עריכת נתונים</button>
       <span id="sim-active-name-label" onclick="openFFSDrawer()" title="כיול נתונים אישיים" style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.82);font-weight:600;font-family:Heebo,sans-serif;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 12px;white-space:nowrap;flex-shrink:0;cursor:pointer;user-select:none;"><span style="font-size:15px;flex-shrink:0;filter:invert(42%) sepia(93%) saturate(1352%) hue-rotate(199deg) brightness(104%) contrast(95%);">👤</span><span id="sim-active-name-text">מציג: אורח</span></span>
-      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
+      <div id="hdr-harel-toggle" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:0 10px;height:34px;flex-shrink:0;">
         <span style="font-size:10px;color:rgba(255,255,255,0.6);margin-left:6px;"><span id="hdr-savings-name">הראל</span>:</span>
         <button class="pns-ni-btn" id="sim-btn-harel-with" onclick="simSetHarelMode('with')">עם</button>
         <button class="pns-ni-btn active" id="sim-btn-harel-without" onclick="simSetHarelMode('without')">ללא</button>
@@ -1512,8 +1512,8 @@
         <!-- 2 — הכנסה פנויה בפרישה -->
         <div class="sim-ctrl-group">
           <div class="sim-ctrl-label" title="הכנסה פנויה בפרישה: פנסיה נטו + שכר דירה (מגיל 67 ואילך)">הכנסה פנויה בפרישה</div>
-          <input type="number" id="sim-pension-monthly-num" class="sim-num-input" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)">
-          <input type="range" id="sim-pension-monthly-slider" class="sim-slider" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)">
+          <input type="number" id="sim-pension-monthly-num" class="sim-num-input" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)" disabled>
+          <input type="range" id="sim-pension-monthly-slider" class="sim-slider" min="0" max="80000" step="1000" value="0" oninput="simSetPensionMonthly(this.value)" disabled>
           <div class="sim-slider-bounds"><span>80K ₪</span><span>5K ₪</span></div>
         </div>
         <!-- 3 — הוצאה חודשית בפרישה -->
@@ -1682,6 +1682,13 @@
           <div id="ffs-nav-summary-events" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
         </div>
       </button>
+      <button id="ffs-nav-macro" class="ffs-nav-btn" onclick="ffsNavTo('macro')">
+        <span style="font-size:16px;flex-shrink:0;">📊</span>
+        <div style="flex:1;text-align:right;">
+          <div style="font-size:13px;font-weight:700;">נתוני מאקרו</div>
+          <div id="ffs-nav-summary-macro" style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px;"></div>
+        </div>
+      </button>
 
     </nav>
 
@@ -1823,7 +1830,7 @@
         </div>
 
         <!-- אירועים מיוחדים — embedded in פרישה tab (v170.5) -->
-        <div style="margin-bottom:22px;">
+        <div style="margin-bottom:22px;display:none;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;">
             <span style="font-size:18px;">🎯</span>
             <div>
@@ -1901,6 +1908,52 @@
         <button id="ffs-add-fixed-event-btn" onclick="ffsShowAddFixedEventModal()" style="width:100%;padding:12px;border:2px dashed rgba(99,102,241,0.35);border-radius:10px;background:rgba(99,102,241,0.04);color:#6366f1;font-size:13px;font-weight:700;font-family:Heebo,sans-serif;cursor:pointer;direction:rtl;margin-top:8px;">
           + הוסף אירוע קבוע
         </button>
+      </div>
+
+      <!-- ─── SECTION: נתוני מאקרו ─── -->
+      <div id="ffs-section-macro" style="display:none;">
+        <div style="font-size:20px;font-weight:900;color:#1e293b;margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid #e2e8f0;">📊 נתוני מאקרו</div>
+        <div id="ffs-acc-body-macro" style="display:block;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:580px;">
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">תשואת הון השקעות (%)</div>
+              <input id="ffs-macro-yield" type="number" min="0" max="30" step="0.1" value="4.0" autocomplete="off"
+                oninput="ffsSaveField('macroYield', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">תשואת הון פנסיוני (%)</div>
+              <input id="ffs-macro-pension-rate" type="number" min="0" max="15" step="0.1" value="3.0" autocomplete="off"
+                oninput="ffsSaveField('macroPensionRate', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">עליית שכר שנתית (%)</div>
+              <input id="ffs-macro-wage" type="number" min="0" max="20" step="0.1" value="2.0" autocomplete="off"
+                oninput="ffsSaveField('macroWage', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">מס רווחי הון (%)</div>
+              <input id="ffs-macro-tax" type="number" min="0" max="50" step="1" value="25" autocomplete="off"
+                oninput="ffsSaveField('macroTax', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">עליית ערך נדל"ן (%)</div>
+              <input id="ffs-macro-re-growth" type="number" min="0" max="15" step="0.1" value="2.5" autocomplete="off"
+                oninput="ffsSaveField('macroReGrowth', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:7px;">אינפלציה צפויה (%)</div>
+              <input id="ffs-macro-inflation" type="number" min="0" max="20" step="0.1" value="2.5" autocomplete="off"
+                oninput="ffsSaveField('macroInflation', parseFloat(this.value))"
+                style="width:100%;box-sizing:border-box;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-family:Heebo,sans-serif;font-size:15px;color:#1e293b;outline:none;text-align:center;">
+            </div>
+          </div>
+          <button onclick="ffsResetMacroDefaults()" style="margin-top:20px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;color:#475569;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;padding:8px 16px;direction:rtl;">&#8635; שחזר לברירות מחדל</button>
+        </div>
       </div>
 
     </div><!-- end #ffs-drawer-body -->
@@ -2535,20 +2588,25 @@
     </label>
   </div>
 
-  <!-- Common top fields: name + provider -->
+  <!-- Common top fields: provider + name (provider first = right side in RTL) -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
     <div>
       <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-        שם הקופה / מסלול
-      </div>
-      <input type="text" id="ffs-pen-modal-name" autocomplete="off" placeholder="מסלול, שם קצר..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
-        חברה מנהלת
+        שם גוף מנהל
       </div>
       <input type="text" id="ffs-pen-modal-provider" autocomplete="off" list="ffs-providers-dl" placeholder="הראל, מגדל, הפניקס..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
     </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+        שם המסלול
+      </div>
+      <input type="text" id="ffs-pen-modal-name" autocomplete="off" placeholder="מסלול, שם קצר..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
+    </div>
+  </div>
+  <!-- v177.94: account number — separate field, distinct from p.name and p.provider -->
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מספר נכס</div>
+    <input type="text" id="ffs-pen-modal-accountnum" autocomplete="off" placeholder="מספר חשבון, מספר פוליסה..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
   </div>
 
   <!-- Pension fund fields container -->
