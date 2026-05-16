@@ -7,4 +7,4 @@
 
 ## Project Documentation (SSOT)
 
-For specific module logic, semantic colors, and constraints, you MUST read the respective markdown files in the `docs/` directory BEFORE modifying code (e.g., read `docs/events_module.md` when working on Event Management).
+For specific module logic, semantic colors, and constraints, you MUST read the respective markdown files in the `docs/` directory BEFORE modifying code (e.g., read `docs/events_module.md` when working on Event Management, `docs/sliders_module.md` when working on Sliders & Macro-Variables, `docs/pension_logic.md` when working on calculations, asset rendering, or graph logic).
