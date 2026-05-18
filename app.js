@@ -8243,6 +8243,21 @@ function ffsSaveField(key, val) {
   }
   ffsSaveProfile();
 }
+// v178.8: manual override for the gross pension income field
+function ffsRetirementIncomeOverride(el) {
+  var _val = Math.round(parseFloat(el.value) || 0);
+  ffsSaveField('retirementIncome', _val);
+  var _isOvr  = _val > 0;
+  var _rstBtn = document.getElementById('ffs-retirement-income-reset');
+  if (_rstBtn) _rstBtn.style.display = _isOvr ? 'inline-flex' : 'none';
+  el.title = _isOvr ? 'חישוב לפי הזנה ידנית (דריסה)' : 'מחושב אוטומטית מנכסי הפרישה';
+}
+function ffsResetRetirementIncome() {
+  FFS_PROFILE.retirementIncome = 0;
+  ffsSaveProfile();
+  ffsSyncSliders();
+  if (typeof simInited !== 'undefined' && simInited && typeof simRenderKPI === 'function') simRenderKPI();
+}
 function ffsGetLiquidCapital() {
   if (!FFS_PROFILE.investments || !FFS_PROFILE.investments.length) return 0;
   return FFS_PROFILE.investments.reduce(function(s, x) { return s + (x.balance || 0); }, 0);
@@ -10019,9 +10034,13 @@ function ffsSyncSliders() {
   });
   var _penNIS = _penCalc > 0 ? _penCalc : 20000;
   SIM_PENSION_MONTHLY = _penNIS;
-  // Push computed value into read-only retirement income field
-  var _retIncEl = document.getElementById('ffs-retirement-income');
-  if (_retIncEl) _retIncEl.value = _penNIS > 0 ? Math.round(_penNIS) : '';
+  // v178.8: push engine value only when not manually overridden; sync tooltip and reset button
+  var _retIncEl  = document.getElementById('ffs-retirement-income');
+  var _retRstBtn = document.getElementById('ffs-retirement-income-reset');
+  var _isOvr     = FFS_PROFILE.retirementIncome > 0;
+  if (_retIncEl && !_isOvr) _retIncEl.value = _penNIS > 0 ? Math.round(_penNIS) : '';
+  if (_retIncEl) _retIncEl.title = _isOvr ? 'חישוב לפי הזנה ידנית (דריסה)' : 'מחושב אוטומטית מנכסי הפרישה';
+  if (_retRstBtn) _retRstBtn.style.display = _isOvr ? 'inline-flex' : 'none';
   var _pnsSld = document.getElementById('sim-pension-monthly-slider');
   var _pnsNum = document.getElementById('sim-pension-monthly-num');
   if (_pnsSld) _pnsSld.value = _penNIS;
