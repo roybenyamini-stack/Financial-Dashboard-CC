@@ -7870,7 +7870,7 @@ var SIM_SAVINGS_FUND_NAME = 'הראל';
 var SIM_USER1_BIRTH    = '1962-08-25'; // v168.103: Roy default birth date
 var SIM_USER2_BIRTH    = '1968-06-28'; // v168.103: Yael default birth date
 var FFS_PROFILE_LS_KEY = 'ffs_profile_v1'; // v168.72: FFS side drawer profile key
-var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:0, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5 }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90
+var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:0, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5, taxFixationPercent:52, additionalIncomes:[] }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90 + v178.3 + v178.5
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_RETIRE_EXP     = 29000; // v168.101: settings-driven expected monthly retirement expense (drives slider range + KPI#3)
 var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
@@ -8097,15 +8097,98 @@ function ffsLoadProfile() {
       FFS_PROFILE.macroYield       = saved.macroYield       != null ? saved.macroYield       : 4.0;
       FFS_PROFILE.macroWage        = saved.macroWage        != null ? saved.macroWage        : 2.0;
       FFS_PROFILE.macroPensionRate = saved.macroPensionRate != null ? saved.macroPensionRate : 3.0;
-      FFS_PROFILE.macroReGrowth    = saved.macroReGrowth    != null ? saved.macroReGrowth    : 2.5;
+      FFS_PROFILE.macroReGrowth       = saved.macroReGrowth       != null ? saved.macroReGrowth       : 2.5;
+      FFS_PROFILE.taxFixationPercent  = saved.taxFixationPercent  != null ? saved.taxFixationPercent  : 52; // v178.3
+      FFS_PROFILE.additionalIncomes   = saved.additionalIncomes   || []; // v178.5
       // v168.76: ensure pension items have pensionType field (backwards compat)
       FFS_PROFILE.pension.forEach(function(p) { if (!p.pensionType) p.pensionType = 'pension'; });
+      ffsFixationInit(); // v178.3: sync UI — no save triggered
     }
   } catch(e) {}
 }
 function ffsSaveProfile() {
   try { localStorage.setItem(ffsGetActiveKey(), JSON.stringify(FFS_PROFILE)); } catch(e) {} // v169.1: scoped by mode
   if (typeof ffsDebouncedUpdate === 'function') ffsDebouncedUpdate(); // v170.1: live sidebar
+}
+// v178.3: FFS קיבוע זכויות — pure DOM sync, no localStorage write (bound to oninput)
+function ffsFixationUISync(val) {
+  val = parseInt(val, 10);
+  var s = document.getElementById('ffs-fix-slider');
+  if (s) { s.value = val; s.style.background = 'linear-gradient(to left, #6366f1 0%, #6366f1 ' + val + '%, #e5e7eb ' + val + '%, #e5e7eb 100%)'; }
+  var capPct = document.getElementById('ffs-fix-cap-pct');
+  var penPct = document.getElementById('ffs-fix-pen-pct');
+  if (capPct) capPct.textContent = val + '%';
+  if (penPct) penPct.textContent = (100 - val) + '%';
+  var capC = document.getElementById('ffs-fix-circle-capital');
+  var penC = document.getElementById('ffs-fix-circle-pension');
+  if (capC) capC.style.transform = 'scale(' + (0.6 + val / 100 * 0.4) + ')';
+  if (penC) penC.style.transform = 'scale(' + (0.6 + (100 - val) / 100 * 0.4) + ')';
+  var ms = document.getElementById('ffs-fix-modal-slider');
+  if (ms) { ms.value = val; ms.style.background = 'linear-gradient(to left, #6366f1 0%, #6366f1 ' + val + '%, #e5e7eb ' + val + '%, #e5e7eb 100%)'; }
+  var mCapPct = document.getElementById('ffs-fix-modal-cap-pct');
+  var mPenPct = document.getElementById('ffs-fix-modal-pen-pct');
+  if (mCapPct) mCapPct.textContent = val + '%';
+  if (mPenPct) mPenPct.textContent = (100 - val) + '%';
+  var mCapC = document.getElementById('ffs-fix-modal-circle-capital');
+  var mPenC = document.getElementById('ffs-fix-modal-circle-pension');
+  if (mCapC) mCapC.style.transform = 'scale(' + (0.6 + val / 100 * 0.4) + ')';
+  if (mPenC) mPenC.style.transform = 'scale(' + (0.6 + (100 - val) / 100 * 0.4) + ')';
+}
+// v178.3: persist to FFS_PROFILE + localStorage (bound to onchange — fires once on mouse release)
+function ffsFixationCommit(val) {
+  FFS_PROFILE.taxFixationPercent = parseInt(val, 10);
+  ffsSaveProfile();
+}
+// v178.3: populate UI from FFS_PROFILE — no save triggered, safe to call on load
+function ffsFixationInit() {
+  var val = (FFS_PROFILE.taxFixationPercent != null) ? FFS_PROFILE.taxFixationPercent : 52;
+  ffsFixationUISync(val);
+  ffsRenderAdditionalIncomes();
+}
+// v178.5: Additional Incomes — oninput updates memory only, onblur commits to localStorage
+function ffsRenderAdditionalIncomes() {
+  var list = document.getElementById('ffs-additional-incomes-list');
+  if (!list) return;
+  list.innerHTML = '';
+  (FFS_PROFILE.additionalIncomes || []).forEach(function(inc, idx) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;background:#f8fafc;border-radius:10px;padding:8px 10px;';
+    var iStyle = 'font-family:Heebo,sans-serif;font-size:13px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;outline:none;background:white;width:100%;box-sizing:border-box;';
+    row.innerHTML =
+      '<input type="text" placeholder="תיאור (למשל: שכ״ד)" value="' + (inc.description || '').replace(/"/g, '&quot;') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'description\',this.value)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + '">' +
+      '<input type="number" placeholder="סכום ₪" value="' + (inc.amount || '') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'amount\',parseFloat(this.value)||0)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
+      '<input type="number" placeholder="גיל התחלה" value="' + (inc.startAge != null ? inc.startAge : 67) + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'startAge\',parseInt(this.value)||67)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
+      '<input type="number" placeholder="גיל סיום" value="' + (inc.endAge || '') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'endAge\',parseInt(this.value)||0)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
+      '<span onclick="ffsDeleteAdditionalIncome(' + idx + ')" style="cursor:pointer;font-size:16px;color:#ef4444;padding:4px;flex-shrink:0;">🗑️</span>';
+    list.appendChild(row);
+  });
+}
+function ffsAddAdditionalIncome() {
+  if (!FFS_PROFILE.additionalIncomes) FFS_PROFILE.additionalIncomes = [];
+  FFS_PROFILE.additionalIncomes.push({ description: '', amount: 0, startAge: 67, endAge: 0 });
+  ffsSaveProfile();
+  ffsRenderAdditionalIncomes();
+}
+function ffsDeleteAdditionalIncome(idx) {
+  FFS_PROFILE.additionalIncomes.splice(idx, 1);
+  ffsSaveProfile();
+  ffsRenderAdditionalIncomes();
+}
+function ffsUpdateAdditionalIncome(idx, field, val) {
+  if (!FFS_PROFILE.additionalIncomes || !FFS_PROFILE.additionalIncomes[idx]) return;
+  FFS_PROFILE.additionalIncomes[idx][field] = val;
+}
+function ffsCommitAdditionalIncomes() {
+  ffsSaveProfile();
+}
+function openFfsFixationModal() {
+  ffsFixationInit();
+  var m = document.getElementById('ffs-fixation-modal');
+  if (m) m.style.display = 'flex';
+}
+function closeFfsFixationModal() {
+  var m = document.getElementById('ffs-fixation-modal');
+  if (m) m.style.display = 'none';
 }
 function ffsResetMacroDefaults() {
   ffsSaveField('macroInflation',   2.5);
@@ -8507,7 +8590,7 @@ function ffsAddItem(section) {
   } else if (section === 'realEstate') {
     FFS_PROFILE.realEstate.push({ id: id, name: '', value: 0, type: 'residence', monthlyRent: 0, mortgagePayment: 0, mortgageEndYear: 0 });
   } else if (section === 'pension') {
-    FFS_PROFILE.pension.push({ id: id, name: '', accountNum: '', provider: '', pensionType: 'pension', accumulation: 0, monthlyPension: null, contributionPct: null, expectedPayout: null, conversionFactor: null, survivorsEnabled: false, spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: 0, isActive: true });
+    FFS_PROFILE.pension.push({ id: id, name: '', accountNum: '', provider: '', pensionType: 'pension', pensionSubtype: 'new', calcRoute: 'B', overflowTarget: 'pension', accumulation: 0, monthlyPension: null, contributionPct: null, expectedPayout: null, conversionFactor: null, survivorsEnabled: false, spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: 0, monthlyContribution: 0, isActive: true });
   }
   ffsSaveProfile();
   ffsRenderSection(section);
@@ -8589,6 +8672,31 @@ function ffsOpenPensionModal(item) {
   document.getElementById('ffs-pen-modal-accum').value    = item ? (item.accumulation || 0) : '';
   document.getElementById('ffs-pen-modal-factor').value   = item ? (item.conversionFactor || '') : '';
   document.getElementById('ffs-pen-modal-life').value     = item ? (item.lifeInsurance || 0) : '';
+  var mcEl = document.getElementById('ffs-pen-modal-monthly-contrib');
+  if (mcEl) mcEl.value = item ? (item.monthlyContribution != null ? item.monthlyContribution : '') : '';
+  // v178.7: sub-type, calc route, overflow target
+  var _subtypeNewEl    = document.getElementById('ffs-pen-modal-subtype-new');
+  var _subtypeVatiqaEl = document.getElementById('ffs-pen-modal-subtype-vatiqa');
+  if (_subtypeNewEl)    _subtypeNewEl.checked    = !item || item.pensionSubtype !== 'vatiqa';
+  if (_subtypeVatiqaEl) _subtypeVatiqaEl.checked = !!(item && item.pensionSubtype === 'vatiqa');
+  var _birthYear    = parseInt((FFS_PROFILE.birthDate || '').split('-')[0]) || (new Date().getFullYear() - 40);
+  var _userAge      = new Date().getFullYear() - _birthYear;
+  var _defaultRoute = (_userAge >= 60) ? 'A' : 'B';
+  var _route        = item ? (item.calcRoute || _defaultRoute) : _defaultRoute;
+  var _routeAEl     = document.getElementById('ffs-pen-modal-route-a');
+  var _routeBEl     = document.getElementById('ffs-pen-modal-route-b');
+  if (_routeAEl) _routeAEl.checked = (_route === 'A');
+  if (_routeBEl) _routeBEl.checked = (_route !== 'A');
+  var _overflowEl = document.getElementById('ffs-pen-modal-overflow-target');
+  if (_overflowEl) _overflowEl.value = item ? (item.overflowTarget || 'pension') : 'pension';
+  // v178.7: for חדשה pension sub-type, populate capital fields from pension item
+  var _isPensionType = item && (!item.pensionType || item.pensionType === 'pension');
+  if (_isPensionType && item.pensionSubtype !== 'vatiqa') {
+    var _accumEl = document.getElementById('ffs-pen-modal-accum');
+    var _factorEl = document.getElementById('ffs-pen-modal-factor');
+    if (_accumEl)  _accumEl.value  = item.accumulation  || 0;
+    if (_factorEl) _factorEl.value = item.conversionFactor || '';
+  }
   document.getElementById('ffs-pen-modal-active').checked = item ? (!!item.isActive) : false;
   document.getElementById('ffs-pen-modal-notes').value    = item ? (item.notes || '') : '';
   ffsTogglePensionType();
@@ -8604,8 +8712,29 @@ function ffsTogglePensionType() {
   var isPension     = document.getElementById('ffs-pen-modal-type-pension').checked;
   var invEl         = document.getElementById('ffs-pen-modal-type-investments');
   var isInvestments = invEl ? invEl.checked : false;
-  document.getElementById('pension-fund-fields').style.display   = isPension ? '' : 'none';
-  document.getElementById('exec-insurance-fields').style.display = (!isPension && !isInvestments) ? '' : 'none';
+  var subtypeRow    = document.getElementById('ffs-pen-subtype-row');
+  var routeRow      = document.getElementById('ffs-pen-modal-route-row');
+  if (subtypeRow) subtypeRow.style.display = isPension ? '' : 'none';
+  if (routeRow)   routeRow.style.display   = isInvestments ? 'none' : '';
+  ffsTogglePensionSubtype();
+}
+// v178.7: route field-container visibility driven by sub-type + calc route
+function ffsTogglePensionSubtype() {
+  var isPension     = document.getElementById('ffs-pen-modal-type-pension') && document.getElementById('ffs-pen-modal-type-pension').checked;
+  var invEl         = document.getElementById('ffs-pen-modal-type-investments');
+  var isInvestments = invEl ? invEl.checked : false;
+  var vatiqaEl      = document.getElementById('ffs-pen-modal-subtype-vatiqa');
+  var isVatiqa      = isPension && vatiqaEl && vatiqaEl.checked;
+  var routeBEl      = document.getElementById('ffs-pen-modal-route-b');
+  var isRouteB      = routeBEl && routeBEl.checked;
+  var penFundFields = document.getElementById('pension-fund-fields');
+  var vatiqaFields  = document.getElementById('vatiqa-pension-fields');
+  var execFields    = document.getElementById('exec-insurance-fields');
+  var overflowRow   = document.getElementById('ffs-pen-modal-overflow-row');
+  if (penFundFields) penFundFields.style.display = (isPension && !isInvestments) ? '' : 'none';
+  if (vatiqaFields)  vatiqaFields.style.display  = isVatiqa ? '' : 'none';
+  if (execFields)    execFields.style.display    = (!isInvestments && (!isPension || !isVatiqa)) ? '' : 'none';
+  if (overflowRow)   overflowRow.style.display   = (isVatiqa && isRouteB) ? '' : 'none';
 }
 function ffsSavePensionFromModal() {
   var _invRadio     = document.getElementById('ffs-pen-modal-type-investments');
@@ -8642,18 +8771,31 @@ function ffsSavePensionFromModal() {
     provider: provVal,
     pensionType: isPension ? 'pension' : 'manager',
     isActive: activeVal,
-    notes: notesVal
+    notes: notesVal,
+    monthlyContribution: parseFloat(document.getElementById('ffs-pen-modal-monthly-contrib').value) || 0,
+    calcRoute: (document.getElementById('ffs-pen-modal-route-a') && document.getElementById('ffs-pen-modal-route-a').checked) ? 'A' : 'B'
   };
   if (isPension) {
     var _pNull = function(id) { var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
-    newData.monthlyPension   = _pNull('ffs-pen-modal-monthly');
-    newData.expectedPayout   = _pNull('ffs-pen-modal-expected');
-    newData.contributionPct  = parseFloat(document.getElementById('ffs-pen-modal-contrib').value)  || 0;
+    var _vatiqaEl2  = document.getElementById('ffs-pen-modal-subtype-vatiqa');
+    var _isVatiqa   = _vatiqaEl2 && _vatiqaEl2.checked;
+    newData.pensionSubtype = _isVatiqa ? 'vatiqa' : 'new';
+    if (_isVatiqa) {
+      newData.monthlyPension   = _pNull('ffs-pen-modal-monthly');
+      newData.contributionPct  = parseFloat(document.getElementById('ffs-pen-modal-contrib').value) || 0;
+      newData.overflowTarget   = (document.getElementById('ffs-pen-modal-overflow-target') || {}).value || 'pension';
+      newData.accumulation = 0; newData.conversionFactor = null; newData.expectedPayout = null;
+    } else {
+      var _accumNew = parseFloat(document.getElementById('ffs-pen-modal-accum').value) || 0;
+      newData.accumulation    = _accumNew;
+      newData.conversionFactor = parseFloat(document.getElementById('ffs-pen-modal-factor').value) || null;
+      newData.monthlyPension = null; newData.contributionPct = 0; newData.expectedPayout = null; newData.overflowTarget = 'pension';
+    }
     newData.survivorsEnabled = !!(document.getElementById('ffs-pen-modal-survivors').checked);
     newData.spousePct        = _pNull('ffs-pen-modal-spouse');
     newData.orphanPct        = _pNull('ffs-pen-modal-orphan');
     newData.childrenAges     = (document.getElementById('ffs-pen-modal-children').value || '').trim();
-    newData.accumulation = 0; newData.conversionFactor = null; newData.lifeInsurance = 0;
+    newData.lifeInsurance = 0;
   } else {
     var accumVal = parseFloat(document.getElementById('ffs-pen-modal-accum').value)  || 0;
     var lifeVal  = parseFloat(document.getElementById('ffs-pen-modal-life').value)   || 0;
@@ -8662,6 +8804,7 @@ function ffsSavePensionFromModal() {
     newData.lifeInsurance    = accumVal;
     newData.monthlyPension = 0; newData.expectedPayout = 0; newData.contributionPct = 0;
     newData.survivorsEnabled = false; newData.spousePct = 0; newData.orphanPct = 0; newData.childrenAges = '';
+    newData.pensionSubtype = 'new'; newData.overflowTarget = 'pension';
   }
   if (isEdit) {
     var existing = (FFS_PROFILE.pension || []).find(function(x) { return x.id === ffsCurrentPensionId; });
@@ -9571,6 +9714,8 @@ function ffsRenderAll() {
   ffsUpdateDrawerTitle(); // v168.75: sync header with active name
   if (typeof ffsUpdateNavSummaries === 'function') ffsUpdateNavSummaries(); // v170.1
   if (typeof ffsUpdateLiveSidebar  === 'function') ffsUpdateLiveSidebar();  // v170.1
+  // v178.8: push actuarial projection into read-only retirement income field after every render
+  if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
 }
 var _ffsDrawerOpen = false; // v177.36 Iron Dome: true while FFS drawer is visible
 
@@ -9860,12 +10005,23 @@ function ffsSyncSliders() {
   if (_expSld) _expSld.value = SIM_TARGET_EXP;
   if (_expNum) _expNum.value = SIM_TARGET_EXP;
   if (_expVal) _expVal.textContent = simFmtNIS(SIM_TARGET_EXP);
-  // Income slider: v178.2 — use 20000 placeholder when no real income data exists (TEMP until engine wired)
+  // Income: v178.7 — run actuarial projection engine; fall back to static sum if no items
+  var _proj    = ffsPensionProjectionEngine();
+  FFS_PROFILE._projectedOverflowLiquid = _proj.overflowLiquid; // transient, not persisted
   var _penCalc = (FFS_PROFILE.retirementIncome > 0)
     ? FFS_PROFILE.retirementIncome
-    : ffsTotalPensionMonthlyNIS();
+    : (_proj.totalMonthly > 0 ? _proj.totalMonthly : ffsTotalPensionMonthlyNIS());
+  // v178.7: add additional incomes valid at retirement age
+  var _retAgeSync = parseInt(FFS_PROFILE.retirementAge) || 67;
+  (FFS_PROFILE.additionalIncomes || []).forEach(function(inc) {
+    var _s = inc.startAge || 67; var _e = inc.endAge || 999;
+    if (_retAgeSync >= _s && _retAgeSync <= _e) _penCalc += (inc.amount || 0);
+  });
   var _penNIS = _penCalc > 0 ? _penCalc : 20000;
   SIM_PENSION_MONTHLY = _penNIS;
+  // Push computed value into read-only retirement income field
+  var _retIncEl = document.getElementById('ffs-retirement-income');
+  if (_retIncEl) _retIncEl.value = _penNIS > 0 ? Math.round(_penNIS) : '';
   var _pnsSld = document.getElementById('sim-pension-monthly-slider');
   var _pnsNum = document.getElementById('sim-pension-monthly-num');
   if (_pnsSld) _pnsSld.value = _penNIS;
@@ -10109,6 +10265,88 @@ function ffsTotalPensionMonthlyNIS() {
     }
     return s + (p.monthlyPension || 0);
   }, 0);
+}
+// v178.7: actuarial projection engine — projects each pension asset to retirement age
+function ffsPensionProjectionEngine() {
+  var MAX_ACC_PCT   = 70;
+  var _birthYear    = parseInt((FFS_PROFILE.birthDate || '').split('-')[0]) || (new Date().getFullYear() - 40);
+  var _currentAge   = new Date().getFullYear() - _birthYear;
+  var _retireAge    = parseInt(FFS_PROFILE.retirementAge) || 67;
+  var _macroYield   = ((FFS_PROFILE.macroYield != null ? FFS_PROFILE.macroYield : 4.0)) / 100;
+  var _monthlyRate  = _macroYield / 12;
+  var _yearsToRet   = Math.max(0, _retireAge - _currentAge);
+  var _monthsToRet  = _yearsToRet * 12;
+  var _totalMonthly = 0;
+  var _overflowLiq  = 0;
+
+  function _isGapYear(age) {
+    var _bridge = parseInt(FFS_PROFILE.bridgeAge) || 0;
+    if (_bridge > 0 && !FFS_PROFILE.bridgePensionContrib && age >= _bridge && age < _retireAge) return true;
+    var _keys = ['פיטורים','הפסקת עבודה','שנת שבתון','תקופת מעבר','gap','חל"ת','בין עבודות'];
+    return (FFS_PROFILE.ffsEvents || []).some(function(ev) {
+      if (!ev.targetAge) return false;
+      var _lbl = (ev.label || '').toLowerCase();
+      return _keys.some(function(k) { return _lbl.indexOf(k) !== -1; }) && Math.abs(age - ev.targetAge) < 1;
+    });
+  }
+
+  (FFS_PROFILE.pension || []).forEach(function(item) {
+    if (!item || item.isActive === false) return;
+    var _route = item.calcRoute || 'B';
+    var _isMgr = (item.pensionType === 'manager' || item.pensionType === 'ביטוח מנהלים');
+    var _isVat = !_isMgr && (item.pensionSubtype === 'vatiqa');
+    var _mc    = item.monthlyContribution || 0;
+
+    // ── Route A: static known values ──────────────────────────────
+    if (_route === 'A') {
+      if (_isVat) {
+        _totalMonthly += (item.monthlyPension || 0);
+      } else {
+        var _a = (item.accumulation || 0) * 1000;
+        var _c = item.conversionFactor || 180;
+        _totalMonthly += (_a > 0 && _c > 0) ? (_a / _c) : (item.monthlyPension || 0);
+      }
+      return;
+    }
+
+    // ── Route B: real growth projection ───────────────────────────
+    if (_isVat) {
+      var _accPct      = item.contributionPct || 0;
+      var _baseMo      = item.monthlyPension  || 0;
+      var _overflow    = 0;
+      var _runPct      = _accPct;
+      for (var _yr = 0; _yr < _yearsToRet; _yr++) {
+        if (_isGapYear(_currentAge + _yr)) continue;
+        if (_runPct >= MAX_ACC_PCT) {
+          _overflow = _overflow * (1 + _macroYield) + (_mc * 12);
+        } else {
+          _runPct = Math.min(_runPct + 2, MAX_ACC_PCT);
+        }
+      }
+      var _finalPct = Math.min(_runPct, MAX_ACC_PCT);
+      var _finalMo  = (_accPct > 0 && _baseMo > 0) ? (_baseMo / _accPct) * _finalPct : _baseMo;
+      if (item.overflowTarget === 'capital') {
+        _overflowLiq += _overflow;
+      } else {
+        _finalMo += _overflow / 180;
+      }
+      _totalMonthly += _finalMo;
+    } else {
+      var _capital = (item.accumulation || 0) * 1000;
+      var _coeff   = item.conversionFactor || 180;
+      for (var _m = 0; _m < _monthsToRet; _m++) {
+        if (_isGapYear(Math.floor(_currentAge + _m / 12))) {
+          _capital *= (1 + _monthlyRate);
+        } else {
+          _capital = _capital * (1 + _monthlyRate) + _mc;
+        }
+      }
+      _totalMonthly += (_coeff > 0) ? (_capital / _coeff) : 0;
+    }
+  });
+
+  // investments[] are liquid capital only — never converted to monthly annuity here
+  return { totalMonthly: Math.round(_totalMonthly), overflowLiquid: Math.round(_overflowLiq) };
 }
 // v168.77: show/hide instructor slider based on FFS profile presence
 function simSyncInstrSlider() {
@@ -10582,6 +10820,10 @@ function simRunEngine() {
       var _effInstructorSal = (i >= instructorStartIdx) ? instructorSal : 0; // v177.0: gate to Sep 2027 (age 65)
       royLiquid += ((_inBridge ? _bridgeCashflow : _effInstructorSal) - targetExp) / 1000;
     } else {
+      // v178.7: inject overflow lump sum (capped old-pension capital redirect) at retirement month
+      if (i === phase3Idx && FFS_PROFILE._projectedOverflowLiquid > 0) {
+        royLiquid += FFS_PROFILE._projectedOverflowLiquid / 1000; // ₪ → K₪
+      }
       royLiquid += (totalPensionIncome - targetExp) / 1000;
     }
     // v103.38: investment monthly cashflow (rent − loan) always applies
