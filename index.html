@@ -1,4 +1,4 @@
-<!-- v178.8 -->
+<!-- v179.16 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v178.8</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v179.16</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1472,7 +1472,7 @@
           <div style="font-size:9px;color:#9ca3af;margin-top:4px;">כפתור "פרישה" — טווח פרישה | "טווח" — שנה נוכחית + 10 כברירת מחדל</div>
           <div style="margin-top:8px;text-align:left;"><button onclick="document.getElementById('sim-zoom-settings').style.display='none'" style="padding:2px 10px;border-radius:4px;border:1px solid #d1d5db;background:#f9fafb;font-size:10px;cursor:pointer;font-family:Heebo,sans-serif;">סגור</button></div>
         </div>
-        <div id="sim-chart-wrap" style="position:relative;height:340px;width:100%;overflow:hidden;"></div>
+        <div id="sim-chart-wrap" style="position:relative;height:420px;width:100%;overflow:hidden;"></div>
       </div>
     </div>
 
@@ -1582,7 +1582,7 @@
 
 <!-- FFS Command Center v170.1 — Wide Modal, 3-column layout -->
 <div id="ffs-backdrop" onclick="closeFFSDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10099;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);"></div>
-<div id="ffs-drawer" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:1380px;height:88vh;z-index:10100;border-radius:20px;overflow:hidden;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 32px 100px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s ease,transform 0.25s ease;">
+<div id="ffs-drawer" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:1680px;height:88vh;z-index:10100;border-radius:20px;overflow:hidden;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 32px 100px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s ease,transform 0.25s ease;">
 
   <!-- === MODAL HEADER === -->
   <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:16px 28px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);">
@@ -1607,7 +1607,7 @@
       📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
     </label>
     <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
-    <button class="cc-btn" onclick="ffsSalkahFilePick()" title="יבוא מסמך מסלקה פנסיונית">🤖 יבוא מסלקה</button>
+    <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
     <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
     <div style="flex:1;"></div>
     <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
@@ -2086,6 +2086,28 @@
   </div><!-- end 3-column body -->
 
 </div><!-- end #ffs-drawer -->
+
+<!-- SALKAH XML IMPORT MODAL v179.2 -->
+<div id="salkah-backdrop" onclick="closeSalkahModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10400;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);"></div>
+<div id="salkah-modal" ondragover="event.preventDefault();event.stopPropagation();" ondrop="event.preventDefault();event.stopPropagation();" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:94%;max-width:560px;z-index:10401;border-radius:20px;overflow:hidden;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 72px rgba(0,0,0,0.45);">
+  <div style="background:#1e293b;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;">
+    <span style="color:white;font-size:16px;font-weight:800;">🏦 יבוא קובץ מסלקה</span>
+    <span onclick="closeSalkahModal()" style="color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">✕</span>
+  </div>
+  <div style="background:white;padding:28px 24px;">
+    <div id="salkah-dropzone" class="salkah-dropzone"
+         onclick="document.getElementById('salkah-xml-input').click()"
+         ondragover="salkahDragOver(event)"
+         ondragleave="salkahDragLeave(event)"
+         ondrop="salkahDrop(event)">
+      <div style="font-size:36px;margin-bottom:10px;">📂</div>
+      <div style="font-size:14px;font-weight:700;color:#374151;margin-bottom:6px;">גרור ושחרר קובץ מסלקה (XML) לכאן</div>
+      <div style="font-size:12px;color:#9ca3af;">או לחץ לבחירת קובץ</div>
+    </div>
+    <input type="file" id="salkah-xml-input" accept=".xml" multiple style="display:none;" onchange="salkahFileChange(event)">
+    <div id="salkah-status" style="display:none;margin-top:14px;padding:12px 14px;border-radius:10px;font-size:13px;font-weight:600;text-align:center;direction:rtl;"></div>
+  </div>
+</div>
 
 <!-- Yoav Sample Profile Overwrite Guard Modal v170.6 -->
 <div id="yoav-overwrite-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10410;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
