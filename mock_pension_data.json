@@ -1,0 +1,633 @@
+{
+  "_meta": {
+    "schema_version": "009",
+    "generated": "MOCK_DATA_ANONYMIZED",
+    "source": "Synthesized from 17 Israeli pension XML files (Mimshak format)",
+    "note": "All personal IDs, names, addresses, balances replaced with realistic dummy data",
+    "xml_root_tag": "Mimshak",
+    "report_date": "20260430",
+    "coverage": "All 7 SUG-MUTZAR product types represented"
+  },
+  "customer": {
+    "id_number": "012345678",
+    "first_name": "דנה",
+    "last_name": "כהן",
+    "gender": "2",
+    "birth_date": "19700315",
+    "deceased": "2",
+    "marital_status": "2",
+    "address": {
+      "country": "ישראל",
+      "city": "תל אביב",
+      "street": "דיזנגוף",
+      "house_number": "12",
+      "zip": "6433220"
+    },
+    "phone_mobile": "052-1234567",
+    "email": "dana.kohen@example.com",
+    "children_count": 2
+  },
+  "accounts": [
+    {
+      "_comment": "SUG-MUTZAR=9 — קופת גמל להשקעה (Investment Provident Fund)",
+      "file_code": "KGM",
+      "file_sequence": 1,
+      "institution_code": "510000001",
+      "institution_name": "גמל ישיר בע\"מ",
+      "product_type_code": "9",
+      "product_type_label": "קופת גמל להשקעה",
+      "account_number": "123-456-789012-0",
+      "product_name": "גמל ישיר להשקעה",
+      "unique_id": "510000001000000000000010000000",
+      "agent_code": "3-00001",
+      "report_date": "20260430",
+      "join_date_product": "20220101",
+      "join_date_first": "20180601",
+      "status": "2",
+      "pension_fund_type": null,
+      "is_new_pension": null,
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "employer": {
+        "employer_id_type": "3",
+        "employer_id": "012345678",
+        "employer_name": "עצמאי",
+        "deduction_file": null
+      },
+      "investment_tracks": [
+        {
+          "track_code": "510000001000000000000010001001",
+          "track_type": "1",
+          "contribution_type": "4",
+          "track_name": "גמל ישיר להשקעה — מניות",
+          "accumulated_balance": 380000.00,
+          "net_return_rate": 9.20,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 0.860,
+          "annual_cost_pct": 0.860
+        },
+        {
+          "track_code": "510000001000000000000010001002",
+          "track_type": "1",
+          "contribution_type": "4",
+          "track_name": "גמל ישיר להשקעה — כללי",
+          "accumulated_balance": 310000.00,
+          "net_return_rate": 5.10,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 0.880,
+          "annual_cost_pct": 0.880
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "1",
+          "contribution_type": "4",
+          "percent": 0.0,
+          "amount": 60000.00,
+          "reference_date": "20260415"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 690000.00,
+        "redemption_value": null,
+        "balance_adjustment": 0.0
+      },
+      "previous_year_balance": 620000.00,
+      "returns": {
+        "net_return_rate": 9.20,
+        "gross_profit_loss": 38500.00,
+        "profit_sign": "1",
+        "guaranteed_return": null
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "2",
+        "agent_id": "510099999",
+        "agent_name": "משה לוי סוכנות ביטוח בע\"מ",
+        "appointment_date": "20220101",
+        "expiry_date": "2032-01-01"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=4 — קרן השתלמות (Study/Training Fund)",
+      "file_code": "KGM",
+      "file_sequence": 2,
+      "institution_code": "510000002",
+      "institution_name": "כלל גמל ופנסיה בע\"מ",
+      "product_type_code": "4",
+      "product_type_label": "קרן השתלמות",
+      "account_number": "040-234-567890-0",
+      "product_name": "כלל השתלמות",
+      "unique_id": "510000002000000000000020000000",
+      "agent_code": "3-00002",
+      "report_date": "20260430",
+      "join_date_product": "20150101",
+      "join_date_first": "20060101",
+      "status": "2",
+      "pension_fund_type": null,
+      "is_new_pension": null,
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511111111",
+        "employer_name": "חברת טכנולוגיה בע\"מ",
+        "deduction_file": "555555555"
+      },
+      "investment_tracks": [
+        {
+          "track_code": "510000002000000000000020001001",
+          "track_type": "1",
+          "contribution_type": "4",
+          "track_name": "כלל השתלמות כללי",
+          "accumulated_balance": 450000.00,
+          "net_return_rate": 6.80,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 0.500,
+          "annual_cost_pct": 0.500
+        },
+        {
+          "track_code": "510000002000000000000020001002",
+          "track_type": "1",
+          "contribution_type": "4",
+          "track_name": "כלל השתלמות מניות",
+          "accumulated_balance": 850000.00,
+          "net_return_rate": 10.40,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 0.500,
+          "annual_cost_pct": 0.500
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "2",
+          "contribution_type": "4",
+          "percent": 7.5,
+          "amount": 0.0,
+          "reference_date": "20260415"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 1300000.00,
+        "redemption_value": null,
+        "balance_adjustment": 0.0
+      },
+      "previous_year_balance": 1150000.00,
+      "returns": {
+        "net_return_rate": 8.90,
+        "gross_profit_loss": 95000.00,
+        "profit_sign": "1",
+        "guaranteed_return": null
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "2",
+        "agent_id": "510099999",
+        "agent_name": "משה לוי סוכנות ביטוח בע\"מ",
+        "appointment_date": "20150101",
+        "expiry_date": "2035-01-01"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=3 — קופת גמל תגמולים (Employer Provident Fund / Tagnumim)",
+      "file_code": "KGM",
+      "file_sequence": 4,
+      "institution_code": "510000003",
+      "institution_name": "קופת גמל ישראל בע\"מ",
+      "product_type_code": "3",
+      "product_type_label": "קופת גמל תגמולים",
+      "account_number": "300-345-678901-0",
+      "product_name": "גמל תגמולים כללי",
+      "unique_id": "510000003000000000000030000000",
+      "agent_code": "3-00003",
+      "report_date": "20260430",
+      "join_date_product": "19950101",
+      "join_date_first": "19950101",
+      "status": "2",
+      "pension_fund_type": null,
+      "is_new_pension": null,
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511111111",
+        "employer_name": "חברת טכנולוגיה בע\"מ",
+        "deduction_file": "555555555"
+      },
+      "investment_tracks": [
+        {
+          "track_code": "510000003000000000000030001001",
+          "track_type": "1",
+          "contribution_type": "3",
+          "track_name": "גמל תגמולים מניות",
+          "accumulated_balance": 420000.00,
+          "net_return_rate": 8.50,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 0.500,
+          "annual_cost_pct": 0.500
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "1",
+          "contribution_type": "3",
+          "percent": 7.0,
+          "amount": 0.0,
+          "reference_date": "20260415"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 420000.00,
+        "redemption_value": null,
+        "balance_adjustment": 0.0
+      },
+      "previous_year_balance": 385000.00,
+      "returns": {
+        "net_return_rate": 8.50,
+        "gross_profit_loss": 34000.00,
+        "profit_sign": "1",
+        "guaranteed_return": null
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "2",
+        "agent_id": "510099999",
+        "agent_name": "משה לוי סוכנות ביטוח בע\"מ",
+        "appointment_date": "19950101",
+        "expiry_date": "2035-01-01"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=2 + SUG-KEREN-PENSIA=2 — פנסיה חדשה מקיפה (New Comprehensive Pension)",
+      "file_code": "PNN",
+      "file_sequence": 3,
+      "institution_code": "512000001",
+      "institution_name": "פנסיה ישירה בע\"מ",
+      "product_type_code": "2",
+      "product_type_label": "פנסיה מקיפה חדשה",
+      "pension_fund_type": "2",
+      "is_new_pension": "2",
+      "account_number": "012345678",
+      "product_name": "פנסיה ישירה מקיפה",
+      "unique_id": "512000001000000000000040000000",
+      "agent_code": "3-00004",
+      "report_date": "20260430",
+      "join_date_product": "20070601",
+      "join_date_first": "20070601",
+      "status": "2",
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511111111",
+        "employer_name": "חברת טכנולוגיה בע\"מ",
+        "deduction_file": "555555555",
+        "employer_status": "2"
+      },
+      "investment_tracks": [
+        {
+          "track_code": "512000001000000000000040001001",
+          "track_type": "1",
+          "contribution_type": "1",
+          "track_name": "פנסיה ישירה כללי",
+          "accumulated_balance": 680000.00,
+          "net_return_rate": 5.20,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct_dmei_nihul_hisachon": 0.50,
+          "annual_cost_pct": 0.280
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "2",
+          "contribution_type": "1",
+          "percent": 0.0,
+          "amount": 0.0,
+          "reference_date": "19000101",
+          "employer_obligation_type": "1",
+          "unconditional_rights": "2",
+          "seif_14": "1",
+          "start_date": "20070601"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 680000.00,
+        "redemption_value": null,
+        "balance_adjustment": -0.50
+      },
+      "previous_year_balance": 640000.00,
+      "returns": {
+        "net_return_rate": 5.20,
+        "gross_profit_loss": 3200.00,
+        "profit_sign": "1",
+        "guaranteed_return": 5.15
+      },
+      "pension_projection": {
+        "retirement_age": 67,
+        "pension_election_rate": 17.05,
+        "total_projected_accumulation": 2100000.00,
+        "projected_accumulation_no_premiums": 2100000.00,
+        "current_monthly_pension_nis": 680.00,
+        "projected_monthly_pension_nis": 680.00,
+        "insurance_track_code": "512000001000000000000000000112",
+        "insurance_track_name": "מסלול ביטוח 75% נכות ו-100% שאירים"
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "1",
+        "agent_id": "512099999",
+        "agent_name": "תמוז רענן פז סוכנות לביטוח בע\"מ",
+        "appointment_date": "20251118",
+        "expiry_date": "2035-11-18"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=2 + PNO — פנסיה ותיקה מקיפה (Old Defined-Benefit Pension, e.g. מבטחים). NO savings balance.",
+      "file_code": "PNO",
+      "file_sequence": 14,
+      "institution_code": "520000099",
+      "institution_name": "מבטחים (מדומה) מוסד לביטוח",
+      "product_type_code": "2",
+      "product_type_label": "פנסיה ותיקה מקיפה (הטבה מוגדרת)",
+      "pension_fund_type": "2",
+      "is_new_pension": "1",
+      "account_number": "012345678",
+      "product_name": "מקיפה ותיקה",
+      "unique_id": "520000099000000000000050000000",
+      "agent_code": null,
+      "report_date": "20260430",
+      "join_date_product": "19950101",
+      "join_date_first": "19950101",
+      "status": "1",
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "_note": "Defined-benefit pension. YITRAT-SOF-SHANA does not exist. Balance expressed as monthly contributions.",
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511222333",
+        "employer_name": "אל-על (מדומה) נתיבי אוויר",
+        "deduction_file": "999999999"
+      },
+      "contributions": [
+        { "depositor_type": "1", "contribution_type": "1", "percent": 0.0, "amount": 1200.00, "reference_date": "20260415" },
+        { "depositor_type": "2", "contribution_type": "2", "percent": 0.0, "amount": 1400.00, "reference_date": "20260415" },
+        { "depositor_type": "3", "contribution_type": "3", "percent": 0.0, "amount": 1500.00, "reference_date": "20260415" }
+      ],
+      "year_end_balance": null,
+      "pension_projection": {
+        "retirement_age": 67,
+        "defined_benefit": true,
+        "no_accumulation_balance": true
+      },
+      "agent": null,
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=5 — ביטוח מנהלים (Modern Manager Insurance Policy with savings)",
+      "file_code": "ING",
+      "file_sequence": 13,
+      "institution_code": "520000001",
+      "institution_name": "ביטוח ישיר חברה לביטוח בע\"מ",
+      "product_type_code": "5",
+      "product_type_label": "ביטוח מנהלים",
+      "account_number": "53000001",
+      "product_name": "מנהלים מניב",
+      "unique_id": "520000001000000000000060000000",
+      "agent_code": "3-00006",
+      "report_date": "20260430",
+      "join_date_product": "20020601",
+      "join_date_first": "20020601",
+      "status": "1",
+      "pension_fund_type": null,
+      "is_new_pension": null,
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511111111",
+        "employer_name": "חברת טכנולוגיה בע\"מ",
+        "deduction_file": "555555555"
+      },
+      "investment_tracks": [
+        {
+          "track_code": "520000001000000000000060001001",
+          "track_type": "2",
+          "contribution_type": "4",
+          "track_name": "קרן השקעה כללי",
+          "accumulated_balance": 1200000.00,
+          "net_return_rate": 4.50,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 1.000,
+          "annual_cost_pct": 1.000
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "2",
+          "contribution_type": "4",
+          "percent": 0.0,
+          "amount": 0.0,
+          "reference_date": "20260415"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 1200000.00,
+        "redemption_value": null,
+        "balance_adjustment": 0.0
+      },
+      "previous_year_balance": 1100000.00,
+      "returns": {
+        "net_return_rate": 4.50,
+        "gross_profit_loss": 62000.00,
+        "profit_sign": "1",
+        "guaranteed_return": null
+      },
+      "insurance_details": {
+        "has_temporary_risk": "2",
+        "risk_start_date": null,
+        "risk_end_date": null
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "2",
+        "agent_id": "520099999",
+        "agent_name": "ביטוח ישיר סוכנות בע\"מ",
+        "appointment_date": "20020601",
+        "expiry_date": "2032-06-01"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=1 — ביטוח מנהלים ישן (Old Manager Insurance, pre-2004 tariff, has pension election right AGACH)",
+      "file_code": "ING",
+      "file_sequence": 16,
+      "institution_code": "520000002",
+      "institution_name": "הסוכנות לביטוח ישן בע\"מ",
+      "product_type_code": "1",
+      "product_type_label": "ביטוח מנהלים ישן (קודם 2004)",
+      "account_number": "0303000001",
+      "product_name": "מניב תעריף ישן — משתתף ברווחים",
+      "unique_id": "520000002000000000000070000000",
+      "agent_code": "3-00007",
+      "report_date": "20260430",
+      "join_date_product": "19950101",
+      "join_date_first": "19950101",
+      "status": "1",
+      "pension_fund_type": null,
+      "is_new_pension": null,
+      "tikun_190": "2",
+      "has_external_coverage": "2",
+      "election_rights": {
+        "kolel_zakaut_agach": "4",
+        "shior_agach_meuadot": null
+      },
+      "employer": {
+        "employer_id_type": "2",
+        "employer_id": "511111111",
+        "employer_name": "חברת טכנולוגיה בע\"מ",
+        "deduction_file": "555555555"
+      },
+      "investment_tracks": [
+        {
+          "track_code": "520000002000000000000070001001",
+          "track_type": "1",
+          "contribution_type": "4",
+          "track_name": "קרן י משתתף ברווחים",
+          "accumulated_balance": 1850000.00,
+          "net_return_rate": 4.30,
+          "management_fee_deposit_pct": 0.0,
+          "management_fee_balance_pct": 1.000,
+          "annual_cost_pct": 1.000
+        }
+      ],
+      "contributions": [
+        {
+          "depositor_type": "2",
+          "contribution_type": "4",
+          "percent": 0.0,
+          "amount": 0.0,
+          "reference_date": "20260415"
+        }
+      ],
+      "year_end_balance": {
+        "yitrat_sof_shana": 1850000.00,
+        "redemption_value": null,
+        "balance_adjustment": 0.0
+      },
+      "previous_year_balance": 1700000.00,
+      "returns": {
+        "net_return_rate": 4.30,
+        "gross_profit_loss": 125000.00,
+        "profit_sign": "1",
+        "guaranteed_return": null
+      },
+      "insurance_details": {
+        "has_temporary_risk": "2",
+        "risk_start_date": null,
+        "risk_end_date": null
+      },
+      "agent": {
+        "has_agent": "1",
+        "id_type": "2",
+        "agent_id": "520099999",
+        "agent_name": "ביטוח ישיר סוכנות בע\"מ",
+        "appointment_date": "19950101",
+        "expiry_date": "2035-01-01"
+      },
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" },
+      "group_insurance": { "has_collective_coverage": "2" }
+    },
+    {
+      "_comment": "SUG-MUTZAR=6 — ביטוח ריסק (Pure Term Life Insurance — NO savings balance whatsoever)",
+      "file_code": "INP",
+      "file_sequence": 17,
+      "institution_code": "520000003",
+      "institution_name": "ריסק ישיר חברה לביטוח",
+      "product_type_code": "6",
+      "product_type_label": "ביטוח ריסק — ללא חיסכון",
+      "account_number": "80000001",
+      "product_name": "ריסק 1 יסודי",
+      "unique_id": "520000003000000000000080000000",
+      "agent_code": null,
+      "report_date": "20260430",
+      "join_date_product": "20160801",
+      "join_date_first": "20160801",
+      "status": "1",
+      "_note": "Pure risk — no investment tracks, no balance, no YITRAT-SOF-SHANA",
+      "investment_tracks": [],
+      "contributions": [],
+      "year_end_balance": null,
+      "agent": null,
+      "loan": { "has_loan": "2" },
+      "claim": { "has_claim": "2" }
+    }
+  ],
+  "_xml_tag_reference": {
+    "_purpose": "Map XML tag names to JSON field semantics for parser development",
+    "header_section": "Mimshak/KoteretKovetz",
+    "institution_section": "Mimshak/YeshutYatzran",
+    "product_section": "Mimshak/YeshutYatzran/Mutzarim/Mutzar",
+    "customer_section": "...Mutzar/NetuneiMutzar/YeshutLakoach",
+    "employer_section": "...Mutzar/NetuneiMutzar/YeshutMaasik",
+    "policy_section": "...Mutzar/HeshbonotOPolisot/HeshbonOPolisa",
+    "financials_section": "...HeshbonOPolisa/PirteiTaktziv",
+    "summary_section": "Mimshak/ReshumatSgira",
+    "critical_tags": {
+      "YITRAT-SOF-SHANA": "Total accumulated balance (יתרה צבורה) — main balance field",
+      "SCHUM-TZVIRA-BAMASLUL": "Accumulated sum per investment track",
+      "SCHUM-HAFRASHA": "Last deposit / contribution amount",
+      "SUG-MUTZAR": "Product type discriminator (1/2/3/4/5/6/9)",
+      "SUG-KEREN-PENSIA": "Pension sub-type (1=vatika, 2=hadasha)",
+      "PENSIA-VATIKA-O-HADASHA": "Old(1) vs new(2) pension flag",
+      "STATUS-POLISA-O-CHESHBON": "Account status (1=active, 2=frozen/closed)",
+      "SHEM-TOCHNIT": "Product/plan name",
+      "SHEM-MASLUL-HASHKAA": "Investment track name",
+      "KOD-SUG-MASLUL": "Track type code (1=employer, 2=employee+pitzuim)",
+      "SHEUR-TSUA-NETO": "Net annualized return rate (%)",
+      "REVACH-HEFSED-BENIKOI-HOZAHOT": "Net profit/loss for period (NIS)",
+      "TOTAL-CHISACHON-MITZTABER-TZAFUY": "Projected total accumulation at retirement (pension only)",
+      "KITZVAT-HODSHIT-TZFUYA": "Projected monthly pension (NIS) at retirement age",
+      "SCHUM-KITZVAT-ZIKNA": "Current monthly pension value (NIS) if retired today",
+      "GIL-PRISHA": "Retirement age",
+      "KOLEL-ZAKAUT-AGACH": "Pension election rights status (old mgr insurance)",
+      "TAARICH-HITZTARFUT-RISHON": "Original join date",
+      "TAARICH-NECHONUT": "Report reference date",
+      "KOD-MEZAHE-YATZRAN": "Institution registration code",
+      "MISPAR-POLISA-O-HESHBON": "Policy / account number",
+      "KIDOD-ACHID": "Unique 30-char product identifier"
+    },
+    "file_code_to_sug_mutzar": {
+      "KGM": "3 (tagnumim), 4 (hishtalmut), or 9 (gamalhashkaa)",
+      "PNN": "2 (new pension)",
+      "PNO": "2 (old/vatika pension, defined-benefit)",
+      "ING": "1 (old mgr insurance) or 5 (modern mgr insurance)",
+      "INP": "6 (pure risk, no savings)"
+    },
+    "balance_present_by_type": {
+      "SUG_MUTZAR_1": true,
+      "SUG_MUTZAR_2_PNN": true,
+      "SUG_MUTZAR_2_PNO": false,
+      "SUG_MUTZAR_3": true,
+      "SUG_MUTZAR_4": true,
+      "SUG_MUTZAR_5": true,
+      "SUG_MUTZAR_6": false,
+      "SUG_MUTZAR_9": true
+    }
+  }
+}
