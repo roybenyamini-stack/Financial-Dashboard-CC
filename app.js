@@ -7893,6 +7893,7 @@ var SIMULATOR_DEFAULTS = Object.freeze({
   rentalIncome:  0,
 });
 var SIM_PENSION_MONTHLY = 0; // v168.91: default 0 — always set from data, never from stale memory
+var SIM_PENSION_MONTHLY_BASE = 0; // v178.8: actuarial default; never overwritten by manual overrides
 var SIM_EVENTS_ON = {};      // { eventIdx: true/false }
 var simChartObj = null;
 var SIM_CURRENT_SALARY = 0; // v102.4: cached from CF_DATA on init
@@ -8257,6 +8258,12 @@ function ffsResetRetirementIncome() {
   ffsSaveProfile();
   ffsSyncSliders();
   if (typeof simInited !== 'undefined' && simInited && typeof simRenderKPI === 'function') simRenderKPI();
+}
+function mainPensionSliderReset() {
+  FFS_PROFILE.retirementIncome = 0;
+  ffsSaveProfile();
+  ffsSyncSliders();
+  simSetPensionMonthly(SIM_PENSION_MONTHLY);
 }
 function ffsGetLiquidCapital() {
   if (!FFS_PROFILE.investments || !FFS_PROFILE.investments.length) return 0;
@@ -10033,6 +10040,7 @@ function ffsSyncSliders() {
     if (_retAgeSync >= _s && _retAgeSync <= _e) _penCalc += (inc.amount || 0);
   });
   var _penNIS = _penCalc > 0 ? _penCalc : 20000;
+  if (!FFS_PROFILE.retirementIncome) SIM_PENSION_MONTHLY_BASE = _penNIS;
   SIM_PENSION_MONTHLY = _penNIS;
   // v178.8: push engine value only when not manually overridden; sync tooltip and reset button
   var _retIncEl  = document.getElementById('ffs-retirement-income');
@@ -12243,6 +12251,11 @@ function simSetPensionMonthly(v) {
   var num = document.getElementById('sim-pension-monthly-num');
   if (sl  && parseFloat(sl.value)  !== SIM_PENSION_MONTHLY) sl.value  = SIM_PENSION_MONTHLY;
   if (num && parseFloat(num.value) !== SIM_PENSION_MONTHLY) num.value = SIM_PENSION_MONTHLY;
+  var _dirty = SIM_PENSION_MONTHLY_BASE > 0 && SIM_PENSION_MONTHLY !== SIM_PENSION_MONTHLY_BASE;
+  var _mr = document.getElementById('main-pension-slider-reset');
+  var _fr = document.getElementById('ffs-retirement-income-reset');
+  if (_mr) _mr.style.display = _dirty ? 'inline-flex' : 'none';
+  if (_fr) _fr.style.display = _dirty ? 'inline-flex' : 'none';
   // v103.31: update KPI cards first (הכנסה פנויה + תזרים נטו), then re-run chart
   simRenderKPI();
   simRenderChart(simRunEngine());
