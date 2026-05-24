@@ -444,7 +444,7 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 /* =============================================
    SIMULATOR TAB — v102.0
    ============================================= */
-.sim-wrap { padding: 12px 20px 48px; direction: rtl; max-width: 1200px; margin: 0 auto; }
+.sim-wrap { padding: 12px 32px 48px; direction: rtl; max-width: 1800px; margin: 0 auto; }
 
 /* Control Panel — v103.7: flex-wrap enabled so sliders don't squish on narrow screens */
 .sim-controls-panel {
@@ -484,15 +484,15 @@ body.locked #top-fixed, body.locked .tab-panel { display:none !important; }
 .sim-kpi-row { display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; gap: 12px; margin-bottom: 10px; overflow-x: auto; width: 100%; }
 .sim-kpi-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
-  padding: 7px 10px; flex: 1; min-width: 0; text-align: center;
+  padding: 9px 14px; flex: 1; min-width: 0; text-align: center;
 }
-.sim-kpi-label { font-size: 10px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; margin-bottom: 3px; }
-.sim-kpi-val { font-size: 17px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
+.sim-kpi-label { font-size: 11px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; margin-bottom: 3px; }
+.sim-kpi-val { font-size: 20px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
 .sim-kpi-val.blue  { color: #2563eb; }
 .sim-kpi-val.pink  { color: #ec4899; }
 .sim-kpi-val.green { color: #16a34a; }
 .sim-kpi-val.red   { color: #dc2626; }
-.sim-kpi-sub { font-size: 9px; color: #d1d5db; margin-top: 2px; }
+.sim-kpi-sub { font-size: 10px; color: #d1d5db; margin-top: 2px; }
 
 /* Phase Legend */
 .sim-phase-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
@@ -1046,3 +1046,17 @@ body.tab-simulator .header {
   white-space: normal !important;
   text-align: center !important;
 }
+
+/* SALKAH XML drag-drop zone — v179.2 */
+.salkah-dropzone {
+  border: 2.5px dashed #93c5fd;
+  border-radius: 14px;
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+  background: #f8faff;
+  user-select: none;
+}
+.salkah-dropzone:hover { background: #eff6ff; border-color: #3b82f6; }
+.salkah-dropzone.drag-over { background: #dbeafe; border-color: #2563eb; border-style: solid; }

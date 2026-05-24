@@ -6040,6 +6040,9 @@ function switchTab(id){
 // v56.1: הפעל טאב ברירת מחדל ב-DOMContentLoaded — מפעיל את כל ה-show/hide logic
 // v56.2: קרא updateTableCells כדי לאפס תאי HTML לאפס כשאין localStorage
 document.addEventListener('DOMContentLoaded', function() {
+  // v179.5: Iron Dome — prevent browser from opening dropped files anywhere on the page
+  window.addEventListener('dragover', function(e) { e.preventDefault(); }, false);
+  window.addEventListener('drop',     function(e) { e.preventDefault(); }, false);
   // v173.8: TOTAL BLACKOUT — runs before loadSettings() so no stale cache or wrong identity survives.
   // Zero all pension + simulation state first so the engine always starts from a clean slate.
   pnsNetMonthly          = 0;
@@ -15782,6 +15785,244 @@ function ffsDropzoneDragOver(event, context) {
 function ffsDropzoneDragLeave(event, context) {
   event.stopPropagation();
   if (event.currentTarget) event.currentTarget.classList.remove('ffs-dropzone-active');
+}
+
+/* ── SALKAH XML Import Modal — v179.16 ── */
+function openSalkahModal() {
+  document.getElementById('salkah-backdrop').style.display = 'block';
+  document.getElementById('salkah-modal').style.display = 'block';
+  var s = document.getElementById('salkah-status');
+  if (s) s.style.display = 'none';
+}
+function closeSalkahModal() {
+  document.getElementById('salkah-backdrop').style.display = 'none';
+  document.getElementById('salkah-modal').style.display = 'none';
+  var inp = document.getElementById('salkah-xml-input');
+  if (inp) inp.value = '';
+}
+function salkahDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('salkah-dropzone').classList.add('drag-over');
+}
+function salkahDragLeave(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('salkah-dropzone').classList.remove('drag-over');
+}
+function salkahDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('salkah-dropzone').classList.remove('drag-over');
+  var statusEl = document.getElementById('salkah-status');
+  var files = (e.dataTransfer && e.dataTransfer.files)
+    ? Array.from(e.dataTransfer.files).filter(function(f) { return f.name.toLowerCase().endsWith('.xml'); })
+    : [];
+  if (files.length) processMultipleSalkahFiles(files, statusEl);
+}
+function salkahFileChange(e) {
+  var statusEl = document.getElementById('salkah-status');
+  var files = e.target.files
+    ? Array.from(e.target.files).filter(function(f) { return f.name.toLowerCase().endsWith('.xml'); })
+    : [];
+  if (files.length) processMultipleSalkahFiles(files, statusEl);
+  e.target.value = '';
+}
+function salkahReadFile(file) {
+  var statusEl = document.getElementById('salkah-status');
+  statusEl.style.display = 'block';
+  statusEl.style.background = '#eff6ff';
+  statusEl.style.color = '#1d4ed8';
+  statusEl.textContent = 'קורא קובץ...';
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    console.log('[Salkah] File loaded:', file.name, '—', ev.target.result.length, 'chars');
+    parseSalkahXML(ev.target.result, statusEl);
+  };
+  reader.onerror = function() {
+    statusEl.style.background = '#fef2f2';
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = '❌ שגיאה בקריאת הקובץ';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+function _salkahParseOneXML(xmlString) {
+  var doc        = new DOMParser().parseFromString(xmlString, 'text/xml');
+  var providerEl = doc.querySelector('SHEM-YATZRAN');
+  var provider   = providerEl ? providerEl.textContent.trim() : 'גוף מנהל לא ידוע';
+  var mutzarim   = doc.querySelectorAll('Mutzar');
+  var products   = [];
+  var totalBalance = 0;
+  mutzarim.forEach(function(m) {
+    var polisaEl = m.querySelector('MISPAR-POLISA-O-HESHBON');
+    var polisa   = polisaEl ? polisaEl.textContent.trim() : '—';
+    var typeEl       = m.querySelector('SUG-MUTZAR') || m.querySelector('KOD-SUG-MUTZAR') || m.querySelector('KOD-SUG-KUPA');
+    var type         = typeEl ? typeEl.textContent.trim() : '—';
+    var shmTochnitEl = m.querySelector('SHEM-TOCHNIT');
+    var productName  = shmTochnitEl ? shmTochnitEl.textContent.trim() : '';
+    var isBituachMenahalim = productName.indexOf('מנהלים') !== -1 || productName.indexOf('םילהנמ') !== -1 ||
+                             provider.indexOf('מנהלים')   !== -1 || provider.indexOf('םילהנמ')   !== -1;
+    var vatikaEl = m.querySelector('PENSIA-VATIKA-O-HADASHA');
+    var isVatika = vatikaEl && vatikaEl.textContent.trim() === '1';
+    var rawBalance = 0, balanceTag = '', monthlyPension = null, contributionPct = null;
+    if (isVatika) {
+      var kitzvatEl = m.querySelector('KITZVAT-HODSHIT-TZFUYA');
+      var ahuzEl    = m.querySelector('AHUZ-PENSIYA-TZVURA');
+      monthlyPension  = kitzvatEl ? (parseFloat(kitzvatEl.textContent.trim()) || null) : null;
+      contributionPct = ahuzEl    ? (parseFloat(ahuzEl.textContent.trim())    || null) : null;
+      balanceTag = 'VATIKA';
+    } else {
+      var b1El = m.querySelector('ITRA-TZVURA');
+      var b2El = m.querySelector('TOTAL-CHISACHON-MTZBR');
+      var b3El = m.querySelector('SCHUM-TZVIRA-BAMASLUL');
+      var b1 = b1El ? parseFloat(b1El.textContent.trim()) : NaN;
+      var b2 = b2El ? parseFloat(b2El.textContent.trim()) : NaN;
+      var b3 = b3El ? parseFloat(b3El.textContent.trim()) : NaN;
+      if (!isNaN(b1) && b1 > 0)      { rawBalance = b1; balanceTag = 'ITRA-TZVURA'; }
+      else if (!isNaN(b2) && b2 > 0) { rawBalance = b2; balanceTag = 'TOTAL-CHISACHON-MTZBR'; }
+      else if (!isNaN(b3) && b3 > 0) { rawBalance = b3; balanceTag = 'SCHUM-TZVIRA-BAMASLUL'; }
+      totalBalance += rawBalance;
+    }
+    products.push({
+      'מספר פוליסה': polisa, 'שם מוצר': productName, 'סוג מוצר': type,
+      'צבירה (₪)': rawBalance, 'תגית צבירה': balanceTag || 'לא נמצא',
+      isVatika: isVatika, monthlyPension: monthlyPension, contributionPct: contributionPct,
+      isBituachMenahalim: isBituachMenahalim
+    });
+  });
+  return { provider: provider, products: products, totalBalance: totalBalance };
+}
+function parseSalkahXML(xmlString, statusEl) {
+  var r   = _salkahParseOneXML(xmlString);
+  var fmt = r.totalBalance.toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  console.log('[Salkah] Provider:', r.provider, '| Products:', r.products.length, '| Total:', r.totalBalance);
+  console.table(r.products);
+  statusEl.style.background = '#f0fdf4';
+  statusEl.style.color      = '#15803d';
+  statusEl.textContent      = '✅ פוענח בהצלחה: ' + r.provider + ' | ' + r.products.length + ' מוצרים | סה״כ צבירה: ₪' + fmt;
+}
+function _salkahReadFileAsText(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload  = function(ev) { resolve(ev.target.result); };
+    reader.onerror = function()   { reject(new Error(file.name)); };
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+function processMultipleSalkahFiles(files, statusEl) {
+  statusEl.style.display    = 'block';
+  statusEl.style.background = '#eff6ff';
+  statusEl.style.color      = '#1d4ed8';
+  statusEl.textContent      = 'קורא ' + files.length + ' קבצים...';
+  var promises = files.map(function(f) {
+    return _salkahReadFileAsText(f).then(function(text) {
+      console.log('[Salkah] Loaded:', f.name, '—', text.length, 'chars');
+      return _salkahParseOneXML(text);
+    });
+  });
+  Promise.all(promises).then(function(results) {
+    var combined = [], grandTotal = 0;
+    results.forEach(function(r) {
+      r.products.forEach(function(p) { p._provider = r.provider; });
+      combined    = combined.concat(r.products);
+      grandTotal += r.totalBalance;
+    });
+    console.log('[Salkah] Files:', files.length, '| Mutzarim:', combined.length, '| Grand Total:', grandTotal);
+    console.table(combined);
+    var _pensionKW = ['פנסיה', 'היסנפ', 'מנהלים', 'םילהנמ'];
+    var _investKW  = ['גמל', 'למג', 'השתלמות', 'תומלתשה', 'להשקעה', 'העקשהל', 'חיסכון', 'ןוכסיח', 'תגמולים', 'םילומגת'];
+    var _added = 0, _updated = 0, _skipped = 0;
+    var _addedPolicies = [], _updatedPolicies = [], _skippedPolicies = [];
+    combined.forEach(function(p) {
+      var rawBalance  = p['צבירה (₪)'] || 0;
+      var polisa      = p['מספר פוליסה'] !== '—' ? p['מספר פוליסה'] : '';
+      var productName = (p['שם מוצר'] || '').toString();
+      var isVatika    = !!p.isVatika;
+      var label       = polisa || productName || '—';
+      if (!isVatika && rawBalance < 1000) {
+        _skipped++;
+        _skippedPolicies.push(label);
+        return;
+      }
+      var balanceK = isVatika ? 0 : Math.floor(rawBalance / 1000);
+      var hasGemel = productName.indexOf('גמל') !== -1 || productName.indexOf('למג') !== -1;
+      var isInvest = hasGemel || _investKW.some(function(k) { return productName.indexOf(k) !== -1; });
+      var bucket   = isInvest ? 'investments' : 'pension';
+      var arr      = FFS_PROFILE[bucket];
+      var existIdx = polisa
+        ? arr.findIndex(function(x) { return (x.assetNum || '') === polisa || (x.accountNum || '') === polisa; })
+        : -1;
+      if (existIdx >= 0) {
+        if (bucket === 'pension') {
+          arr[existIdx].accumulation = balanceK;
+          if (isVatika) {
+            if (p.monthlyPension  != null) arr[existIdx].monthlyPension  = p.monthlyPension;
+            if (p.contributionPct != null) arr[existIdx].contributionPct = p.contributionPct;
+          }
+        } else {
+          arr[existIdx].balance = balanceK;
+        }
+        arr[existIdx].needsReview = true;
+        _updated++;
+        _updatedPolicies.push(label);
+      } else {
+        var _newId = 'salkah_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        if (bucket === 'pension') {
+          var _isMgr = p.isBituachMenahalim || productName.indexOf('מנהלים') !== -1 || productName.indexOf('םילהנמ') !== -1;
+          arr.push({
+            id: _newId, assetNum: polisa, accountNum: polisa,
+            name: p._provider || productName || polisa || '',
+            provider: p._provider || '',
+            pensionType: _isMgr ? 'manager' : 'pension',
+            isBituachMenahalim: !!_isMgr,
+            pensionSubtype: isVatika ? 'vatiqa' : 'new', calcRoute: 'B', overflowTarget: 'pension',
+            accumulation: balanceK,
+            monthlyPension: isVatika ? p.monthlyPension : null,
+            contributionPct: isVatika ? p.contributionPct : null,
+            expectedPayout: null, conversionFactor: null, survivorsEnabled: false,
+            spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: 0,
+            monthlyContribution: 0, isActive: true, needsReview: true,
+            notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—') + (isVatika ? ' (ותיקה)' : '')
+          });
+        } else {
+          var _cat = productName.indexOf('השתלמות') !== -1 ? 'קרן השתלמות'
+                   : productName.indexOf('להשקעה')  !== -1 ? 'קופת גמל להשקעה'
+                   : 'קופת גמל';
+          arr.push({
+            id: _newId, assetNum: polisa,
+            name: productName || p._provider || polisa || '',
+            balance: balanceK, category: _cat, type: '',
+            liquidity: _cat === 'קופת גמל להשקעה' ? '' : 'pension67',
+            isActive: true, needsReview: true,
+            notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—')
+          });
+        }
+        _added++;
+        _addedPolicies.push(label);
+      }
+    });
+    ffsSaveProfile();
+    if (typeof ffsRenderAll        === 'function') ffsRenderAll();
+    if (typeof ffsApplyToSimulator === 'function') ffsApplyToSimulator();
+    if (typeof simFullRefresh      === 'function') simFullRefresh();
+    var _esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var _addedList   = _addedPolicies.length   ? _esc(_addedPolicies.join(', '))   : '—';
+    var _updatedList = _updatedPolicies.length ? _esc(_updatedPolicies.join(', ')) : '—';
+    var _skippedList = _skippedPolicies.length ? _esc(_skippedPolicies.join(', ')) : '—';
+    statusEl.style.background = '#f0fdf4';
+    statusEl.style.color      = '#15803d';
+    statusEl.innerHTML = '✅ סיום יבוא: [' + _added + '] חדשים | [' + _updated + '] עודכנו | [' + _skipped + '] דולגו (<1K)' +
+      '<div style="max-height:80px;overflow-y:auto;font-size:11px;text-align:left;direction:ltr;padding:5px;background:rgba(0,0,0,0.05);border-radius:4px;margin-top:5px;">' +
+      'חדשים: ' + _addedList + '<br>' +
+      'עודכנו: ' + _updatedList + '<br>' +
+      'דולגו: ' + _skippedList +
+      '</div>';
+    setTimeout(closeSalkahModal, 7000);
+  }).catch(function(err) {
+    statusEl.style.background = '#fef2f2';
+    statusEl.style.color      = '#dc2626';
+    statusEl.textContent      = '❌ שגיאה: ' + err.message;
+  });
 }
 
 function ffsSalkahFilePick() {
