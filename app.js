@@ -9335,7 +9335,7 @@ function ffsRenderSection(section) {
 
     } else if (section === 'pension') {
       var isPension  = !item.pensionType || item.pensionType === 'pension';
-      var isManager  = item.pensionType === 'manager';
+      var isManager  = item.pensionType === 'manager' || !!item.isBituachMenahalim;
       var _penLabel  = 'קרן פנסיה';
       var _manLabel  = 'ביטוח מנהלים';
       var roRadioSt  = 'accent-color:#3b82f6;cursor:default;pointer-events:none;';
@@ -15854,8 +15854,7 @@ function _salkahParseOneXML(xmlString) {
   var products   = [];
   var totalBalance = 0;
   mutzarim.forEach(function(m) {
-    var polisaEl = m.querySelector('MISPAR-POLISA-O-HESHBON');
-    var polisa   = polisaEl ? polisaEl.textContent.trim() : '—';
+    // Mutzar-level metadata — shared by all accounts within
     var typeEl       = m.querySelector('SUG-MUTZAR') || m.querySelector('KOD-SUG-MUTZAR') || m.querySelector('KOD-SUG-KUPA');
     var type         = typeEl ? typeEl.textContent.trim() : '—';
     var shmTochnitEl = m.querySelector('SHEM-TOCHNIT');
@@ -15864,30 +15863,51 @@ function _salkahParseOneXML(xmlString) {
                              provider.indexOf('מנהלים')   !== -1 || provider.indexOf('םילהנמ')   !== -1;
     var vatikaEl = m.querySelector('PENSIA-VATIKA-O-HADASHA');
     var isVatika = vatikaEl && vatikaEl.textContent.trim() === '1';
-    var rawBalance = 0, balanceTag = '', monthlyPension = null, contributionPct = null;
-    if (isVatika) {
-      var kitzvatEl = m.querySelector('KITZVAT-HODSHIT-TZFUYA');
-      var ahuzEl    = m.querySelector('AHUZ-PENSIYA-TZVURA');
-      monthlyPension  = kitzvatEl ? (parseFloat(kitzvatEl.textContent.trim()) || null) : null;
-      contributionPct = ahuzEl    ? (parseFloat(ahuzEl.textContent.trim())    || null) : null;
-      balanceTag = 'VATIKA';
+    // Determine account nodes; fall back to the Mutzar itself if none found
+    var accountEls = m.querySelectorAll('HeshbonOPolisa');
+    var nodes = [];
+    if (accountEls.length > 0) {
+      accountEls.forEach(function(n) { nodes.push(n); });
     } else {
-      var b1El = m.querySelector('ITRA-TZVURA');
-      var b2El = m.querySelector('TOTAL-CHISACHON-MTZBR');
-      var b3El = m.querySelector('SCHUM-TZVIRA-BAMASLUL');
-      var b1 = b1El ? parseFloat(b1El.textContent.trim()) : NaN;
-      var b2 = b2El ? parseFloat(b2El.textContent.trim()) : NaN;
-      var b3 = b3El ? parseFloat(b3El.textContent.trim()) : NaN;
-      if (!isNaN(b1) && b1 > 0)      { rawBalance = b1; balanceTag = 'ITRA-TZVURA'; }
-      else if (!isNaN(b2) && b2 > 0) { rawBalance = b2; balanceTag = 'TOTAL-CHISACHON-MTZBR'; }
-      else if (!isNaN(b3) && b3 > 0) { rawBalance = b3; balanceTag = 'SCHUM-TZVIRA-BAMASLUL'; }
-      totalBalance += rawBalance;
+      nodes.push(m);
     }
-    products.push({
-      'מספר פוליסה': polisa, 'שם מוצר': productName, 'סוג מוצר': type,
-      'צבירה (₪)': rawBalance, 'תגית צבירה': balanceTag || 'לא נמצא',
-      isVatika: isVatika, monthlyPension: monthlyPension, contributionPct: contributionPct,
-      isBituachMenahalim: isBituachMenahalim
+    nodes.forEach(function(node) {
+      var polisaEl = node.querySelector('MISPAR-POLISA-O-HESHBON');
+      var polisa   = polisaEl ? polisaEl.textContent.trim() : '—';
+      var statusEl  = node.querySelector('KOD-STATUS-HESHBON') || node.querySelector('STATUS-HESHBON') || node.querySelector('KOD-STATUS-KUPA') || node.querySelector('STATUS-POLISA-O-CHESHBON');
+      var kodStatus = statusEl ? statusEl.textContent.trim() : '';
+      var isActive  = (kodStatus !== '2' && kodStatus !== '3' && kodStatus !== '4');
+      var rawBalance = 0, balanceTag = '', monthlyPension = null, contributionPct = null;
+      if (isVatika) {
+        var kitzvatEl = node.querySelector('KITZVAT-HODSHIT-TZFUYA');
+        var ahuzEl    = node.querySelector('AHUZ-PENSIYA-TZVURA');
+        monthlyPension  = kitzvatEl ? (parseFloat(kitzvatEl.textContent.trim()) || null) : null;
+        contributionPct = ahuzEl    ? (parseFloat(ahuzEl.textContent.trim())    || null) : null;
+        balanceTag = 'VATIKA';
+      } else {
+        var totalEls = node.querySelectorAll('TOTAL-CHISACHON-MTZBR');
+        var itraEls  = node.querySelectorAll('ITRA-TZVURA');
+        var trackEls = node.querySelectorAll('SCHUM-TZVIRA-BAMASLUL');
+        var totals = [], itras = [], tracks = [];
+        totalEls.forEach(function(el) { var v = parseFloat(el.textContent.trim()); if (!isNaN(v)) totals.push(v); });
+        itraEls.forEach(function(el)  { var v = parseFloat(el.textContent.trim()); if (!isNaN(v)) itras.push(v); });
+        trackEls.forEach(function(el) { var v = parseFloat(el.textContent.trim()); if (!isNaN(v)) tracks.push(v); });
+        var maxTotal  = totals.length ? Math.max.apply(null, totals) : 0;
+        var maxItra   = itras.length  ? Math.max.apply(null, itras)  : 0;
+        var sumTracks = tracks.reduce(function(s, v) { return s + v; }, 0);
+        rawBalance = Math.max(maxTotal, maxItra, sumTracks);
+        if      (rawBalance > 0 && rawBalance === maxTotal) balanceTag = 'TOTAL-CHISACHON-MTZBR (max)';
+        else if (rawBalance > 0 && rawBalance === maxItra)  balanceTag = 'ITRA-TZVURA (max)';
+        else if (sumTracks > 0)                             balanceTag = 'SCHUM-TZVIRA-BAMASLUL (sum)';
+        totalBalance += rawBalance;
+      }
+      products.push({
+        'מספר פוליסה': polisa, 'שם מוצר': productName, 'סוג מוצר': type,
+        'צבירה (₪)': rawBalance, 'תגית צבירה': balanceTag || 'לא נמצא',
+        isVatika: isVatika, monthlyPension: monthlyPension, contributionPct: contributionPct,
+        isBituachMenahalim: isBituachMenahalim,
+        isActive: isActive, kodStatus: kodStatus
+      });
     });
   });
   return { provider: provider, products: products, totalBalance: totalBalance };
@@ -15950,7 +15970,11 @@ function processMultipleSalkahFiles(files, statusEl) {
       var bucket   = isInvest ? 'investments' : 'pension';
       var arr      = FFS_PROFILE[bucket];
       var existIdx = polisa
-        ? arr.findIndex(function(x) { return (x.assetNum || '') === polisa || (x.accountNum || '') === polisa; })
+        ? arr.findIndex(function(x) {
+            var samePolisa = (x.assetNum || '') === polisa || (x.accountNum || '') === polisa;
+            var sameProvider = (x.provider || '') === (p._provider || '');
+            return samePolisa && sameProvider;
+          })
         : -1;
       if (existIdx >= 0) {
         if (bucket === 'pension') {
@@ -15962,6 +15986,7 @@ function processMultipleSalkahFiles(files, statusEl) {
         } else {
           arr[existIdx].balance = balanceK;
         }
+        arr[existIdx].isActive    = !!p.isActive;
         arr[existIdx].needsReview = true;
         _updated++;
         _updatedPolicies.push(label);
@@ -15981,7 +16006,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             contributionPct: isVatika ? p.contributionPct : null,
             expectedPayout: null, conversionFactor: null, survivorsEnabled: false,
             spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: 0,
-            monthlyContribution: 0, isActive: true, needsReview: true,
+            monthlyContribution: 0, isActive: !!p.isActive, needsReview: true,
             notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—') + (isVatika ? ' (ותיקה)' : '')
           });
         } else {
@@ -15993,7 +16018,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             name: productName || p._provider || polisa || '',
             balance: balanceK, category: _cat, type: '',
             liquidity: _cat === 'קופת גמל להשקעה' ? '' : 'pension67',
-            isActive: true, needsReview: true,
+            isActive: !!p.isActive, needsReview: true,
             notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—')
           });
         }
