@@ -62,3 +62,24 @@ When pushing parsed products into the global state (`FFS_PROFILE`), the parser m
   * `pensionType: 'manager'`
   in the parsed product object.
 * This detection runs on both new and existing (upserted) assets.
+
+## 8. Balance Extraction — Max-Sum Heuristic
+To extract the raw balance for a non-Vatika account node, collect **all** matching elements within the specific account scope and apply:
+* `Math.max` over all `<TOTAL-CHISACHON-MTZBR>` values → `maxTotal`
+* `Math.max` over all `<ITRA-TZVURA>` values → `maxItra`
+* `sum` of all `<SCHUM-TZVIRA-BAMASLUL>` values → `sumTracks`
+* `rawBalance = Math.max(maxTotal, maxItra, sumTracks)`
+
+This handles nesting correctly: policy-level totals naturally dominate track-level values, and multi-track products are summed rather than using only the first match.
+
+## 9. Account-Level Scoping (PascalCase container nodes)
+Assets MUST be split by iterating over `<HeshbonOPolisa>` child nodes within each `<Mutzar>`, not one per `<Mutzar>`. This prevents providers like Altshuler or Meitav from having all their grouped policies collapsed into a single asset.
+* Container/block nodes in Mislaka XML use **PascalCase without dashes**: `<Mutzar>`, `<HeshbonOPolisa>`, `<Maslulit>`.
+* Data-field nodes use **ALL-CAPS with dashes**: `<MISPAR-POLISA-O-HESHBON>`, `<TOTAL-CHISACHON-MTZBR>`.
+* Fallback: if a `<Mutzar>` has no `<HeshbonOPolisa>` children, treat the `<Mutzar>` itself as the single account node.
+
+## 10. Account Status (`isActive`)
+* **Source tags (in priority order):** `<KOD-STATUS-HESHBON>`, `<STATUS-HESHBON>`, `<KOD-STATUS-KUPA>`, `<STATUS-POLISA-O-CHESHBON>` — first match wins.
+* **Default:** If no tag is found, or if the value is empty, the account is considered active (`isActive: true`). Active accounts frequently omit the status tag entirely.
+* **Explicit inactive codes:** '2', '3', '4' (and other frozen/closed codes) → `isActive: false`. Any other value (including '1', empty string, or missing) → `isActive: true`.
+* This value MUST be passed through to the `FFS_PROFILE` asset on both new-push and update (upsert) paths. Do not hardcode `isActive: true`.
