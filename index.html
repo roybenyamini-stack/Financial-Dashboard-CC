@@ -1,4 +1,4 @@
-<!-- v180.4 -->
+<!-- v180.18 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.4</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.18</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1608,6 +1608,7 @@
     </label>
     <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
     <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
+    <button class="cc-btn" onclick="openMasterGrid()" title="טבלת נכסים מרכזית">📊 טבלת נכסים</button>
     <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
     <div style="flex:1;"></div>
     <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
@@ -2086,6 +2087,16 @@
   </div><!-- end 3-column body -->
 
 </div><!-- end #ffs-drawer -->
+
+<!-- MASTER GRID OVERLAY v180.18 -->
+<div id="mgrid-backdrop" onclick="closeMasterGrid()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10500;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
+<div id="mgrid-modal" style="display:none;position:fixed;top:5vh;left:5vw;width:90vw;height:90vh;z-index:10501;border-radius:16px;overflow:hidden;flex-direction:column;font-family:Heebo,sans-serif;box-shadow:0 24px 64px rgba(0,0,0,0.4);">
+  <div style="background:#1e293b;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="color:white;font-size:16px;font-weight:700;letter-spacing:-0.3px;">📊 טבלת נכסים</span>
+    <button onclick="closeMasterGrid()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:22px;cursor:pointer;line-height:1;padding:0;">✕</button>
+  </div>
+  <div id="mgrid-body" style="background:#f8fafc;flex:1;overflow-y:auto;"></div>
+</div>
 
 <!-- SALKAH XML IMPORT MODAL v179.2 -->
 <div id="salkah-backdrop" onclick="closeSalkahModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10400;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);"></div>
