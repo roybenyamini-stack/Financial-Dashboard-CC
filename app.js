@@ -16054,6 +16054,162 @@ function ffsSalkahFilePick() {
   var inp = document.getElementById('ffs-salkah-file-input');
   if (inp) inp.click();
 }
+
+// ── Master Data Grid (Phase B) ──────────────────────────────────────────────
+function openMasterGrid() {
+  renderMasterGrid();
+  var bd = document.getElementById('mgrid-backdrop');
+  var md = document.getElementById('mgrid-modal');
+  if (bd) bd.style.display = 'block';
+  if (md) md.style.display = 'flex';
+}
+function closeMasterGrid() {
+  var bd = document.getElementById('mgrid-backdrop');
+  var md = document.getElementById('mgrid-modal');
+  if (bd) bd.style.display = 'none';
+  if (md) md.style.display = 'none';
+}
+function masterGridToggleActive(section, id) {
+  var arr = FFS_PROFILE[section];
+  if (!arr) return;
+  var item = arr.find(function(x) { return x.id === id; });
+  if (!item) return;
+  item.isActive = !item.isActive;
+  ffsSaveProfile();
+  if (typeof ffsRenderAll === 'function') ffsRenderAll();
+  renderMasterGrid();
+}
+function masterGridSetLiquidity(section, id, val) {
+  var arr = FFS_PROFILE[section];
+  if (!arr) return;
+  var item = arr.find(function(x) { return x.id === id; });
+  if (!item) return;
+  item.liquidity = val;
+  ffsSaveProfile();
+}
+function masterGridDeleteItem(section, id) {
+  ffsRemoveItem(section, id);
+  var attempts = 0;
+  var check = setInterval(function() {
+    attempts++;
+    var arr = FFS_PROFILE[section] || [];
+    var still = arr.find(function(x) { return x.id === id; });
+    if (!still) { clearInterval(check); renderMasterGrid(); }
+    else if (attempts >= 20) { clearInterval(check); }
+  }, 300);
+}
+function _mgridCleanProvider(s) {
+  if (!s) return '—';
+  var junk = [
+    'גמל להשקעה', 'גמל ופנסיה', 'חברה לביטוח בע"מ', 'מוסד לביטוח סוציאלי של העו',
+    'בע"מ', 'השתלמות', 'גמל', 'פנסיה', 'קרן', 'קופת', 'קופה', 'חדשה', 'מקיפה',
+    'אלפא', 'מור', 'תגמולים', 'בדים', 'מבטחים'
+  ];
+  junk.forEach(function(j) { s = s.split(j).join(''); });
+  return s.trim() || '—';
+}
+function _mgridBumpModal(type) {
+  var bdId = type === 'pension' ? 'ffs-pension-backdrop' : 'ffs-inv-backdrop';
+  var mdId = type === 'pension' ? 'ffs-pension-modal'    : 'ffs-inv-modal';
+  var bd = document.getElementById(bdId);
+  var md = document.getElementById(mdId);
+  if (bd) bd.style.zIndex = '10599';
+  if (md) md.style.zIndex = '10600';
+}
+function renderMasterGrid() {
+  var body = document.getElementById('mgrid-body');
+  if (!body) return;
+  var fmtK = function(n) { return Math.round((n || 0) / 1000).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0}); };
+  var liqOpts = [['','—'],['liquid','נזיל'],['self-invest','השקעה עצמית'],['pension67','גיל 67+']];
+  var buildRow = function(item, section, isOdd) {
+    var polisa    = item.assetNum || item.accountNum || '—';
+    var provider  = _mgridCleanProvider(item.provider || item.name);
+    var assetType = item.isBituachMenahalim ? 'ביטוח מנהלים'
+                  : (item.category || (item.pensionType === 'manager' ? 'ביטוח מנהלים' : item.pensionSubtype === 'vatiqa' ? 'קרן ותיקה' : 'קרן פנסיה'));
+    var track     = item.trackName || item.track || item.maslul || item.maslulName || item.maslul_name || item.type || '—';
+    var balance   = section === 'investments' ? (item.balance || 0) * 1000 : (item.accumulation || 0) * 1000;
+    var safeId    = item.id.replace(/'/g, "\\'");
+    var activeBtn = item.isActive
+      ? '<span onclick="masterGridToggleActive(\''+section+'\',\''+safeId+'\')" title="לחץ לשינוי סטטוס" style="cursor:pointer;font-size:16px;">🟢</span>'
+      : '<span onclick="masterGridToggleActive(\''+section+'\',\''+safeId+'\')" title="לחץ לשינוי סטטוס" style="cursor:pointer;font-size:16px;opacity:0.4;">⚪</span>';
+    var liqSel = '<select onchange="masterGridSetLiquidity(\''+section+'\',\''+safeId+'\',this.value)" style="font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:2px 6px;background:white;font-family:Heebo,sans-serif;">';
+    liqOpts.forEach(function(o) { liqSel += '<option value="'+o[0]+'"'+(item.liquidity===o[0]?' selected':'')+'>'+o[1]+'</option>'; });
+    liqSel += '</select>';
+    var editFn = section === 'investments'
+      ? 'ffsOpenInvModal(FFS_PROFILE.investments.find(function(x){return x.id===\''+safeId+'\'}),"investments");setTimeout(function(){var m=document.getElementById(\'ffs-inv-modal\');var b=document.getElementById(\'ffs-inv-backdrop\');if(m)m.style.zIndex=\'10600\';if(b)b.style.zIndex=\'10599\';},100)'
+      : 'ffsOpenPensionModal(FFS_PROFILE.pension.find(function(x){return x.id===\''+safeId+'\'}));setTimeout(function(){var m=document.getElementById(\'ffs-pension-modal\');var b=document.getElementById(\'ffs-pension-backdrop\');if(m)m.style.zIndex=\'10600\';if(b)b.style.zIndex=\'10599\';},100)';
+    var safeProvider = provider.replace(/"/g, '&quot;');
+    var actions = '<span onclick="'+editFn+'" style="cursor:pointer;font-size:16px;margin-left:6px;" title="עריכה">👁️</span>'
+                + '<span onclick="masterGridDeleteItem(\''+section+'\',\''+safeId+'\')" style="cursor:pointer;font-size:16px;" title="מחיקה">🗑️</span>';
+    var bg = isOdd ? '#ffffff' : '#f8fafc';
+    var td = 'padding:7px 10px;font-size:14px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    return '<tr style="background:'+bg+';border-bottom:1px solid #e2e8f0;">'
+      + '<td style="padding:7px 10px;text-align:right;"><input type="checkbox" style="cursor:pointer;"></td>'
+      + '<td style="'+td+'color:#1e293b;" title="'+safeProvider+'">'+provider+'</td>'
+      + '<td style="'+td+'color:#475569;">'+assetType+'</td>'
+      + '<td style="'+td+'color:#64748b;">'+track+'</td>'
+      + '<td style="'+td+'font-family:monospace;color:#334155;">'+polisa+'</td>'
+      + '<td style="'+td+'font-weight:400;color:#0f172a;">'+fmtK(balance)+'</td>'
+      + '<td style="padding:7px 10px;text-align:center;">'+activeBtn+'</td>'
+      + '<td style="padding:7px 10px;text-align:right;">'+liqSel+'</td>'
+      + '<td style="padding:7px 10px;text-align:center;">'+actions+'</td>'
+      + '</tr>';
+  };
+  var buildGroupHeader = function(label, items, section) {
+    var rawSum = items.reduce(function(acc, item) {
+      return acc + ((section === 'investments' ? (item.balance || 0) : (item.accumulation || 0)) * 1000);
+    }, 0);
+    var sumK = Math.round(rawSum / 1000).toLocaleString('he-IL');
+    var subtitle = items.length + ' נכסים | סה"כ: ' + sumK + ' K ₪';
+    return '<tr style="background:#64748b;"><td colspan="9" style="padding:4px 14px;color:white;font-size:13px;font-weight:700;font-family:Heebo,sans-serif;text-align:right;"><div style="display:flex;align-items:center;gap:6px;direction:rtl;">'
+      + label + ' <span style="font-size:11px;opacity:0.85;font-weight:400;">(' + subtitle + ')</span></div></td></tr>';
+  };
+  var pension     = FFS_PROFILE.pension     || [];
+  var investments = FFS_PROFILE.investments || [];
+  var managers  = pension.filter(function(x){ return x.pensionType === 'manager' || x.isBituachMenahalim; });
+  var pensionAll = pension.filter(function(x){ return x.pensionType !== 'manager' && !x.isBituachMenahalim; });
+  var html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;direction:rtl !important;text-align:right;font-size:14px;font-family:Heebo,sans-serif;">'
+    + '<thead style="position:sticky;top:0;z-index:2;direction:rtl !important;">'
+    + '<tr style="background:#334155;color:white;font-size:13px;">'
+    + '<th style="padding:10px;font-weight:600;width:4%;text-align:right;"></th>'
+    + '<th style="padding:10px;font-weight:600;width:16%;text-align:right;">גוף מנהל</th>'
+    + '<th style="padding:10px;font-weight:600;width:14%;text-align:right;">סוג נכס</th>'
+    + '<th style="padding:10px;font-weight:600;width:13%;text-align:right;">מסלול</th>'
+    + '<th style="padding:10px;font-weight:600;width:16%;text-align:right;">מספר נכס</th>'
+    + '<th style="padding:10px;font-weight:600;width:12%;text-align:right;">סכום צבור</th>'
+    + '<th style="padding:10px;font-weight:600;width:6%;text-align:center;">פעיל</th>'
+    + '<th style="padding:10px;font-weight:600;width:10%;text-align:right;">נזילות</th>'
+    + '<th style="padding:10px;font-weight:600;width:9%;text-align:center;">פעולות</th>'
+    + '</tr></thead><tbody style="direction:rtl !important;">';
+  if (investments.length) {
+    html += buildGroupHeader('השקעות', investments, 'investments');
+    investments.forEach(function(item, i) { html += buildRow(item, 'investments', i % 2 === 0); });
+  }
+  if (pensionAll.length) {
+    html += buildGroupHeader('נכסים פנסיוניים', pensionAll, 'pension');
+    pensionAll.forEach(function(item, i) { html += buildRow(item, 'pension', i % 2 === 0); });
+  }
+  if (managers.length) {
+    html += buildGroupHeader('ביטוחי מנהלים', managers, 'pension');
+    managers.forEach(function(item, i) { html += buildRow(item, 'pension', i % 2 === 0); });
+  }
+  if (!investments.length && !pension.length) {
+    html += '<tr><td colspan="9" style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">אין נכסים להצגה. ייבא קובץ XML מהמסלקה כדי להתחיל.</td></tr>';
+  }
+  html += '</tbody>';
+  if (investments.length || pension.length) {
+    var invTotalK = investments.reduce(function(a, x) { return a + Math.round(x.balance || 0); }, 0);
+    var penTotalK = pension.reduce(function(a, x) { return a + Math.round(x.accumulation || 0); }, 0);
+    var grandTotalK = (invTotalK + penTotalK).toLocaleString('he-IL');
+    html += '<tfoot><tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">'
+      + '<td colspan="5" style="padding:10px 14px;font-size:13px;font-weight:400;text-align:right;font-family:Heebo,sans-serif;color:#334155;">סה"כ כל הנכסים</td>'
+      + '<td style="padding:10px 14px;font-size:14px;font-weight:400;text-align:right;font-family:monospace;color:#334155;">' + grandTotalK + '</td>'
+      + '<td colspan="3" style="padding:10px 14px;"></td>'
+      + '</tr></tfoot>';
+  }
+  html += '</table>';
+  body.innerHTML = html;
+}
 function ffsSalkahFileChange(event) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
