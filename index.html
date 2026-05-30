@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.21</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.22</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2640,7 +2640,7 @@
       <!-- סכום -->
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סכום (באלפי ש"ח) *</div>
-        <input id="ffs-inv-f-balance" type="number" min="0" placeholder="0" autocomplete="off" oninput="this.classList.remove('ffs-inv-field-required');" onkeydown="if(event.key==='-'||event.key==='e')event.preventDefault();" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+        <input id="ffs-inv-f-balance" type="number" min="0" placeholder="0" autocomplete="off" oninput="this.classList.remove('ffs-inv-field-required');this.style.backgroundColor='';this.style.border='';" onkeydown="if(event.key==='-'||event.key==='e')event.preventDefault();" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-balance" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
       <!-- מספר פוליסה -->
@@ -2760,6 +2760,10 @@
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#1e293b;">
       <input type="radio" id="ffs-pen-modal-type-manager" name="ffs-pen-modal-type" value="manager" onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
       ביטוח מנהלים
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#1e293b;">
+      <input type="radio" id="ffs-pen-modal-type-gemel" name="ffs-pen-modal-type" value="gemel" onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
+      קופת גמל / השתלמות
     </label>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#ef4444;">
       <input type="radio" id="ffs-pen-modal-type-investments" name="ffs-pen-modal-type" value="investments" onchange="ffsTogglePensionType()" style="accent-color:#ef4444;">
