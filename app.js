@@ -10752,11 +10752,6 @@ function simRunEngine() {
   var instructorSal    = SIM_INSTRUCTOR_SAL;
   var royPhoenixPension = simGetRoyPension();        // NIS/month — used for Layer 2 capital draw
   var royHarelPension   = simGetRoyHarelPension();   // NIS/month — used for Layer 3 capital draw
-  // v103.30: Phase 3 liquid income uses _psnForLoop (snapshot) — immune to mid-run external changes
-  var totalPensionIncome = _psnForLoop > 0
-    ? _psnForLoop
-    : royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0);
-
   var phase2Idx   = simMonthIdx(SIM_P2_START.y, SIM_P2_START.m);
   var phase3Idx   = simMonthIdx(SIM_P3_START.y, SIM_P3_START.m);
   var instructorStartIdx = simMonthIdx(SIM_BIRTH_YEAR_ROY + 65, 9); // v177.0: Sep 2027 (age 65) — instructor income window start
@@ -10777,7 +10772,8 @@ function simRunEngine() {
     : -1;
   var _bridgePensionContrib = FFS_PROFILE.bridgePensionContrib || false;
 
-  // Pension-designated investments: project FV at retirement, convert to monthly annuity
+  // v180.24: designated investment annuity computed BEFORE totalPensionIncome declaration
+  // — prevents any accumulation risk across repeated simRunEngine calls
   var _desigInvs = (!isExcelLoaded() && FFS_PROFILE.investments)
     ? (FFS_PROFILE.investments || []).filter(function(x){ return x.designation === 'pension'; })
     : [];
@@ -10790,9 +10786,13 @@ function simRunEngine() {
       _desigAnnuityNIS += Math.round(_fv * 1000 / _coeff); // ₪/month — same unit as totalPensionIncome
     });
   }
-  // Add annuity to pension income ONCE before loop — flows into royLiquid each retirement month
-  if (_desigAnnuityNIS > 0) totalPensionIncome += _desigAnnuityNIS;
   var _desigApplied = false;
+
+  // v103.30: Phase 3 liquid income — single definitive assignment, annuity baked in from fresh _psnForLoop
+  var totalPensionIncome = (_psnForLoop > 0
+    ? _psnForLoop
+    : royPhoenixPension + (SIM_HAREL_MODE === 'with' ? royHarelPension : 0))
+    + _desigAnnuityNIS;
 
   var eventsByMonth = {};
   var reEventsByMonth = {}; // v103.41: tracks investment additions to RE equity
