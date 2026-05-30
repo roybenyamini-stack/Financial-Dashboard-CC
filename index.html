@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.23</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.24</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2753,7 +2753,7 @@
 
   <!-- Radio: pension type -->
   <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;">
-    <div id="ffs-pen-type-radios-row" style="display:flex;gap:20px;align-items:center;">
+    <div id="ffs-pen-type-radios-row" style="display:flex;gap:20px;align-items:center;margin-bottom:4px;">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#1e293b;">
         <input type="radio" id="ffs-pen-modal-type-pension" name="ffs-pen-modal-type" value="pension" checked onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
         קרן פנסיה
@@ -2762,12 +2762,12 @@
         <input type="radio" id="ffs-pen-modal-type-manager" name="ffs-pen-modal-type" value="manager" onchange="ffsTogglePensionType()" style="accent-color:#3b82f6;">
         ביטוח מנהלים
       </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#ef4444;">
-        <input type="radio" id="ffs-pen-modal-type-investments" name="ffs-pen-modal-type" value="investments" onchange="ffsTogglePensionType()" style="accent-color:#ef4444;">
-        העבר להשקעות
-      </label>
     </div>
-    <div id="ffs-pen-gemel-label" style="display:none;font-size:13px;font-weight:700;color:#1e293b;">קופת גמל / השתלמות</div>
+    <div id="ffs-pen-gemel-label" style="display:none;font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">קופת גמל / השתלמות</div>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#ef4444;">
+      <input type="radio" id="ffs-pen-modal-type-investments" name="ffs-pen-modal-type" value="investments" onchange="ffsTogglePensionType()" style="accent-color:#ef4444;">
+      העבר להשקעות
+    </label>
   </div>
 
   <!-- v178.8: subtype + route side-by-side to reduce modal height -->
