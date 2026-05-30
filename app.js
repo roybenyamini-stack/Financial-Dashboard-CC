@@ -7930,7 +7930,7 @@ function _simRecalcRetirementZoom() {
   var retAge  = (SIM_RETIREMENT_AGE_ROY && !isNaN(SIM_RETIREMENT_AGE_ROY)) ? SIM_RETIREMENT_AGE_ROY : 67;
   var retYear = birthYear + retAge;
   SIM_ZOOM_CUSTOM.retStart = retYear - 1;
-  SIM_ZOOM_CUSTOM.retEnd   = retYear + 3; // 5-year inclusive span: retYear-1 … retYear+3
+  SIM_ZOOM_CUSTOM.retEnd   = retYear + 5; // 6-year inclusive span: retYear-1 … retYear+5
 }
 
 // v103.42 / v167.7: zoom range helpers
@@ -8688,8 +8688,11 @@ function ffsOpenPensionModal(item) {
   var titleTextAdd  = '\u{1F3E6} הוספת נכס פנסיוני';
   if (title) title.textContent = item ? titleTextEdit : titleTextAdd;
   var isManager = item && (item.pensionType === 'manager' || item.pensionType === 'ביטוח מנהלים');
-  document.getElementById('ffs-pen-modal-type-pension').checked = !isManager;
+  var isGemel   = item && item.pensionType === 'gemel';
+  var gemelEl   = document.getElementById('ffs-pen-modal-type-gemel');
+  document.getElementById('ffs-pen-modal-type-pension').checked = !isManager && !isGemel;
   document.getElementById('ffs-pen-modal-type-manager').checked = !!isManager;
+  if (gemelEl) gemelEl.checked = !!isGemel;
   document.getElementById('ffs-pen-modal-name').value     = item ? (item.name || '') : '';
   document.getElementById('ffs-pen-modal-accountnum').value = item ? (item.accountNum || '') : '';
   document.getElementById('ffs-pen-modal-provider').value = item ? (item.provider || '') : '';
@@ -8760,7 +8763,9 @@ function ffsUpdateManagerPensionCalc() {
 function ffsTogglePensionType() {
   var isPension     = document.getElementById('ffs-pen-modal-type-pension').checked;
   var invEl         = document.getElementById('ffs-pen-modal-type-investments');
-  var isInvestments = invEl ? invEl.checked : false;
+  var gemelEl       = document.getElementById('ffs-pen-modal-type-gemel');
+  var isInvestments = invEl   ? invEl.checked   : false;
+  var isGemel       = gemelEl ? gemelEl.checked : false;
   var subtypeRow    = document.getElementById('ffs-pen-subtype-row');
   var routeRow      = document.getElementById('ffs-pen-modal-route-row');
   if (subtypeRow) subtypeRow.style.display = isPension ? '' : 'none';
@@ -8797,7 +8802,9 @@ function ffsSavePensionFromModal() {
         id: _moved.id, assetNum: _moved.assetNum || '',
         name: _moved.name || _moved.provider || '',
         balance: _moved.accumulation || 0,
-        category: null, type: null, liquidity: 'pension67',
+        category:  _moved._originalCategory  || 'קופת גמל',
+        type:      _moved._originalType      || '',
+        liquidity: _moved._originalLiquidity || 'pension67',
         isActive: _moved.isActive, notes: _moved.notes || '', needsReview: true
       });
       ffsSaveProfile();
@@ -8809,7 +8816,9 @@ function ffsSavePensionFromModal() {
     }
   }
   var isEdit    = !!ffsCurrentPensionId;
-  var isPension = document.getElementById('ffs-pen-modal-type-pension').checked;
+  var isPension  = document.getElementById('ffs-pen-modal-type-pension').checked;
+  var _gemelEl2  = document.getElementById('ffs-pen-modal-type-gemel');
+  var isGemel2   = _gemelEl2 ? _gemelEl2.checked : false;
   var nameVal      = (document.getElementById('ffs-pen-modal-name').value       || '').trim();
   var accountNumVal = (document.getElementById('ffs-pen-modal-accountnum').value || '').trim();
   var provVal   = (document.getElementById('ffs-pen-modal-provider').value || '').trim();
@@ -8819,7 +8828,7 @@ function ffsSavePensionFromModal() {
     name: nameVal,
     accountNum: accountNumVal,
     provider: provVal,
-    pensionType: isPension ? 'pension' : 'manager',
+    pensionType: isPension ? 'pension' : (isGemel2 ? 'gemel' : 'manager'),
     isActive: activeVal,
     notes: notesVal,
     monthlyContribution: 0,
@@ -10712,7 +10721,7 @@ function simRunEngine() {
   // v177.94: double-gate — APP_MODE must be SIMULATOR (prevents edge case where isExcelLoaded() returns false in Admin mode)
   if (APP_MODE === 'SIMULATOR' && !isExcelLoaded() && FFS_PROFILE.pension) {
     FFS_PROFILE.pension.forEach(function(p) {
-      if (p.pensionType === 'manager' || p.pensionType === 'ביטוח מנהלים' || p.isBituachMenahalim) {
+      if (p.pensionType === 'manager' || p.pensionType === 'gemel' || p.pensionType === 'ביטוח מנהלים' || p.isBituachMenahalim) {
         _ffsManagerItems.push(p);
         _ffsManagerCaps.push(p.accumulation || 0);
         _ffsManagerData.push([]);
@@ -10767,13 +10776,13 @@ function simRunEngine() {
   var _desigInvs = (!isExcelLoaded() && FFS_PROFILE.investments)
     ? (FFS_PROFILE.investments || []).filter(function(x){ return x.designation === 'pension'; })
     : [];
-  var _desigFV = 0, _desigAnnuity = 0;
+  var _desigFV = 0, _desigAnnuityK = 0;
   if (_desigInvs.length > 0) {
     _desigInvs.forEach(function(inv) {
       var _fv = (inv.balance || 0) * Math.pow(1 + monthlyRate, phase3Idx); // K₪ compounded to retirement
       var _coeff = inv.coefficient || 200;
       _desigFV += _fv;
-      _desigAnnuity += Math.round(_fv * 1000 / _coeff); // ₪/month
+      _desigAnnuityK += _fv / _coeff; // K₪/month — same unit as royLiquid, no ×1000
     });
   }
   var _desigApplied = false;
@@ -10916,13 +10925,13 @@ function simRunEngine() {
       if (i === phase3Idx && FFS_PROFILE._projectedOverflowLiquid > 0) {
         royLiquid += FFS_PROFILE._projectedOverflowLiquid / 1000; // ₪ → K₪
       }
-      // v180.21: convert pension-designated investments to annuity at retirement (one-shot)
+      // v180.22: convert pension-designated investments to annuity at retirement
       if (i === phase3Idx && !_desigApplied && _desigFV > 0) {
-        royLiquid -= _desigFV;
+        royLiquid -= _desigFV; // remove FV from liquid (one-shot)
         if (royLiquid < 0) royLiquid = 0;
-        totalPensionIncome += _desigAnnuity;
         _desigApplied = true;
       }
+      if (_desigAnnuityK > 0) royLiquid += _desigAnnuityK; // K₪/month annuity every retirement month
       royLiquid += (totalPensionIncome - targetExp) / 1000;
     }
     // v103.38: investment monthly cashflow (rent − loan) always applies
@@ -15640,7 +15649,11 @@ function ffsCheckLiquidityWarning() {
 // ── v177.12: hide hint when user clears a dropdown field error ──────────────
 function ffsClearFieldError(fieldId, hintId) {
   var el = document.getElementById(fieldId);
-  if (el) el.classList.remove('ffs-inv-field-required');
+  if (el) {
+    el.classList.remove('ffs-inv-field-required');
+    el.style.backgroundColor = '';
+    el.style.border = '';
+  }
   var h = document.getElementById(hintId);
   if (h) h.style.display = 'none';
 }
@@ -15796,12 +15809,15 @@ function ffsSaveInvFromModal() {
         FFS_PROFILE.pension.push({
           id: _mv.id, assetNum: _mv.assetNum || '', accountNum: _mv.assetNum || '',
           name: _mv.name || '', provider: _mv.name || '',
-          pensionType: 'manager', isBituachMenahalim: true,
+          pensionType: 'gemel',
           pensionSubtype: 'new', calcRoute: 'B', overflowTarget: 'pension',
           accumulation: _mv.balance || 0,
           monthlyPension: null, contributionPct: null, expectedPayout: null,
           conversionFactor: _mv.coefficient || 200,
-          lifeInsurance: _mv.balance || 0,
+          lifeInsurance: 0,
+          _originalCategory: _mv.category || '',
+          _originalType: _mv.type || '',
+          _originalLiquidity: _mv.liquidity || '',
           survivorsEnabled: false, spousePct: null, orphanPct: null, childrenAges: '',
           monthlyContribution: 0, isActive: _mv.isActive, needsReview: true,
           notes: _mv.notes || ''
