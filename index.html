@@ -1,4 +1,4 @@
-<!-- v180.18 -->
+<!-- v180.19 -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.18</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.20</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1608,7 +1608,7 @@
     </label>
     <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
     <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
-    <button class="cc-btn" onclick="openMasterGrid()" title="טבלת נכסים מרכזית">📊 טבלת נכסים</button>
+    <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="טבלת נכסים מרכזית">תצוגת טבלה 📊</button>
     <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
     <div style="flex:1;"></div>
     <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
@@ -1626,7 +1626,7 @@
   </div>
 
   <!-- === 3-COLUMN BODY === -->
-  <div style="display:flex;flex:1;overflow:hidden;min-height:0;height:calc(88vh - 95px);">
+  <div id="ffs-cards-body" style="display:flex;flex:1;overflow:hidden;min-height:0;height:calc(88vh - 95px);">
 
     <!-- === RIGHT: Navigation Column (v170.3) === -->
     <nav style="width:210px;flex-shrink:0;background:#1e293b;padding:18px 10px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;border-left:1px solid rgba(255,255,255,0.12);">
@@ -2054,7 +2054,7 @@
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">📈 השקעות</span>
+          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">📈 השקעות <span title="נכסים ללא ייעוד מוגדר מחושבים כהון (Capital) כברירת מחדל" style="font-size:10px;color:rgba(255,255,255,0.32);cursor:help;vertical-align:super;margin-right:3px;">ⓘ</span></span>
           <span id="ffs-live-inv" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
@@ -2086,9 +2086,10 @@
 
   </div><!-- end 3-column body -->
 
+  <div id="table-container" style="display:none;flex:1;overflow-y:auto;min-height:0;background:#f8fafc;"></div>
 </div><!-- end #ffs-drawer -->
 
-<!-- MASTER GRID OVERLAY v180.18 -->
+<!-- MASTER GRID OVERLAY v180.19 -->
 <div id="mgrid-backdrop" onclick="closeMasterGrid()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10500;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
 <div id="mgrid-modal" style="display:none;position:fixed;top:5vh;left:5vw;width:90vw;height:90vh;z-index:10501;border-radius:16px;overflow:hidden;flex-direction:column;font-family:Heebo,sans-serif;box-shadow:0 24px 64px rgba(0,0,0,0.4);">
   <div style="background:#1e293b;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
@@ -2697,6 +2698,20 @@
         <input type="checkbox" id="ffs-inv-f-active" style="accent-color:#3b82f6;width:15px;height:15px;"> קופה פעילה
       </label>
     </div>
+    <!-- ייעוד -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">ייעוד</div>
+      <select id="ffs-inv-f-designation" onchange="ffsOnDesignationChange()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;background:#fff;box-sizing:border-box;outline:none;">
+        <option value="unassigned">לא הוחלט</option>
+        <option value="capital">הון — משיכה חד פעמית</option>
+        <option value="pension">קצבה — פנסיה חודשית</option>
+      </select>
+    </div>
+    <!-- מקדם המרה — hidden unless designation='pension' -->
+    <div id="ffs-inv-coefficient-wrap" style="display:none;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מקדם המרה (ברירת מחדל: 200)</div>
+      <input id="ffs-inv-f-coefficient" type="number" min="1" placeholder="200" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+    </div>
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">הערות</div>
       <textarea id="ffs-inv-f-notes" placeholder="הערות, היסטוריה, סוכן. כל הערה שהיא" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;resize:vertical;direction:rtl;"></textarea>
@@ -2783,10 +2798,9 @@
       <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מספר נכס</div>
       <input type="text" id="ffs-pen-modal-accountnum" autocomplete="off" placeholder="מספר חשבון, מספר פוליסה..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;box-sizing:border-box;outline:none;">
     </div>
-    <!-- v178.6: monthly contribution — shared for pension + manager's insurance -->
     <div>
-      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">הפקדה חודשית שוטפת (₪)</div>
-      <input type="number" id="ffs-pen-modal-monthly-contrib" autocomplete="off" placeholder="0" min="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;box-sizing:border-box;outline:none;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">קצבה נוכחית (₪)</div>
+      <input type="number" id="ffs-pen-modal-monthly" autocomplete="off" placeholder="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;box-sizing:border-box;outline:none;">
     </div>
   </div>
 
@@ -2796,8 +2810,8 @@
     <div id="vatiqa-pension-fields" style="display:none;margin-bottom:12px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <div>
-          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">קצבה נוכחית (₪)</div>
-          <input type="number" id="ffs-pen-modal-monthly" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">קצבה צפויה (₪)</div>
+          <input type="number" id="ffs-pen-modal-expected" autocomplete="off" placeholder="0" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
         </div>
         <div>
           <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">אחוזי צבירה (%)</div>
@@ -2815,13 +2829,11 @@
         </div>
       </div>
     </div>
-    <!-- hidden backward-compat field — not shown in new UI but keeps JS reads from throwing -->
-    <input type="number" id="ffs-pen-modal-expected" autocomplete="off" style="display:none;">
     <!-- Survivors section -->
     <div style="border-top:1px solid #f1f5f9;padding-top:10px;margin-bottom:12px;">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:#475569;">
         <input type="checkbox" id="ffs-pen-modal-survivors" onchange="document.getElementById('ffs-pen-survivors-fields').style.display=this.checked?'block':'none';" style="accent-color:#3b82f6;width:14px;height:14px;">
-        כיסוי שארים
+        הצג כיסוי שארים
       </label>
       <div id="ffs-pen-survivors-fields" style="display:none;margin-top:10px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
@@ -2855,13 +2867,13 @@
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
           הון צבור (K &#x20AA;)
         </div>
-        <input type="number" id="ffs-pen-modal-accum" autocomplete="off" placeholder="0" oninput="var life = document.getElementById('ffs-pen-modal-life'); if(life) life.value = this.value;" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+        <input type="number" id="ffs-pen-modal-accum" autocomplete="off" placeholder="0" oninput="var life = document.getElementById('ffs-pen-modal-life'); if(life) life.value = this.value; ffsUpdateManagerPensionCalc();" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
           מקדם המרה
         </div>
-        <input type="number" id="ffs-pen-modal-factor" autocomplete="off" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
+        <input type="number" id="ffs-pen-modal-factor" autocomplete="off" oninput="ffsUpdateManagerPensionCalc();" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;">
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">

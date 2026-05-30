@@ -72,6 +72,8 @@ To extract the raw balance for a non-Vatika account node, collect **all** matchi
 
 This handles nesting correctly: policy-level totals naturally dominate track-level values, and multi-track products are summed rather than using only the first match.
 
+* **PerutYitrot Fallback:** If `rawBalance` is still 0 after the Max-Sum heuristic (all three primary tags absent or zero within the account node), sum all `<TOTAL-CHISACHON-MTZBR>` elements scoped inside `<PerutYitrot>` children. Use that sum as `rawBalance`. This handles older Bituach Menahalim formats (e.g. Harel pre-2000) that only expose per-track subtotals with no policy-level aggregate.
+
 ## 9. Account-Level Scoping (PascalCase container nodes)
 Assets MUST be split by iterating over `<HeshbonOPolisa>` child nodes within each `<Mutzar>`, not one per `<Mutzar>`. This prevents providers like Altshuler or Meitav from having all their grouped policies collapsed into a single asset.
 * Container/block nodes in Mislaka XML use **PascalCase without dashes**: `<Mutzar>`, `<HeshbonOPolisa>`, `<Maslulit>`.
@@ -83,3 +85,9 @@ Assets MUST be split by iterating over `<HeshbonOPolisa>` child nodes within eac
 * **Default:** If no tag is found, or if the value is empty, the account is considered active (`isActive: true`). Active accounts frequently omit the status tag entirely.
 * **Explicit inactive codes:** '2', '3', '4' (and other frozen/closed codes) → `isActive: false`. Any other value (including '1', empty string, or missing) → `isActive: true`.
 * This value MUST be passed through to the `FFS_PROFILE` asset on both new-push and update (upsert) paths. Do not hardcode `isActive: true`.
+
+## 11. Bituach Menahalim Classification (Scalable Keyword Dictionary)
+* **Detection keyword list (`MGR_KEYWORDS`):** `['מנהלים', 'םילהנמ', 'מעולה', 'הלועמ', 'עדיף', 'ףידע', 'גמלא', 'אלמג', 'ביטוח חיים', 'םייח חוטיב']`
+* Apply `.some()` iteration against both `SHEM-TOCHNIT` (product name) and `SHEM-YATZRAN` (provider name).
+* If any keyword matches → `isBituachMenahalim: true`, `pensionType: 'manager'`.
+* **Scalability rule:** Do NOT hardcode individual string checks. Add new product-name patterns only to this list — never add new `indexOf` calls inline.
