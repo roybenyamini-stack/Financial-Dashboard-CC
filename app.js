@@ -15821,9 +15821,9 @@ function ffsSaveInvFromModal() {
           monthlyPension: null, contributionPct: null, expectedPayout: null,
           conversionFactor: _mv.coefficient || 200,
           lifeInsurance: 0,
-          _originalCategory: _mv.category || '',
-          _originalType: _mv.type || '',
-          _originalLiquidity: _mv.liquidity || '',
+          _originalCategory:  (document.getElementById('ffs-inv-f-category')  || {}).value || _mv.category  || '',
+          _originalType:      (document.getElementById('ffs-inv-f-type')       || {}).value || _mv.type      || '',
+          _originalLiquidity: (document.getElementById('ffs-inv-f-liquidity')  || {}).value || _mv.liquidity || '',
           survivorsEnabled: false, spousePct: null, orphanPct: null, childrenAges: '',
           monthlyContribution: 0, isActive: _mv.isActive, needsReview: true,
           notes: _mv.notes || ''
