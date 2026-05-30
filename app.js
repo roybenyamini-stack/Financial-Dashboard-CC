@@ -9204,6 +9204,12 @@ function ffsRenderSection(section) {
         html += '</select>';
         html += '</div>';
         html += '</div>';
+        var _desigBadge = (item.designation === 'pension')
+          ? 'ייעוד: קצבה (מקדם ' + (item.coefficient || 200) + ')'
+          : (item.designation === 'capital' ? 'ייעוד: הון' : '');
+        if (_desigBadge) {
+          html += '<div style="font-size:10px;color:#3b82f6;font-weight:600;margin-bottom:4px;">' + _desigBadge + '</div>';
+        }
         html += '<div style="display:flex;justify-content:flex-end;gap:6px;">';
         if (item.needsReview) {
           html += '<button data-section="investments" data-id="' + eid + '" onclick="ffsApproveAsset(this.dataset.section,this.dataset.id)" style="flex-shrink:0;background:#f59e0b;border:none;color:white;font-size:11px;font-weight:700;cursor:pointer;padding:3px 9px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">אישור נתונים ✔️</button>';
@@ -9390,11 +9396,11 @@ function ffsRenderSection(section) {
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px;">';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lMonthly + '</div>';
-        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.monthlyPension) + '" value="' + (item.monthlyPension != null ? item.monthlyPension : '') + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.monthlyPension) + '" value="' + (item.monthlyPension != null ? Math.round(item.monthlyPension) : '') + '">';
         html += '</div>';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lExpected + '</div>';
-        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.expectedPayout) + '" value="' + (item.expectedPayout != null ? item.expectedPayout : '') + '">';
+        html += '<input type="number" readonly style="' + inSt + 'text-align:center;' + _nullBg(item.expectedPayout) + '" value="' + (item.expectedPayout != null ? Math.round(item.expectedPayout) : '') + '">';
         html += '</div>';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lContrib + '</div>';
@@ -10757,6 +10763,21 @@ function simRunEngine() {
     : -1;
   var _bridgePensionContrib = FFS_PROFILE.bridgePensionContrib || false;
 
+  // Pension-designated investments: project FV at retirement, convert to monthly annuity
+  var _desigInvs = (!isExcelLoaded() && FFS_PROFILE.investments)
+    ? (FFS_PROFILE.investments || []).filter(function(x){ return x.designation === 'pension'; })
+    : [];
+  var _desigFV = 0, _desigAnnuity = 0;
+  if (_desigInvs.length > 0) {
+    _desigInvs.forEach(function(inv) {
+      var _fv = (inv.balance || 0) * Math.pow(1 + monthlyRate, phase3Idx); // K₪ compounded to retirement
+      var _coeff = inv.coefficient || 200;
+      _desigFV += _fv;
+      _desigAnnuity += Math.round(_fv * 1000 / _coeff); // ₪/month
+    });
+  }
+  var _desigApplied = false;
+
   var eventsByMonth = {};
   var reEventsByMonth = {}; // v103.41: tracks investment additions to RE equity
   if (PENSION_EVENTS && PENSION_EVENTS.length) {
@@ -10894,6 +10915,13 @@ function simRunEngine() {
       // v178.7: inject overflow lump sum (capped old-pension capital redirect) at retirement month
       if (i === phase3Idx && FFS_PROFILE._projectedOverflowLiquid > 0) {
         royLiquid += FFS_PROFILE._projectedOverflowLiquid / 1000; // ₪ → K₪
+      }
+      // v180.21: convert pension-designated investments to annuity at retirement (one-shot)
+      if (i === phase3Idx && !_desigApplied && _desigFV > 0) {
+        royLiquid -= _desigFV;
+        if (royLiquid < 0) royLiquid = 0;
+        totalPensionIncome += _desigAnnuity;
+        _desigApplied = true;
       }
       royLiquid += (totalPensionIncome - targetExp) / 1000;
     }
@@ -15632,6 +15660,10 @@ function ffsOpenInvModal(prefillOrArray, context) {
   var liqWrap      = document.getElementById('ffs-inv-liquidity-wrap');
   if (!modal) return;
   ffsCurrentInvId = (prefillOrArray && !Array.isArray(prefillOrArray) && prefillOrArray.id) ? prefillOrArray.id : null;
+  var _mvRow = document.getElementById('ffs-inv-move-pension-row');
+  var _mvInv = document.getElementById('ffs-inv-bucket-inv');
+  if (_mvRow) _mvRow.style.display = ffsCurrentInvId ? '' : 'none';
+  if (_mvInv && ffsCurrentInvId) _mvInv.checked = true;
 
   loader.style.display   = 'none';
   formBody.style.display = 'block';
@@ -15755,6 +15787,34 @@ function ffsSaveInvFromModal() {
       notes:            notesVal
     });
   } else {
+    var _bucketEl = document.getElementById('ffs-inv-bucket-pen');
+    var _moveToPension = _bucketEl && _bucketEl.checked;
+    if (_moveToPension && ffsCurrentInvId) {
+      var _editIdx3 = (FFS_PROFILE.investments || []).findIndex(function(x) { return x.id === ffsCurrentInvId; });
+      if (_editIdx3 >= 0) {
+        var _mv = FFS_PROFILE.investments.splice(_editIdx3, 1)[0];
+        FFS_PROFILE.pension.push({
+          id: _mv.id, assetNum: _mv.assetNum || '', accountNum: _mv.assetNum || '',
+          name: _mv.name || '', provider: _mv.name || '',
+          pensionType: 'manager', isBituachMenahalim: true,
+          pensionSubtype: 'new', calcRoute: 'B', overflowTarget: 'pension',
+          accumulation: _mv.balance || 0,
+          monthlyPension: null, contributionPct: null, expectedPayout: null,
+          conversionFactor: _mv.coefficient || 200,
+          lifeInsurance: _mv.balance || 0,
+          survivorsEnabled: false, spousePct: null, orphanPct: null, childrenAges: '',
+          monthlyContribution: 0, isActive: _mv.isActive, needsReview: true,
+          notes: _mv.notes || ''
+        });
+        ffsCurrentInvId = null;
+        ffsSaveProfile();
+        ffsRenderSection('investments');
+        ffsRenderSection('pension');
+        ffsUpdateLiveSidebar();
+        ffsCloseInvModal();
+        return;
+      }
+    }
     if (ffsCurrentInvId) {
       var _editIdx = -1;
       (FFS_PROFILE.investments || []).forEach(function(x, i) {
@@ -16066,6 +16126,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             if (p.contributionPct != null) arr[existIdx].contributionPct = p.contributionPct;
           }
           if (p.mekadem != null) arr[existIdx].conversionFactor = p.mekadem;
+          if (p.isBituachMenahalim && !arr[existIdx].lifeInsurance) arr[existIdx].lifeInsurance = balanceK;
         } else {
           arr[existIdx].balance = balanceK;
         }
@@ -16089,7 +16150,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             monthlyPension: isVatika ? p.monthlyPension : null,
             contributionPct: isVatika ? p.contributionPct : null,
             expectedPayout: null, conversionFactor: p.mekadem || 200, survivorsEnabled: false,
-            spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: 0,
+            spousePct: null, orphanPct: null, childrenAges: '', lifeInsurance: _isMgr ? balanceK : 0,
             monthlyContribution: 0, isActive: !!p.isActive, needsReview: true,
             notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—') + (isVatika ? ' (ותיקה)' : '')
           });
