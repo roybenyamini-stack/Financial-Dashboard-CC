@@ -8736,6 +8736,14 @@ function ffsOpenPensionModal(item) {
   }
   document.getElementById('ffs-pen-modal-active').checked = item ? (!!item.isActive) : false;
   document.getElementById('ffs-pen-modal-notes').value    = item ? (item.notes || '') : '';
+  var _rAnnuity = document.getElementById('ffs-pen-routing-annuity');
+  var _rCapital = document.getElementById('ffs-pen-routing-capital');
+  var _routing  = item ? (item.retirementRouting || 'annuity') : 'annuity';
+  if (_rAnnuity) _rAnnuity.checked = (_routing !== 'capital');
+  if (_rCapital) _rCapital.checked = (_routing === 'capital');
+  var _cyEl = document.getElementById('ffs-pen-modal-customyield');
+  if (_cyEl) _cyEl.value = (item && item.customYield != null) ? item.customYield : '';
+  ffsUpdateManagerPensionCalc();
   ffsTogglePensionType();
   document.getElementById('ffs-pension-backdrop').style.display = 'block';
   document.getElementById('ffs-pension-modal').style.display    = 'block';
@@ -8751,9 +8759,15 @@ function ffsUpdateManagerPensionCalc() {
   if (!monthlyEl) return;
   var isManager = mgrEl && mgrEl.checked;
   if (isManager) {
-    var accum  = parseFloat(document.getElementById('ffs-pen-modal-accum').value)  || 0;
-    var factor = parseFloat(document.getElementById('ffs-pen-modal-factor').value) || 0;
-    if (factor > 0) monthlyEl.value = Math.round((accum * 1000) / factor);
+    var _capEl2    = document.getElementById('ffs-pen-routing-capital');
+    var _isCapital = _capEl2 && _capEl2.checked;
+    if (_isCapital) {
+      monthlyEl.value = '';
+    } else {
+      var accum  = parseFloat(document.getElementById('ffs-pen-modal-accum').value)  || 0;
+      var factor = parseFloat(document.getElementById('ffs-pen-modal-factor').value) || 0;
+      if (factor > 0) monthlyEl.value = Math.round((accum * 1000) / factor);
+    }
     monthlyEl.readOnly = true;
     monthlyEl.style.background = '#f8fafc';
     monthlyEl.style.color = '#94a3b8';
@@ -8864,6 +8878,10 @@ function ffsSavePensionFromModal() {
     newData.monthlyPension = 0; newData.expectedPayout = 0; newData.contributionPct = 0;
     newData.survivorsEnabled = false; newData.spousePct = 0; newData.orphanPct = 0; newData.childrenAges = '';
     newData.pensionSubtype = 'new'; newData.overflowTarget = 'pension';
+    var _capEl = document.getElementById('ffs-pen-routing-capital');
+    newData.retirementRouting = (_capEl && _capEl.checked) ? 'capital' : 'annuity';
+    var _cyRaw = parseFloat((document.getElementById('ffs-pen-modal-customyield') || {}).value);
+    newData.customYield = isNaN(_cyRaw) ? null : _cyRaw;
   }
   if (isEdit) {
     var existing = (FFS_PROFILE.pension || []).find(function(x) { return x.id === ffsCurrentPensionId; });
@@ -9406,7 +9424,7 @@ function ffsRenderSection(section) {
         var _lMonthly   = 'קצבה נוכחית (₪)';
         var _lExpected  = 'קצבה צפויה (₪)';
         var _lContrib   = 'אחוזי קצבה צבורים';
-        var _lSurvivors = 'כיסוי שארים';
+        var _lSurvivors = 'הצג כיסוי שארים';
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px;">';
         html += '<div>';
         html += '<div style="' + lbSt + '">' + _lMonthly + '</div>';
@@ -9467,17 +9485,23 @@ function ffsRenderSection(section) {
         html += '<input type="number" readonly style="' + inSt + 'text-align:center;" value="' + (item.lifeInsurance || 0) + '">';
         html += '</div>';
         html += '</div>';
-        if (item.accumulation > 0 && item.conversionFactor > 0) {
+        var _isCapRoute = (item.retirementRouting === 'capital');
+        if (item.accumulation > 0 && item.conversionFactor > 0 && !_isCapRoute) {
           var _monthly    = Math.round(item.accumulation * 1000 / item.conversionFactor);
           var _calcPrefix = 'קצבה מחושבת: ';
           var _calcSuffix = ' ₪/חודש';
-          html += '<div style="font-size:10px;color:#3b82f6;font-weight:600;margin-top:3px;">';
+          html += '<div style="font-size:12px;color:#3b82f6;font-weight:600;margin-top:3px;">';
           html += _calcPrefix + _monthly.toLocaleString() + _calcSuffix;
           html += '</div>';
-          html += '<div style="font-size:9px;color:#94a3b8;margin-top:3px;">';
-          html += _estateNote;
-          html += '</div>';
+        } else if (_isCapRoute) {
+          html += '<div style="font-size:12px;color:#64748b;font-weight:600;margin-top:3px;">יעד: השארת הון — קצבה: 0 &#x20AA;</div>';
         }
+        if (item.customYield != null) {
+          html += '<div style="font-size:10px;color:#8b5cf6;margin-top:2px;">תשואה מותאמת: ' + item.customYield + '%</div>';
+        }
+        html += '<div style="font-size:9px;color:#94a3b8;margin-top:3px;">';
+        html += _estateNote;
+        html += '</div>';
       }
       // Edit button (+ Approve if needsReview)
       html += '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;">';
@@ -10344,6 +10368,7 @@ function ffsLoadYoavCancel() {
 function ffsTotalPensionMonthlyNIS() {
   var fromPension = (FFS_PROFILE.pension || []).reduce(function(s, p) {
     if (p.pensionType === 'manager') {
+      if (p.retirementRouting === 'capital') return s;
       if (p.accumulation > 0 && p.conversionFactor > 0) return s + Math.round(p.accumulation * 1000 / p.conversionFactor);
       return s;
     }
@@ -10384,6 +10409,7 @@ function ffsPensionProjectionEngine() {
     if (!item || item.isActive === false) return;
     var _route = item.calcRoute || 'B';
     var _isMgr = (item.pensionType === 'manager' || item.pensionType === 'ביטוח מנהלים');
+    if (_isMgr && item.retirementRouting === 'capital') return; // capital route → 0 pension contribution
     var _isVat = !_isMgr && (item.pensionSubtype === 'vatiqa');
     var _mc    = item.monthlyContribution || 0;
 
@@ -10723,6 +10749,7 @@ function simRunEngine() {
   var _ffsManagerItems = [];
   var _ffsManagerCaps  = [];  // K₪, one slot per active manager item
   var _ffsManagerData  = [];  // time-series, one array per item
+  var _ffsManagerDraws = [];  // K₪/month draw, locked at phase3Idx (0 for capital-route items)
   // v177.94: double-gate — APP_MODE must be SIMULATOR (prevents edge case where isExcelLoaded() returns false in Admin mode)
   if (APP_MODE === 'SIMULATOR' && !isExcelLoaded() && FFS_PROFILE.pension) {
     FFS_PROFILE.pension.forEach(function(p) {
@@ -10730,6 +10757,7 @@ function simRunEngine() {
         _ffsManagerItems.push(p);
         _ffsManagerCaps.push(p.accumulation || 0);
         _ffsManagerData.push([]);
+        _ffsManagerDraws.push(0);
       }
     });
   }
@@ -10858,7 +10886,11 @@ function simRunEngine() {
     royPhoenixData.push(phxVal);
     royHarelData.push(hrlVal);
     royRealEstateData.push(reVal);
-    royData.push(liqVal + phxVal + hrlVal + reVal);
+    var _fmgTotal = 0;
+    for (var _fj = 0; _fj < _ffsManagerCaps.length; _fj++) {
+      _fmgTotal += Math.max(0, Math.round(_ffsManagerCaps[_fj]));
+    }
+    royData.push(liqVal + phxVal + hrlVal + reVal + _fmgTotal);
     yaelData.push(Math.max(0, Math.round(yaelCapital)));
     // v177.93: record per-item FFS snapshots
     for (var _fi = 0; _fi < _ffsManagerData.length; _fi++) {
@@ -10904,12 +10936,26 @@ function simRunEngine() {
       }
       // 'without' (default): Harel compounds as inheritance capital — no withdrawals
     }
-    // v177.93: compound each FFS manager item individually (premiums=0 in FFS mode)
+    // v180.28: compound each FFS manager item individually; custom yield uses 12th-root for exact EAR
     for (var _fi = 0; _fi < _ffsManagerCaps.length; _fi++) {
+      var _itm   = _ffsManagerItems[_fi];
+      var _iRate = (_itm.customYield != null)
+        ? (Math.pow(1 + (_itm.customYield / 100), 1 / 12) - 1)
+        : _penMonthlyRate;
       if (i < phase3Idx) {
-        _ffsManagerCaps[_fi] *= (1 + _penMonthlyRate);
+        _ffsManagerCaps[_fi] *= (1 + _iRate);
       } else {
-        _ffsManagerCaps[_fi] *= (1 + retYieldMonthly);
+        if (i === phase3Idx) {
+          var _cf = (_itm.conversionFactor || 0);
+          _ffsManagerDraws[_fi] = (_itm.retirementRouting === 'capital' || _cf <= 0)
+            ? 0
+            : (_ffsManagerCaps[_fi] / _cf); // K₪/month — mirrors the annuity added to SIM_PENSION_MONTHLY
+        }
+        var _postRate = (_itm.customYield != null)
+          ? (Math.pow(1 + (_itm.customYield / 100), 1 / 12) - 1)
+          : retYieldMonthly;
+        _ffsManagerCaps[_fi] *= (1 + _postRate);
+        _ffsManagerCaps[_fi] -= _ffsManagerDraws[_fi];
         if (_ffsManagerCaps[_fi] < 0) _ffsManagerCaps[_fi] = 0;
       }
     }
@@ -12407,6 +12453,19 @@ function simInit() {
 
   // v168.76 FIX: load FFS profile BEFORE simCheckEmpty so FFS capital is counted
   ffsLoadProfile();
+  // v180.29: sync birth year + phase boundaries from FFS profile before first render
+  if (APP_MODE === 'SIMULATOR' && FFS_PROFILE.birthDate) {
+    var _initBd = new Date(FFS_PROFILE.birthDate);
+    if (!isNaN(_initBd.getTime())) {
+      SIM_BIRTH_YEAR_ROY = _initBd.getFullYear();
+      SIM_RETIREMENT_AGE_ROY = parseInt(FFS_PROFILE.retirementAge) || 67;
+      SIM_P3_START = { y: SIM_BIRTH_YEAR_ROY + SIM_RETIREMENT_AGE_ROY, m: 8 };
+      var _bAge = parseInt(FFS_PROFILE.bridgeAge) || 0;
+      SIM_P2_START = _bAge > 0
+        ? { y: SIM_BIRTH_YEAR_ROY + _bAge, m: 8 }
+        : { y: SIM_P3_START.y, m: SIM_P3_START.m };
+    }
+  }
   // v168.87: auto-detect Excel on init — set activeDataSource BEFORE ffsSyncSliders so guard works
   if (_hasRawExcelData()) {
     activeDataSource = 'EXCEL';
@@ -16198,16 +16257,19 @@ function processMultipleSalkahFiles(files, statusEl) {
     if (typeof ffsApplyToSimulator === 'function') ffsApplyToSimulator();
     if (typeof simFullRefresh      === 'function') simFullRefresh();
     var _esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-    var _addedList   = _addedPolicies.length   ? _esc(_addedPolicies.join(', '))   : '—';
-    var _updatedList = _updatedPolicies.length ? _esc(_updatedPolicies.join(', ')) : '—';
-    var _skippedList = _skippedPolicies.length ? _esc(_skippedPolicies.join(', ')) : '—';
+    var _buildChips = function(arr, bg, color, border) {
+      return arr.map(function(n) {
+        return '<span dir="ltr" style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-family:monospace;white-space:nowrap;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';">' + _esc(n) + '</span>';
+      }).join(' ');
+    };
+    var _secAdded   = _added   > 0 ? '<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:5px;">✅ חדשים (' + _added + ')</div><div style="display:flex;flex-wrap:wrap;gap:5px;">' + _buildChips(_addedPolicies,   '#dcfce7','#15803d','#86efac') + '</div></div>' : '';
+    var _secUpdated = _updated > 0 ? '<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:5px;">🔄 עודכנו (' + _updated + ')</div><div style="display:flex;flex-wrap:wrap;gap:5px;">' + _buildChips(_updatedPolicies, '#dbeafe','#1d4ed8','#93c5fd') + '</div></div>' : '';
+    var _secSkipped = _skipped > 0 ? '<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;color:#b45309;margin-bottom:5px;">⚠️ דולגו (' + _skipped + ')</div><div style="display:flex;flex-wrap:wrap;gap:5px;">' + _buildChips(_skippedPolicies, '#fef9c3','#b45309','#fde047') + '</div></div>' : '';
     statusEl.style.background = '#f0fdf4';
     statusEl.style.color      = '#15803d';
     statusEl.innerHTML = '✅ סיום יבוא: [' + _added + '] חדשים | [' + _updated + '] עודכנו | [' + _skipped + '] דולגו (<1K)' +
-      '<div style="max-height:80px;overflow-y:auto;font-size:11px;text-align:left;direction:ltr;padding:5px;background:rgba(0,0,0,0.05);border-radius:4px;margin-top:5px;">' +
-      'חדשים: ' + _addedList + '<br>' +
-      'עודכנו: ' + _updatedList + '<br>' +
-      'דולגו: ' + _skippedList +
+      '<div style="max-height:200px;overflow-y:auto;margin-top:10px;padding:6px 2px;">' +
+      _secAdded + _secUpdated + _secSkipped +
       '</div>';
     setTimeout(closeSalkahModal, 7000);
   }).catch(function(err) {
