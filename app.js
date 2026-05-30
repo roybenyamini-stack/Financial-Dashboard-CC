@@ -7930,7 +7930,7 @@ function _simRecalcRetirementZoom() {
   var retAge  = (SIM_RETIREMENT_AGE_ROY && !isNaN(SIM_RETIREMENT_AGE_ROY)) ? SIM_RETIREMENT_AGE_ROY : 67;
   var retYear = birthYear + retAge;
   SIM_ZOOM_CUSTOM.retStart = retYear - 1;
-  SIM_ZOOM_CUSTOM.retEnd   = retYear + 5; // 6-year inclusive span: retYear-1 … retYear+5
+  SIM_ZOOM_CUSTOM.retEnd   = retYear + 3; // 5-year span: retYear-1 … retYear+3
 }
 
 // v103.42 / v167.7: zoom range helpers
@@ -8689,10 +8689,13 @@ function ffsOpenPensionModal(item) {
   if (title) title.textContent = item ? titleTextEdit : titleTextAdd;
   var isManager = item && (item.pensionType === 'manager' || item.pensionType === 'ביטוח מנהלים');
   var isGemel   = item && item.pensionType === 'gemel';
-  var gemelEl   = document.getElementById('ffs-pen-modal-type-gemel');
+  window._ffsPenIsGemel = !!isGemel;
+  var _radiosRow = document.getElementById('ffs-pen-type-radios-row');
+  var _gemelLbl  = document.getElementById('ffs-pen-gemel-label');
+  if (_radiosRow) _radiosRow.style.display = isGemel ? 'none' : 'flex';
+  if (_gemelLbl)  _gemelLbl.style.display  = isGemel ? '' : 'none';
   document.getElementById('ffs-pen-modal-type-pension').checked = !isManager && !isGemel;
   document.getElementById('ffs-pen-modal-type-manager').checked = !!isManager;
-  if (gemelEl) gemelEl.checked = !!isGemel;
   document.getElementById('ffs-pen-modal-name').value     = item ? (item.name || '') : '';
   document.getElementById('ffs-pen-modal-accountnum').value = item ? (item.accountNum || '') : '';
   document.getElementById('ffs-pen-modal-provider').value = item ? (item.provider || '') : '';
@@ -8763,9 +8766,7 @@ function ffsUpdateManagerPensionCalc() {
 function ffsTogglePensionType() {
   var isPension     = document.getElementById('ffs-pen-modal-type-pension').checked;
   var invEl         = document.getElementById('ffs-pen-modal-type-investments');
-  var gemelEl       = document.getElementById('ffs-pen-modal-type-gemel');
-  var isInvestments = invEl   ? invEl.checked   : false;
-  var isGemel       = gemelEl ? gemelEl.checked : false;
+  var isInvestments = invEl ? invEl.checked : false;
   var subtypeRow    = document.getElementById('ffs-pen-subtype-row');
   var routeRow      = document.getElementById('ffs-pen-modal-route-row');
   if (subtypeRow) subtypeRow.style.display = isPension ? '' : 'none';
@@ -8817,8 +8818,7 @@ function ffsSavePensionFromModal() {
   }
   var isEdit    = !!ffsCurrentPensionId;
   var isPension  = document.getElementById('ffs-pen-modal-type-pension').checked;
-  var _gemelEl2  = document.getElementById('ffs-pen-modal-type-gemel');
-  var isGemel2   = _gemelEl2 ? _gemelEl2.checked : false;
+  var isGemel2   = !!(window._ffsPenIsGemel);
   var nameVal      = (document.getElementById('ffs-pen-modal-name').value       || '').trim();
   var accountNumVal = (document.getElementById('ffs-pen-modal-accountnum').value || '').trim();
   var provVal   = (document.getElementById('ffs-pen-modal-provider').value || '').trim();
@@ -9376,6 +9376,7 @@ function ffsRenderSection(section) {
     } else if (section === 'pension') {
       var isPension  = !item.pensionType || item.pensionType === 'pension';
       var isManager  = item.pensionType === 'manager' || !!item.isBituachMenahalim;
+      var isGemelCard = item.pensionType === 'gemel';
       var _penLabel  = 'קרן פנסיה';
       var _manLabel  = 'ביטוח מנהלים';
       var roRadioSt  = 'accent-color:#3b82f6;cursor:default;pointer-events:none;';
@@ -9384,20 +9385,24 @@ function ffsRenderSection(section) {
       html += '<div style="' + lbSt + ';align-self:end;">סוג נכס</div>';
       html += '<div style="' + lbSt + ';align-self:end;">שם גוף מנהל</div>';
       html += '<div style="' + lbSt + ';align-self:end;">מספר נכס</div>';
-      html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">';
-      html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
-      html += '<input type="radio" name="pen-ro-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
-      html += _penLabel;
-      html += '</label>';
-      html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
-      html += '<input type="radio" name="pen-ro-' + eid + '" value="manager" ' + (isManager ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
-      html += _manLabel;
-      html += '</label>';
-      html += '</div>';
+      if (isGemelCard) {
+        html += '<div style="padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;color:#1e293b;">קופת גמל / השתלמות</div>';
+      } else {
+        html += '<div style="display:flex;gap:12px;align-items:center;padding:4px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">';
+        html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
+        html += '<input type="radio" name="pen-ro-' + eid + '" value="pension" ' + (isPension ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
+        html += _penLabel;
+        html += '</label>';
+        html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;">';
+        html += '<input type="radio" name="pen-ro-' + eid + '" value="manager" ' + (isManager ? 'checked' : '') + ' onclick="return false;" tabindex="-1" style="' + roRadioSt + '"> ';
+        html += _manLabel;
+        html += '</label>';
+        html += '</div>';
+      }
       html += '<input type="text" readonly style="' + inSt + '" value="' + (item.provider || '').replace(/"/g, '&quot;') + '">';
       html += '<input type="text" readonly style="' + inSt + '" value="' + (item.accountNum || '').replace(/"/g, '&quot;') + '">';
       html += '</div>';
-      if (isPension) {
+      if (isPension && !isGemelCard) {
         var _lMonthly   = 'קצבה נוכחית (₪)';
         var _lExpected  = 'קצבה צפויה (₪)';
         var _lContrib   = 'אחוזי קצבה צבורים';
@@ -10776,15 +10781,17 @@ function simRunEngine() {
   var _desigInvs = (!isExcelLoaded() && FFS_PROFILE.investments)
     ? (FFS_PROFILE.investments || []).filter(function(x){ return x.designation === 'pension'; })
     : [];
-  var _desigFV = 0, _desigAnnuityK = 0;
+  var _desigFV = 0, _desigAnnuityNIS = 0;
   if (_desigInvs.length > 0) {
     _desigInvs.forEach(function(inv) {
       var _fv = (inv.balance || 0) * Math.pow(1 + monthlyRate, phase3Idx); // K₪ compounded to retirement
       var _coeff = inv.coefficient || 200;
       _desigFV += _fv;
-      _desigAnnuityK += _fv / _coeff; // K₪/month — same unit as royLiquid, no ×1000
+      _desigAnnuityNIS += Math.round(_fv * 1000 / _coeff); // ₪/month — same unit as totalPensionIncome
     });
   }
+  // Add annuity to pension income ONCE before loop — flows into royLiquid each retirement month
+  if (_desigAnnuityNIS > 0) totalPensionIncome += _desigAnnuityNIS;
   var _desigApplied = false;
 
   var eventsByMonth = {};
@@ -10931,7 +10938,6 @@ function simRunEngine() {
         if (royLiquid < 0) royLiquid = 0;
         _desigApplied = true;
       }
-      if (_desigAnnuityK > 0) royLiquid += _desigAnnuityK; // K₪/month annuity every retirement month
       royLiquid += (totalPensionIncome - targetExp) / 1000;
     }
     // v103.38: investment monthly cashflow (rent − loan) always applies
