@@ -7040,28 +7040,40 @@ function pnsGetMarginalRate(grossMonthly) {
 }
 
 // מנוע מס הכנסה חודשי ישראלי — מדרגות 2026 + נקודות זיכוי
-function pnsCalcTax(gross) {
-  var brackets = [
-    { up: 7010,      rate: 0.10 },
-    { up: 10060,     rate: 0.14 },
-    { up: 16150,     rate: 0.20 },
-    { up: 22440,     rate: 0.31 },
-    { up: 46690,     rate: 0.35 },
-    { up: 60130,     rate: 0.47 },
-    { up: Infinity,  rate: 0.50 }
-  ];
-  var tax = 0;
-  var prev = 0;
-  for (var i = 0; i < brackets.length; i++) {
-    var band = Math.min(gross, brackets[i].up) - prev;
-    if (band <= 0) break;
-    tax += band * brackets[i].rate;
-    prev = brackets[i].up;
-  }
-  // קיזוז 2.25 נקודות זיכוי × ~241.6 ₪ = 543.6 ₪ לחודש
-  var CREDIT = 544;
-  return Math.max(0, tax - CREDIT);
+// v180.55: Real Portfolio isolated tax config — mirrors FFS_PROFILE fields
+var REAL_TAX_CONFIG_LS_KEY = 'real_tax_config_v1';
+window.REAL_TAX_CONFIG = {
+  creditPointValue: 242, taxRates: [10,14,20,31,35,47,50],
+  taxBrackets: [7010,10060,16150,22440,46690,60130],
+  taxCeiling: 9430, taxRate: 57.5, taxBasket: 976005, _taxBasketOverride: false,
+  creditPoints: 2.25, marginalTax: 35
+};
+function loadRealTaxConfig() {
+  try {
+    var raw = localStorage.getItem(REAL_TAX_CONFIG_LS_KEY);
+    if (raw) { var s = JSON.parse(raw); if (s && typeof s === 'object') Object.assign(window.REAL_TAX_CONFIG, s); }
+  } catch(e) {}
 }
+function saveRealTaxConfig() {
+  try { localStorage.setItem(REAL_TAX_CONFIG_LS_KEY, JSON.stringify(window.REAL_TAX_CONFIG)); } catch(e) {}
+}
+loadRealTaxConfig();
+function pnsCalcTax(gross) {
+  var cfg      = window.REAL_TAX_CONFIG || {};
+  var rates    = (cfg.taxRates    && cfg.taxRates.length    === 7) ? cfg.taxRates    : [10,14,20,31,35,47,50];
+  var ceilings = (cfg.taxBrackets && cfg.taxBrackets.length === 6) ? cfg.taxBrackets : [7010,10060,16150,22440,46690,60130];
+  var cpv      = cfg.creditPointValue != null ? cfg.creditPointValue : 242;
+  var credits  = cfg.creditPoints     != null ? cfg.creditPoints     : 2.25;
+  var tax = 0, prev = 0;
+  for (var i = 0; i < rates.length; i++) {
+    var up   = (i < ceilings.length) ? ceilings[i] : Infinity;
+    var band = Math.min(gross, up) - prev;
+    if (band <= 0) break;
+    tax += band * (rates[i] / 100);
+    prev = up;
+  }
+  return Math.max(0, tax - (credits * cpv));
+} // v180.55: dynamic engine from REAL_TAX_CONFIG with statutory fallbacks
 
 function pensionSliderChange(val) {
   pensionTaxSliderVal = parseInt(val);
@@ -7081,8 +7093,10 @@ function pensionSliderChange(val) {
   // קצבה פטורה = (סל × אחוז קצבה) / 180
   var capitalExemptFrac = val / 100;
   var pensionExemptFrac = (100 - val) / 100;
-  var capitalExempt = pnsExemptBasket * capitalExemptFrac;
-  var monthlyExempt = pnsExemptBasket * pensionExemptFrac / 180;
+  var _activeBasket = (window.REAL_TAX_CONFIG && REAL_TAX_CONFIG.taxBasket != null) // v180.55
+                      ? REAL_TAX_CONFIG.taxBasket : pnsExemptBasket;
+  var capitalExempt = _activeBasket * capitalExemptFrac;
+  var monthlyExempt = _activeBasket * pensionExemptFrac / 180;
 
   // מנוע מס — לפי שיטה שנבחרה ב-dropdown (v75.0)
   var taxMethodEl  = document.getElementById('pns-tax-method');
@@ -7176,6 +7190,17 @@ function pensionBasketChange(val) {
   if (inp) inp.value = pnsExemptBasket;
   var sliderEl = document.getElementById('pns-tax-slider');
   pensionSliderChange(sliderEl ? sliderEl.value : pensionTaxSliderVal);
+}
+// v180.55: personal tax input handlers for real portfolio tab
+function pnsCreditPointsChange(val) {
+  if (window.REAL_TAX_CONFIG) { REAL_TAX_CONFIG.creditPoints = parseFloat(val) || 2.25; saveRealTaxConfig(); }
+  var _sldr = document.getElementById('pns-tax-slider');
+  if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldr ? _sldr.value : 50);
+}
+function pnsMarginalTaxChange(val) {
+  if (window.REAL_TAX_CONFIG) { REAL_TAX_CONFIG.marginalTax = parseFloat(val) || 35; saveRealTaxConfig(); }
+  var _sldr = document.getElementById('pns-tax-slider');
+  if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldr ? _sldr.value : 50);
 }
 
 // ---------- WORKING MONEY IN RETIREMENT (v102.2) ----------
@@ -7875,7 +7900,44 @@ var SIM_SAVINGS_FUND_NAME = 'הראל';
 var SIM_USER1_BIRTH    = '1962-08-25'; // v168.103: Roy default birth date
 var SIM_USER2_BIRTH    = '1968-06-28'; // v168.103: Yael default birth date
 var FFS_PROFILE_LS_KEY = 'ffs_profile_v1'; // v168.72: FFS side drawer profile key
-var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:0, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5, taxFixationPercent:52, additionalIncomes:[] }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90 + v178.3 + v178.5
+var DEFAULT_RETIREMENT_EXPENSE = 29000; // v180.33: FFS Guest profile default monthly retirement expense — single source of truth
+var TAX_CONFIG = Object.freeze({
+  creditPointValue: 242,
+  exemptionCeiling: 9430,
+  brackets: [
+    {limit: 7010,     rate: 0.10},
+    {limit: 10060,    rate: 0.14},
+    {limit: 16150,    rate: 0.20},
+    {limit: 22440,    rate: 0.31},
+    {limit: 47180,    rate: 0.35},
+    {limit: 60530,    rate: 0.47},
+    {limit: Infinity, rate: 0.50}
+  ]
+}); // v180.39: 2024 Israeli pension tax parameters — FFS Guest Simulator only
+var FFS_NET_PENSION_MONTHLY  = 0; // v180.39: transient — computed by ffsSyncSliders, read by ffsUpdateLiveSidebar
+var FFS_GROSS_PENSION_MONTHLY = 0; // v180.49: gross before tax, set by ffsSyncSliders
+function ffsCalculateNetPension(gross, monthlyExemptAmount, creditPoints, customConfig) {
+  var config    = customConfig || FFS_PROFILE; // v180.55: accept optional config for isolation
+  var _rates    = (config.taxRates    && config.taxRates.length    === 7)
+                  ? config.taxRates    : [10, 14, 20, 31, 35, 47, 50];
+  var _brackets = (config.taxBrackets && config.taxBrackets.length === 6)
+                  ? config.taxBrackets : [7010, 10060, 16150, 22440, 46690, 60130];
+  var _cpv      = config.creditPointValue != null ? config.creditPointValue : 242;
+  var exemption = Math.min(monthlyExemptAmount, gross);
+  var taxable   = gross - exemption;
+  var baseTax   = 0;
+  var prevCeil  = 0;
+  for (var i = 0; i < _rates.length; i++) {
+    var curCeil = (i < _brackets.length) ? _brackets[i] : Infinity;
+    var band    = Math.min(taxable, curCeil) - prevCeil;
+    if (band <= 0) break;
+    baseTax  += band * (_rates[i] / 100);
+    prevCeil  = curCeil;
+  }
+  var finalTax = Math.max(0, baseTax - (creditPoints * _cpv));
+  return gross - finalTax;
+} // v180.50: dynamic engine — reads taxRates/taxBrackets/creditPointValue from FFS_PROFILE with statutory fallbacks
+var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:DEFAULT_RETIREMENT_EXPENSE, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5, taxFixationPercent:52, additionalIncomes:[], creditPoints:2.25, marginalTax:0.35, taxCeiling:null, taxRate:null, taxBasket:null, creditPointValue:null, taxRates:null, taxBrackets:null }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90 + v178.3 + v178.5 + v180.33 + v180.39 + v180.44 + v180.45 + v180.50
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_RETIRE_EXP     = 29000; // v168.101: settings-driven expected monthly retirement expense (drives slider range + KPI#3)
 var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
@@ -8090,7 +8152,7 @@ function ffsLoadProfile() {
       FFS_PROFILE.pension           = saved.pension           || [];
       FFS_PROFILE.monthlySavings    = saved.monthlySavings    || 0;
       FFS_PROFILE.savingsGrowth     = saved.savingsGrowth     || 0;
-      FFS_PROFILE.retirementExpense    = saved.retirementExpense    || 0;
+      FFS_PROFILE.retirementExpense    = saved.retirementExpense    || DEFAULT_RETIREMENT_EXPENSE;
       FFS_PROFILE.retirementIncome     = saved.retirementIncome     || 0;
       FFS_PROFILE.bridgeAge            = saved.bridgeAge            || 0;
       FFS_PROFILE.bridgeCashflow       = saved.bridgeCashflow       || 0;
@@ -8106,6 +8168,14 @@ function ffsLoadProfile() {
       FFS_PROFILE.macroReGrowth       = saved.macroReGrowth       != null ? saved.macroReGrowth       : 2.5;
       FFS_PROFILE.taxFixationPercent  = saved.taxFixationPercent  != null ? saved.taxFixationPercent  : 52; // v178.3
       FFS_PROFILE.additionalIncomes   = saved.additionalIncomes   || []; // v178.5
+      FFS_PROFILE.creditPoints        = saved.creditPoints        != null ? saved.creditPoints        : 2.25; // v180.39
+      FFS_PROFILE.marginalTax         = saved.marginalTax         != null ? saved.marginalTax         : 0.35; // v180.44
+      FFS_PROFILE.taxCeiling          = saved.taxCeiling          != null ? saved.taxCeiling          : null; // v180.48
+      FFS_PROFILE.taxRate             = saved.taxRate             != null ? saved.taxRate             : null; // v180.48
+      FFS_PROFILE.taxBasket           = saved.taxBasket           != null ? saved.taxBasket           : null; // v180.48
+      FFS_PROFILE.creditPointValue    = saved.creditPointValue    != null ? saved.creditPointValue    : null; // v180.50
+      FFS_PROFILE.taxRates            = saved.taxRates            != null ? saved.taxRates            : null; // v180.50
+      FFS_PROFILE.taxBrackets         = saved.taxBrackets         != null ? saved.taxBrackets         : null; // v180.50
       // v168.76: ensure pension items have pensionType field (backwards compat)
       FFS_PROFILE.pension.forEach(function(p) { if (!p.pensionType) p.pensionType = 'pension'; });
       ffsFixationInit(); // v178.3: sync UI — no save triggered
@@ -8139,6 +8209,20 @@ function ffsFixationUISync(val) {
   var mPenC = document.getElementById('ffs-fix-modal-circle-pension');
   if (mCapC) mCapC.style.transform = 'scale(' + (0.6 + val / 100 * 0.4) + ')';
   if (mPenC) mPenC.style.transform = 'scale(' + (0.6 + (100 - val) / 100 * 0.4) + ')';
+  // v180.45: basket-split math — blue=capital lump sum, green=monthly annuity exemption
+  var _mTax              = (FFS_PROFILE && FFS_PROFILE.marginalTax != null) ? FFS_PROFILE.marginalTax : 0.35;
+  var _totalBasket       = (FFS_PROFILE && FFS_PROFILE.taxBasket != null) ? FFS_PROFILE.taxBasket : 976005;
+  var _blueCapital       = _totalBasket * (val / 100);
+  var _greenBasket       = _totalBasket - _blueCapital;
+  var _greenMonthlyExempt = _greenBasket / 180;
+  var _greenShekelEl = document.getElementById('ffs-green-shekel');
+  var _blueShekelEl  = document.getElementById('ffs-blue-shekel');
+  if (_greenShekelEl) _greenShekelEl.textContent = 'חיסכון: ' + Math.round(_greenMonthlyExempt * _mTax).toLocaleString('he-IL') + ' ₪';
+  if (_blueShekelEl)  _blueShekelEl.textContent  = 'חיסכון: ' + Math.round(_blueCapital * _mTax).toLocaleString('he-IL') + ' ₪';
+  // v180.42: sync live value to profile and trigger tax engine recalculation
+  FFS_PROFILE.taxFixationPercent = val;
+  if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
+  if (typeof simRenderKPI === 'function' && typeof simInited !== 'undefined' && simInited) simRenderKPI();
 }
 // v178.3: persist to FFS_PROFILE + localStorage (bound to onchange — fires once on mouse release)
 function ffsFixationCommit(val) {
@@ -8158,10 +8242,10 @@ function ffsRenderAdditionalIncomes() {
   list.innerHTML = '';
   (FFS_PROFILE.additionalIncomes || []).forEach(function(inc, idx) {
     var row = document.createElement('div');
-    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;background:#f8fafc;border-radius:10px;padding:8px 10px;';
+    row.style.cssText = 'display:grid;grid-template-columns:minmax(80px, 1fr) 90px 60px 60px auto;gap:6px;align-items:center;background:#f8fafc;border-radius:10px;padding:8px 10px;width:100%;box-sizing:border-box;';
     var iStyle = 'font-family:Heebo,sans-serif;font-size:13px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;outline:none;background:white;width:100%;box-sizing:border-box;';
     row.innerHTML =
-      '<input type="text" placeholder="תיאור (למשל: שכ״ד)" value="' + (inc.description || '').replace(/"/g, '&quot;') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'description\',this.value)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + '">' +
+      '<input type="text" placeholder="תיאור" value="' + (inc.description || '').replace(/"/g, '&quot;') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'description\',this.value)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + '">' +
       '<input type="number" placeholder="סכום ₪" value="' + (inc.amount || '') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'amount\',parseFloat(this.value)||0)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
       '<input type="number" placeholder="גיל התחלה" value="' + (inc.startAge != null ? inc.startAge : 67) + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'startAge\',parseInt(this.value)||67)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
       '<input type="number" placeholder="גיל סיום" value="' + (inc.endAge || '') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'endAge\',parseInt(this.value)||0)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
@@ -8231,13 +8315,25 @@ function ffsSaveField(key, val) {
       if (_ripn) _ripn.value = SIM_PENSION_MONTHLY;
       if (simInited) simRenderKPI();
     }
-    if (key === 'retirementExpense') {
-      SIM_TARGET_EXP = val || 0;
+    if (key === 'retirementExpense') { // v180.48: next-tick defer + focus guard
+      SIM_TARGET_EXP = Number(val) || 0;
       var _rexs = document.getElementById('sim-exp-slider');
       var _rexn = document.getElementById('sim-exp-num');
       var _rexv = document.getElementById('sim-exp-val');
-      if (_rexs) _rexs.value = SIM_TARGET_EXP;
-      if (_rexn) _rexn.value = SIM_TARGET_EXP;
+      if (_rexs) {
+        _rexs.min = Math.max(0, SIM_TARGET_EXP - 10000);
+        _rexs.max = SIM_TARGET_EXP + 10000;
+        (function(s, v) {
+          setTimeout(function() {
+            if (document.activeElement !== s) { s.value = v; s.dispatchEvent(new Event('change')); }
+          }, 0);
+        })(_rexs, SIM_TARGET_EXP);
+      }
+      if (_rexn) {
+        _rexn.min = Math.max(0, SIM_TARGET_EXP - 10000);
+        _rexn.max = SIM_TARGET_EXP + 10000;
+        if (document.activeElement !== _rexn) _rexn.value = SIM_TARGET_EXP;
+      }
       if (_rexv) _rexv.textContent = simFmtNIS(SIM_TARGET_EXP);
       if (simInited) simRenderKPI();
     }
@@ -8246,8 +8342,145 @@ function ffsSaveField(key, val) {
       pnsRetirementYield = val || 0;
       if (simInited) simRenderChart(simRunEngine());
     }
+    // v180.39: credit points change triggers net pension recalculation
+    if (key === 'creditPoints') {
+      if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
+      if (simInited) simRenderKPI();
+    }
+    // v180.44: marginal tax change updates circle savings + net pension
+    if (key === 'marginalTax') {
+      var _curFix = FFS_PROFILE.taxFixationPercent != null ? FFS_PROFILE.taxFixationPercent : 52;
+      if (typeof ffsFixationUISync === 'function') ffsFixationUISync(_curFix);
+      if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
+      if (simInited) simRenderKPI();
+    }
   }
   ffsSaveProfile();
+}
+// v180.45: advanced tax params — ceiling/rate auto-derive basket; basket manual override locks auto-calc
+function ffsTaxParamChanged(key, val, isManualBasket) {
+  if (isManualBasket) FFS_PROFILE._taxBasketOverride = true;
+  ffsSaveField(key, val);
+  if ((key === 'taxCeiling' || key === 'taxRate') && !FFS_PROFILE._taxBasketOverride) {
+    var _c = FFS_PROFILE.taxCeiling != null ? FFS_PROFILE.taxCeiling : 9430;
+    var _r = FFS_PROFILE.taxRate    != null ? FFS_PROFILE.taxRate    : 57.5;
+    var _auto = Math.round(_c * (_r / 100) * 180);
+    FFS_PROFILE.taxBasket = _auto;
+    var _el = document.getElementById('ffs-tax-basket');
+    if (_el && document.activeElement !== _el) _el.value = _auto; // v180.48: focus guard
+    ffsSaveProfile();
+  }
+  if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
+  if (typeof ffsFixationUISync === 'function') {
+    var _curFix = FFS_PROFILE.taxFixationPercent != null ? FFS_PROFILE.taxFixationPercent : 52;
+    ffsFixationUISync(_curFix);
+  }
+}
+// v180.50: Tax brackets modal
+function ffsOpenTaxModal(mode) {
+  mode = mode || 'simulator'; // v180.55: mode-aware — 'simulator' or 'real'
+  var modal = document.getElementById('ffs-tax-modal');
+  if (modal) { modal.style.display = 'flex'; modal.setAttribute('data-target-mode', mode); }
+  var titleEl = document.getElementById('ffs-tax-modal-title');
+  if (titleEl) titleEl.textContent = (mode === 'real') ? 'הגדרות מס הכנסה (תיק אישי)' : 'הגדרות מס הכנסה (סימולטור)';
+  var cfg = (mode === 'real') ? (window.REAL_TAX_CONFIG || {}) : FFS_PROFILE;
+  var _rates    = (cfg.taxRates    && cfg.taxRates.length    === 7) ? cfg.taxRates.slice()    : [10, 14, 20, 31, 35, 47, 50];
+  var _brackets = (cfg.taxBrackets && cfg.taxBrackets.length === 6) ? cfg.taxBrackets.slice() : [7010, 10060, 16150, 22440, 46690, 60130];
+  var _cpv  = cfg.creditPointValue != null ? cfg.creditPointValue : 242;
+  var _ceil = cfg.taxCeiling       != null ? cfg.taxCeiling       : 9430;
+  var _rate = cfg.taxRate          != null ? cfg.taxRate          : 57.5;
+  // v180.52: inject statutory params header above brackets
+  var hdrSection = document.getElementById('ffs-tax-header-section');
+  if (hdrSection) {
+    var inpStyle = 'width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:4px 4px;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;color:#1e293b;text-align:center;outline:none;background:white;box-sizing:border-box;';
+    hdrSection.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;direction:rtl;">' +
+        '<div style="display:flex;flex-direction:column;gap:3px;align-items:center;">' +
+          '<label title="(נכון ל-2024: 242 ₪. אין לבלבל עם כמות הנקודות האישית שלך במסך הראשי)" style="font-size:10px;color:#94a3b8;white-space:nowrap;cursor:help;">שווי נ. זיכוי ℹ️</label>' +
+          '<input type="number" id="ffs-modal-credit-val" value="' + _cpv + '" min="0" step="any" class="no-spinners" style="' + inpStyle + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:3px;align-items:center;">' +
+          '<label style="font-size:10px;color:#94a3b8;white-space:nowrap;">תקרת קצבה</label>' +
+          '<input type="number" id="ffs-modal-tax-ceiling" value="' + _ceil + '" min="0" step="any" class="no-spinners" style="' + inpStyle + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:3px;align-items:center;">' +
+          '<label style="font-size:10px;color:#94a3b8;white-space:nowrap;">שיעור פטור %</label>' +
+          '<input type="number" id="ffs-modal-tax-rate" value="' + _rate + '" min="0" max="100" step="any" class="no-spinners" style="' + inpStyle + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:3px;align-items:center;">' +
+          '<label style="font-size:10px;color:#94a3b8;white-space:nowrap;">סל פטור אישי</label>' +
+          '<input type="number" id="ffs-modal-tax-basket" value="' + (FFS_PROFILE.taxBasket != null ? FFS_PROFILE.taxBasket : 976005) + '" step="any" class="no-spinners" style="' + inpStyle + '" oninput="this.setAttribute(\'data-overridden\', \'true\')">' +
+        '</div>' +
+      '</div>';
+  }
+  var container = document.getElementById('ffs-tax-tiers-container');
+  if (!container) return;
+  var inputStyle = 'border:1.5px solid #e2e8f0;border-radius:8px;padding:4px 6px;font-family:Heebo,sans-serif;font-size:13px;text-align:center;outline:none;';
+  var html = '';
+  for (var i = 0; i < 7; i++) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;direction:rtl;">';
+    html += '<input type="number" id="ffs-tax-tier-rate-' + i + '" value="' + _rates[i] + '" step="any" class="no-spinners" style="width:60px;' + inputStyle + '">';
+    html += '<span style="font-size:13px;color:#64748b;">%</span>';
+    if (i < 6) {
+      html += '<span style="font-size:13px;color:#64748b;">עד</span>';
+      html += '<input type="number" id="ffs-tax-tier-ceiling-' + i + '" value="' + _brackets[i] + '" step="any" class="no-spinners" style="width:90px;' + inputStyle + '">';
+      html += '<span style="font-size:13px;color:#64748b;">₪</span>';
+    } else {
+      html += '<span style="font-size:13px;color:#94a3b8;">ומעלה</span>';
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+function ffsCloseTaxModal() {
+  var modal = document.getElementById('ffs-tax-modal');
+  if (modal) modal.style.display = 'none';
+}
+function ffsSaveTaxModal() {
+  // v180.55: mode-aware — route saves to FFS_PROFILE (simulator) or REAL_TAX_CONFIG (real)
+  var modal = document.getElementById('ffs-tax-modal');
+  var mode  = (modal && modal.getAttribute('data-target-mode')) || 'simulator';
+  var cfg   = (mode === 'real') ? (window.REAL_TAX_CONFIG || FFS_PROFILE) : FFS_PROFILE;
+  var _cvEl   = document.getElementById('ffs-modal-credit-val');
+  var _ceilEl = document.getElementById('ffs-modal-tax-ceiling');
+  var _rateEl = document.getElementById('ffs-modal-tax-rate');
+  if (_cvEl)   cfg.creditPointValue = parseFloat(_cvEl.value)   || 242;
+  if (_ceilEl) cfg.taxCeiling       = parseFloat(_ceilEl.value) || 9430;
+  if (_rateEl) cfg.taxRate          = parseFloat(_rateEl.value) || 57.5;
+  var _basketEl = document.getElementById('ffs-modal-tax-basket');
+  if (_basketEl && _basketEl.getAttribute('data-overridden') === 'true') {
+    cfg.taxBasket = parseFloat(_basketEl.value) || 976005;
+    cfg._taxBasketOverride = true;
+  } else if (!cfg._taxBasketOverride) {
+    cfg.taxBasket = Math.round(cfg.taxCeiling * (cfg.taxRate / 100) * 180);
+  }
+  var _rates = [], _brackets = [];
+  for (var i = 0; i < 7; i++) {
+    var rEl = document.getElementById('ffs-tax-tier-rate-' + i);
+    if (!rEl) return;
+    _rates.push(parseFloat(rEl.value) || 0);
+  }
+  for (var j = 0; j < 6; j++) {
+    var cEl = document.getElementById('ffs-tax-tier-ceiling-' + j);
+    if (!cEl) return;
+    _brackets.push(parseFloat(cEl.value) || 0);
+  }
+  for (var k = 1; k < _brackets.length; k++) {
+    if (_brackets[k] <= _brackets[k - 1]) { alert('תקרות המדרגות חייבות להיות בסדר עולה'); return; }
+  }
+  cfg.taxRates    = _rates;
+  cfg.taxBrackets = _brackets;
+  if (mode === 'real') {
+    saveRealTaxConfig();
+    if (typeof pensionSliderChange === 'function') {
+      var _sldr = document.getElementById('pns-tax-slider');
+      pensionSliderChange(_sldr ? _sldr.value : 50);
+    }
+  } else {
+    ffsSaveProfile();
+    if (typeof ffsSyncSliders === 'function') ffsSyncSliders();
+  }
+  ffsCloseTaxModal();
 }
 // v178.8: manual override for the gross pension income field
 function ffsRetirementIncomeOverride(el) {
@@ -9787,8 +10020,12 @@ function ffsRenderAll() {
     if (pidEl)   pidEl.value   = FFS_PROFILE.personalId || '';
     if (savEl)  savEl.value  = FFS_PROFILE.monthlySavings || 0;
     if (sldEl) { sldEl.value = FFS_PROFILE.savingsGrowth || 0; if (sldLbl) sldLbl.textContent = (FFS_PROFILE.savingsGrowth || 0) + '%'; }
-    if (expEl)  expEl.value  = FFS_PROFILE.retirementExpense || '';
+    if (expEl)  expEl.value  = FFS_PROFILE.retirementExpense || DEFAULT_RETIREMENT_EXPENSE;
     if (retIncEl) retIncEl.value = FFS_PROFILE.retirementIncome || ''; // v168.90
+    var cpEl = document.getElementById('ffs-credit-points');
+    if (cpEl) cpEl.value = FFS_PROFILE.creditPoints != null ? FFS_PROFILE.creditPoints : 2.25; // v180.39
+    var margTaxEl = document.getElementById('ffs-marginal-tax');
+    if (margTaxEl) margTaxEl.value = FFS_PROFILE.marginalTax != null ? FFS_PROFILE.marginalTax : 0.35; // v180.44
     if (bridgeAgeEl) bridgeAgeEl.value  = FFS_PROFILE.bridgeAge     || '';
     if (bridgeCfEl)  bridgeCfEl.value   = FFS_PROFILE.bridgeCashflow || '';
     if (bridgePcEl)  bridgePcEl.checked = FFS_PROFILE.bridgePensionContrib || false;
@@ -9904,12 +10141,7 @@ function ffsUpdateNavSummaries() {
   var incEl = document.getElementById('ffs-nav-summary-income');
   if (incEl) incEl.textContent = '';
   var expEl2 = document.getElementById('ffs-nav-summary-expenses');
-  if (expEl2) {
-    var exp = FFS_PROFILE.retirementExpense || 0;
-    var expParts = [];
-    if (exp > 0) expParts.push('₪' + exp.toLocaleString('he-IL') + '/חודש');
-    expEl2.textContent = expParts.join(' · ');
-  }
+  if (expEl2) expEl2.textContent = '';
 }
 
 // v170.4: FFS Special Events — add/remove/render one-time cash events in SIMULATOR
@@ -10030,10 +10262,11 @@ function ffsUpdateLiveSidebar() {
     penAccEl.innerHTML = _penV;
   }
 
-  // פרישה — monthly retirement expense
+  // פרישה — v180.39: show true net pension income (gross after tax + additional net incomes)
   if (retireEl) {
-    var retExp = FFS_PROFILE.retirementExpense || 0;
-    retireEl.textContent = retExp > 0 ? ('₪' + retExp.toLocaleString('he-IL') + '/חודש') : '—';
+    retireEl.textContent = FFS_NET_PENSION_MONTHLY > 0
+      ? ('₪' + FFS_NET_PENSION_MONTHLY.toLocaleString('he-IL') + '/ח׳')
+      : '—';
   }
 }
 
@@ -10091,36 +10324,63 @@ function ffsSyncSliders() {
   if (isExcelLoaded()) return; // v168.87: Excel active — never override sliders with FFS data
   var isFFS = !!(FFS_PROFILE.name || (FFS_PROFILE.investments && FFS_PROFILE.investments.length > 0));
   if (!isFFS) return;
-  // Expense slider: v178.2 — use macro default (18000 fallback) when no profile expense is set
-  SIM_TARGET_EXP = FFS_PROFILE.retirementExpense || FFS_PROFILE.macroRetireExp || 18000;
+  // Expense slider: v180.47 — Number() cast + consolidated min→max→value order + change dispatch
+  SIM_TARGET_EXP = Number(FFS_PROFILE.retirementExpense || FFS_PROFILE.macroRetireExp || DEFAULT_RETIREMENT_EXPENSE);
   var _expSld = document.getElementById('sim-exp-slider');
   var _expNum = document.getElementById('sim-exp-num');
   var _expVal = document.getElementById('sim-exp-val');
-  if (_expSld) { _expSld.min = Math.max(0, SIM_TARGET_EXP - 10000); _expSld.max = SIM_TARGET_EXP + 10000; }
-  if (_expNum) { _expNum.min = Math.max(0, SIM_TARGET_EXP - 10000); _expNum.max = SIM_TARGET_EXP + 10000; }
-  if (_expSld) _expSld.value = SIM_TARGET_EXP;
-  if (_expNum) _expNum.value = SIM_TARGET_EXP;
+  if (_expSld) { // v180.48: min/max immediate, value deferred to next tick to avoid thumb clamping
+    _expSld.min = Math.max(0, SIM_TARGET_EXP - 10000);
+    _expSld.max = SIM_TARGET_EXP + 10000;
+    (function(s, v) {
+      setTimeout(function() {
+        if (document.activeElement !== s) { s.value = v; s.dispatchEvent(new Event('change')); }
+      }, 0);
+    })(_expSld, SIM_TARGET_EXP);
+  }
+  if (_expNum) {
+    _expNum.min = Math.max(0, SIM_TARGET_EXP - 10000);
+    _expNum.max = SIM_TARGET_EXP + 10000;
+    if (document.activeElement !== _expNum) _expNum.value = SIM_TARGET_EXP;
+  }
   if (_expVal) _expVal.textContent = simFmtNIS(SIM_TARGET_EXP);
-  // Income: v178.7 — run actuarial projection engine; fall back to static sum if no items
+  // v180.48: sync FFS drawer expense + tax param fields — focus guard prevents clobbering live edits
+  var _ffsExpInput = document.getElementById('ffs-retirement-expense');
+  if (_ffsExpInput && document.activeElement !== _ffsExpInput) _ffsExpInput.value = SIM_TARGET_EXP;
+  // v180.54: tax-basket moved to modal — no main-UI sync needed
+  // v180.39: Tax Waterfall — gross pension → net via ffsCalculateNetPension → add net additional incomes
   var _proj    = ffsPensionProjectionEngine();
   FFS_PROFILE._projectedOverflowLiquid = _proj.overflowLiquid; // transient, not persisted
-  var _penCalc = (FFS_PROFILE.retirementIncome > 0)
+  var _grossPension = (FFS_PROFILE.retirementIncome > 0)
     ? FFS_PROFILE.retirementIncome
     : (_proj.totalMonthly > 0 ? _proj.totalMonthly : ffsTotalPensionMonthlyNIS());
-  // v178.7: add additional incomes valid at retirement age
-  var _retAgeSync = parseInt(FFS_PROFILE.retirementAge) || 67;
+  var _fixPct      = (FFS_PROFILE.taxFixationPercent != null) ? FFS_PROFILE.taxFixationPercent : 52;
+  var _totalBasket = (FFS_PROFILE.taxBasket != null) ? FFS_PROFILE.taxBasket : 976005; // v180.45: basket-split
+  var _greenMonthlyExempt = (_totalBasket * (1 - _fixPct / 100)) / 180;
+  var _credits     = (FFS_PROFILE.creditPoints      != null) ? FFS_PROFILE.creditPoints      : 2.25;
+  var _netPension  = ffsCalculateNetPension(_grossPension, _greenMonthlyExempt, _credits);
+  FFS_GROSS_PENSION_MONTHLY = _grossPension;   // v180.49
+  FFS_NET_PENSION_MONTHLY   = _netPension;     // v180.49
+  var _retAgeSync  = parseInt(FFS_PROFILE.retirementAge) || 67;
+  var _addIncome   = 0;
   (FFS_PROFILE.additionalIncomes || []).forEach(function(inc) {
     var _s = inc.startAge || 67; var _e = inc.endAge || 999;
-    if (_retAgeSync >= _s && _retAgeSync <= _e) _penCalc += (inc.amount || 0);
+    if (_retAgeSync >= _s && _retAgeSync <= _e) _addIncome += (inc.amount || 0);
   });
-  var _penNIS = _penCalc > 0 ? _penCalc : 20000;
+  var _trueNet = _netPension + _addIncome;
+  FFS_NET_PENSION_MONTHLY = _trueNet > 0 ? Math.round(_trueNet) : 20000;
+  var _dispEl = document.getElementById('ffs-retirement-disposable');
+  if (_dispEl) _dispEl.value = _trueNet > 0 ? Math.round(_trueNet) : ''; // v180.44
+  var _penNIS = FFS_NET_PENSION_MONTHLY;
   if (!FFS_PROFILE.retirementIncome) SIM_PENSION_MONTHLY_BASE = _penNIS;
   SIM_PENSION_MONTHLY = _penNIS;
   // v178.8: push engine value only when not manually overridden; sync tooltip and reset button
   var _retIncEl  = document.getElementById('ffs-retirement-income');
   var _retRstBtn = document.getElementById('ffs-retirement-income-reset');
   var _isOvr     = FFS_PROFILE.retirementIncome > 0;
-  if (_retIncEl && !_isOvr) _retIncEl.value = _penNIS > 0 ? Math.round(_penNIS) : '';
+  if (_retIncEl && !_isOvr) _retIncEl.value = _grossPension > 0 ? Math.round(_grossPension) : ''; // v180.40: restore gross display
+  var _retNetEl = document.getElementById('ffs-retirement-net');
+  if (_retNetEl) _retNetEl.value = _netPension > 0 ? Math.round(_netPension) : ''; // v180.40: wire net field
   if (_retIncEl) _retIncEl.title = _isOvr ? 'חישוב לפי הזנה ידנית (דריסה)' : 'מחושב אוטומטית מנכסי הפרישה';
   if (_retRstBtn) _retRstBtn.style.display = _isOvr ? 'inline-flex' : 'none';
   var _pnsSld = document.getElementById('sim-pension-monthly-slider');
@@ -10144,6 +10404,7 @@ function ffsSyncSliders() {
     if (_irs) _irs.value = SIM_RATE;
     if (_irn) _irn.value = SIM_RATE;
   }
+  if (typeof ffsUpdateLiveSidebar === 'function') ffsUpdateLiveSidebar(); // v180.49: sync sidebar retire metric
 }
 // v168.81: show HTML reset modal instead of browser confirm()
 function ffsResetAndReload() {

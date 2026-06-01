@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.32</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.55</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1147,14 +1147,25 @@
         <h3 style="text-align:right;width:100%;margin-bottom:5px;font-size:14px;font-weight:700;color:#374151;">⚙️ קיבוע זכויות</h3>
         <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
 
-          <!-- עמודה ימנית: סל פטור + סליידר -->
+          <!-- עמודה ימנית: קלט אישי + סליידר (v180.55: basket+method replaced by credit-pts+marginal+modal-button) -->
           <div class="pns-slider-section" style="flex:1;min-width:220px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-              <label style="font-size:11px;color:#6b7280;white-space:nowrap;">סל פטור (₪):</label>
-              <input type="number" id="pns-basket-input"
-                value="882924" min="0" max="9999999" step="1000"
-                onchange="pensionBasketChange(this.value)"
-                style="width:110px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div style="font-size:11px;color:#6b7280;font-weight:600;cursor:help;"
+                title="ברירת מחדל: 2.25 לגבר תושב ישראל, 2.75 לאישה. שווי כל נקודה בשקלים מוגדר בחלון חוקי המס.">
+                נקודות זיכוי ℹ️
+              </div>
+              <input type="number" id="pns-credit-points" min="0" max="7.25" step="0.25" value="2.25"
+                onchange="pnsCreditPointsChange(this.value)"
+                style="width:65px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Heebo,sans-serif;color:#1e3a8a;font-weight:700;text-align:center;outline:none;">
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:11px;color:#6b7280;font-weight:600;">מס שולי</div>
+              <select id="pns-marginal-tax" onchange="pnsMarginalTaxChange(this.value)"
+                style="width:65px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Heebo,sans-serif;color:#374151;background:#fff;cursor:pointer;outline:none;">
+                <option value="31">31%</option>
+                <option value="35" selected>35%</option>
+                <option value="47">47%</option>
+              </select>
             </div>
             <!-- direction:ltr מבטיח שהחיצים יפנו החוצה בכל סביבת RTL (v77.0) -->
             <div style="display:flex;justify-content:center;gap:10px;font-size:11px;color:#9ca3af;margin-bottom:8px;direction:ltr;">
@@ -1164,16 +1175,10 @@
             </div>
             <input type="range" id="pns-tax-slider" class="pns-slider" min="0" max="100" value="50"
               oninput="pensionSliderChange(this.value)">
-            <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-              <label style="font-size:11px;color:#6b7280;white-space:nowrap;">שיטת חישוב מס:</label>
-              <select id="pns-tax-method" onchange="pensionSliderChange(pensionTaxSliderVal)"
-                style="font-size:11px;font-family:Heebo,sans-serif;padding:4px 7px;border:1px solid #d1d5db;border-radius:6px;color:#374151;background:#fff;cursor:pointer;outline:none;">
-                <option value="auto">אוטומטי (מדרגות)</option>
-                <option value="31">קיבוע 31%</option>
-                <option value="35">קיבוע 35%</option>
-                <option value="47">קיבוע 47%</option>
-              </select>
-            </div>
+            <button onclick="ffsOpenTaxModal('real')"
+              style="margin-top:12px;width:100%;padding:6px;background:#f1f5f9;border:1.5px solid #cbd5e1;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;color:#334155;cursor:pointer;">
+              ⚖️ עדכון חוקי מס
+            </button>
           </div>
 
           <!-- עמודה שמאלית: שני עיגולים זה לצד זה -->
@@ -1819,35 +1824,49 @@
           <span style="font-size:18px;">🔵</span>
           <div>
             <div style="font-size:13px;font-weight:800;color:#4338ca;">שלב ג׳: פרישה</div>
-            <div style="font-size:11px;color:#3730a3;margin-top:2px;">הכנסות קבועות והוצאות מחיה — מגיל 67</div>
+            <div style="font-size:11px;color:#3730a3;margin-top:2px;">הכנסות והוצאות משוערות בפרישה</div>
           </div>
         </div>
 
         <!-- v178.6: two-column layout — right: income cards, left: fixation -->
-        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:start;width:100%;margin-bottom:14px;">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:start;width:calc(100% + 48px);margin-left:-24px;margin-right:-24px;margin-bottom:14px;">
 
-          <!-- Right column (~55%): income/expense + additional incomes -->
-          <div style="flex:0 0 55%;min-width:0;">
+          <!-- Right column (fluid): income/expense + additional incomes -->
+          <div style="flex:1;min-width:0;">
             <div style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px;margin-bottom:10px;">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                 <div style="display:flex;flex-direction:column;">
-                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">קצבה פנסיונית משוערת (ברוטו)</div>
+                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">קצבה ברוטו</div>
                   <div style="display:flex;align-items:center;gap:6px;margin-top:auto;">
                     <input id="ffs-retirement-income" type="number" min="0" max="200000" step="500" placeholder="0" autocomplete="off" oninput="ffsRetirementIncomeOverride(this)" title="מחושב אוטומטית מנכסי הפרישה" style="flex:1;box-sizing:border-box;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 10px;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#64748b;outline:none;text-align:center;">
                     <button id="ffs-retirement-income-reset" onclick="ffsResetRetirementIncome()" title="איפוס לחישוב אוטומטי" style="display:none;background:none;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;cursor:pointer;font-size:13px;color:#64748b;line-height:1;flex-shrink:0;">🔄</button>
                   </div>
                 </div>
+                <!-- v180.40: net pension card — read-only, computed by tax engine -->
                 <div style="display:flex;flex-direction:column;">
-                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">הוצאה חודשית מתוכננת</div>
-                  <input id="ffs-retirement-expense" type="number" min="0" max="200000" step="500" placeholder="0" autocomplete="off" oninput="ffsSaveField('retirementExpense',parseFloat(this.value)||0)" title="הזנה ידנית על ידי המשתמש" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 10px;font-family:Heebo,sans-serif;font-size:16px;font-weight:800;color:#1e293b;outline:none;text-align:center;margin-top:auto;">
+                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">קצבה נטו</div>
+                  <input id="ffs-retirement-net" type="number" readonly placeholder="—" autocomplete="off"
+                    title="קצבה נטו לאחר מס — מחושב אוטומטית"
+                    style="width:100%;box-sizing:border-box;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 10px;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#059669;outline:none;text-align:center;margin-top:auto;">
+                </div>
+                <!-- v180.44: disposable income card — read-only, net income total -->
+                <div style="display:flex;flex-direction:column;">
+                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">סה״כ הכנסה פנויה</div>
+                  <input id="ffs-retirement-disposable" type="number" readonly placeholder="—" autocomplete="off"
+                    title="סך הכנסה נטו פנויה — מחושב אוטומטית"
+                    style="width:100%;box-sizing:border-box;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 10px;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#2563eb;outline:none;text-align:center;margin-top:auto;">
+                </div>
+                <div style="display:flex;flex-direction:column;">
+                  <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:8px;white-space:nowrap;">הוצאה משוערת</div>
+                  <input id="ffs-retirement-expense" type="number" min="0" max="200000" step="500" placeholder="0" autocomplete="off" oninput="ffsSaveField('retirementExpense',parseFloat(this.value)||0)" title="הזנה ידנית על ידי המשתמש" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 10px;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#1e293b;outline:none;text-align:center;margin-top:auto;">
                 </div>
               </div>
             </div>
 
             <!-- v178.5: הכנסות נוספות בפרישה -->
-            <div id="ffs-additional-incomes-section" style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px;margin-bottom:0;">
+            <div id="ffs-additional-incomes-section" style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:0;">
               <h3 style="text-align:right;margin:0 0 8px 0;font-size:14px;font-weight:700;color:#374151;">💰 הכנסות נוספות בפרישה (נטו)</h3>
-              <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;padding:0 6px;">
+              <div style="display:grid;grid-template-columns:minmax(80px, 1fr) 90px 60px 60px auto;gap:6px;margin-bottom:6px;padding:0 6px;">
                 <div style="font-size:10px;color:#94a3b8;font-weight:700;">תיאור</div>
                 <div style="font-size:10px;color:#94a3b8;font-weight:700;text-align:center;">סכום ₪</div>
                 <div style="font-size:10px;color:#94a3b8;font-weight:700;text-align:center;">גיל התחלה</div>
@@ -1859,8 +1878,8 @@
             </div>
           </div>
 
-          <!-- Left column (~45%): קיבוע זכויות -->
-          <div style="flex:1;min-width:0;">
+          <!-- Left column (35%, min 280px): קיבוע זכויות -->
+          <div style="flex:0 0 35%;min-width:240px;">
             <!-- v178.3: FFS קיבוע זכויות — isolated from Real Data state -->
             <div id="ffs-fixation-section" style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 16px;margin-bottom:0;">
               <h3 style="text-align:right;margin:0 0 8px 0;font-size:14px;font-weight:700;color:#374151;">🛡️ קיבוע זכויות</h3>
@@ -1885,6 +1904,7 @@
                       <div id="ffs-fix-circle-capital" style="width:90px;height:90px;border-radius:50%;background:#eff6ff;border:3px solid #2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.808);padding:6px;box-sizing:border-box;">
                         <div style="font-size:9px;color:#2563eb;font-weight:700;line-height:1.3;text-align:center;">הון פטור</div>
                         <div style="width:24px;height:2px;background:#bfdbfe;border-radius:2px;margin-top:4px;"></div>
+                        <div id="ffs-blue-shekel" style="font-size:11px;color:#2563eb;font-weight:500;line-height:1.3;text-align:center;margin-top:3px;"></div>
                       </div>
                     </div>
                   </div>
@@ -1894,11 +1914,33 @@
                     <div style="width:100px;height:100px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                       <div id="ffs-fix-circle-pension" style="width:90px;height:90px;border-radius:50%;background:#f0fdf4;border:3px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s ease;transform:scale(0.792);padding:6px;box-sizing:border-box;">
                         <div style="font-size:9px;color:#16a34a;font-weight:700;line-height:1.3;text-align:center;">קצבה פטורה</div>
+                        <div id="ffs-green-shekel" style="font-size:11px;color:#16a34a;font-weight:500;line-height:1.3;text-align:center;margin-top:3px;"></div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+              <!-- v180.39: נקודות זיכוי input -->
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+                <div style="font-size:12px;color:#64748b;font-weight:600;direction:rtl;cursor:help;" title="ברירת מחדל: 2.25 לגבר תושב ישראל, 2.75 לאישה. שווי כל נקודה בשקלים מוגדר בחלון חוקי המס.">נקודות זיכוי ℹ️</div>
+                <input type="number" id="ffs-credit-points" min="0" max="7.25" step="0.25" value="2.25"
+                  oninput="ffsSaveField('creditPoints', parseFloat(this.value) || 2.25)"
+                  style="width:65px;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;color:#1e293b;text-align:center;outline:none;background:white;box-sizing:border-box;">
+              </div>
+              <!-- v180.44: מס שולי selector -->
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+                <div style="font-size:12px;color:#64748b;font-weight:600;direction:rtl;">מס שולי</div>
+                <select id="ffs-marginal-tax" onchange="ffsSaveField('marginalTax', parseFloat(this.value))"
+                  style="width:65px;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 6px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;color:#1e293b;outline:none;background:white;box-sizing:border-box;cursor:pointer;">
+                  <option value="0.31">31%</option>
+                  <option value="0.35" selected>35%</option>
+                  <option value="0.47">47%</option>
+                </select>
+              </div>
+              <button onclick="ffsOpenTaxModal()"
+                style="margin-top:12px;width:100%;padding:6px;background:#f1f5f9;border:1.5px solid #cbd5e1;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;color:#334155;cursor:pointer;">
+                ⚖️ עדכון חוקי מס
+              </button>
             </div>
           </div>
 
@@ -2068,9 +2110,9 @@
           <span id="ffs-live-pen-accum" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
-          <span style="font-size:11px;color:#fca5a5;font-weight:700;">🔴 פרישה</span>
-          <span id="ffs-live-retire" style="font-size:12px;color:#f87171;font-weight:700;">—</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
+          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🎯 פרישה</span>
+          <span id="ffs-live-retire" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);">
@@ -2942,6 +2984,26 @@
     </button>
   </div>
 
+</div>
+
+<!-- v180.50: Tax brackets modal -->
+<div id="ffs-tax-modal" onclick="if(event.target===this)ffsCloseTaxModal();"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;direction:rtl;">
+  <div style="background:white;border-radius:16px;width:90%;max-width:420px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;font-family:Heebo,sans-serif;">
+    <div style="background:#1a1a2e;color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
+      <button onclick="ffsCloseTaxModal()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">✕</button>
+      <span id="ffs-tax-modal-title" style="font-size:16px;font-weight:700;">הגדרות מס הכנסה</span>
+      <div style="width:30px;"></div>
+    </div>
+    <div style="padding:18px;overflow-y:auto;flex:1;">
+      <div id="ffs-tax-header-section"></div>
+      <div id="ffs-tax-tiers-container"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-start;">
+      <button onclick="ffsSaveTaxModal()" style="flex:1;padding:8px;background:#3b82f6;color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">שמור</button>
+      <button onclick="ffsCloseTaxModal()" style="padding:8px 16px;background:#f1f5f9;color:#334155;border:1.5px solid #cbd5e1;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">ביטול</button>
+    </div>
+  </div>
 </div>
 
 <script src="ai_prompts.js"></script>
