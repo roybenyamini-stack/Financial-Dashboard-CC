@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.55</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.62</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2979,7 +2979,7 @@
     <button onclick="ffsClosePensionModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">
       ביטול
     </button>
-    <button onclick="ffsSavePensionFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">
+    <button id="ffs-pen-save-btn" onclick="ffsSavePensionFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">
       &#x1F4BE; שמור
     </button>
   </div>
@@ -3008,4 +3008,13 @@
 
 <script src="ai_prompts.js"></script>
 <script src="app.js"></script>
+
+<!-- MGRID DETAIL PANEL v180.60 — fixed overlay, outside mgrid-modal -->
+<div id="mgrid-detail-panel" style="display:none;position:fixed;top:100px;right:20px;width:500px;z-index:10550;background:white;border:2px solid black;border-radius:12px;padding:16px 22px;overflow-y:auto;max-height:80vh;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 8px 24px rgba(0,0,0,0.25);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;direction:rtl;">
+    <span style="font-size:13px;font-weight:700;color:#64748b;letter-spacing:0.3px;">🔍 תצוגת נכס</span>
+    <button onclick="mgridCloseDetailPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1;padding:0;" title="סגור">✕</button>
+  </div>
+  <div id="mgrid-detail-content"></div>
+</div>
 </body></html>
