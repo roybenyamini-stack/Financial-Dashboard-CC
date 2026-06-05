@@ -794,6 +794,7 @@ function slideWindow(dir) {
 let currentView = 'all';
 var _mgridCurrentTarget = 'mgrid-body';
 var _mgridViewState = 'cards';
+var _mgridDetailPanelState = null;
 let lockedFund = null;   // קרן נעולה בלחיצה
 let currentCatContext = null; // קטגוריה שממנה נבחרה הקרן
 let hoverTimeout = null; // debounce ל-hover
@@ -8178,6 +8179,8 @@ function ffsLoadProfile() {
       FFS_PROFILE.taxBrackets         = saved.taxBrackets         != null ? saved.taxBrackets         : null; // v180.50
       // v168.76: ensure pension items have pensionType field (backwards compat)
       FFS_PROFILE.pension.forEach(function(p) { if (!p.pensionType) p.pensionType = 'pension'; });
+      // normalize stale liquidity code saved by old master grid bug
+      FFS_PROFILE.investments.forEach(function(item) { if (item.liquidity === 'self-invest') item.liquidity = 'private'; });
       ffsFixationInit(); // v178.3: sync UI — no save triggered
     }
   } catch(e) {}
@@ -8914,7 +8917,23 @@ function ffsCancelDelete() {
 }
 
 // v177.20: Dedicated Pension Modal functions
-function ffsOpenPensionModal(item) {
+function _ffsPenModalSetReadOnly(ro) {
+  ['ffs-pen-modal-provider','ffs-pen-modal-name','ffs-pen-modal-accountnum',
+   'ffs-pen-modal-monthly','ffs-pen-modal-expected','ffs-pen-modal-contrib',
+   'ffs-pen-modal-overflow-target','ffs-pen-modal-survivors',
+   'ffs-pen-modal-spouse','ffs-pen-modal-orphan','ffs-pen-modal-children',
+   'ffs-pen-modal-accum','ffs-pen-modal-factor','ffs-pen-modal-life',
+   'ffs-pen-modal-customyield','ffs-pen-modal-active','ffs-pen-modal-notes',
+   'ffs-pen-modal-type-pension','ffs-pen-modal-type-manager','ffs-pen-modal-type-investments',
+   'ffs-pen-modal-subtype-new','ffs-pen-modal-subtype-vatiqa',
+   'ffs-pen-modal-route-a','ffs-pen-modal-route-b',
+   'ffs-pen-routing-annuity','ffs-pen-routing-capital'
+  ].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = ro; });
+  var saveBtn = document.getElementById('ffs-pen-save-btn');
+  if (saveBtn) saveBtn.style.display = ro ? 'none' : '';
+}
+function ffsOpenPensionModal(item, isReadOnly) {
+  console.log('[Eye] ffsOpenPensionModal called — id:', (item && item.id) || '(new)');
   ffsCurrentPensionId = item ? item.id : null;
   var title = document.getElementById('ffs-pen-modal-title');
   var titleTextEdit = '\u{1F3E6} עריכת נכס פנסיוני';
@@ -8980,11 +8999,14 @@ function ffsOpenPensionModal(item) {
   ffsTogglePensionType();
   document.getElementById('ffs-pension-backdrop').style.display = 'block';
   document.getElementById('ffs-pension-modal').style.display    = 'block';
+  var _dp = document.getElementById('mgrid-detail-panel');
+  if (_dp && _dp.style.display !== 'none') _dp.style.display = 'none';
 }
 function ffsClosePensionModal() {
   document.getElementById('ffs-pension-backdrop').style.display = 'none';
   document.getElementById('ffs-pension-modal').style.display    = 'none';
   ffsCurrentPensionId = null;
+  mgridRefreshDetailPanel();
 }
 function ffsUpdateManagerPensionCalc() {
   var mgrEl     = document.getElementById('ffs-pen-modal-type-manager');
@@ -9299,6 +9321,92 @@ function ffsMoveInvCat(catKey, dir) {
   ffsRenderSection('investments');
 }
 
+function ffsCloseCardPopup() {
+  var p = document.getElementById('ffs-card-popup');
+  var b = document.getElementById('ffs-card-popup-bd');
+  if (p) p.style.display = 'none';
+  if (b) b.style.display = 'none';
+}
+function mgridShowDetailPanel(section, id) {
+  var listId = section === 'investments' ? 'ffs-investments-list' : 'ffs-pension-list';
+  var listEl = document.getElementById(listId);
+  var cardEl = listEl && listEl.querySelector('[data-card-id="' + id + '"]');
+  if (cardEl) {
+    console.log('[mgridDetail] card found immediately:', section, id);
+  } else {
+    console.log('[mgridDetail] card not in DOM, calling ffsRenderSection:', section, id);
+    ffsRenderSection(section);
+    listEl = document.getElementById(listId);
+    cardEl = listEl && listEl.querySelector('[data-card-id="' + id + '"]');
+    if (cardEl) {
+      console.log('[mgridDetail] card found after re-render:', section, id);
+    } else {
+      console.warn('[mgridDetail] card still not found after re-render — aborting:', section, id, 'listEl:', listEl);
+    }
+  }
+  if (!cardEl) return;
+  var clone = cardEl.cloneNode(true);
+  var firstBtn = clone.querySelector('button');
+  if (firstBtn && firstBtn.textContent.trim() === '✕') firstBtn.style.display = 'none';
+  var content = document.getElementById('mgrid-detail-content');
+  var panel   = document.getElementById('mgrid-detail-panel');
+  console.log('[mgridDetail] panel el:', !!panel, '| content el:', !!content);
+  if (!content || !panel) return;
+  content.innerHTML = '';
+  content.appendChild(clone);
+  console.log('[mgridDetail] clone innerHTML length:', clone.innerHTML.length);
+  _mgridDetailPanelState = {section: section, id: id};
+  panel.style.minHeight = '120px';
+  panel.style.display   = 'block';
+  console.log('[mgridDetail] panel display:', panel.style.display, '| offsetHeight:', panel.offsetHeight);
+  setTimeout(function() { panel.style.display = 'block'; }, 0);
+}
+function mgridCloseDetailPanel() {
+  var panel   = document.getElementById('mgrid-detail-panel');
+  var content = document.getElementById('mgrid-detail-content');
+  if (panel)   { panel.style.display = 'none'; panel.style.minHeight = ''; }
+  if (content) content.innerHTML = '';
+  _mgridDetailPanelState = null;
+}
+function mgridRefreshDetailPanel() {
+  if (!_mgridDetailPanelState) return;
+  mgridShowDetailPanel(_mgridDetailPanelState.section, _mgridDetailPanelState.id);
+}
+function ffsShowCardPopup(section, id) {
+  var listId = section === 'investments' ? 'ffs-investments-list' : 'ffs-pension-list';
+  var listEl = document.getElementById(listId);
+  var cardEl = listEl && listEl.querySelector('[data-card-id="' + id + '"]');
+  if (!cardEl) {
+    ffsRenderSection(section);
+    listEl = document.getElementById(listId);
+    cardEl = listEl && listEl.querySelector('[data-card-id="' + id + '"]');
+  }
+  if (!cardEl) return;
+  var clone = cardEl.cloneNode(true);
+  var firstBtn = clone.querySelector('button');
+  if (firstBtn && firstBtn.textContent.trim() === '✕') firstBtn.style.display = 'none';
+  clone.querySelectorAll('button').forEach(function(btn) {
+    var oc = btn.getAttribute('onclick') || '';
+    if (oc) btn.setAttribute('onclick', 'ffsCloseCardPopup();' + oc);
+  });
+  var popup = document.getElementById('ffs-card-popup');
+  var bd    = document.getElementById('ffs-card-popup-bd');
+  if (!popup) {
+    bd = document.createElement('div');
+    bd.id = 'ffs-card-popup-bd';
+    bd.onclick = ffsCloseCardPopup;
+    bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.2);z-index:10559;display:none;';
+    document.body.appendChild(bd);
+    popup = document.createElement('div');
+    popup.id = 'ffs-card-popup';
+    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10560;max-height:82vh;overflow-y:auto;display:none;border-radius:12px;background-color:#ffffff;border:1px solid #e2e8f0;padding:15px;box-shadow:0 8px 24px rgba(0,0,0,0.25);';
+    document.body.appendChild(popup);
+  }
+  popup.innerHTML = '';
+  popup.appendChild(clone);
+  bd.style.display    = 'block';
+  popup.style.display = 'block';
+}
 function ffsRenderSection(section) {
   var listId = section === 'realEstate' ? 'ffs-realestate-list' : 'ffs-' + section + '-list';
   var listEl = document.getElementById(listId);
@@ -9367,7 +9475,7 @@ function ffsRenderSection(section) {
           : 'background:' + _bg + ';' + _iSt;
         var eid   = item.id;
         var ds    = 'data-section="investments" data-id="' + eid + '"';
-        html += '<div style="' + _cardSt + '">';
+        html += '<div data-card-id="' + eid + '" style="' + _cardSt + '">';
         html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:#cbd5e1;font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;z-index:10;pointer-events:auto;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#cbd5e1\'">✕</button>';
         html += '<button data-id="' + eid + '" onclick="ffsMoveInvInCat(this.dataset.id,-1)" style="position:absolute;top:8px;left:28px;background:transparent;border:none;font-size:11px;cursor:pointer;color:#94a3b8;padding:1px 2px;line-height:1;z-index:1;" title="העלה בקבוצה">▲</button>';
         html += '<button data-id="' + eid + '" onclick="ffsMoveInvInCat(this.dataset.id,1)" style="position:absolute;top:8px;left:44px;background:transparent;border:none;font-size:11px;cursor:pointer;color:#94a3b8;padding:1px 2px;line-height:1;z-index:1;" title="הורד בקבוצה">▼</button>';
@@ -9494,7 +9602,7 @@ function ffsRenderSection(section) {
       : 'background:' + bg + ';border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.02);margin-bottom:12px;padding:14px;position:relative;';
     var eid = item.id;
     var ds  = 'data-section="' + section + '" data-id="' + eid + '"';
-    html += '<div style="' + iSt + '">';
+    html += '<div data-card-id="' + eid + '" style="' + iSt + '">';
     // v177.16: X button absolutely positioned top-left
     html += '<button ' + ds + ' onclick="ffsHandleRemove(this)" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:#cbd5e1;font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;z-index:10;pointer-events:auto;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#cbd5e1\'">✕</button>';
     if (ffsReorderMode[section]) {
@@ -15986,7 +16094,22 @@ function ffsClearFieldError(fieldId, hintId) {
 
 // ── Core Modal Functions ─────────────────────────────────────────────────────
 
-function ffsOpenInvModal(prefillOrArray, context) {
+function _ffsInvModalSetReadOnly(ro) {
+  ['ffs-inv-f-balance','ffs-inv-f-assetNum','ffs-inv-f-name',
+   'ffs-inv-f-category','ffs-inv-f-category-other','ffs-inv-f-type',
+   'ffs-inv-f-type-other','ffs-inv-f-liquidity','ffs-inv-f-active',
+   'ffs-inv-f-designation','ffs-inv-f-coefficient',
+   'ffs-inv-bucket-inv','ffs-inv-bucket-pen','ffs-inv-f-notes'
+  ].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = ro; });
+  var saveBtn = document.getElementById('ffs-inv-save-btn');
+  var skipBtn = document.getElementById('ffs-inv-skip-btn');
+  var moveRow = document.getElementById('ffs-inv-move-pension-row');
+  if (saveBtn) saveBtn.style.display = ro ? 'none' : '';
+  if (skipBtn) skipBtn.style.display = ro ? 'none' : '';
+  if (moveRow) moveRow.style.display = ro ? 'none' : '';
+}
+function ffsOpenInvModal(prefillOrArray, context, isReadOnly) {
+  console.log('[Eye] ffsOpenInvModal called — context:', context || 'investments', '| id:', (prefillOrArray && prefillOrArray.id) || '(new)');
   context = context || 'investments';
   var backdrop     = document.getElementById('ffs-inv-backdrop');
   var modal        = document.getElementById('ffs-inv-modal');
@@ -16043,6 +16166,8 @@ function ffsOpenInvModal(prefillOrArray, context) {
   _ffsPopulateInvForm(arr[0], context);
   backdrop.style.display = 'block';
   modal.style.display    = 'block';
+  var _dp = document.getElementById('mgrid-detail-panel');
+  if (_dp && _dp.style.display !== 'none') _dp.style.display = 'none';
 }
 
 function ffsCloseInvModal() {
@@ -16052,6 +16177,7 @@ function ffsCloseInvModal() {
   if (modal)    modal.style.display    = 'none';
   ffsWizardAssets       = [];
   ffsWizardCurrentIndex = 0;
+  mgridRefreshDetailPanel();
 }
 
 function ffsSaveInvFromModal() {
@@ -16215,6 +16341,9 @@ function ffsSaveInvFromModal() {
   if (ffsWizardAssets.length > 0) {
     ffsNextWizardStep();
   } else {
+    ffsRenderSection('investments');
+    var _mg = document.getElementById('mgrid-modal');
+    if (_mg && _mg.style.display !== 'none') renderMasterGrid();
     ffsCloseInvModal();
   }
 }
@@ -16559,6 +16688,7 @@ function closeMasterGrid() {
   var md = document.getElementById('mgrid-modal');
   if (bd) bd.style.display = 'none';
   if (md) md.style.display = 'none';
+  mgridCloseDetailPanel();
 }
 function toggleMasterGridView() {
   _mgridViewState = _mgridViewState === 'cards' ? 'table' : 'cards';
@@ -16629,7 +16759,7 @@ function renderMasterGrid() {
   var body = document.getElementById(_mgridCurrentTarget || 'mgrid-body');
   if (!body) return;
   var fmtK = function(n) { return Math.round((n || 0) / 1000).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0}); };
-  var liqOpts = [['','—'],['liquid','נזיל'],['self-invest','השקעה עצמית'],['pension67','גיל 67+']];
+  var liqOpts = [['','—'],['liquid','נזיל'],['private','השקעה עצמית'],['pension67','גיל 67+']];
   var buildRow = function(item, section, isOdd) {
     var polisa    = item.assetNum || item.accountNum || '—';
     var provider  = _mgridCleanProvider(item.provider || item.name);
@@ -16645,8 +16775,8 @@ function renderMasterGrid() {
     liqOpts.forEach(function(o) { liqSel += '<option value="'+o[0]+'"'+(item.liquidity===o[0]?' selected':'')+'>'+o[1]+'</option>'; });
     liqSel += '</select>';
     var editFn = section === 'investments'
-      ? 'ffsOpenInvModal(FFS_PROFILE.investments.find(function(x){return x.id===\''+safeId+'\'}),"investments");setTimeout(function(){var m=document.getElementById(\'ffs-inv-modal\');var b=document.getElementById(\'ffs-inv-backdrop\');if(m)m.style.zIndex=\'10600\';if(b)b.style.zIndex=\'10599\';},100)'
-      : 'ffsOpenPensionModal(FFS_PROFILE.pension.find(function(x){return x.id===\''+safeId+'\'}));setTimeout(function(){var m=document.getElementById(\'ffs-pension-modal\');var b=document.getElementById(\'ffs-pension-backdrop\');if(m)m.style.zIndex=\'10600\';if(b)b.style.zIndex=\'10599\';},100)';
+      ? 'mgridShowDetailPanel(\'investments\',\''+safeId+'\')'
+      : 'mgridShowDetailPanel(\'pension\',\''+safeId+'\')';
     var safeProvider = provider.replace(/"/g, '&quot;');
     var actions = '<span onclick="'+editFn+'" style="cursor:pointer;font-size:16px;margin-left:6px;" title="עריכה">👁️</span>'
                 + '<span onclick="masterGridDeleteItem(\''+section+'\',\''+safeId+'\')" style="cursor:pointer;font-size:16px;" title="מחיקה">🗑️</span>';
