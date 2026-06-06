@@ -9543,7 +9543,8 @@ function ffsRenderSection(section) {
         html += '<div style="' + lbSt + '">';
         html += _lType;
         html += '</div>';
-        html += '<select style="' + roSelSt + _nullBg(item.type) + '">';
+        var _trackBg = (!item.type || item.type.trim() === '' || item.type === 'null') ? 'background-color:#fff9c4;' : 'background-color:#ffffff;';
+        html += '<select onchange="updateTrackColor(this);" style="' + roSelSt + _trackBg + '">';
         html += '<option value="" disabled' + (!item.type ? ' selected' : '') + '></option>';
         var _typeOpts = ['מנייתי', 'כללי', 'כספי', 'אחר'];
         _typeOpts.forEach(function(t) {
@@ -9665,7 +9666,8 @@ function ffsRenderSection(section) {
       html += '</div>';
       html += '<div>';
       html += '<div style="' + lbSt + '">' + _lType + '</div>';
-      html += '<select style="' + roSelSt + _nullBg(item.type) + '">';
+      var trackBg = (!item.type || item.type.trim() === '' || item.type === 'null') ? 'background-color:#fff9c4;' : 'background-color:#ffffff;';
+      html += '<select onchange="updateTrackColor(this);" style="' + roSelSt + trackBg + '">';
       html += '<option value="" disabled' + (!item.type ? ' selected' : '') + '></option>';
       var typeOpts = ['מנייתי', 'כללי', 'כספי'];
       typeOpts.forEach(function(t) {
@@ -16034,14 +16036,14 @@ function _ffsPopulateInvForm(item, context) {
     catOth.style.display = 'block';
   }
   ffsCheckLiquidityWarning();
-  // ── v177.73: yellow highlight for empty/null selects ──
-  ['category', 'type', 'liquidity'].forEach(function(k) {
+  // ── v177.73 / v180.66: yellow highlight — type uses centralized helper ──
+  ['category', 'liquidity'].forEach(function(k) {
     var el = document.getElementById('ffs-inv-f-' + k);
     if (!el || el.tagName !== 'SELECT') return;
-    var v = el.value;
-    var isEmpty = !v || v === 'null' || v === 'אחר' || v === 'כללי';
-    el.style.backgroundColor = isEmpty ? '#fdfad2' : '';
-    el.style.border = isEmpty ? '1px solid #eab308' : '';
+    var v = el.value.trim();
+    var isYellow = !v || v === 'null' || v === 'אחר' || v === 'כללי';
+    el.style.backgroundColor = isYellow ? '#fff9c4' : '#ffffff';
+    el.style.border           = isYellow ? '1px solid #eab308' : '';
   });
   // ── v177.13: reset custom Other fields on form open ──
   var coEl = document.getElementById('ffs-inv-f-category-other');
@@ -16058,6 +16060,7 @@ function _ffsPopulateInvForm(item, context) {
   var coEl = document.getElementById('ffs-inv-f-coefficient');
   if (coEl) coEl.value = (item && item.coefficient) ? item.coefficient : '';
   ffsOnDesignationChange();
+  updateTrackColor(document.getElementById('ffs-inv-f-type'));
 }
 
 function ffsOnDesignationChange() {
@@ -16968,3 +16971,48 @@ function ffsExtractFromImage(base64Data, mediaType, context) {
     ffsOpenInvModal(null, context);
   });
 }
+
+// v180.71 — fix trackBg initial render: yellow only when empty/null
+// v180.66 — centralized track (מסלול) color helper
+function updateTrackColor(selectEl) {
+  if (!selectEl) return;
+  var val = (selectEl.value || '').trim();
+  var isWarning = (val === '' || val === 'null');
+  selectEl.style.backgroundColor = isWarning ? '#fff9c4' : '#ffffff';
+}
+
+// v180.63 — make #mgrid-detail-panel draggable via its header
+function dragElement(elmnt, header) {
+  if (!elmnt || !header) return;
+  var startX, startY, offsetLeft, offsetTop;
+  header.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    var rect = elmnt.getBoundingClientRect();
+    // Switch from right-anchored to left-anchored on first drag
+    elmnt.style.left  = rect.left + 'px';
+    elmnt.style.right = '';
+    offsetLeft = e.clientX - rect.left;
+    offsetTop  = e.clientY - rect.top;
+    header.style.cursor = 'grabbing';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+  });
+  function onMouseMove(e) {
+    elmnt.style.left = (e.clientX - offsetLeft) + 'px';
+    elmnt.style.top  = (e.clientY - offsetTop)  + 'px';
+  }
+  function onMouseUp() {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+    header.style.cursor = 'grab';
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var panel  = document.getElementById('mgrid-detail-panel');
+  var header = document.getElementById('mgrid-detail-header');
+  if (panel && header) {
+    dragElement(panel, header);
+  } else {
+    console.warn('Drag initialization failed: panel or header not found in DOM.');
+  }
+});
