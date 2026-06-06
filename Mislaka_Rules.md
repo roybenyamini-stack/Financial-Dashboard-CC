@@ -91,3 +91,44 @@ Assets MUST be split by iterating over `<HeshbonOPolisa>` child nodes within eac
 * Apply `.some()` iteration against both `SHEM-TOCHNIT` (product name) and `SHEM-YATZRAN` (provider name).
 * If any keyword matches → `isBituachMenahalim: true`, `pensionType: 'manager'`.
 * **Scalability rule:** Do NOT hardcode individual string checks. Add new product-name patterns only to this list — never add new `indexOf` calls inline.
+
+## 12. Study Funds (קרן השתלמות) - Data Extraction & Logic
+This section defines universal business logic for Study Funds. The rules apply to all managing bodies because the XML schema from the Mislaka Pensyonit is standardized across providers.
+
+### 12a. Data Nodes
+Target the `BlockItrot` and `NesilutTag` blocks for each product where the product name indicates a Study Fund (i.e., contains "השתלמות" or its RTL-reversed form "תומלתשה").
+
+### 12b. Liquidity Status
+Extract `<MOED-NEZILUT-TAGMULIM>` (the liquidity date):
+* If the date has **passed** relative to today → mark as **נזיל** (Liquid).
+* If the date is in the **future** → calculate and display the remaining time (e.g., "עוד X שנים וY חודשים").
+* If the tag is absent or `xsi:nil="true"` → apply the missing-data UI treatment (see Rule 12f). Do NOT assume liquid or non-liquid.
+
+### 12c. Tax Parsing — The Ceiling Rule
+Scan all `PerutYitraLeTkufa` blocks within the account node and read the `<TIKRAT-HAFKADA-MUTEVET>` field:
+* **Value `1`:** Funds deposited **up to** the annual ceiling → **100% Tax Exempt**. No capital gains tax applies to profits from these funds.
+* **Value `2`:** Funds deposited **above** the annual ceiling → Profits on these specific funds are subject to **25% capital gains tax**.
+
+A single Study Fund account may contain multiple `PerutYitraLeTkufa` segments — each with its own `TIKRAT-HAFKADA-MUTEVET` value. Process them independently.
+
+### 12d. Profit Calculation for Taxable Segments
+For each `PerutYitraLeTkufa` segment where `TIKRAT-HAFKADA-MUTEVET` equals `2`:
+* **Taxable Profit** = `SACH-ITRA-LESHICHVA-BESHACH` (total accumulation for this segment) − total deposits for this segment.
+* The result is the gross taxable gain. Apply the 25% rate to this figure to derive the tax liability for the segment.
+* Sum tax liabilities across all Value-`2` segments to get the total fund-level tax exposure.
+
+### 12e. Partial Withdrawal — Proportionality Rule (כלל היחסות)
+When a user simulates a partial withdrawal:
+* The tax liability is **exactly proportional** to the withdrawal percentage.
+* Formula: `Tax Due = Total Tax Liability × (Withdrawal Amount / Total Fund Balance)`.
+* Example: withdrawing 50% of the fund triggers exactly 50% of the total calculated tax liability.
+* This rule applies regardless of which segment (ceiling vs. above-ceiling) the withdrawal is drawn from — the proportionality is applied at the fund level, not the segment level.
+
+### 12f. Missing Data UI Treatment
+Applies to all fields within the Study Fund data nodes, including numeric balances, dates, and coded values:
+* Before reading any field, check for `xsi:nil="true"` on the element.
+* If `xsi:nil="true"` is present **or** the tag is entirely absent:
+  * **Do NOT** fallback to `0` or any default numeric value — a zero balance or a zero date is materially misleading in financial data.
+  * Leave the rendered UI field **empty** (blank string).
+  * Apply a **light yellow background** to that specific UI field to visually alert the user that data is missing.
+  * This treatment must be consistent with the existing dashboard `_nullBg` pattern used elsewhere in the UI.

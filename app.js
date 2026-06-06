@@ -8238,6 +8238,53 @@ function ffsFixationInit() {
   ffsFixationUISync(val);
   ffsRenderAdditionalIncomes();
 }
+// v181.06: canonical birth year via FFS_PROFILE.birthDate → SIM_BIRTH_YEAR_ROY fallback; decimal age
+function ffsGetAutoRealEstateIncomes() {
+  var autoIncomes = [];
+  var RETIRE_AGE = parseInt(FFS_PROFILE.retirementAge) || 67;
+  // Birth year/month — mirror _simRecalcRetirementZoom: try FFS_PROFILE.birthDate, fall back to SIM_BIRTH_YEAR_ROY
+  var _birthYear = 0, _birthMonth = 1;
+  var _bd = FFS_PROFILE.birthDate ? new Date(FFS_PROFILE.birthDate) : null;
+  if (_bd && !isNaN(_bd.getTime()) && _bd.getFullYear() > 1900 && _bd.getFullYear() < 2100) {
+    _birthYear = _bd.getFullYear();
+    _birthMonth = _bd.getMonth() + 1;
+  } else if (typeof SIM_BIRTH_YEAR_ROY !== 'undefined' && SIM_BIRTH_YEAR_ROY > 1900) {
+    _birthYear = SIM_BIRTH_YEAR_ROY;
+    _birthMonth = 1;
+  }
+  (FFS_PROFILE.realEstate || []).forEach(function(prop) {
+    if (!(prop.type === 'investment' || prop.type === 'להשקעה')) return;
+    var rent = Number(String(prop.monthlyRent || 0).replace(/,/g, '')) || 0;
+    if (!(rent > 0)) return;
+    var mortgage = Number(String(prop.mortgagePayment || 0).replace(/,/g, '')) || 0;
+    // Mortgage end year/month — prefer mortgageEndDate (MM/YYYY), fall back to mortgageEndYear (int)
+    var _mortYear = 0, _mortMonth = 1;
+    var _rawME = (prop.mortgageEndDate != null)
+      ? String(prop.mortgageEndDate).trim()
+      : String(prop.mortgageEndYear || '').trim();
+    if (_rawME.indexOf('/') !== -1) {
+      var _mep = _rawME.split('/');
+      _mortMonth = parseInt(_mep[0]) || 1;
+      _mortYear  = parseInt(_mep[1]) || 0;
+    } else if (_rawME) {
+      _mortYear  = parseInt(_rawME) || 0;
+      _mortMonth = 1;
+    }
+    // Decimal age at mortgage end — 0 if birth year unavailable (no guessing)
+    var mortgageEndAge = 0;
+    if (_birthYear > 0 && _mortYear > 0) {
+      mortgageEndAge = Math.round(((_mortYear + _mortMonth / 12) - (_birthYear + _birthMonth / 12)) * 10) / 10;
+    }
+    console.log('DEBUG AUTO-ROW:', { propName: prop.name, _birthYear: _birthYear, _mortYear: _mortYear, rent: rent, mortgage: mortgage, mortgageEndAge: mortgageEndAge, RETIRE_AGE: RETIRE_AGE });
+    if (mortgage > 0 && mortgageEndAge > RETIRE_AGE) {
+      autoIncomes.push({ description: '[1] ' + (prop.name || ''), amount: rent - mortgage, startAge: RETIRE_AGE, endAge: mortgageEndAge, _auto: true, tooltip: (prop.name || '') + '\nשכירות: ' + rent + ' ₪ | החזר משכנתא: ' + mortgage + ' ₪' });
+      autoIncomes.push({ description: '[2] ' + (prop.name || ''), amount: rent, startAge: mortgageEndAge, endAge: 120, _auto: true, tooltip: (prop.name || '') + '\nהמשכנתא הסתיימה.' });
+    } else {
+      autoIncomes.push({ description: prop.name || '', amount: rent, startAge: RETIRE_AGE, endAge: 120, _auto: true, tooltip: (prop.name || '') + '\nללא משכנתא.' });
+    }
+  });
+  return autoIncomes;
+}
 // v178.5: Additional Incomes — oninput updates memory only, onblur commits to localStorage
 function ffsRenderAdditionalIncomes() {
   var list = document.getElementById('ffs-additional-incomes-list');
@@ -8253,6 +8300,19 @@ function ffsRenderAdditionalIncomes() {
       '<input type="number" placeholder="גיל התחלה" value="' + (inc.startAge != null ? inc.startAge : 67) + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'startAge\',parseInt(this.value)||67)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
       '<input type="number" placeholder="גיל סיום" value="' + (inc.endAge || '') + '" oninput="ffsUpdateAdditionalIncome(' + idx + ',\'endAge\',parseInt(this.value)||0)" onblur="ffsCommitAdditionalIncomes()" style="' + iStyle + 'text-align:center;">' +
       '<span onclick="ffsDeleteAdditionalIncome(' + idx + ')" style="cursor:pointer;font-size:16px;color:#ef4444;padding:4px;flex-shrink:0;">🗑️</span>';
+    list.appendChild(row);
+  });
+  // v181.00: render auto real estate rows (read-only, not persisted)
+  ffsGetAutoRealEstateIncomes().forEach(function(inc) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:minmax(80px, 1fr) 90px 60px 60px auto;gap:6px;align-items:center;background:#f0f9ff;border-radius:10px;padding:8px 10px;width:100%;box-sizing:border-box;border:1px dashed #93c5fd;';
+    var iStyle = 'font-family:Heebo,sans-serif;font-size:13px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;outline:none;background:#f1f5f9;color:#64748b;width:100%;box-sizing:border-box;cursor:default;';
+    row.innerHTML =
+      '<input type="text" value="' + (inc.description || '').replace(/"/g, '&quot;') + '" title="' + (inc.tooltip || inc.description || '').replace(/"/g, '&quot;') + '" readonly style="' + iStyle + 'text-overflow:ellipsis;white-space:nowrap;overflow:hidden;">' +
+      '<input type="number" value="' + Math.round(inc.amount || 0) + '" readonly style="' + iStyle + 'text-align:center;">' +
+      '<input type="number" value="' + (inc.startAge || 67) + '" readonly style="' + iStyle + 'text-align:center;">' +
+      '<input type="number" value="' + (inc.endAge || '') + '" readonly style="' + iStyle + 'text-align:center;">' +
+      '<span style="font-size:16px;color:#cbd5e1;padding:4px;flex-shrink:0;" title="שורה אוטומטית מנדל\'\'ן">🔒</span>';
     list.appendChild(row);
   });
 }
@@ -9229,11 +9289,41 @@ function ffsHandleRadio(el) {
   var id = el.getAttribute('data-id');
   ffsUpdateItem('realEstate', id, 'type', el.value);
 }
-function ffsHandleMortgageEnd(el) {
+// v181.09: inline validation — called onblur of mortgage payment input
+function ffsValidateMortgageFields(el) {
   var id = el.getAttribute('data-id');
-  var parts = (el.value || '').split('/');
+  var item = (FFS_PROFILE.realEstate || []).find(function(x) { return x.id === id; });
+  if (!item || !(Number(String(item.mortgagePayment || 0).replace(/,/g, '')) > 0)) return;
+  var hasEnd = item.mortgageEndDate || (item.mortgageEndYear > 0);
+  var endInput = document.querySelector('input[data-id="' + id + '"][data-key="mortgageEndYear"]');
+  var errId = 'mortgage-end-err-' + id;
+  if (!hasEnd && endInput) {
+    endInput.classList.add('error-border');
+    if (!document.getElementById(errId)) {
+      var errSpan = document.createElement('span');
+      errSpan.id = errId;
+      errSpan.style.cssText = 'color:#dc2626;font-size:11px;display:block;margin-top:2px;font-family:Heebo,sans-serif;';
+      errSpan.textContent = 'יש להזין תאריך סיום משכנתא';
+      endInput.parentNode.appendChild(errSpan);
+    }
+  }
+}
+function ffsHandleMortgageEnd(el) {
+  // v181.09: clear inline validation error when user starts typing end date
+  var _errSpan = document.getElementById('mortgage-end-err-' + el.getAttribute('data-id'));
+  if (_errSpan) _errSpan.remove();
+  el.classList.remove('error-border');
+  var id = el.getAttribute('data-id');
+  var raw = (el.value || '').trim();
+  var parts = raw.split('/');
   var yr = parseInt(parts[parts.length - 1]) || 0;
-  ffsUpdateItem('realEstate', id, 'mortgageEndYear', yr);
+  var item = (FFS_PROFILE.realEstate || []).find(function(x) { return x.id === id; });
+  if (item) {
+    item.mortgageEndYear = yr;
+    item.mortgageEndDate = raw; // v181.07: save full MM/YYYY string for decimal month precision
+    delete FFS_PROFILE.isDemo;
+    ffsSaveProfile();
+  }
 }
 function ffsHandleRemove(el) {
   ffsRemoveItem(el.getAttribute('data-section'), el.getAttribute('data-id'));
@@ -9583,6 +9673,9 @@ function ffsRenderSection(section) {
         if (item.needsReview) {
           html += '<button data-section="investments" data-id="' + eid + '" onclick="ffsApproveAsset(this.dataset.section,this.dataset.id)" style="flex-shrink:0;background:#f59e0b;border:none;color:white;font-size:11px;font-weight:700;cursor:pointer;padding:3px 9px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">אישור נתונים ✔️</button>';
         }
+        if (item.category === 'קרן השתלמות') {
+          html += '<button data-id="' + eid + '" onclick="ffsOpenStudyFundModal(this.dataset.id)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">📊 ניתוח</button>';
+        }
         html += '<button data-id="' + eid + '" onclick="ffsHandleEditInv(this)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">&#x270E; ';
         html += 'ערוך';
         html += '</button>';
@@ -9725,8 +9818,8 @@ function ffsRenderSection(section) {
       html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#1e293b;font-weight:600;white-space:nowrap;"><input type="radio" name="re-type-' + eid + '" value="residence" ' + (reType === 'residence' ? 'checked' : '') + ' ' + ds + ' data-key="type" onchange="ffsHandleInput(this)" style="accent-color:#3b82f6;cursor:pointer;"> דירת מגורים</label>';
       html += '</div>';
       html += '</div>';
-      html += '<div><div style="' + lbSt + '">משכנתא (₪/חודש)</div><input type="number" style="' + inSt + 'text-align:center;" placeholder="0" value="' + (item.mortgagePayment || 0) + '" ' + ds + ' data-key="mortgagePayment" oninput="ffsHandleInput(this)"></div>';
-      html += '<div><div style="' + lbSt + '">סיום משכנתא (MM/YYYY)</div><input type="text" style="' + inSt + 'text-align:center;" placeholder="01/2035" value="' + mortgageEndDisplay + '" ' + ds + ' data-key="mortgageEndYear" oninput="ffsHandleMortgageEnd(this)"></div>';
+      html += '<div><div style="' + lbSt + '">משכנתא (₪/חודש)</div><input type="number" style="' + inSt + 'text-align:center;" placeholder="0" value="' + (item.mortgagePayment || 0) + '" ' + ds + ' data-key="mortgagePayment" oninput="ffsHandleInput(this)" onblur="ffsValidateMortgageFields(this)"></div>';
+      html += '<div><div style="' + lbSt + '">סיום משכנתא (MM/YYYY)</div><input type="text" style="' + inSt + 'text-align:center;" value="' + mortgageEndDisplay + '" ' + ds + ' data-key="mortgageEndYear" oninput="ffsHandleMortgageEnd(this)" onchange="ffsHandleMortgageEnd(this)"></div>';
       html += '</div>';
       // Row 3: includeInLiquid checkbox (v170.5)
       var inclLiquid = (item.includeInLiquid !== false); // default true
@@ -10474,6 +10567,11 @@ function ffsSyncSliders() {
   var _retAgeSync  = parseInt(FFS_PROFILE.retirementAge) || 67;
   var _addIncome   = 0;
   (FFS_PROFILE.additionalIncomes || []).forEach(function(inc) {
+    var _s = inc.startAge || 67; var _e = inc.endAge || 999;
+    if (_retAgeSync >= _s && _retAgeSync <= _e) _addIncome += (inc.amount || 0);
+  });
+  // v181.00: include auto real estate incomes in retirement income total
+  ffsGetAutoRealEstateIncomes().forEach(function(inc) {
     var _s = inc.startAge || 67; var _e = inc.endAge || 999;
     if (_retAgeSync >= _s && _retAgeSync <= _e) _addIncome += (inc.amount || 0);
   });
@@ -16781,7 +16879,12 @@ function renderMasterGrid() {
       ? 'mgridShowDetailPanel(\'investments\',\''+safeId+'\')'
       : 'mgridShowDetailPanel(\'pension\',\''+safeId+'\')';
     var safeProvider = provider.replace(/"/g, '&quot;');
-    var actions = '<span onclick="'+editFn+'" style="cursor:pointer;font-size:16px;margin-left:6px;" title="עריכה">👁️</span>'
+    var isStudyFund = (section === 'investments' && item.category === 'קרן השתלמות');
+    var analysisBtn = isStudyFund
+      ? '<span onclick="ffsOpenStudyFundModal(\''+safeId+'\')" style="cursor:pointer;font-size:16px;margin-left:6px;" title="ניתוח">📊</span>'
+      : '<span style="font-size:16px;margin-left:6px;opacity:0.2;cursor:default;" title="ניתוח (לא זמין)">📊</span>';
+    var actions = analysisBtn
+                + '<span onclick="'+editFn+'" style="cursor:pointer;font-size:16px;margin-left:6px;" title="עריכה">👁️</span>'
                 + '<span onclick="masterGridDeleteItem(\''+section+'\',\''+safeId+'\')" style="cursor:pointer;font-size:16px;" title="מחיקה">🗑️</span>';
     var bg = isOdd ? '#ffffff' : '#f8fafc';
     var td = 'padding:7px 10px;font-size:14px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
@@ -17016,3 +17119,546 @@ document.addEventListener('DOMContentLoaded', function() {
     console.warn('Drag initialization failed: panel or header not found in DOM.');
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v181.12: GuestStudyFundModal — Study Fund (קרן השתלמות) analysis modal
+// Scope: SIMULATOR mode only. Reads from FFS_PROFILE.investments.
+// Business logic follows Mislaka_Rules.md Section 12.
+// ─────────────────────────────────────────────────────────────────────────────
+
+var _sfCurrentItem    = null;
+var _sfPieChart       = null;
+var _sfWithdrawalMode = 'pct'; // 'pct' | 'fixed'
+
+function ffsOpenStudyFundModal(itemId) {
+  if (typeof APP_MODE === 'undefined' || APP_MODE !== 'SIMULATOR') return;
+  var item = (FFS_PROFILE.investments || []).find(function(x) { return x.id === itemId; });
+  if (!item) return;
+  _sfCurrentItem    = item;
+  _sfWithdrawalMode = 'pct';
+
+  // Fund name + ID
+  var nameEl = document.getElementById('sf-fund-name');
+  if (nameEl) nameEl.textContent = item.name || '';
+  var idEl = document.getElementById('sf-fund-id');
+  if (idEl) idEl.textContent = item.assetNum ? 'מספר קרן: ' + item.assetNum : '';
+
+  // Total balance — Rule 12f: nil/missing → empty + yellow background
+  var balEl = document.getElementById('sf-total-balance');
+  if (balEl) {
+    if (item.balance == null || item.balance === '') {
+      balEl.innerHTML = '<span style="display:inline-block;min-width:60px;background-color:#fdfad2;border:1px solid #eab308;border-radius:4px;padding:2px 8px;">&nbsp;</span>';
+    } else {
+      balEl.textContent = Number(item.balance).toLocaleString('he-IL');
+    }
+  }
+
+  // Liquidity badge
+  var liqEl = document.getElementById('sf-liquidity-badge');
+  if (liqEl) liqEl.innerHTML = _sfLiquidityBadge(item);
+
+  // Read macro defaults — live DOM values take priority over FFS_PROFILE
+  var _domVal = function(id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
+  var macroInvReturn = !isNaN(_domVal('ffs-macro-yield'))        ? _domVal('ffs-macro-yield')        : (FFS_PROFILE.macroYield       != null ? FFS_PROFILE.macroYield       : 4.0);
+  var macroPenReturn = !isNaN(_domVal('ffs-macro-pension-rate')) ? _domVal('ffs-macro-pension-rate') : (FFS_PROFILE.macroPensionRate != null ? FFS_PROFILE.macroPensionRate : 3.0);
+  var macroInflation = !isNaN(_domVal('ffs-macro-inflation'))    ? _domVal('ffs-macro-inflation')    : (FFS_PROFILE.macroInflation   != null ? FFS_PROFILE.macroInflation   : 2.5);
+
+  // Timeline: scale=10yr (max=120 months), thumb starts at 0 (today, physical right)
+  var tlSl = document.getElementById('sf-timeline-slider');
+  var tlIn = document.getElementById('sf-timeline-input');
+  if (tlSl) { tlSl.min = 0; tlSl.max = 120; tlSl.value = 0; }
+  if (tlIn) tlIn.value = 10;
+
+  // Investment yield
+  var irSl = document.getElementById('sf-inv-return-slider');
+  var irIn = document.getElementById('sf-inv-return-input');
+  if (irSl) irSl.value = macroInvReturn;
+  if (irIn) irIn.value = macroInvReturn;
+
+  // Pension yield
+  var prSl = document.getElementById('sf-pen-return-slider');
+  var prIn = document.getElementById('sf-pen-return-input');
+  if (prSl) prSl.value = macroPenReturn;
+  if (prIn) prIn.value = macroPenReturn;
+
+  // Inflation
+  var infSl = document.getElementById('sf-inflation-slider');
+  var infIn = document.getElementById('sf-inflation-input');
+  if (infSl) infSl.value = macroInflation;
+  if (infIn) infIn.value = macroInflation;
+
+  // Withdrawal: default 100%
+  var wdSl = document.getElementById('sf-withdrawal-slider');
+  var wdIn = document.getElementById('sf-withdrawal-input');
+  if (wdSl) wdSl.value = 100;
+  if (wdIn) wdIn.value = 100;
+
+  // Fixed withdrawal slider: max = balance in ₪ (balance is in K)
+  var fixedMax = Math.round((Number(item.balance) || 0) * 1000);
+  var wdFixSl = document.getElementById('sf-withdrawal-fixed-slider');
+  var wdFixIn = document.getElementById('sf-withdrawal-fixed-input');
+  if (wdFixSl) { wdFixSl.max = fixedMax; wdFixSl.value = fixedMax; }
+  if (wdFixIn) wdFixIn.value = fixedMax;
+
+  // Ensure pct mode is shown on open
+  _sfApplyWdModeUI();
+  _sfRenderTimelineTicks();
+  _sfSyncAllSliders();
+  _sfRecalculate();
+
+  var bd = document.getElementById('sf-analysis-backdrop');
+  var md = document.getElementById('sf-analysis-modal');
+  if (bd) bd.style.display = 'block';
+  if (md) md.style.display = 'block';
+  // Hide sim-zoom buttons that bleed above the backdrop due to z-index
+  ['sim-zoom-full', 'sim-zoom-retirement', 'sim-zoom-decade'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.visibility = 'hidden';
+  });
+}
+
+function ffsCloseStudyFundModal() {
+  var bd = document.getElementById('sf-analysis-backdrop');
+  var md = document.getElementById('sf-analysis-modal');
+  if (bd) bd.style.display = 'none';
+  if (md) md.style.display = 'none';
+  _sfCurrentItem = null;
+  if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
+  // Restore sim-zoom buttons
+  ['sim-zoom-full', 'sim-zoom-retirement', 'sim-zoom-decade'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.visibility = '';
+  });
+}
+
+// Renders year tick labels and retirement marker; ticks are proportional to current scale
+function _sfRenderTimelineTicks() {
+  var ticksRow = document.getElementById('sf-timeline-ticks-row');
+  var marker   = document.getElementById('sf-retirement-marker');
+  var tlSl     = document.getElementById('sf-timeline-slider');
+  var tlIn     = document.getElementById('sf-timeline-input');
+  if (!ticksRow) return;
+
+  var scaleYears  = Math.max(1, parseFloat((tlIn ? tlIn.value : 10) || 10));
+  var scaleMonths = Math.round(scaleYears * 12);
+  if (tlSl) tlSl.max = scaleMonths;
+
+  var today     = new Date();
+  var nowYear   = today.getFullYear();
+  var birthDate = FFS_PROFILE.birthDate ? new Date(FFS_PROFILE.birthDate) : null;
+  var birthYear = birthDate ? birthDate.getFullYear() : null;
+  var currentAge = birthYear ? (nowYear - birthYear) : null;
+
+  ticksRow.innerHTML = '';
+  var tickInterval = scaleYears <= 10 ? 2 : scaleYears <= 20 ? 5 : 10;
+  var ticks = [];
+  for (var yr = 0; yr <= scaleYears; yr += tickInterval) { ticks.push(yr); }
+  if (ticks[ticks.length - 1] !== scaleYears) ticks.push(scaleYears);
+
+  ticks.forEach(function(yr) {
+    var pct  = (1 - yr / scaleYears) * 100;
+    var tip  = 'שנה: ' + (nowYear + yr);
+    if (currentAge != null) tip += ' | גיל: ' + (currentAge + yr);
+    var tick = document.createElement('span');
+    tick.title = tip;
+    tick.style.cssText = 'position:absolute;left:' + pct + '%;transform:translateX(-50%);'
+      + 'font-size:9px;color:#94a3b8;cursor:default;white-space:nowrap;user-select:none;';
+    tick.textContent = yr === 0 ? 'היום' : yr + 'Y';
+    ticksRow.appendChild(tick);
+  });
+
+  if (marker) {
+    if (birthDate) {
+      var retireDate = new Date(birthDate);
+      retireDate.setFullYear(retireDate.getFullYear() + 67);
+      // Precise month difference (calendar months, not years)
+      var monthsToRetire = (retireDate.getFullYear() - today.getFullYear()) * 12
+        + (retireDate.getMonth() - today.getMonth());
+      if (monthsToRetire > 0 && monthsToRetire <= scaleMonths) {
+        marker.style.left    = (100 - monthsToRetire / scaleMonths * 100) + '%';
+        marker.style.display = 'block';
+        marker.setAttribute('data-retire-months', monthsToRetire);
+        marker.title = 'גיל פרישה (67): שנת ' + retireDate.getFullYear();
+      } else {
+        marker.style.display = 'none';
+      }
+    } else {
+      marker.style.display = 'none';
+    }
+  }
+}
+
+function _sfSnapToRetirement() {
+  var marker = document.getElementById('sf-retirement-marker');
+  var tlSl   = document.getElementById('sf-timeline-slider');
+  if (!marker || !tlSl) return;
+  var months = parseInt(marker.getAttribute('data-retire-months') || 0, 10);
+  if (months <= 0) return;
+  var currentMax = parseFloat(tlSl.max) || 120;
+  if (months > currentMax) {
+    var tlIn = document.getElementById('sf-timeline-input');
+    if (tlIn) tlIn.value = Math.min(Math.ceil(months / 12), 50);
+    _sfRenderTimelineTicks();
+  }
+  tlSl.value = months;
+  _sfOnSlider('timeline');
+}
+
+// Unified slider/input handlers — key identifies the control pair
+function _sfOnSlider(key) {
+  _sfSyncPair(key, 'slider');
+  _sfSyncAllSliders();
+  _sfRecalculate();
+}
+function _sfOnInput(key) {
+  _sfSyncPair(key, 'input');
+  _sfSyncAllSliders();
+  _sfRecalculate();
+}
+
+// Sync a slider↔input pair. source = 'slider' or 'input'.
+function _sfSyncPair(key, source) {
+  var pairs = {
+    'timeline':         ['sf-timeline-slider',         'sf-timeline-input'],
+    'inv-return':       ['sf-inv-return-slider',       'sf-inv-return-input'],
+    'pen-return':       ['sf-pen-return-slider',       'sf-pen-return-input'],
+    'inflation':        ['sf-inflation-slider',        'sf-inflation-input'],
+    'withdrawal':       ['sf-withdrawal-slider',       'sf-withdrawal-input'],
+    'withdrawal-fixed': ['sf-withdrawal-fixed-slider', 'sf-withdrawal-fixed-input']
+  };
+  var ids = pairs[key];
+  if (!ids) return;
+  var slId = ids[0], inId = ids[1];
+  var slEl = document.getElementById(slId);
+  var inEl = document.getElementById(inId);
+  if (!slEl || !inEl) return;
+
+  if (source === 'slider') {
+    // slider moved → update input (timeline: input is scale, never update from slider)
+    if (key === 'timeline') return;
+    if (document.activeElement !== inEl) {
+      inEl.value = slEl.value;
+    }
+  } else {
+    // input typed → update slider
+    if (key === 'timeline') {
+      // Input controls scale (max), not the selected value
+      var scaleMonths = Math.round(parseFloat(inEl.value || 10) * 12);
+      slEl.max = scaleMonths;
+      if (parseFloat(slEl.value) > scaleMonths) slEl.value = scaleMonths;
+      _sfRenderTimelineTicks();
+      return;
+    }
+    if (document.activeElement !== slEl) {
+      slEl.value = inEl.value;
+    }
+  }
+}
+
+function _sfSyncAllSliders() {
+  var ids = [
+    'sf-timeline-slider', 'sf-inv-return-slider', 'sf-pen-return-slider',
+    'sf-inflation-slider', 'sf-withdrawal-slider', 'sf-withdrawal-fixed-slider'
+  ];
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var min = parseFloat(el.min) || 0;
+    var max = parseFloat(el.max) || 100;
+    var val = parseFloat(el.value) || 0;
+    var pct = max > min ? ((val - min) / (max - min) * 100).toFixed(1) : '0';
+    el.style.setProperty('--pns-val', pct + '%');
+  });
+}
+
+// Withdrawal mode toggle
+function _sfSetWdMode(mode) {
+  _sfWithdrawalMode = mode;
+  // Cross-convert when switching
+  if (_sfCurrentItem) {
+    var balK = Number(_sfCurrentItem.balance) || 0;
+    var projBalK = _sfGetProjectedBalance(); // K units
+    if (mode === 'fixed') {
+      // Convert current % to fixed K
+      var pctEl = document.getElementById('sf-withdrawal-slider');
+      var pct = pctEl ? parseFloat(pctEl.value) : 100;
+      var fixedK = Math.round(projBalK * pct / 100);
+      var wdFixSl = document.getElementById('sf-withdrawal-fixed-slider');
+      var wdFixIn = document.getElementById('sf-withdrawal-fixed-input');
+      if (wdFixSl) { wdFixSl.max = Math.round(projBalK); wdFixSl.value = fixedK; }
+      if (wdFixIn) wdFixIn.value = fixedK;
+    } else {
+      // Convert current fixed K to %
+      var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
+      var fixedVal = fixEl ? parseFloat(fixEl.value) : 0;
+      var pctConverted = projBalK > 0 ? Math.min(100, Math.round(fixedVal / projBalK * 100)) : 100;
+      var wdSl = document.getElementById('sf-withdrawal-slider');
+      var wdIn = document.getElementById('sf-withdrawal-input');
+      if (wdSl) wdSl.value = pctConverted;
+      if (wdIn) wdIn.value = pctConverted;
+    }
+  }
+  _sfApplyWdModeUI();
+  _sfSyncAllSliders();
+  _sfRecalculate();
+}
+
+function _sfApplyWdModeUI() {
+  var pctRow   = document.getElementById('sf-wd-pct-row');
+  var fixedRow = document.getElementById('sf-wd-fixed-row');
+  var pctBtn   = document.getElementById('sf-wd-pct-btn');
+  var fixBtn   = document.getElementById('sf-wd-fixed-btn');
+  var isPct = (_sfWithdrawalMode === 'pct');
+  if (pctRow)   pctRow.style.display   = isPct ? 'flex' : 'none';
+  if (fixedRow) fixedRow.style.display = isPct ? 'none' : 'flex';
+  var onSt  = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#2563eb;color:white;font-weight:700;';
+  var offSt = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#f1f5f9;color:#64748b;font-weight:600;';
+  if (pctBtn)  pctBtn.style.cssText  = isPct ? onSt : offSt;
+  if (fixBtn)  fixBtn.style.cssText  = isPct ? offSt : onSt;
+}
+
+// Helper: compute projected balance in K based on current slider values
+function _sfGetProjectedBalance() {
+  if (!_sfCurrentItem) return 0;
+  var baseK  = (Number(_sfCurrentItem.balance) || 0);
+  var tlSl   = document.getElementById('sf-timeline-slider');
+  var irSl   = document.getElementById('sf-inv-return-slider');
+  var infSl  = document.getElementById('sf-inflation-slider');
+  var months = tlSl  ? parseFloat(tlSl.value || 0) : 0;
+  var invRet = irSl  ? parseFloat(irSl.value)  : 4;
+  var inf    = infSl ? parseFloat(infSl.value) : 2.5;
+  var years  = months / 12;
+  var realR  = (1 + invRet / 100) / (1 + inf / 100) - 1;
+  return baseK * Math.pow(1 + realR, years);
+}
+
+function _sfCalcSegments(item) {
+  var segs = item.taxSegments || [];
+  var exemptPrincipal = 0, taxablePrincipal = 0, exemptProfit = 0, taxableProfit = 0;
+  if (segs.length > 0) {
+    segs.forEach(function(seg) {
+      var dep   = (seg.deposits     != null && seg.deposits     !== '') ? Number(seg.deposits)     : null;
+      var accum = (seg.accumulation != null && seg.accumulation !== '') ? Number(seg.accumulation) : null;
+      if (dep == null || accum == null) return; // Rule 12f: skip nil segments
+      var profit = Math.max(0, accum - dep);
+      if (Number(seg.tikrat) === 1) { exemptPrincipal  += dep; exemptProfit  += profit; }
+      else if (Number(seg.tikrat) === 2) { taxablePrincipal += dep; taxableProfit += profit; }
+    });
+  } else {
+    exemptPrincipal = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
+  }
+  return { exemptPrincipal: exemptPrincipal, taxablePrincipal: taxablePrincipal, exemptProfit: exemptProfit, taxableProfit: taxableProfit };
+}
+
+function _sfRecalculate() {
+  if (!_sfCurrentItem) return;
+  var item = _sfCurrentItem;
+
+  var tlSl  = document.getElementById('sf-timeline-slider');
+  var irSl  = document.getElementById('sf-inv-return-slider');
+  var infSl = document.getElementById('sf-inflation-slider');
+
+  var months     = tlSl  ? parseFloat(tlSl.value || 0) : 0;
+  var invReturn  = irSl  ? parseFloat(irSl.value)  : 4;
+  var inflation  = infSl ? parseFloat(infSl.value) : 2.5;
+  var years      = months / 12;
+
+  // Timeline display label: X שנים וY חודשים
+  var tlYears  = Math.floor(years);
+  var tlMonths = Math.round((years - tlYears) * 12);
+  var tlLabel  = '';
+  if (tlYears > 0) tlLabel += tlYears + ' שנים';
+  if (tlYears > 0 && tlMonths > 0) tlLabel += ' ו';
+  if (tlMonths > 0) tlLabel += tlMonths + ' חודשים';
+  if (!tlLabel) tlLabel = 'היום';
+  var tlV = document.getElementById('sf-timeline-val');
+  if (tlV) tlV.textContent = tlLabel;
+  var glEl = document.getElementById('sf-gross-label');
+  if (glEl) glEl.textContent = (months > 0) ? 'סכום משיכה משוער (K ₪)' : 'סכום משיכה גולמי (K ₪)';
+
+  var irV = document.getElementById('sf-inv-return-val');
+  if (irV) irV.textContent = invReturn.toFixed(1) + '%';
+  var prV = document.getElementById('sf-pen-return-val');
+  var prSl = document.getElementById('sf-pen-return-slider');
+  if (prV && prSl) prV.textContent = parseFloat(prSl.value).toFixed(1) + '%';
+  var infV = document.getElementById('sf-inflation-val');
+  if (infV) infV.textContent = inflation.toFixed(1) + '%';
+
+  // Project balance (real return = inflation-adjusted)
+  var baseK    = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
+  var realR    = (1 + invReturn / 100) / (1 + inflation / 100) - 1;
+  var growthF  = Math.pow(1 + realR, years);
+  var projBalK = baseK * growthF;
+
+  // Resolve withdrawal fraction
+  var pctFraction;
+  if (_sfWithdrawalMode === 'fixed') {
+    var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
+    var fixedValK = fixEl ? parseFloat(fixEl.value) : 0; // in K ₪
+    pctFraction = projBalK > 0 ? Math.min(1, fixedValK / projBalK) : 0;
+    var wdV = document.getElementById('sf-withdrawal-val');
+    if (wdV) wdV.style.display = 'none';
+    // keep % slider in sync silently
+    var wdSl = document.getElementById('sf-withdrawal-slider');
+    var wdIn = document.getElementById('sf-withdrawal-input');
+    var syncPct = Math.round(pctFraction * 100);
+    if (wdSl && document.activeElement !== wdSl) wdSl.value = syncPct;
+    if (wdIn && document.activeElement !== wdIn) wdIn.value = syncPct;
+  } else {
+    var wdSlEl = document.getElementById('sf-withdrawal-slider');
+    var pct = wdSlEl ? parseInt(wdSlEl.value, 10) : 100;
+    pctFraction = pct / 100;
+    var wdVEl = document.getElementById('sf-withdrawal-val');
+    if (wdVEl) wdVEl.style.display = 'none';
+    // keep fixed slider in sync silently (K ₪ units)
+    var fixSl = document.getElementById('sf-withdrawal-fixed-slider');
+    var fixIn = document.getElementById('sf-withdrawal-fixed-input');
+    var syncFixed = Math.round(projBalK * pctFraction);
+    if (fixSl) { fixSl.max = Math.round(projBalK); if (document.activeElement !== fixSl) fixSl.value = syncFixed; }
+    if (fixIn && document.activeElement !== fixIn) fixIn.value = syncFixed;
+    var fixMaxLbl = document.getElementById('sf-wd-fix-max-label');
+    if (fixMaxLbl) fixMaxLbl.textContent = Math.round(projBalK).toLocaleString('he-IL') + ' K ₪';
+  }
+
+  // Scale segments by growth; principal stays, profits grow
+  var seg  = _sfCalcSegments(item);
+  var exP  = seg.exemptPrincipal;
+  var txP  = seg.taxablePrincipal;
+  var exPr = seg.exemptProfit  * growthF;
+  var txPr = seg.taxableProfit * growthF;
+
+  var totalTax    = txPr * 0.25;
+  var grossK      = projBalK * pctFraction;
+  var taxDueK     = totalTax * pctFraction;
+  var netK        = grossK - taxDueK;
+
+  var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
+  var te = document.getElementById('sf-tax-due');          if (te) te.textContent = Math.round(taxDueK).toLocaleString('he-IL');
+  var ne = document.getElementById('sf-net-bank');         if (ne) ne.textContent = Math.round(netK).toLocaleString('he-IL');
+  var re = document.getElementById('sf-remaining-balance');
+  var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
+  if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
+
+  var wdThumb    = document.getElementById('sf-wd-thumb-tip');
+  var wdFixThumb = document.getElementById('sf-wd-fix-thumb-tip');
+  if (_sfWithdrawalMode === 'pct') {
+    if (wdFixThumb) wdFixThumb.style.display = 'none';
+    if (wdThumb) {
+      var wdSlPct2 = document.getElementById('sf-withdrawal-slider');
+      if (wdSlPct2) {
+        var pctV = parseInt(wdSlPct2.value, 10);
+        wdThumb.style.display = 'block';
+        wdThumb.style.left = ((1 - pctV / 100) * 100).toFixed(1) + '%';
+        wdThumb.textContent = Math.round(grossK) + ' K ₪';
+      } else { wdThumb.style.display = 'none'; }
+    }
+  } else {
+    if (wdThumb) wdThumb.style.display = 'none';
+    if (wdFixThumb) {
+      var fixSlEl2 = document.getElementById('sf-withdrawal-fixed-slider');
+      if (fixSlEl2) {
+        var fixValV = parseFloat(fixSlEl2.value) || 0;
+        var fixMaxV = parseFloat(fixSlEl2.max)   || 1;
+        wdFixThumb.style.display = 'block';
+        wdFixThumb.style.left = ((1 - fixValV / fixMaxV) * 100).toFixed(1) + '%';
+        wdFixThumb.textContent = Math.round(fixValV) + ' K ₪';
+      } else { wdFixThumb.style.display = 'none'; }
+    }
+  }
+
+  _sfUpdatePieChart(exP * pctFraction, txP * pctFraction, exPr * pctFraction, txPr * pctFraction);
+}
+
+function _sfUpdatePieChart(exemptPrincipal, taxablePrincipal, exemptProfit, taxableProfit) {
+  if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
+  var canvas   = document.getElementById('sf-pie-chart');
+  var legendEl = document.getElementById('sf-pie-legend');
+  if (!canvas) return;
+
+  var defs = [
+    { label: 'קרן פטורה',           val: Math.round(exemptPrincipal  || 0), color: '#22c55e' },
+    { label: 'קרן חייבת',           val: Math.round(taxablePrincipal || 0), color: '#f59e0b' },
+    { label: 'רווח פטור',           val: Math.round(exemptProfit     || 0), color: '#86efac' },
+    { label: 'רווח חייב (מס 25%)', val: Math.round(taxableProfit    || 0), color: '#ef4444' }
+  ];
+  var filtered = defs.filter(function(d) { return d.val > 0; });
+  var total    = filtered.reduce(function(s, d) { return s + d.val; }, 0);
+
+  if (!total) {
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:#9ca3af;">אין נתוני פירוט זמינים</span>';
+    return;
+  }
+
+  _sfPieChart = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: filtered.map(function(d) { return d.label; }),
+      datasets: [{
+        data: filtered.map(function(d) { return d.val; }),
+        backgroundColor: filtered.map(function(d) { return d.color; }),
+        borderWidth: 2, borderColor: '#fff', hoverBorderWidth: 3
+      }]
+    },
+    options: {
+      animation: { duration: 0 },
+      responsive: false,
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(c) {
+              var name = c.label.replace(' (מס 25%)', '');
+              var line = '  ' + name + ': ' + c.parsed.toLocaleString('he-IL') + ' K ₪';
+              if (c.label.indexOf('חייב') !== -1) line += '   |   מיסוי: 25%';
+              return line;
+            }
+          },
+          backgroundColor: '#fff', titleColor: '#6b7280', bodyColor: '#111827',
+          borderColor: '#e5e7eb', borderWidth: 1, cornerRadius: 10,
+          bodyFont: { family: 'Heebo', size: 12, weight: '600' }
+        }
+      }
+    }
+  });
+
+  if (!legendEl) return;
+  legendEl.innerHTML = '';
+  defs.forEach(function(d) {
+    if (d.val <= 0) return;
+    var pct = (d.val / total * 100).toFixed(1);
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:9px;font-family:Heebo,sans-serif;font-size:12px;direction:rtl;';
+    row.innerHTML = '<div style="width:12px;height:12px;border-radius:3px;background:' + d.color + ';flex-shrink:0;" title="' + d.label + '"></div>'
+      + '<span style="color:#374151;"><strong>' + d.val.toLocaleString('he-IL') + '</strong> K ₪'
+      + ' <span style="color:#9ca3af;">(' + pct + '%)</span></span>';
+    legendEl.appendChild(row);
+  });
+}
+
+function _sfLiquidityBadge(item) {
+  var dateStr = item.liquidityDate || item.moedNezilut || null;
+
+  var _dot = function(color, text, tip) {
+    return '<span title="' + tip + '" style="display:inline-flex;align-items:center;gap:6px;cursor:help;">'
+      + '<span style="width:12px;height:12px;border-radius:50%;background:' + color
+      + ';display:inline-block;flex-shrink:0;box-shadow:0 0 0 2px rgba(0,0,0,0.08);"></span>'
+      + '<span style="color:' + (color === '#22c55e' ? '#16a34a' : '#dc2626') + ';font-weight:700;">' + text + '</span></span>';
+  };
+  var _missing = function() {
+    return '<span style="color:#9ca3af;font-weight:600;font-size:12px;">לא מצוין בקובץ</span>';
+  };
+
+  if (!dateStr) {
+    return item.liquidity === 'liquid' ? _dot('#22c55e', 'נזיל', 'הקרן נזילה למשיכה') : _missing();
+  }
+
+  var parts   = String(dateStr).split(/[-\/]/);
+  var liqDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2] || 1, 10));
+  if (isNaN(liqDate.getTime())) return _missing();
+
+  return liqDate <= new Date()
+    ? _dot('#22c55e', 'נזיל', 'הקרן נזילה למשיכה')
+    : _dot('#ef4444', 'חסום', 'עמלת פדיון מוקדם: 35% על הרווח');
+}
