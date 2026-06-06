@@ -51,7 +51,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v180.71</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.19</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1257,6 +1257,7 @@
 #mkt-search-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}
 #mkt-ai-input:focus{border-color:#3b82f6;}
 #ffs-drawer input:focus,#ffs-drawer select:focus{border-color:#3b82f6!important;outline:none!important;box-shadow:0 0 0 2px rgba(59,130,246,0.18)!important;}
+.error-border{border:1.5px solid #dc2626!important;}
 .ffs-nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid transparent;border-radius:9px;background:transparent;color:rgba(255,255,255,0.62);cursor:pointer;font-family:Heebo,sans-serif;text-align:right;direction:rtl;transition:background 0.15s,color 0.15s,border-color 0.15s;}
 .ffs-nav-btn:hover{background:rgba(255,255,255,0.08);color:white;}
 .ffs-nav-btn.ffs-nav-active{background:rgba(99,102,241,0.22);color:white;border-color:rgba(99,102,241,0.42);}
@@ -2984,6 +2985,143 @@
     </button>
   </div>
 
+</div>
+
+<!-- v181.12: Study Fund Analysis Modal (GuestStudyFundModal) — upgraded -->
+<div id="sf-analysis-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10204;backdrop-filter:blur(3px);" onclick="ffsCloseStudyFundModal()"></div>
+<div id="sf-analysis-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10205;width:min(860px,96vw);max-height:92vh;overflow-y:auto;background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.28);direction:rtl;font-family:Heebo,sans-serif;">
+
+  <!-- Header bar -->
+  <div style="background:#1a1a2e;color:white;padding:14px 22px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+    <button onclick="ffsCloseStudyFundModal()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0;">&#x2715;</button>
+    <div style="text-align:right;">
+      <div id="sf-fund-name" style="font-size:16px;font-weight:800;"></div>
+      <div id="sf-fund-id" style="font-size:11px;color:#94a3b8;margin-top:2px;"></div>
+    </div>
+    <div style="width:30px;"></div>
+  </div>
+
+  <!-- Summary bar -->
+  <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+    <div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">צבירה נוכחית (K &#x20AA;)</div>
+      <div id="sf-total-balance" style="font-size:22px;font-weight:800;color:#1e293b;"></div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">סטטוס נזילות</div>
+      <div id="sf-liquidity-badge" style="font-size:13px;font-weight:700;"></div>
+    </div>
+  </div>
+
+  <!-- Results | Pie — 2-column row (legend removed) -->
+  <div style="padding:14px 24px;border-bottom:1px solid #e5e7eb;display:flex;flex-direction:row-reverse;justify-content:space-evenly;gap:24px;align-items:center;flex-wrap:wrap;">
+    <!-- LEFT: 3 result boxes, vertically centered relative to chart -->
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:120px;">
+      <div>
+        <div id="sf-gross-label" style="font-size:10px;color:#6b7280;margin-bottom:2px;">סכום משיכה גולמי (K &#x20AA;)</div>
+        <div id="sf-gross-withdrawal" style="font-size:19px;font-weight:800;color:#2563eb;"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">חבות מס (K &#x20AA;)</div>
+        <div id="sf-tax-due" style="font-size:19px;font-weight:800;color:#ef4444;"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">נטו לכיס (K &#x20AA;)</div>
+        <div id="sf-net-bank" style="font-size:19px;font-weight:800;color:#16a34a;"></div>
+        <div id="sf-remaining-balance" style="font-size:13px;color:#475569;font-weight:800;margin-top:6px;"></div>
+      </div>
+    </div>
+    <!-- RIGHT: Pie chart -->
+    <canvas id="sf-pie-chart" width="190" height="190" style="flex-shrink:0;"></canvas>
+  </div>
+
+  <!-- Sliders — simulation controls -->
+  <div style="padding:14px 24px 10px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:14px;">סימולציית משיכה</div>
+
+    <!-- Timeline slider (months 0–600 = 0–50 years) -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:nowrap;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">טווח זמן</span>
+      <span id="sf-timeline-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:100px;flex-shrink:0;white-space:nowrap;display:inline-block;transform:translateY(-1.5px);"></span>
+      <div style="flex:1;position:relative;">
+        <input id="sf-timeline-slider" type="range" min="0" max="120" step="1" value="0"
+               class="pns-slider" dir="rtl" style="width:100%;" oninput="_sfOnSlider('timeline')">
+        <div id="sf-retirement-marker" style="display:none;position:absolute;top:-18px;left:0;
+             transform:translateX(-50%);pointer-events:none;">
+          <div onclick="_sfSnapToRetirement()"
+               style="background:#ffffff;color:#4f46e5;border:1px solid #4f46e5;font-size:8px;font-weight:800;
+               padding:1px 5px;border-radius:3px;white-space:nowrap;text-align:center;
+               margin-bottom:2px;box-shadow:0 1px 3px rgba(79,70,229,0.15);cursor:pointer;pointer-events:auto;">לפרישה</div>
+          <div style="width:2px;height:14px;background:#ef4444;border-radius:1px;margin:0 auto;"></div>
+        </div>
+        <div id="sf-timeline-ticks-row" style="position:relative;height:18px;margin-top:2px;"></div>
+      </div>
+      <input id="sf-timeline-input" type="number" min="5" max="50" step="1" value="10"
+             title="סקאלה מקסימלית" oninput="_sfOnInput('timeline')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      <span style="font-size:11px;color:#94a3b8;flex-shrink:0;">שנים</span>
+    </div>
+
+    <!-- Investment Yield -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואת השקעות (%)</span>
+      <span id="sf-inv-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
+      <input id="sf-inv-return-slider" type="range" min="0" max="15" step="0.5" value="4" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('inv-return')">
+      <input id="sf-inv-return-input" type="number" min="0" max="15" step="0.5" value="4" oninput="_sfOnInput('inv-return')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Pension Yield -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואת פנסיה (%)</span>
+      <span id="sf-pen-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
+      <input id="sf-pen-return-slider" type="range" min="0" max="10" step="0.5" value="3" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('pen-return')">
+      <input id="sf-pen-return-input" type="number" min="0" max="10" step="0.5" value="3" oninput="_sfOnInput('pen-return')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Inflation -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">אינפלציה (%)</span>
+      <span id="sf-inflation-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
+      <input id="sf-inflation-slider" type="range" min="0" max="10" step="0.5" value="2.5" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('inflation')">
+      <input id="sf-inflation-input" type="number" min="0" max="10" step="0.5" value="2.5" oninput="_sfOnInput('inflation')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Withdrawal — dual mode toggle -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
+        משיכה
+        <span style="display:inline-flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+          <button id="sf-wd-pct-btn" onclick="_sfSetWdMode('pct')"
+                  style="padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#2563eb;color:white;font-weight:700;">%</button>
+          <button id="sf-wd-fixed-btn" onclick="_sfSetWdMode('fixed')"
+                  style="padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#f1f5f9;color:#64748b;font-weight:600;">K &#x20AA;</button>
+        </span>
+      </span>
+      <span id="sf-withdrawal-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
+      <div id="sf-wd-pct-row" style="flex:1;display:flex;align-items:center;gap:8px;">
+        <div style="position:relative;flex:1;">
+          <div id="sf-wd-thumb-tip" style="display:none;position:absolute;top:-24px;background:#2563eb;color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;transform:translateX(-50%);z-index:10;"></div>
+          <input id="sf-withdrawal-slider" type="range" min="0" max="100" step="1" value="100" class="pns-slider" dir="rtl" style="width:100%;" oninput="_sfOnSlider('withdrawal')">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:1px;user-select:none;"><span>0%</span><span id="sf-wd-pct-max-label">100%</span></div>
+        </div>
+        <input id="sf-withdrawal-input" type="number" min="0" max="100" step="1" value="100" oninput="_sfOnInput('withdrawal')"
+               style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      </div>
+      <div id="sf-wd-fixed-row" style="flex:1;display:none;align-items:center;gap:8px;">
+        <div style="position:relative;flex:1;">
+          <div id="sf-wd-fix-thumb-tip" style="display:none;position:absolute;top:-24px;background:#2563eb;color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;transform:translateX(-50%);z-index:10;"></div>
+          <input id="sf-withdrawal-fixed-slider" type="range" min="0" max="1000" step="1" value="0" class="pns-slider" dir="rtl" style="width:100%;" oninput="_sfOnSlider('withdrawal-fixed')">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:1px;user-select:none;"><span>0</span><span id="sf-wd-fix-max-label">— K ₪</span></div>
+        </div>
+        <input id="sf-withdrawal-fixed-input" type="number" min="0" step="1" value="0" oninput="_sfOnInput('withdrawal-fixed')"
+               style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- v180.50: Tax brackets modal -->
