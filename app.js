@@ -9674,7 +9674,7 @@ function ffsRenderSection(section) {
           html += '<button data-section="investments" data-id="' + eid + '" onclick="ffsApproveAsset(this.dataset.section,this.dataset.id)" style="flex-shrink:0;background:#f59e0b;border:none;color:white;font-size:11px;font-weight:700;cursor:pointer;padding:3px 9px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">אישור נתונים ✔️</button>';
         }
         if (item.category === 'קרן השתלמות') {
-          html += '<button data-id="' + eid + '" onclick="ffsOpenStudyFundModal(this.dataset.id)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">📊 ניתוח</button>';
+          html += '<button data-id="' + eid + '" onclick="ffsOpenStudyFundModal(this.dataset.id)" title="חישוב נטו ומיסוי" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;"><i class="fas fa-calculator"></i> ניתוח</button>';
         }
         html += '<button data-id="' + eid + '" onclick="ffsHandleEditInv(this)" style="flex-shrink:0;background:transparent;border:1px solid #cbd5e1;color:#64748b;font-size:11px;cursor:pointer;padding:3px 7px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">&#x270E; ';
         html += 'ערוך';
@@ -16542,27 +16542,41 @@ function salkahReadFile(file) {
   };
   reader.readAsText(file, 'UTF-8');
 }
+function _salkahXmlEl(ctx, name) {
+  var all = ctx.getElementsByTagName('*');
+  for (var i = 0; i < all.length; i++) { if (all[i].localName === name) return all[i]; }
+  return null;
+}
+function _salkahXmlEls(ctx, name) {
+  var all = ctx.getElementsByTagName('*'), res = [];
+  for (var i = 0; i < all.length; i++) { if (all[i].localName === name) res.push(all[i]); }
+  return res;
+}
 function _salkahParseOneXML(xmlString) {
-  var doc        = new DOMParser().parseFromString(xmlString, 'text/xml');
-  var providerEl = doc.querySelector('SHEM-YATZRAN');
+  var doc      = new DOMParser().parseFromString(xmlString, 'text/xml');
+  // Scope to <YeshutYatzran> when present (some providers, e.g. Altshuler, nest content there);
+  // fall back to the document root so all other providers continue to work unchanged.
+  // All DOM lookups use _salkahXmlEl/_salkahXmlEls (localName matching) for XML namespace safety.
+  var _scope     = _salkahXmlEl(doc, 'YeshutYatzran') || doc;
+  var providerEl = _salkahXmlEl(_scope, 'SHEM-YATZRAN');
   var provider   = providerEl ? providerEl.textContent.trim() : 'גוף מנהל לא ידוע';
-  var mutzarim   = doc.querySelectorAll('Mutzar');
+  var mutzarim   = _salkahXmlEls(_scope, 'Mutzar');
   var products   = [];
   var totalBalance = 0;
   var MGR_KEYWORDS = ['מנהלים', 'םילהנמ', 'מעולה', 'הלועמ', 'עדיף', 'ףידע', 'גמלא', 'אלמג', 'ביטוח חיים', 'םייח חוטיב', 'מניב', 'בינמ', 'פרופיל', 'ליפורפ', 'יותר', 'רתוי'];
   mutzarim.forEach(function(m) {
     // Mutzar-level metadata — shared by all accounts within
-    var typeEl       = m.querySelector('SUG-MUTZAR') || m.querySelector('KOD-SUG-MUTZAR') || m.querySelector('KOD-SUG-KUPA');
+    var typeEl       = _salkahXmlEl(m, 'SUG-MUTZAR') || _salkahXmlEl(m, 'KOD-SUG-MUTZAR') || _salkahXmlEl(m, 'KOD-SUG-KUPA');
     var type         = typeEl ? typeEl.textContent.trim() : '—';
-    var shmTochnitEl = m.querySelector('SHEM-TOCHNIT');
+    var shmTochnitEl = _salkahXmlEl(m, 'SHEM-TOCHNIT');
     var productName  = shmTochnitEl ? shmTochnitEl.textContent.trim() : '';
     var isBituachMenahalim = MGR_KEYWORDS.some(function(kw) {
       return productName.indexOf(kw) !== -1 || provider.indexOf(kw) !== -1;
     });
-    var vatikaEl = m.querySelector('PENSIA-VATIKA-O-HADASHA');
+    var vatikaEl = _salkahXmlEl(m, 'PENSIA-VATIKA-O-HADASHA');
     var isVatika = vatikaEl && vatikaEl.textContent.trim() === '1';
     // Determine account nodes; fall back to the Mutzar itself if none found
-    var accountEls = m.querySelectorAll('HeshbonOPolisa');
+    var accountEls = _salkahXmlEls(m, 'HeshbonOPolisa');
     var nodes = [];
     if (accountEls.length > 0) {
       accountEls.forEach(function(n) { nodes.push(n); });
@@ -16570,22 +16584,22 @@ function _salkahParseOneXML(xmlString) {
       nodes.push(m);
     }
     nodes.forEach(function(node) {
-      var polisaEl = node.querySelector('MISPAR-POLISA-O-HESHBON');
+      var polisaEl = _salkahXmlEl(node, 'MISPAR-POLISA-O-HESHBON');
       var polisa   = polisaEl ? polisaEl.textContent.trim() : '—';
-      var statusEl  = node.querySelector('KOD-STATUS-HESHBON') || node.querySelector('STATUS-HESHBON') || node.querySelector('KOD-STATUS-KUPA') || node.querySelector('STATUS-POLISA-O-CHESHBON');
+      var statusEl  = _salkahXmlEl(node, 'KOD-STATUS-HESHBON') || _salkahXmlEl(node, 'STATUS-HESHBON') || _salkahXmlEl(node, 'KOD-STATUS-KUPA') || _salkahXmlEl(node, 'STATUS-POLISA-O-CHESHBON');
       var kodStatus = statusEl ? statusEl.textContent.trim() : '';
       var isActive  = (kodStatus !== '2' && kodStatus !== '3' && kodStatus !== '4');
       var rawBalance = 0, balanceTag = '', monthlyPension = null, contributionPct = null;
       if (isVatika) {
-        var kitzvatEl = node.querySelector('KITZVAT-HODSHIT-TZFUYA');
-        var ahuzEl    = node.querySelector('AHUZ-PENSIYA-TZVURA');
+        var kitzvatEl = _salkahXmlEl(node, 'KITZVAT-HODSHIT-TZFUYA');
+        var ahuzEl    = _salkahXmlEl(node, 'AHUZ-PENSIYA-TZVURA');
         monthlyPension  = kitzvatEl ? (parseFloat(kitzvatEl.textContent.trim()) || null) : null;
         contributionPct = ahuzEl    ? (parseFloat(ahuzEl.textContent.trim())    || null) : null;
         balanceTag = 'VATIKA';
       } else {
-        var totalEls = node.querySelectorAll('TOTAL-CHISACHON-MTZBR');
-        var itraEls  = node.querySelectorAll('ITRA-TZVURA');
-        var trackEls = node.querySelectorAll('SCHUM-TZVIRA-BAMASLUL');
+        var totalEls = _salkahXmlEls(node, 'TOTAL-CHISACHON-MTZBR');
+        var itraEls  = _salkahXmlEls(node, 'ITRA-TZVURA');
+        var trackEls = _salkahXmlEls(node, 'SCHUM-TZVIRA-BAMASLUL');
         var totals = [], itras = [], tracks = [];
         totalEls.forEach(function(el) { var v = parseFloat(el.textContent.trim()); if (!isNaN(v)) totals.push(v); });
         itraEls.forEach(function(el)  { var v = parseFloat(el.textContent.trim()); if (!isNaN(v)) itras.push(v); });
@@ -16597,7 +16611,10 @@ function _salkahParseOneXML(xmlString) {
         // Fallback: older Bituach Menahalim (e.g. Harel pre-2000) split balance across PerutYitrot
         // track nodes with no top-level summary — sum them when primary tags resolve to 0
         if (rawBalance < 1) {
-          var perutEls = node.querySelectorAll('PerutYitrot TOTAL-CHISACHON-MTZBR');
+          var perutEls = [];
+          _salkahXmlEls(node, 'PerutYitrot').forEach(function(p) {
+            _salkahXmlEls(p, 'TOTAL-CHISACHON-MTZBR').forEach(function(el) { perutEls.push(el); });
+          });
           var perutSum = 0;
           perutEls.forEach(function(el) {
             var v = parseFloat(el.textContent.trim());
@@ -16612,15 +16629,20 @@ function _salkahParseOneXML(xmlString) {
       }
       var mekadem = null;
       if (!isVatika) {
-        var mekadem_el = node.querySelector('MEKADEM-MOVTACH-LEPRISHA');
+        var mekadem_el = _salkahXmlEl(node, 'MEKADEM-MOVTACH-LEPRISHA');
         mekadem = mekadem_el ? (parseFloat(mekadem_el.textContent.trim()) || null) : null;
       }
+      var rawXml = (typeof XMLSerializer !== 'undefined')
+        ? new XMLSerializer().serializeToString(node)
+        : '';
+
       products.push({
         'מספר פוליסה': polisa, 'שם מוצר': productName, 'סוג מוצר': type,
         'צבירה (₪)': rawBalance, 'תגית צבירה': balanceTag || 'לא נמצא',
         isVatika: isVatika, monthlyPension: monthlyPension, contributionPct: contributionPct,
         isBituachMenahalim: isBituachMenahalim, mekadem: mekadem,
-        isActive: isActive, kodStatus: kodStatus
+        isActive: isActive, kodStatus: kodStatus,
+        rawXml: rawXml
       });
     });
   });
@@ -16686,8 +16708,9 @@ function processMultipleSalkahFiles(files, statusEl) {
       var existIdx = polisa
         ? arr.findIndex(function(x) {
             var samePolisa = (x.assetNum || '') === polisa || (x.accountNum || '') === polisa;
-            var sameProvider = (x.provider || '') === (p._provider || '');
-            return samePolisa && sameProvider;
+            if (!samePolisa) return false;
+            if (bucket === 'pension') return (x.provider || '') === (p._provider || '');
+            return true; // investments: polisa is a sufficient unique key
           })
         : -1;
       if (existIdx >= 0) {
@@ -16701,6 +16724,7 @@ function processMultipleSalkahFiles(files, statusEl) {
           if (p.isBituachMenahalim && !arr[existIdx].lifeInsurance) arr[existIdx].lifeInsurance = balanceK;
         } else {
           arr[existIdx].balance = balanceK;
+          if (p.rawXml) arr[existIdx].rawXml = p.rawXml;
         }
         arr[existIdx].isActive    = !!p.isActive;
         arr[existIdx].needsReview = true;
@@ -16734,6 +16758,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             id: _newId, assetNum: polisa,
             name: productName || p._provider || polisa || '',
             balance: balanceK, category: _cat, type: '',
+            rawXml: p.rawXml || '',
             liquidity: _cat === 'קופת גמל להשקעה' ? '' : 'pension67',
             isActive: !!p.isActive, needsReview: true,
             notes: 'מסלקה: ' + (productName || p['סוג מוצר'] || '—')
@@ -16806,7 +16831,7 @@ function toggleMasterGridView() {
     _mgridCurrentTarget = 'mgrid-body';
     if (tbl)   tbl.style.display   = 'none';
     if (cards) cards.style.display = 'flex';
-    if (btn) btn.innerHTML = 'תצוגת טבלה 📊';
+    if (btn) btn.innerHTML = 'תצוגת טבלה <i class="fas fa-table"></i>';
   }
 }
 function masterGridToggleActive(section, id) {
@@ -16881,7 +16906,7 @@ function renderMasterGrid() {
     var safeProvider = provider.replace(/"/g, '&quot;');
     var isStudyFund = (section === 'investments' && item.category === 'קרן השתלמות');
     var analysisBtn = isStudyFund
-      ? '<span onclick="ffsOpenStudyFundModal(\''+safeId+'\')" style="cursor:pointer;font-size:16px;margin-left:6px;" title="ניתוח">📊</span>'
+      ? '<span onclick="ffsOpenStudyFundModal(\''+safeId+'\')" style="cursor:pointer;font-size:14px;margin-left:6px;" title="חישוב נטו ומיסוי"><i class="fas fa-calculator"></i></span>'
       : '<span style="font-size:16px;margin-left:6px;opacity:0.2;cursor:default;" title="ניתוח (לא זמין)">📊</span>';
     var actions = analysisBtn
                 + '<span onclick="'+editFn+'" style="cursor:pointer;font-size:16px;margin-left:6px;" title="עריכה">👁️</span>'
@@ -17129,6 +17154,7 @@ document.addEventListener('DOMContentLoaded', function() {
 var _sfCurrentItem    = null;
 var _sfPieChart       = null;
 var _sfWithdrawalMode = 'pct'; // 'pct' | 'fixed'
+var _sfLastTaxDetails = null;
 
 function ffsOpenStudyFundModal(itemId) {
   if (typeof APP_MODE === 'undefined' || APP_MODE !== 'SIMULATOR') return;
@@ -17223,12 +17249,196 @@ function ffsCloseStudyFundModal() {
   if (bd) bd.style.display = 'none';
   if (md) md.style.display = 'none';
   _sfCurrentItem = null;
+  _sfLastTaxDetails = null;
+  var inlineMsgClose = document.getElementById('sf-tax-inline-msg');
+  if (inlineMsgClose) { inlineMsgClose.textContent = ''; inlineMsgClose.style.visibility = 'hidden'; inlineMsgClose.style.color = '#1d4ed8'; }
+  var _calibClose = document.getElementById('sf-calibration-form');
+  if (_calibClose) _calibClose.style.display = 'none';
+  var _pClose = document.getElementById('sf-manual-principal');
+  var _dClose = document.getElementById('sf-manual-joindate');
+  if (_pClose) _pClose.value = '';
+  if (_dClose) _dClose.value = '';
   if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
   // Restore sim-zoom buttons
   ['sim-zoom-full', 'sim-zoom-retirement', 'sim-zoom-decade'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.visibility = '';
   });
+}
+
+function _sfToggleTaxMsg() {
+  var msgEl = document.getElementById('sf-tax-inline-msg');
+  if (!msgEl) return;
+  if (msgEl.style.visibility === 'visible') {
+    msgEl.style.visibility = 'hidden';
+  } else {
+    if (_sfLastTaxDetails) {
+      msgEl.innerHTML = _sfLastTaxDetails.explanation.rendered;
+      var _tid = _sfLastTaxDetails.explanation.templateId;
+      msgEl.style.color = _tid === 'SF_MISSING_XML'                                   ? '#d97706'
+                        : (_tid === 'SF_MANUAL_CALIBRATION' ||
+                           _tid === 'SF_EXEMPT_SENIORITY'   ||
+                           _tid === 'SF_EXEMPT_AGE')                                   ? '#16a34a'
+                        : '#1e293b';
+    }
+    msgEl.style.visibility = 'visible';
+  }
+}
+
+function _sfLoadManualData(assetNum) {
+  if (!assetNum) return null;
+  try { return JSON.parse(localStorage.getItem('sf_manual_data_' + assetNum) || 'null'); } catch(e) { return null; }
+}
+
+function _sfSaveCalibration() {
+  if (!_sfCurrentItem) return;
+  var pEl = document.getElementById('sf-manual-principal');
+  var dEl = document.getElementById('sf-manual-joindate');
+  var principal = pEl ? parseFloat(pEl.value) : NaN;
+  if (!(principal > 0)) { alert('יש להזין סכום הפקדות תקין (גדול מ-0)'); return; }
+  var joinDate = dEl ? (dEl.value || null) : null;
+  localStorage.setItem('sf_manual_data_' + _sfCurrentItem.assetNum,
+    JSON.stringify({ principalAmount: principal, joinDate: joinDate }));
+  var clBtn = document.getElementById('sf-calibration-clear-btn');
+  if (clBtn) clBtn.style.display = '';
+  _sfRecalculate();
+}
+
+function _sfClearCalibration() {
+  if (!_sfCurrentItem) return;
+  localStorage.removeItem('sf_manual_data_' + _sfCurrentItem.assetNum);
+  var clBtn = document.getElementById('sf-calibration-clear-btn');
+  if (clBtn) clBtn.style.display = 'none';
+  var pEl = document.getElementById('sf-manual-principal');
+  var dEl = document.getElementById('sf-manual-joindate');
+  if (pEl) pEl.value = '';
+  if (dEl) dEl.value = '';
+  var rEl = document.getElementById('sf-calibration-receipt');
+  if (rEl) { rEl.style.display = 'none'; rEl.innerHTML = ''; }
+  _sfRecalculate();
+}
+
+function _sfToggleAgentPanel() {
+  var p = document.getElementById('sf-agent-json-panel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function _sfImportAgentJSON() {
+  var ta = document.getElementById('sf-agent-json-input');
+  if (ta) _loadAgentJSON(ta.value || '');
+}
+
+function _loadAgentJSON(jsonString) {
+  var data;
+  try { data = JSON.parse(jsonString); } catch(e) {
+    var s = document.getElementById('sf-agent-json-status');
+    if (s) { s.textContent = 'JSON לא תקין'; s.style.color = '#dc2626'; }
+    return;
+  }
+  if (!Array.isArray(data) || !data.length) {
+    var s = document.getElementById('sf-agent-json-status');
+    if (s) { s.textContent = 'לא נמצאו נתונים'; s.style.color = '#d97706'; }
+    return;
+  }
+
+  var updated = 0;
+  data.forEach(function(fd) {
+    var fundNum = String(fd.fundNumber || '').trim();
+    if (!fundNum) return;
+
+    (FFS_PROFILE.investments || []).forEach(function(inv) {
+      var invNum = String(inv['מספר פוליסה'] || inv.assetNum || '').trim();
+      if (invNum !== fundNum) return;
+
+      if (fd.totalBalance != null && fd.totalBalance > 0) {
+        inv.balance = Math.round(fd.totalBalance / 1000 * 10) / 10;
+      }
+
+      // Normalize YYYYMMDD compact → YYYY-MM-DD (ISO); DD/MM/YYYY passes through as-is
+      var rawDate = String(fd.originalJoinDate || '').trim();
+      var isoDate = rawDate;
+      if (/^\d{8}$/.test(rawDate)) {
+        isoDate = rawDate.slice(0,4) + '-' + rawDate.slice(4,6) + '-' + rawDate.slice(6,8);
+      }
+
+      var segs = '';
+      if (fd.accumExempt_tikrat1 > 0) {
+        segs += '<PerutYitraLeTkufa>'
+              + '<TIKRAT-HAFKADA-MUTEVET>1</TIKRAT-HAFKADA-MUTEVET>'
+              + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumExempt_tikrat1) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+              + '</PerutYitraLeTkufa>';
+      }
+      if (fd.accumTaxable_tikrat2 > 0) {
+        segs += '<PerutYitraLeTkufa>'
+              + '<TIKRAT-HAFKADA-MUTEVET>2</TIKRAT-HAFKADA-MUTEVET>'
+              + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumTaxable_tikrat2) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+              + '</PerutYitraLeTkufa>';
+      }
+
+      // Synthetic plain-XML rawXml — passes _sfCalculateTax rawXml gate with no parser changes
+      inv.rawXml = '<HeshbonOPolisa>'
+        + (isoDate ? '<TAARICH-HITZTARFUT-RISHON>' + isoDate + '</TAARICH-HITZTARFUT-RISHON>' : '')
+        + segs
+        + '</HeshbonOPolisa>';
+
+      inv._agentDataSource = true;
+      updated++;
+    });
+  });
+
+  var s = document.getElementById('sf-agent-json-status');
+  if (s) {
+    s.textContent = updated > 0 ? 'עודכנו ' + updated + ' קרנות ✓' : 'לא נמצאו התאמות';
+    s.style.color  = updated > 0 ? '#16a34a' : '#d97706';
+  }
+
+  if (typeof _sfCurrentItem !== 'undefined' && _sfCurrentItem) {
+    var fresh = (FFS_PROFILE.investments || []).find(function(x) { return x.id === _sfCurrentItem.id; });
+    if (fresh) _sfCurrentItem = fresh;
+    _sfRecalculate();
+  }
+}
+
+function _sfReceiptRow(label, value, color) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">'
+    + '<span style="color:#6b7280;">' + label + '</span>'
+    + '<span style="font-weight:600;color:' + color + ';">' + value + '</span>'
+    + '</div>';
+}
+
+function _sfBuildManualReceipt(grossK, mPrinK, pctFraction, mPropK, mTxProfK, taxDueK, netK) {
+  var fmt = function(n) { return Math.round(n).toLocaleString('he-IL'); };
+  var pctLbl = Math.round(pctFraction * 100) + '%';
+  return '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב (נתונים ידניים)</div>'
+    + '<div style="display:flex;flex-direction:column;gap:1px;">'
+    + _sfReceiptRow('סכום משיכה (' + pctLbl + ')', fmt(grossK) + ' K ₪', '#1e293b')
+    + _sfReceiptRow('ניכוי הפקדות יחסי', '− ' + fmt(mPropK) + ' K ₪', '#6b7280')
+    + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
+    + _sfReceiptRow('רווח חייב במס', fmt(mTxProfK) + ' K ₪', '#374151')
+    + _sfReceiptRow('מס רווח הון 25%', '− ' + fmt(taxDueK) + ' K ₪', '#dc2626')
+    + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
+    + _sfReceiptRow('נטו לכיס', fmt(netK) + ' K ₪', '#16a34a')
+    + '</div>'
+    + '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">הפקדות כוללות שהוזנו: ' + fmt(mPrinK) + ' K ₪</div>';
+}
+
+function _sfBuildAutoReceipt(grossK, taxDetails, pctFraction) {
+  var fmt    = function(n) { return Math.round(n).toLocaleString('he-IL'); };
+  var pctLbl = Math.round(pctFraction * 100) + '%';
+  var depK   = taxDetails.depositsPropK      || 0;
+  var profK  = taxDetails.taxableProfitPropK || 0;
+  var taxK   = taxDetails.totalTaxDue        || 0;
+  var netK   = taxDetails.netToBank          || 0;
+  return '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב (נתוני מסלקה)</div>'
+    + '<div style="display:flex;flex-direction:column;gap:1px;">'
+    + _sfReceiptRow('סכום משיכה (' + pctLbl + ')', fmt(grossK) + ' K ₪', '#1e293b')
+    + _sfReceiptRow('ניכוי הפקדות יחסי', '− ' + fmt(depK) + ' K ₪', '#6b7280')
+    + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
+    + _sfReceiptRow('רווח חייב במס', fmt(profK) + ' K ₪', '#374151')
+    + _sfReceiptRow('מס רווח הון 25%', '− ' + fmt(taxK) + ' K ₪', '#dc2626')
+    + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
+    + _sfReceiptRow('נטו לכיס', fmt(netK) + ' K ₪', '#16a34a')
+    + '</div>';
 }
 
 // Renders year tick labels and retirement marker; ticks are proportional to current scale
@@ -17437,9 +17647,9 @@ function _sfCalcSegments(item) {
   var exemptPrincipal = 0, taxablePrincipal = 0, exemptProfit = 0, taxableProfit = 0;
   if (segs.length > 0) {
     segs.forEach(function(seg) {
-      var dep   = (seg.deposits     != null && seg.deposits     !== '') ? Number(seg.deposits)     : null;
       var accum = (seg.accumulation != null && seg.accumulation !== '') ? Number(seg.accumulation) : null;
-      if (dep == null || accum == null) return; // Rule 12f: skip nil segments
+      if (accum == null) return;
+      var dep   = (seg.deposits != null && seg.deposits !== '') ? Number(seg.deposits) : 0;
       var profit = Math.max(0, accum - dep);
       if (Number(seg.tikrat) === 1) { exemptPrincipal  += dep; exemptProfit  += profit; }
       else if (Number(seg.tikrat) === 2) { taxablePrincipal += dep; taxableProfit += profit; }
@@ -17448,6 +17658,263 @@ function _sfCalcSegments(item) {
     exemptPrincipal = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
   }
   return { exemptPrincipal: exemptPrincipal, taxablePrincipal: taxablePrincipal, exemptProfit: exemptProfit, taxableProfit: taxableProfit };
+}
+
+// v181.21: Tax engine — pure calculation, no DOM access. Returns TaxDetails per docs/TaxLogic.md.
+// Both Simulation and Real Data modes call this; mode affects the product fed in, not the rules.
+function _sfCalculateTax(product, withdrawalPct, globalConfig) {
+  var cfg = globalConfig || window.REAL_TAX_CONFIG || {};
+
+  // ── Config resolution (all fallbacks, no hardcoded statics) ─────────────────
+  var rawCapTax        = cfg.capitalTaxRate   != null ? cfg.capitalTaxRate   : (typeof SIM_CAPITAL_TAX !== 'undefined' ? SIM_CAPITAL_TAX : 0.25);
+  var capitalTaxRate   = rawCapTax > 1 ? rawCapTax / 100 : rawCapTax;  // normalize: 25 → 0.25
+  var sfSeniorityYears = cfg.sfSeniorityYears != null ? cfg.sfSeniorityYears : 6;
+  var retirementAge    = cfg.retirementAge    != null ? cfg.retirementAge    : 67;
+  var pfWithdrawalAge  = cfg.pfWithdrawalAge  != null ? cfg.pfWithdrawalAge  : 60;
+  var exemptBasket     = cfg.taxBasket        != null ? cfg.taxBasket        : (cfg.exemptBasket != null ? cfg.exemptBasket : (typeof pnsExemptBasket !== 'undefined' ? pnsExemptBasket : 882924));
+  var brackets         = (cfg.taxBrackets && cfg.taxBrackets.length === 6) ? cfg.taxBrackets : [7010, 10060, 16150, 22440, 46690, 60130];
+  var rates            = (cfg.taxRates    && cfg.taxRates.length    === 7) ? cfg.taxRates    : [10, 14, 20, 31, 35, 47, 50];
+  var creditValue      = cfg.creditPointValue != null ? cfg.creditPointValue : 242;
+  var creditPts        = cfg.creditPoints     != null ? cfg.creditPoints     : 2.25;
+
+  // ── rawXml gate ───────────────────────────────────────────────────────────────
+  if (!product.rawXml) {
+    return {
+      productType: 'לא ידוע', sugMutzar: null, seniority: '—', memberAge: null,
+      exemptionApplied: true, exemptionReason: 'rawXml חסר',
+      segments: [], withdrawalPct: 0,
+      grossWithdrawal: 0, totalTaxDue: null, netToBank: null, currency: 'ILS', unit: 'K',
+      confidence: { level: 'low', score: 0, notes: ['rawXml חסר — יש לייבא מחדש את קבצי המסלקה'] },
+      explanation: { templateId: 'SF_MISSING_XML', placeholders: {},
+                     rendered: '<div>נתוני המס חסרים. אנא טען מחדש את קבצי המסלקה כדי לצפות בסימולציה.</div>' },
+      disclaimer: 'יש לייבא מחדש את קובץ המסלקה כדי לאפשר חישוב מס.'
+    };
+  }
+  var _xmlDoc  = new DOMParser().parseFromString(product.rawXml, 'text/xml');
+  var _xmlRoot = _xmlDoc;
+  var _heshbonEls = _salkahXmlEls(_xmlDoc, 'HeshbonOPolisa');
+  if (_heshbonEls.length > 1) {
+    var _polisaTarget = String(product['מספר פוליסה'] || product.assetNum || '');
+    for (var _ai = 0; _ai < _heshbonEls.length; _ai++) {
+      var _numEl = _salkahXmlEl(_heshbonEls[_ai], 'MISPAR-POLISA-O-HESHBON');
+      if (_numEl && _numEl.textContent.trim() === _polisaTarget) { _xmlRoot = _heshbonEls[_ai]; break; }
+    }
+  }
+  var _joinEl = _salkahXmlEl(_xmlRoot, 'TAARICH-HITZTARFUT-RISHON') ||
+                _salkahXmlEl(_xmlRoot, 'TAARICH-HITZTARFUT-MUTZAR');
+  if (!product.joinDate && _joinEl) {
+    product = Object.assign({}, product, { joinDate: _joinEl.textContent.trim() });
+  }
+  if (!product.taxSegments || product.taxSegments.length === 0) {
+    var _perutNodes = _salkahXmlEls(_xmlRoot, 'PerutYitraLeTkufa');
+    var _segs = [];
+    _perutNodes.forEach(function(segEl) {
+      var tikratEl = _salkahXmlEl(segEl, 'TIKRAT-HAFKADA-MUTEVET');
+      var sachmEl  = _salkahXmlEl(segEl, 'SACH-ITRA-LESHICHVA-BESHACH');
+      if (tikratEl) _segs.push({
+        tikrat:       tikratEl.textContent.trim(),
+        deposits:     null,
+        accumulation: sachmEl ? (parseFloat(sachmEl.textContent.trim()) / 1000) : null
+      });
+    });
+    if (_segs.length > 0) product = Object.assign({}, product, { taxSegments: _segs });
+  }
+
+  // ── Confidence tracker ───────────────────────────────────────────────────────
+  var confidence = { level: 'high', score: 100, notes: [] };
+  var mediumTriggers = 0;
+  function degradeMedium(note) { mediumTriggers++; confidence.notes.push(note); }
+  function degradeLow(note) { confidence.level = 'low'; confidence.score = 50; confidence.notes.push(note); }
+
+  // ── Date parser: ISO "YYYY-MM-DD" or Hebrew "DD/MM/YYYY" ────────────────────
+  function _sfParseDate(val) {
+    if (!val) return null;
+    var s = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s);
+    var p = s.split('/');
+    if (p.length === 3) return new Date(p[2] + '-' + p[1] + '-' + p[0]);
+    return null;
+  }
+  function _sfFmtDate(d) {
+    if (!d || isNaN(d.getTime())) return null;
+    return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+  }
+
+  // ── Progressive tax helper (same algorithm as pnsCalcTax, but config-isolated) ─
+  function _sfProgressiveTax(grossAmount) {
+    var tax = 0, prev = 0;
+    for (var i = 0; i < rates.length; i++) {
+      var ceiling = (i < brackets.length) ? brackets[i] : Infinity;
+      var band = Math.min(grossAmount, ceiling) - prev;
+      if (band <= 0) break;
+      tax += band * (rates[i] / 100);
+      prev = ceiling;
+    }
+    return Math.max(0, tax - (creditPts * creditValue));
+  }
+
+  // ── Product type resolution ──────────────────────────────────────────────────
+  var sugMutzar = (product.sugMutzar != null) ? Number(product.sugMutzar) : null;
+  if (sugMutzar == null) {
+    var cat = String(product.category || '');
+    if (cat.indexOf('השתלמות') !== -1) sugMutzar = 4;
+    else if (cat.indexOf('גמל') !== -1 || cat.indexOf('פיצויים') !== -1) sugMutzar = 3;
+    else { sugMutzar = 4; degradeMedium('סוג מוצר לא זוהה — חושב כקרן השתלמות.'); }
+  }
+  var productType = sugMutzar === 4 ? 'קרן השתלמות' : sugMutzar === 3 ? 'קופת גמל / פיצויים' : 'לא ידוע';
+
+  // ── Seniority & age ──────────────────────────────────────────────────────────
+  var today       = new Date();
+  var MS_PER_YEAR = 365.25 * 24 * 3600 * 1000;
+  var joinDate    = _sfParseDate(product.joinDate    || product['TAARICH-HITZTARFUT-RISHON']);
+  var birthDate   = _sfParseDate(product.birthDate || product['TAARICH-LEYDA'] || (window.FFS_PROFILE && window.FFS_PROFILE.birthDate));
+  var seniority   = joinDate  ? (today - joinDate)  / MS_PER_YEAR : null;
+  var memberAge   = birthDate ? (today - birthDate) / MS_PER_YEAR : null;
+  if (seniority == null)  degradeMedium('תאריך הצטרפות לא זוהה — ותק לא ניתן לאימות.');
+  if (memberAge == null)  degradeMedium('תאריך לידה חסר — בדיקת פטור לפי גיל לא בוצעה.');
+  if (product.isVatika)   degradeLow('קרן וותיקה — חישוב המס קירובי בלבד.');
+
+  // ── Segment data ─────────────────────────────────────────────────────────────
+  var seg = _sfCalcSegments(product);
+  var segHasMissing = (product.taxSegments || []).some(function(s) {
+    return s.accumulation == null || s.accumulation === '';
+  });
+  if (segHasMissing) degradeMedium('נתוני פירוט תיקרת הפקדה חלקיים — חלק מהמקטעים הושמטו.');
+
+  // ── Downgrade to Low if two+ Medium triggers ─────────────────────────────────
+  if (mediumTriggers >= 2 && confidence.level !== 'low') { confidence.level = 'low'; confidence.score = 50; }
+  else if (mediumTriggers >= 1 && confidence.level === 'high') { confidence.level = 'medium'; confidence.score = 80; }
+
+  // ── Balance & withdrawal ─────────────────────────────────────────────────────
+  var balanceK    = (product.balance != null && product.balance !== '') ? Number(product.balance) : 0;
+  var wdFraction  = (withdrawalPct != null) ? Math.min(1, Math.max(0, Number(withdrawalPct))) : 1;
+  var grossK      = balanceK * wdFraction;
+
+  // ── Tax calculation branch ───────────────────────────────────────────────────
+  var taxDueK = 0;
+  var exemptionApplied = false, exemptionReason = '', templateId = '', placeholders = {};
+  var effSeniority = seniority != null ? seniority : 0;
+  var effAge       = memberAge != null ? memberAge : 0;
+
+  if (sugMutzar === 4) {
+    // Study Fund path
+    // Israeli tax law: tikrat=2 (above-ceiling) profit is ALWAYS taxed; tikrat=1 is exempt only when eligible
+    var isExemptEligible = (effSeniority >= sfSeniorityYears) ||
+                           (memberAge != null && effAge >= retirementAge);
+    var taxableSegTax = seg.taxableProfit * wdFraction * capitalTaxRate; // tikrat=2: always taxed
+    var exemptSegTax  = isExemptEligible ? 0 : seg.exemptProfit * wdFraction * capitalTaxRate; // tikrat=1: exempt if eligible
+    taxDueK = taxableSegTax + exemptSegTax;
+
+    if (seg.taxableProfit <= 0 && seg.taxablePrincipal <= 0 && seg.exemptPrincipal <= 0) {
+      // No segment data at all
+      taxDueK = 0; exemptionApplied = true;
+      templateId = 'SF_NO_TAXABLE_PROFIT';
+      exemptionReason = 'אין נתוני מקטעים';
+    } else if (taxableSegTax > 0 && isExemptEligible) {
+      // Mixed: tikrat=1 exempt by seniority/age, tikrat=2 still taxed
+      exemptionApplied = false;
+      templateId = 'SF_MIXED';
+      placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
+      exemptionReason = 'קרן מוטבת פטורה, קרן חייבת חייבת';
+    } else if (isExemptEligible) {
+      // Fully exempt: no taxable segment profit
+      taxDueK = 0; exemptionApplied = true;
+      if (effSeniority >= sfSeniorityYears) {
+        templateId = 'SF_EXEMPT_SENIORITY';
+        placeholders = { X: String(Math.floor(effSeniority)) };
+        exemptionReason = 'ותק מעל ' + sfSeniorityYears + ' שנים';
+      } else {
+        templateId = 'SF_EXEMPT_AGE';
+        placeholders = { X: String(Math.floor(effAge)) };
+        exemptionReason = 'גיל פרישה';
+      }
+    } else {
+      // Not eligible: both tikrat=1 and tikrat=2 profits taxed
+      if (seniority == null) {
+        templateId = 'SF_UNKNOWN_SENIORITY';
+        placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
+      } else {
+        templateId = 'SF_TAXABLE';
+        placeholders = { X: String(Math.floor(effSeniority)), RATE: Math.round(capitalTaxRate * 100) + '%' };
+      }
+    }
+
+  } else if (sugMutzar === 3) {
+    // Provident Fund path
+    if (effAge >= pfWithdrawalAge) {
+      var exemptAmt  = Math.min(balanceK, exemptBasket);
+      var taxableAmt = Math.max(0, balanceK - exemptAmt);
+      taxDueK = _sfProgressiveTax(taxableAmt) * wdFraction;
+      templateId = 'PF_EXEMPT_AGE';
+      placeholders = { X: String(Math.floor(effAge)), Y: Math.round(exemptAmt).toLocaleString('he-IL'), Z: Math.round(taxableAmt).toLocaleString('he-IL') };
+    } else {
+      taxDueK = _sfProgressiveTax(balanceK) * wdFraction;
+      templateId = 'PF_TAXABLE_YOUNG';
+      placeholders = {};
+    }
+    if (product.isVatika) templateId = 'PF_VATIKA';
+  }
+
+  var netK = grossK - taxDueK;
+
+  // ── Seniority label ──────────────────────────────────────────────────────────
+  var senYears  = Math.floor(effSeniority);
+  var senMonths = Math.round((effSeniority - senYears) * 12);
+  var senLabel  = (senYears > 0 ? senYears + ' שנים' : '') + (senYears > 0 && senMonths > 0 ? ' ו-' : '') + (senMonths > 0 ? senMonths + ' חודשים' : '') || '0 חודשים';
+
+  // ── Explainability templates ─────────────────────────────────────────────────
+  var TEMPLATES = {
+    SF_EXEMPT_SENIORITY:  'החישוב מתבסס על ותק של [X] שנים, ולכן הקופה פטורה ממס.',
+    SF_EXEMPT_AGE:        'החבר הגיע לגיל פרישה ([X]), ולכן הקופה פטורה ממס ללא תלות בוותק.',
+    SF_TAXABLE:           'ותק של [X] שנים בלבד — חלק הרווח בקרן החייבת חייב במס רווח הון של [RATE].',
+    SF_NO_TAXABLE_PROFIT: 'אין רווחים החייבים במס בקופה זו (כל הכספים מסווגים כפטורים).',
+    SF_MIXED:             'הקרן המוטבת פטורה בשל ותק. חלה חבות מס של [RATE] על רווחי הקרן החייבת (מעל התקרה).',
+    SF_UNKNOWN_SENIORITY: '<span title="המידע חסר במסלקה. ניתן למצוא את נתוני ההפקדות והתאריכים בדו&quot;ח השנתי של הגוף המנהל. ניתן להזינם כאן ידנית לדיוק מלא." style="border-bottom:1px dotted #6b7280;cursor:help;white-space:nowrap;">החישוב מתבסס על נתונים חלקיים</span> — חבות מס של [RATE] על הקרן החייבת (מעל התקרה).',
+    PF_EXEMPT_AGE:        'משיכה בגיל [X] — הסכום עד [Y] ₪ פטור ממס (סל פטור). יתרה של [Z] ₪ חייבת לפי מדרגות.',
+    PF_TAXABLE_YOUNG:     'משיכה לפני גיל 60 מחושבת כהכנסה חייבת לפי מדרגות מס הכנסה.',
+    PF_VATIKA:            'קרן וותיקה — חישוב המס מבוסס על כללי הפטור של המשטר הישן ועשוי להיות שונה מהחישוב הסטנדרטי.',
+    SF_MISSING_XML:       'נתוני המס חסרים. אנא טען מחדש את קבצי המסלקה כדי לצפות בסימולציה.'
+  };
+  var DISCLAIMER = 'המס המוצג הוא הערכה בלבד ומבוסס על הנתונים הקיימים בקופה. לייעוץ מס אישי פנה לרואה חשבון.';
+  var tpl = TEMPLATES[templateId] || '';
+  Object.keys(placeholders).forEach(function(k) { tpl = tpl.replace('[' + k + ']', placeholders[k]); });
+  tpl = '<div>' + tpl + '</div>' +
+    '<div style="font-size:12px;color:#6b7280;font-weight:400;line-height:1.5;text-align:right;direction:rtl;">' +
+    '<b style="color:#374151;display:block;margin-bottom:4px;">הנחות עבודה לסימולציה:</b>' +
+    '<ul style="margin:0;padding-right:16px;padding-left:0;direction:rtl;">' +
+    '<li>בהעדר נתוני הפקדות היסטוריים בחלק מהשכבות ב-XML, מלוא הצבירה באותן שכבות מחושבת באופן שמרני כרווח החייב במס.</li>' +
+    '<li>הסימולציה העתידית מניחה קצב צמיחה שנתי קבוע של הרווחים בהתאם לפרמטרים שהוזנו.</li>' +
+    '</ul>' +
+    '</div>';
+
+  // ── Segment detail rows for transparency ────────────────────────────────────
+  var segRows = [
+    { type: 'קרן פטורה',  tikrat: 1, principal: seg.exemptPrincipal,   profit: seg.exemptProfit,   taxRate: 0,              taxDue: 0 },
+    { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : seg.taxableProfit * wdFraction * capitalTaxRate }
+  ];
+
+  return {
+    productType: productType,
+    sugMutzar:   sugMutzar,
+    seniority:   senLabel,
+    memberAge:   memberAge != null ? Math.floor(memberAge) : null,
+    exemptionApplied:  exemptionApplied,
+    exemptionReason:   exemptionReason,
+    segments:    segRows,
+    withdrawalPct: wdFraction,
+    grossWithdrawal: Math.round(grossK),
+    totalTaxDue:    Math.round(taxDueK),
+    netToBank:      Math.round(netK),
+    currency: 'ILS', unit: 'K',
+    confidence: confidence,
+    explanation: { templateId: templateId, placeholders: placeholders, rendered: tpl },
+    disclaimer:  DISCLAIMER,
+    joinDateFormatted:   _sfFmtDate(joinDate),
+    depositsPropK:       Math.round((seg.exemptPrincipal + seg.taxablePrincipal) * wdFraction),
+    taxableProfitPropK:  Math.round((templateId === 'SF_TAXABLE'
+                           ? (seg.exemptProfit + seg.taxableProfit)
+                           : seg.taxableProfit) * wdFraction)
+  };
 }
 
 function _sfRecalculate() {
@@ -17520,21 +17987,116 @@ function _sfRecalculate() {
     if (fixMaxLbl) fixMaxLbl.textContent = Math.round(projBalK).toLocaleString('he-IL') + ' K ₪';
   }
 
-  // Scale segments by growth; principal stays, profits grow
-  var seg  = _sfCalcSegments(item);
+  // Build growth-adjusted segments so _sfCalculateTax sees projected profits, not original ones
+  var grownSegs;
+  if (item.taxSegments && item.taxSegments.length > 0) {
+    grownSegs = item.taxSegments.map(function(s) {
+      var dep   = (s.deposits != null && s.deposits !== '') ? Number(s.deposits) : 0;
+      var accum = (s.accumulation != null && s.accumulation !== '') ? Number(s.accumulation) : 0;
+      return { deposits: dep, accumulation: dep + Math.max(0, accum - dep) * growthF, tikrat: s.tikrat };
+    });
+  } else if (item.rawXml) {
+    var _gXmlDoc = new DOMParser().parseFromString(item.rawXml, 'text/xml');
+    grownSegs = _salkahXmlEls(_gXmlDoc, 'PerutYitraLeTkufa').map(function(segEl) {
+      var tikratEl = _salkahXmlEl(segEl, 'TIKRAT-HAFKADA-MUTEVET');
+      var sachmEl  = _salkahXmlEl(segEl, 'SACH-ITRA-LESHICHVA-BESHACH');
+      var accum    = sachmEl ? ((parseFloat(sachmEl.textContent.trim()) || 0) / 1000) : 0;
+      return { tikrat: tikratEl ? tikratEl.textContent.trim() : '', deposits: null, accumulation: accum * growthF };
+    }).filter(function(s) { return s.tikrat; });
+  } else {
+    grownSegs = [];
+  }
+  // Pie chart uses growth-adjusted projItem segments for accurate breakdown
+  var projItem   = Object.assign({}, item, { balance: projBalK, taxSegments: grownSegs });
+  var seg  = _sfCalcSegments(projItem);
   var exP  = seg.exemptPrincipal;
   var txP  = seg.taxablePrincipal;
-  var exPr = seg.exemptProfit  * growthF;
-  var txPr = seg.taxableProfit * growthF;
+  var exPr = seg.exemptProfit;
+  var txPr = seg.taxableProfit;
+  var taxDetails = _sfCalculateTax(projItem, pctFraction, window.REAL_TAX_CONFIG || {});
+  _sfLastTaxDetails = taxDetails;
+  var grossK  = taxDetails.grossWithdrawal;
+  var taxDueK = taxDetails.totalTaxDue;
+  var netK    = taxDetails.netToBank;
 
-  var totalTax    = txPr * 0.25;
-  var grossK      = projBalK * pctFraction;
-  var taxDueK     = totalTax * pctFraction;
-  var netK        = grossK - taxDueK;
+  // ── Manual calibration override ──────────────────────────────────────────
+  var _manualData    = _sfLoadManualData(item.assetNum);
+  var _manualReceipt = null;
+  if (_manualData && _manualData.principalAmount) {
+    var _mPrinK    = Number(_manualData.principalAmount) / 1000;
+    var _mPropK    = _mPrinK * pctFraction;
+    var _mTxProfK  = Math.max(0, grossK - _mPropK);
+    taxDueK        = _mTxProfK * 0.25;
+    netK           = grossK - taxDueK;
+    _manualReceipt = _sfBuildManualReceipt(grossK, _mPrinK, pctFraction, _mPropK, _mTxProfK, taxDueK, netK);
+    taxDetails     = Object.assign({}, taxDetails, {
+      totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
+      explanation: {
+        templateId: 'SF_MANUAL_CALIBRATION',
+        rendered:   '<div style="color:#16a34a;font-weight:700;">החישוב מבוסס על נתונים שהוזנו ידנית</div>'
+      }
+    });
+    _sfLastTaxDetails = taxDetails;
+  }
+
+  // ── Push-UX ──────────────────────────────────────────────────────────────
+  var _pushMsgEl = document.getElementById('sf-tax-inline-msg');
+  if (_pushMsgEl) {
+    var _pushTid = taxDetails.explanation.templateId;
+    if (_pushTid === 'SF_MISSING_XML') {
+      _pushMsgEl.style.color      = '#d97706';
+      _pushMsgEl.innerHTML        = taxDetails.explanation.rendered;
+      _pushMsgEl.style.visibility = 'visible';
+    } else if (_pushTid === 'SF_MANUAL_CALIBRATION') {
+      _pushMsgEl.style.color      = '#16a34a';
+      _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">החישוב מבוסס על נתונים שהוזנו ידנית</div>';
+      _pushMsgEl.style.visibility = 'visible';
+    } else if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
+      var _dateStr = taxDetails.joinDateFormatted
+        ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
+      _pushMsgEl.style.color      = '#16a34a';
+      _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
+      _pushMsgEl.style.visibility = 'visible';
+    } else if (_pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
+      _pushMsgEl.style.color      = '#1e293b';
+      _pushMsgEl.innerHTML        = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
+      _pushMsgEl.style.visibility = 'visible';
+    }
+  }
+
+  // ── Calibration form: show when data partial; pre-fill inputs from localStorage ──
+  var _calibFormEl = document.getElementById('sf-calibration-form');
+  if (_calibFormEl) {
+    var _needsCalib = (taxDetails.explanation.templateId === 'SF_MISSING_XML' ||
+                       taxDetails.explanation.templateId === 'SF_UNKNOWN_SENIORITY' ||
+                       taxDetails.explanation.templateId === 'SF_MANUAL_CALIBRATION');
+    _calibFormEl.style.display = _needsCalib ? '' : 'none';
+    if (_needsCalib && _manualData) {
+      var _pEl  = document.getElementById('sf-manual-principal');
+      var _dEl  = document.getElementById('sf-manual-joindate');
+      var _clEl = document.getElementById('sf-calibration-clear-btn');
+      if (_pEl  && !_pEl.value)  _pEl.value  = _manualData.principalAmount || '';
+      if (_dEl  && !_dEl.value)  _dEl.value  = _manualData.joinDate        || '';
+      if (_clEl) _clEl.style.display = '';
+    }
+  }
 
   var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
-  var te = document.getElementById('sf-tax-due');          if (te) te.textContent = Math.round(taxDueK).toLocaleString('he-IL');
-  var ne = document.getElementById('sf-net-bank');         if (ne) ne.textContent = Math.round(netK).toLocaleString('he-IL');
+  var te = document.getElementById('sf-tax-due');
+  if (te) {
+    if (taxDueK === null) {
+      te.style.color = '#dc2626';
+      te.textContent = '---';
+    } else if (taxDetails.exemptionApplied && taxDueK === 0) {
+      te.style.color = '#16a34a';
+      te.textContent = 'פטור';
+    } else {
+      te.style.color = '#dc2626';
+      te.textContent = Math.round(taxDueK).toLocaleString('he-IL');
+    }
+  }
+  var ne = document.getElementById('sf-net-bank');
+  if (ne) ne.textContent = netK === null ? '---' : Math.round(netK).toLocaleString('he-IL');
   var re = document.getElementById('sf-remaining-balance');
   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
   if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
@@ -17566,24 +18128,42 @@ function _sfRecalculate() {
     }
   }
 
-  _sfUpdatePieChart(exP * pctFraction, txP * pctFraction, exPr * pctFraction, txPr * pctFraction);
+  _sfUpdatePieChart(grossK, taxDueK, taxDetails.exemptionApplied);
+
+  // Show formula receipt inside calibration form card
+  var _receiptEl = document.getElementById('sf-calibration-receipt');
+  if (_receiptEl) {
+    if (_manualReceipt) {
+      _receiptEl.innerHTML     = _manualReceipt;
+      _receiptEl.style.display = '';
+    } else {
+      _receiptEl.innerHTML     = '';
+      _receiptEl.style.display = 'none';
+    }
+  }
 }
 
-function _sfUpdatePieChart(exemptPrincipal, taxablePrincipal, exemptProfit, taxableProfit) {
+function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {
   if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
   var canvas   = document.getElementById('sf-pie-chart');
   var legendEl = document.getElementById('sf-pie-legend');
   if (!canvas) return;
 
-  var defs = [
-    { label: 'קרן פטורה',           val: Math.round(exemptPrincipal  || 0), color: '#22c55e' },
-    { label: 'קרן חייבת',           val: Math.round(taxablePrincipal || 0), color: '#f59e0b' },
-    { label: 'רווח פטור',           val: Math.round(exemptProfit     || 0), color: '#86efac' },
-    { label: 'רווח חייב (מס 25%)', val: Math.round(taxableProfit    || 0), color: '#ef4444' }
-  ];
-  var filtered = defs.filter(function(d) { return d.val > 0; });
-  var total    = filtered.reduce(function(s, d) { return s + d.val; }, 0);
+  if (taxDueK === null) {
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:#9ca3af;">אין נתוני מס זמינים</span>';
+    return;
+  }
 
+  var taxRnd  = Math.round(taxDueK  || 0);
+  var netK    = Math.max(0, Math.round(grossK || 0) - taxRnd);
+  var netLabel = exemptionApplied ? 'נטו לכיס (פטור)' : 'נטו לכיס';
+  var defs = [
+    { label: 'חבות מס', val: taxRnd, color: '#dc2626' },
+    { label: netLabel,   val: netK,   color: '#16a34a' }
+  ].filter(function(d) { return d.val > 0; });
+
+  var total = defs.reduce(function(s, d) { return s + d.val; }, 0);
   if (!total) {
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:#9ca3af;">אין נתוני פירוט זמינים</span>';
@@ -17593,10 +18173,10 @@ function _sfUpdatePieChart(exemptPrincipal, taxablePrincipal, exemptProfit, taxa
   _sfPieChart = new Chart(canvas.getContext('2d'), {
     type: 'doughnut',
     data: {
-      labels: filtered.map(function(d) { return d.label; }),
+      labels: defs.map(function(d) { return d.label; }),
       datasets: [{
-        data: filtered.map(function(d) { return d.val; }),
-        backgroundColor: filtered.map(function(d) { return d.color; }),
+        data: defs.map(function(d) { return d.val; }),
+        backgroundColor: defs.map(function(d) { return d.color; }),
         borderWidth: 2, borderColor: '#fff', hoverBorderWidth: 3
       }]
     },
@@ -17609,10 +18189,7 @@ function _sfUpdatePieChart(exemptPrincipal, taxablePrincipal, exemptProfit, taxa
         tooltip: {
           callbacks: {
             label: function(c) {
-              var name = c.label.replace(' (מס 25%)', '');
-              var line = '  ' + name + ': ' + c.parsed.toLocaleString('he-IL') + ' K ₪';
-              if (c.label.indexOf('חייב') !== -1) line += '   |   מיסוי: 25%';
-              return line;
+              return '  ' + c.label + ': ' + c.parsed.toLocaleString('he-IL') + ' K ₪';
             }
           },
           backgroundColor: '#fff', titleColor: '#6b7280', bodyColor: '#111827',
@@ -17626,7 +18203,6 @@ function _sfUpdatePieChart(exemptPrincipal, taxablePrincipal, exemptProfit, taxa
   if (!legendEl) return;
   legendEl.innerHTML = '';
   defs.forEach(function(d) {
-    if (d.val <= 0) return;
     var pct = (d.val / total * 100).toFixed(1);
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:9px;font-family:Heebo,sans-serif;font-size:12px;direction:rtl;';
