@@ -449,3 +449,30 @@ function cellVal(ws, r, col) {
  25:'salary_usd', 26:'exp_usd', 27:'yotam_usd', 28:'total_usd',
  39:'delta', 43:'profit_loss'}
 ```
+
+---
+
+## מסלקה XML — תגליות מבניות (v181.36)
+
+### 1. מבנה מרובה חשבונות תחת Mutzar אחד
+
+אלמנט `<Mutzar>` עשוי להכיל מספר אלמנטי `<HeshbonOPolisa>` (לא רק אחד).
+`_salkahParseOneXML` מטפלת בכך נכון — `querySelectorAll('HeshbonOPolisa')` מחזיר NodeList ומיתרץ עליו.
+אולם `_sfCalculateTax` מקבל `rawXml` שעשוי להיות ה-Mutzar כולו (מסלול ה-fallback, כשאין `HeshbonOPolisa` ישיר), ואז `_salkahXmlEl` ימצא תאריכים ו-segments מהחשבון הראשון — ללא קשר לאיזה חשבון מנותח.
+
+**תיקון (v181.36):** לאחר פירוס ה-rawXml, לבדוק אם קיימים מספר `HeshbonOPolisa`. אם כן — לאתר את זה שמספר הפוליסה שלו (`MISPAR-POLISA-O-HESHBON`) תואם ל-`product['מספר פוליסה']`, ולהגביל את כל שאילתות ה-XML ל-scope שלו.
+
+### 2. עדיפות תאריך הצטרפות לחישוב ותק
+
+| שדה XML | משמעות | עדיפות |
+|---------|--------|--------|
+| `TAARICH-HITZTARFUT-RISHON` | תאריך הצטרפות **מקורי** (ראשון אי פעם לקופה) | **גבוהה** — לבדוק ראשון |
+| `TAARICH-HITZTARFUT-MUTZAR` | תאריך הצטרפות **למוצר הנוכחי** | נמוכה — fallback בלבד |
+
+שימוש ב-`TAARICH-HITZTARFUT-MUTZAR` במקום ב-`RISHON` עלול להוביל לחישוב ותק קצר מהאמיתי — `MUTZAR` עשוי לשקף תאריך העברה בין קופות ולא את תאריך ההצטרפות הראשוני. לחישוב פטור ממס (6 שנים) יש תמיד להשתמש ב-RISHON ראשון.
+
+### 3. XML Namespace Variance Between Providers
+
+חלק מהגופים המנהלים (לדוגמה אלטשולר שחם) מייצאים XML עם namespace prefixes (כגון `<ns0:Mutzar xmlns:ns0="...">`). הדפדפן `querySelector`/`querySelectorAll` נכשל בשקט על תגיות כאלה כי CSS selectors מחפשים את שם התג המלא כולל הprefix.
+
+**הפתרון (v181.36+):** כל חיפושי ה-DOM ב-`_salkahParseOneXML` משתמשים ב-`_salkahXmlEl`/`_salkahXmlEls` (התאמה לפי `localName`) שהם namespace-safe. בנוסף, הפונקציה מאתרת קודם את `<YeshutYatzran>` (אם קיים) ומגבילה את החיפוש לscope שלו — fallback לשורש המסמך לגופים ללא עטיפה כזו.

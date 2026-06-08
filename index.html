@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="locked">
 
@@ -51,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.19</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.37</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1614,7 +1615,7 @@
     </label>
     <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
     <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
-    <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="טבלת נכסים מרכזית">תצוגת טבלה 📊</button>
+    <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="תצוגת טבלה">תצוגת טבלה <i class="fas fa-table"></i></button>
     <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
     <div style="flex:1;"></div>
     <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
@@ -2998,14 +2999,70 @@
       <div id="sf-fund-name" style="font-size:16px;font-weight:800;"></div>
       <div id="sf-fund-id" style="font-size:11px;color:#94a3b8;margin-top:2px;"></div>
     </div>
-    <div style="width:30px;"></div>
+    <button onclick="_sfToggleAgentPanel()"
+      style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;
+             border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;white-space:nowrap;
+             font-family:Heebo,sans-serif;font-weight:600;">Agent JSON</button>
   </div>
 
-  <!-- Summary bar -->
+  <!-- Agent JSON import panel — hidden by default, toggled via header button -->
+  <div id="sf-agent-json-panel" style="display:none;background:#f8fafc;border-bottom:1px solid #e2e8f0;
+       padding:10px 24px;direction:rtl;">
+    <div style="font-size:11px;color:#475569;margin-bottom:6px;font-weight:600;">הדבק JSON מסוכן Codex:</div>
+    <textarea id="sf-agent-json-input" rows="4"
+      style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;
+             font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box;"
+      placeholder='[{"fundNumber":"39905556","originalJoinDate":"20151222","totalBalance":582379,"accumExempt_tikrat1":280000}]'></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button onclick="_sfImportAgentJSON()"
+        style="background:#2563eb;border:none;border-radius:6px;padding:5px 14px;
+               font-size:12px;color:#fff;cursor:pointer;font-family:Heebo,sans-serif;font-weight:600;">
+        יבא נתונים</button>
+      <span id="sf-agent-json-status" style="font-size:11px;color:#6b7280;"></span>
+    </div>
+  </div>
+
+  <!-- Simulation title — primary heading, below fund header -->
+  <div style="padding:8px 24px 4px;text-align:right;">
+    <div style="font-size:13px;font-weight:800;color:#1e293b;">סימולציית משיכה</div>
+  </div>
+
+  <!-- Message board — own row; min-height reserves space to prevent modal jumping -->
+  <div id="sf-tax-inline-msg"
+       style="padding:0 24px 8px;font-size:14px;color:#1d4ed8;font-weight:600;
+              line-height:1.5;text-align:right;min-height:100px;direction:rtl;
+              display:flex;flex-direction:column;gap:8px;align-items:flex-start;
+              justify-content:flex-start;visibility:hidden;"></div>
+
+  <!-- Summary bar — 3 flex cols: balance | calibration (center, flex:1) | liquidity -->
   <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
     <div>
       <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">צבירה נוכחית (K &#x20AA;)</div>
       <div id="sf-total-balance" style="font-size:22px;font-weight:800;color:#1e293b;"></div>
+    </div>
+    <div id="sf-calibration-form" style="flex:1;display:none;direction:rtl;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:#6b7280;white-space:nowrap;flex-shrink:0;">כוונון ידני:</span>
+        <input id="sf-manual-principal" type="number" min="0" step="1000"
+               style="max-width:130px;border:1px solid #d1d5db;border-radius:6px;
+                      padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;text-align:right;"
+               placeholder="₪ הפקדות">
+        <input id="sf-manual-joindate" type="date"
+               style="max-width:140px;border:1px solid #d1d5db;border-radius:6px;
+                      padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;">
+        <button onclick="_sfSaveCalibration()"
+                style="background:#2563eb;border:none;border-radius:6px;padding:4px 12px;
+                       font-size:12px;color:#fff;cursor:pointer;font-family:Heebo,sans-serif;
+                       font-weight:600;white-space:nowrap;">שמור וחשב</button>
+        <button id="sf-calibration-clear-btn" onclick="_sfClearCalibration()"
+                style="display:none;background:#fff;border:1px solid #d1d5db;border-radius:6px;
+                       padding:4px 10px;font-size:11px;color:#6b7280;cursor:pointer;
+                       font-family:Heebo,sans-serif;white-space:nowrap;">מחק</button>
+      </div>
+      <div id="sf-calibration-receipt"
+           style="display:none;margin-top:6px;font-size:11px;direction:rtl;text-align:center;
+                  font-family:Heebo,sans-serif;color:#374151;">
+      </div>
     </div>
     <div>
       <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">סטטוס נזילות</div>
@@ -3023,7 +3080,14 @@
       </div>
       <div>
         <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">חבות מס (K &#x20AA;)</div>
-        <div id="sf-tax-due" style="font-size:19px;font-weight:800;color:#ef4444;"></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div id="sf-tax-due" style="font-size:19px;font-weight:800;color:#dc2626;"></div>
+          <button id="sf-tax-info-btn" onclick="_sfToggleTaxMsg()" title="פרטי חישוב המס"
+            style="background:none;border:1px solid #d1d5db;border-radius:50%;width:20px;height:20px;
+                   font-size:11px;cursor:pointer;color:#6b7280;padding:0;
+                   flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-info-circle"></i></button>
+        </div>
       </div>
       <div>
         <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">נטו לכיס (K &#x20AA;)</div>
@@ -3037,12 +3101,10 @@
 
   <!-- Sliders — simulation controls -->
   <div style="padding:14px 24px 10px;border-bottom:1px solid #e5e7eb;">
-    <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:14px;">סימולציית משיכה</div>
-
     <!-- Timeline slider (months 0–600 = 0–50 years) -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:nowrap;">
       <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">טווח זמן</span>
-      <span id="sf-timeline-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:100px;flex-shrink:0;white-space:nowrap;display:inline-block;transform:translateY(-1.5px);"></span>
+      <span id="sf-timeline-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:100px;flex-shrink:0;white-space:nowrap;display:inline-block;transform:translateY(-6px);"></span>
       <div style="flex:1;position:relative;">
         <input id="sf-timeline-slider" type="range" min="0" max="120" step="1" value="0"
                class="pns-slider" dir="rtl" style="width:100%;" oninput="_sfOnSlider('timeline')">
