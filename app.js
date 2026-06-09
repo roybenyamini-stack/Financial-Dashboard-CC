@@ -16673,7 +16673,11 @@ function processMultipleSalkahFiles(files, statusEl) {
   var promises = files.map(function(f) {
     return _salkahReadFileAsText(f).then(function(text) {
       console.log('[Salkah] Loaded:', f.name, '—', text.length, 'chars');
-      return _salkahParseOneXML(text);
+      var r = _salkahParseOneXML(text);
+      if (r.products.length === 0 && text.length > 500 && /\bns\d+:[A-Za-z]/.test(text)) {
+        return _salkahFallbackToAI(text, f.name, r.provider);
+      }
+      return r;
     });
   });
   Promise.all(promises).then(function(results) {
@@ -16792,6 +16796,73 @@ function processMultipleSalkahFiles(files, statusEl) {
     statusEl.style.background = '#fef2f2';
     statusEl.style.color      = '#dc2626';
     statusEl.textContent      = '❌ שגיאה: ' + err.message;
+  });
+}
+
+function _salkahFallbackToAI(xmlText, fileName, providerHint) {
+  var statusEl = document.getElementById('salkah-status');
+  if (statusEl) {
+    statusEl.style.background = '#eff6ff';
+    statusEl.style.color      = '#1d4ed8';
+    statusEl.textContent      = '🤖 AI מנתח קובץ מורכב: ' + fileName + '...';
+  }
+
+  return fetch('http://localhost:3001/api/parse-masklaka', {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/xml' },
+    body:    xmlText
+  })
+  .then(function(resp) {
+    if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.error || 'HTTP ' + resp.status); });
+    return resp.json();
+  })
+  .then(function(agentData) {
+    var products     = _salkahAIResponseToProducts(agentData, providerHint || fileName);
+    var totalBalance = agentData.reduce(function(s, fd) { return s + (fd.totalBalance || 0); }, 0);
+    return { provider: providerHint || fileName, products: products, totalBalance: totalBalance };
+  })
+  .catch(function(err) {
+    console.error('[AI Fallback]', err.message);
+    return { provider: providerHint || 'שגיאת AI', products: [], totalBalance: 0 };
+  });
+}
+
+function _salkahAIResponseToProducts(agentItems, provider) {
+  return agentItems.map(function(fd) {
+    var rawDate = String(fd.originalJoinDate || '').trim();
+    var isoDate = /^\d{8}$/.test(rawDate)
+      ? rawDate.slice(0,4) + '-' + rawDate.slice(4,6) + '-' + rawDate.slice(6,8)
+      : rawDate;
+
+    var segs = '';
+    if (fd.accumExempt_tikrat1 > 0) {
+      segs += '<PerutYitraLeTkufa>'
+            + '<TIKRAT-HAFKADA-MUTEVET>1</TIKRAT-HAFKADA-MUTEVET>'
+            + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumExempt_tikrat1) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+            + '</PerutYitraLeTkufa>';
+    }
+    if (fd.accumTaxable_tikrat2 > 0) {
+      segs += '<PerutYitraLeTkufa>'
+            + '<TIKRAT-HAFKADA-MUTEVET>2</TIKRAT-HAFKADA-MUTEVET>'
+            + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumTaxable_tikrat2) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+            + '</PerutYitraLeTkufa>';
+    }
+
+    return {
+      'מספר פוליסה': String(fd.fundNumber || ''),
+      'שם מוצר':     fd.productName || provider || 'קרן השתלמות',
+      'סוג מוצר':    'קרן השתלמות',
+      'צבירה (₪)':   fd.totalBalance || 0,
+      rawXml: '<HeshbonOPolisa>'
+              + (isoDate ? '<TAARICH-HITZTARFUT-RISHON>' + isoDate + '</TAARICH-HITZTARFUT-RISHON>' : '')
+              + segs
+              + '</HeshbonOPolisa>',
+      joinDate:             isoDate || null,
+      accumExempt_tikrat1:  fd.accumExempt_tikrat1  || 0,
+      accumTaxable_tikrat2: fd.accumTaxable_tikrat2 || 0,
+      isActive: true,
+      _agentDataSource: true
+    };
   });
 }
 
@@ -17179,9 +17250,6 @@ function ffsOpenStudyFundModal(itemId) {
     }
   }
 
-  // Liquidity badge
-  var liqEl = document.getElementById('sf-liquidity-badge');
-  if (liqEl) liqEl.innerHTML = _sfLiquidityBadge(item);
 
   // Read macro defaults — live DOM values take priority over FFS_PROFILE
   var _domVal = function(id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
@@ -17258,6 +17326,10 @@ function ffsCloseStudyFundModal() {
   var _dClose = document.getElementById('sf-manual-joindate');
   if (_pClose) _pClose.value = '';
   if (_dClose) _dClose.value = '';
+  var _sClose = document.getElementById('sf-source-note');
+  if (_sClose) _sClose.value = '';
+  var _slClose = document.getElementById('sf-source-label');
+  if (_slClose) _slClose.textContent = 'הזן מקור נתונים (אופציונלי):';
   if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
   // Restore sim-zoom buttons
   ['sim-zoom-full', 'sim-zoom-retirement', 'sim-zoom-decade'].forEach(function(id) {
@@ -17285,6 +17357,15 @@ function _sfToggleTaxMsg() {
   }
 }
 
+function _sfToggleDetails() {
+  var panel   = document.getElementById('sf-tax-segments');
+  var chevron = document.getElementById('sf-details-chevron');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if (chevron) chevron.innerHTML = isOpen ? '&#9660;' : '&#9650;';
+}
+
 function _sfLoadManualData(assetNum) {
   if (!assetNum) return null;
   try { return JSON.parse(localStorage.getItem('sf_manual_data_' + assetNum) || 'null'); } catch(e) { return null; }
@@ -17294,9 +17375,12 @@ function _sfSaveCalibration() {
   if (!_sfCurrentItem) return;
   var pEl = document.getElementById('sf-manual-principal');
   var dEl = document.getElementById('sf-manual-joindate');
-  var principal = pEl ? parseFloat(pEl.value) : NaN;
-  if (!(principal > 0)) { alert('יש להזין סכום הפקדות תקין (גדול מ-0)'); return; }
+  var principal = pEl ? parseFloat(pEl.value) * 1000 : NaN;
   var joinDate = dEl ? (dEl.value || null) : null;
+  if (!(principal > 0) && !joinDate) {
+    showToast('יש להזין לפחות תאריך הצטרפות או סכום הפקדות', '#d97706', 4000);
+    return;
+  }
   localStorage.setItem('sf_manual_data_' + _sfCurrentItem.assetNum,
     JSON.stringify({ principalAmount: principal, joinDate: joinDate }));
   var clBtn = document.getElementById('sf-calibration-clear-btn');
@@ -17315,7 +17399,22 @@ function _sfClearCalibration() {
   if (dEl) dEl.value = '';
   var rEl = document.getElementById('sf-calibration-receipt');
   if (rEl) { rEl.style.display = 'none'; rEl.innerHTML = ''; }
+  var sEl = document.getElementById('sf-source-note');
+  if (sEl) sEl.value = '';
+  var slEl = document.getElementById('sf-source-label');
+  if (slEl) slEl.textContent = 'הזן מקור נתונים (אופציונלי):';
   _sfRecalculate();
+}
+
+function _sfSaveSourceNote() {
+  if (!_sfCurrentItem) return;
+  var sEl = document.getElementById('sf-source-note');
+  var lEl = document.getElementById('sf-source-label');
+  var val = sEl ? sEl.value : '';
+  if (lEl) lEl.textContent = val ? 'מקור הנתונים על פי המשתמש:' : 'הזן מקור נתונים (אופציונלי):';
+  var existing = _sfLoadManualData(_sfCurrentItem.assetNum) || {};
+  existing.sourceNote = val;
+  localStorage.setItem('sf_manual_data_' + _sfCurrentItem.assetNum, JSON.stringify(existing));
 }
 
 function _sfToggleAgentPanel() {
@@ -17381,6 +17480,9 @@ function _loadAgentJSON(jsonString) {
         + segs
         + '</HeshbonOPolisa>';
 
+      if (isoDate) inv.joinDate = isoDate;
+      if (fd.accumExempt_tikrat1  >= 0) inv.accumExempt_tikrat1  = fd.accumExempt_tikrat1;
+      if (fd.accumTaxable_tikrat2 >= 0) inv.accumTaxable_tikrat2 = fd.accumTaxable_tikrat2;
       inv._agentDataSource = true;
       updated++;
     });
@@ -17400,7 +17502,7 @@ function _loadAgentJSON(jsonString) {
 }
 
 function _sfReceiptRow(label, value, color) {
-  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">'
+  return '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;padding:2px 0;direction:rtl;">'
     + '<span style="color:#6b7280;">' + label + '</span>'
     + '<span style="font-weight:600;color:' + color + ';">' + value + '</span>'
     + '</div>';
@@ -17409,8 +17511,7 @@ function _sfReceiptRow(label, value, color) {
 function _sfBuildManualReceipt(grossK, mPrinK, pctFraction, mPropK, mTxProfK, taxDueK, netK) {
   var fmt = function(n) { return Math.round(n).toLocaleString('he-IL'); };
   var pctLbl = Math.round(pctFraction * 100) + '%';
-  return '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב (נתונים ידניים)</div>'
-    + '<div style="display:flex;flex-direction:column;gap:1px;">'
+  return '<div style="display:flex;flex-direction:column;gap:1px;">'
     + _sfReceiptRow('סכום משיכה (' + pctLbl + ')', fmt(grossK) + ' K ₪', '#1e293b')
     + _sfReceiptRow('ניכוי הפקדות יחסי', '− ' + fmt(mPropK) + ' K ₪', '#6b7280')
     + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
@@ -18008,6 +18109,9 @@ function _sfRecalculate() {
   }
   // Pie chart uses growth-adjusted projItem segments for accurate breakdown
   var projItem   = Object.assign({}, item, { balance: projBalK, taxSegments: grownSegs });
+  var _hasTikratData = grownSegs.some(function(s) {
+    return (Number(s.tikrat) === 1 || Number(s.tikrat) === 2) && Number(s.accumulation) > 0;
+  });
   var seg  = _sfCalcSegments(projItem);
   var exP  = seg.exemptPrincipal;
   var txP  = seg.taxablePrincipal;
@@ -18023,24 +18127,47 @@ function _sfRecalculate() {
   var _manualData    = _sfLoadManualData(item.assetNum);
   var _manualReceipt = null;
   if (_manualData && _manualData.principalAmount) {
-    var _mPrinK    = Number(_manualData.principalAmount) / 1000;
-    var _mPropK    = _mPrinK * pctFraction;
-    var _mTxProfK  = Math.max(0, grossK - _mPropK);
-    taxDueK        = _mTxProfK * 0.25;
-    netK           = grossK - taxDueK;
-    _manualReceipt = _sfBuildManualReceipt(grossK, _mPrinK, pctFraction, _mPropK, _mTxProfK, taxDueK, netK);
-    taxDetails     = Object.assign({}, taxDetails, {
-      totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
-      explanation: {
-        templateId: 'SF_MANUAL_CALIBRATION',
-        rendered:   '<div style="color:#16a34a;font-weight:700;">החישוב מבוסס על נתונים שהוזנו ידנית</div>'
-      }
-    });
+    var _mPrinK = Number(_manualData.principalAmount) / 1000;
+    if (_hasTikratData && grownSegs.length > 0) {
+      // Tikrat-proportional: distribute entered principal across segments by accumulation share
+      var _totalAccumK = grownSegs.reduce(function(s, g) { return s + (Number(g.accumulation) || 0); }, 0);
+      var _segsWithDep = _totalAccumK > 0
+        ? grownSegs.map(function(g) {
+            return Object.assign({}, g, { deposits: _mPrinK * (Number(g.accumulation) / _totalAccumK) });
+          })
+        : grownSegs;
+      var _projWithDep = Object.assign({}, projItem, { taxSegments: _segsWithDep });
+      var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, window.REAL_TAX_CONFIG || {});
+      taxDueK = _tikratTaxDetails.totalTaxDue;
+      netK    = _tikratTaxDetails.netToBank;
+      taxDetails = Object.assign({}, _tikratTaxDetails, {
+        explanation: {
+          templateId: 'SF_MANUAL_CALIBRATION',
+          rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
+        }
+      });
+    } else {
+      // No tikrat data — flat 25% on profit (legacy path)
+      var _mPropK   = _mPrinK * pctFraction;
+      var _mTxProfK = Math.max(0, grossK - _mPropK);
+      taxDueK = _mTxProfK * 0.25;
+      netK    = grossK - taxDueK;
+      taxDetails = Object.assign({}, taxDetails, {
+        totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
+        explanation: {
+          templateId: 'SF_MANUAL_CALIBRATION',
+          rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
+        }
+      });
+    }
+    _manualReceipt = _sfBuildManualReceipt(grossK, _mPrinK, pctFraction, _mPrinK * pctFraction, Math.max(0, grossK - _mPrinK * pctFraction), taxDueK, netK);
     _sfLastTaxDetails = taxDetails;
   }
 
   // ── Push-UX ──────────────────────────────────────────────────────────────
   var _pushMsgEl = document.getElementById('sf-tax-inline-msg');
+  var _segEl = document.getElementById('sf-tax-segments');
+  if (_segEl) _segEl.innerHTML = '';
   if (_pushMsgEl) {
     var _pushTid = taxDetails.explanation.templateId;
     if (_pushTid === 'SF_MISSING_XML') {
@@ -18048,9 +18175,14 @@ function _sfRecalculate() {
       _pushMsgEl.innerHTML        = taxDetails.explanation.rendered;
       _pushMsgEl.style.visibility = 'visible';
     } else if (_pushTid === 'SF_MANUAL_CALIBRATION') {
-      _pushMsgEl.style.color      = '#16a34a';
-      _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">החישוב מבוסס על נתונים שהוזנו ידנית</div>';
+      _pushMsgEl.style.color      = '#6b7280';
+      _pushMsgEl.innerHTML        = 'החישוב משלב נתוני מסלקה ונתונים ידניים.';
       _pushMsgEl.style.visibility = 'visible';
+    } else if (_pushTid === 'SF_UNKNOWN_SENIORITY') {
+      _pushMsgEl.style.color      = '#6b7280';
+      _pushMsgEl.innerHTML        = 'חישוב המס המוצג שמרני. הזן סך הפקדות ידני לחישוב מדויק.';
+      _pushMsgEl.style.visibility = 'visible';
+      if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
     } else if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
       var _dateStr = taxDetails.joinDateFormatted
         ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
@@ -18058,9 +18190,8 @@ function _sfRecalculate() {
       _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
       _pushMsgEl.style.visibility = 'visible';
     } else if (_pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
-      _pushMsgEl.style.color      = '#1e293b';
-      _pushMsgEl.innerHTML        = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-      _pushMsgEl.style.visibility = 'visible';
+      if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
+      _pushMsgEl.style.visibility = 'hidden';
     }
   }
 
@@ -18071,13 +18202,52 @@ function _sfRecalculate() {
                        taxDetails.explanation.templateId === 'SF_UNKNOWN_SENIORITY' ||
                        taxDetails.explanation.templateId === 'SF_MANUAL_CALIBRATION');
     _calibFormEl.style.display = _needsCalib ? '' : 'none';
-    if (_needsCalib && _manualData) {
+    var _sourceBoxEl = document.getElementById('sf-xml-dropzone');
+    if (_sourceBoxEl) _sourceBoxEl.style.display = _needsCalib ? '' : 'none';
+    if (_needsCalib) {
       var _pEl  = document.getElementById('sf-manual-principal');
       var _dEl  = document.getElementById('sf-manual-joindate');
       var _clEl = document.getElementById('sf-calibration-clear-btn');
-      if (_pEl  && !_pEl.value)  _pEl.value  = _manualData.principalAmount || '';
-      if (_dEl  && !_dEl.value)  _dEl.value  = _manualData.joinDate        || '';
-      if (_clEl) _clEl.style.display = '';
+      var _hint = document.getElementById('sf-calibration-hint');
+
+      // 1. Pre-fill from localStorage — user's saved input takes precedence
+      if (_manualData) {
+        if (_pEl && !_pEl.value) _pEl.value = _manualData.principalAmount ? (_manualData.principalAmount / 1000) : '';
+        if (_dEl && !_dEl.value) _dEl.value = _manualData.joinDate        || '';
+        if (_clEl && _manualData.principalAmount) _clEl.style.display = '';
+        var _sEl = document.getElementById('sf-source-note');
+        if (_sEl && !_sEl.value && _manualData.sourceNote) {
+          _sEl.value = _manualData.sourceNote;
+          var _slEl = document.getElementById('sf-source-label');
+          if (_slEl) _slEl.textContent = 'מקור הנתונים על פי המשתמש:';
+        }
+      }
+
+      // Dynamic label: reflect whether deposits are saved
+      var _lblEl = document.getElementById('sf-manual-input-label');
+      if (_lblEl) {
+        _lblEl.innerHTML = (_manualData && _manualData.principalAmount)
+          ? 'סך הפקדות שהוזנו ידנית:'
+          : 'לחישוב מס מדויק הזן סך הפקדות:';
+      }
+
+      // 2. If date field still empty, auto-fill from item.joinDate (AI-extracted)
+      var _autoFilledDate = false;
+      if (_dEl && !_dEl.value && item.joinDate) {
+        var _jd = String(item.joinDate).trim();
+        if (/^\d{8}$/.test(_jd)) _jd = _jd.slice(0,4) + '-' + _jd.slice(4,6) + '-' + _jd.slice(6,8);
+        if (/^\d{4}-\d{2}-\d{2}/.test(_jd)) { _dEl.value = _jd; _autoFilledDate = true; }
+      }
+
+      // 3. Show/hide explanatory hint
+      if (_hint) {
+        if (_autoFilledDate && !(_manualData && _manualData.principalAmount)) {
+          _hint.innerHTML = 'תאריך הפתיחה זוהה אוטומטית. קובץ המסלקה אינו מכיל את סך ההפקדות ההיסטוריות. להשלמת חישוב מס מדויק, אנא הזן את סך ההפקדות, או השאר ריק לחישוב שמרני מחמיר.';
+          _hint.style.display = '';
+        } else {
+          _hint.style.display = 'none';
+        }
+      }
     }
   }
 
@@ -18130,17 +18300,13 @@ function _sfRecalculate() {
 
   _sfUpdatePieChart(grossK, taxDueK, taxDetails.exemptionApplied);
 
-  // Show formula receipt inside calibration form card
-  var _receiptEl = document.getElementById('sf-calibration-receipt');
-  if (_receiptEl) {
-    if (_manualReceipt) {
-      _receiptEl.innerHTML     = _manualReceipt;
-      _receiptEl.style.display = '';
-    } else {
-      _receiptEl.innerHTML     = '';
-      _receiptEl.style.display = 'none';
-    }
+  // Route manual receipt to collapsible sf-tax-segments
+  var _receiptEl = document.getElementById('sf-tax-segments');
+  if (_receiptEl && _manualReceipt) {
+    _receiptEl.innerHTML = _manualReceipt;
   }
+  var _calibReceiptEl = document.getElementById('sf-calibration-receipt');
+  if (_calibReceiptEl) { _calibReceiptEl.innerHTML = ''; _calibReceiptEl.style.display = 'none'; }
 }
 
 function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {

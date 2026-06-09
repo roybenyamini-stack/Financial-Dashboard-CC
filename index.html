@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.37</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.54</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -2993,16 +2993,16 @@
 <div id="sf-analysis-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10205;width:min(860px,96vw);max-height:92vh;overflow-y:auto;background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.28);direction:rtl;font-family:Heebo,sans-serif;">
 
   <!-- Header bar -->
-  <div style="background:#1a1a2e;color:white;padding:14px 22px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-    <button onclick="ffsCloseStudyFundModal()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0;">&#x2715;</button>
+  <div style="background:#1a1a2e;color:white;padding:14px 22px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;direction:rtl;">
     <div style="text-align:right;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">צבירה (K &#x20AA;)</div>
+      <div id="sf-total-balance" style="font-size:16px;font-weight:800;color:#ffffff;"></div>
+    </div>
+    <div style="flex:1;text-align:center;">
       <div id="sf-fund-name" style="font-size:16px;font-weight:800;"></div>
       <div id="sf-fund-id" style="font-size:11px;color:#94a3b8;margin-top:2px;"></div>
     </div>
-    <button onclick="_sfToggleAgentPanel()"
-      style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;
-             border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;white-space:nowrap;
-             font-family:Heebo,sans-serif;font-weight:600;">Agent JSON</button>
+    <button onclick="ffsCloseStudyFundModal()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0;">&#x2715;</button>
   </div>
 
   <!-- Agent JSON import panel — hidden by default, toggled via header button -->
@@ -3022,31 +3022,22 @@
     </div>
   </div>
 
-  <!-- Simulation title — primary heading, below fund header -->
-  <div style="padding:8px 24px 4px;text-align:right;">
-    <div style="font-size:13px;font-weight:800;color:#1e293b;">סימולציית משיכה</div>
-  </div>
-
-  <!-- Message board — own row; min-height reserves space to prevent modal jumping -->
+  <!-- Notice board -->
   <div id="sf-tax-inline-msg"
-       style="padding:0 24px 8px;font-size:14px;color:#1d4ed8;font-weight:600;
-              line-height:1.5;text-align:right;min-height:100px;direction:rtl;
-              display:flex;flex-direction:column;gap:8px;align-items:flex-start;
-              justify-content:flex-start;visibility:hidden;"></div>
+       style="padding:4px 24px;font-size:12px;color:#6b7280;font-weight:600;
+              line-height:1.4;text-align:center;direction:rtl;
+              width:100%;box-sizing:border-box;visibility:hidden;margin-bottom:8px;"></div>
 
-  <!-- Summary bar — 3 flex cols: balance | calibration (center, flex:1) | liquidity -->
-  <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
-    <div>
-      <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">צבירה נוכחית (K &#x20AA;)</div>
-      <div id="sf-total-balance" style="font-size:22px;font-weight:800;color:#1e293b;"></div>
-    </div>
-    <div id="sf-calibration-form" style="flex:1;display:none;direction:rtl;">
+  <!-- Calibration form bar — full width -->
+  <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;">
+    <div id="sf-calibration-form" style="display:none;direction:rtl;">
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:#6b7280;white-space:nowrap;flex-shrink:0;">כוונון ידני:</span>
-        <input id="sf-manual-principal" type="number" min="0" step="1000"
-               style="max-width:130px;border:1px solid #d1d5db;border-radius:6px;
+        <span id="sf-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;flex-shrink:0;">לחישוב מס מדויק הזן סך הפקדות:</span>
+        <input id="sf-manual-principal" type="number" min="0" step="1"
+               style="max-width:100px;border:1px solid #d1d5db;border-radius:6px;
                       padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;text-align:right;"
-               placeholder="₪ הפקדות">
+               placeholder="0">
+        <span style="font-size:11px;color:#6b7280;flex-shrink:0;">K &#x20AA;</span>
         <input id="sf-manual-joindate" type="date"
                style="max-width:140px;border:1px solid #d1d5db;border-radius:6px;
                       padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;">
@@ -3059,44 +3050,72 @@
                        padding:4px 10px;font-size:11px;color:#6b7280;cursor:pointer;
                        font-family:Heebo,sans-serif;white-space:nowrap;">מחק</button>
       </div>
+      <div id="sf-calibration-hint"
+           style="display:none;margin-top:4px;padding:4px 8px;font-size:10px;color:#6b7280;
+                  direction:rtl;text-align:right;font-family:Heebo,sans-serif;line-height:1.5;">
+      </div>
       <div id="sf-calibration-receipt"
-           style="display:none;margin-top:6px;font-size:11px;direction:rtl;text-align:center;
+           style="display:none;margin-top:6px;font-size:11px;direction:rtl;text-align:right;
                   font-family:Heebo,sans-serif;color:#374151;">
       </div>
     </div>
-    <div>
-      <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">סטטוס נזילות</div>
-      <div id="sf-liquidity-badge" style="font-size:13px;font-weight:700;"></div>
+    <!-- Data source note -->
+    <div id="sf-xml-dropzone"
+         style="margin-top:4px;padding:4px 12px;direction:rtl;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span id="sf-source-label" style="font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0;">הזן מקור נתונים (אופציונלי):</span>
+      <input id="sf-source-note" type="text"
+             oninput="_sfSaveSourceNote()"
+             style="width:250px;border:none;border-bottom:1px solid #e5e7eb;background:none;font-size:11px;
+                    color:#374151;outline:none;direction:rtl;font-family:Heebo,sans-serif;
+                    padding-bottom:2px;">
     </div>
   </div>
 
-  <!-- Results | Pie — 2-column row (legend removed) -->
-  <div style="padding:14px 24px;border-bottom:1px solid #e5e7eb;display:flex;flex-direction:row-reverse;justify-content:space-evenly;gap:24px;align-items:center;flex-wrap:wrap;">
-    <!-- LEFT: 3 result boxes, vertically centered relative to chart -->
-    <div style="display:flex;flex-direction:column;gap:12px;min-width:120px;">
-      <div>
-        <div id="sf-gross-label" style="font-size:10px;color:#6b7280;margin-bottom:2px;">סכום משיכה גולמי (K &#x20AA;)</div>
-        <div id="sf-gross-withdrawal" style="font-size:19px;font-weight:800;color:#2563eb;"></div>
-      </div>
-      <div>
-        <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">חבות מס (K &#x20AA;)</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div id="sf-tax-due" style="font-size:19px;font-weight:800;color:#dc2626;"></div>
-          <button id="sf-tax-info-btn" onclick="_sfToggleTaxMsg()" title="פרטי חישוב המס"
-            style="background:none;border:1px solid #d1d5db;border-radius:50%;width:20px;height:20px;
-                   font-size:11px;cursor:pointer;color:#6b7280;padding:0;
-                   flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            <i class="fas fa-info-circle"></i></button>
+  <!-- Main data area: RTL 2-column — pie always visible -->
+  <div style="display:flex;direction:rtl;align-items:flex-start;justify-content:center;gap:24px;padding:14px 24px;border-bottom:1px solid #e5e7eb;">
+
+    <!-- RIGHT column (first child in RTL): Pie chart — always visible -->
+    <div id="sf-tax-pie" style="flex-shrink:0;">
+      <canvas id="sf-pie-chart" width="160" height="160"></canvas>
+    </div>
+
+    <!-- LEFT column (second child in RTL): Summary + toggle + segments -->
+    <div style="display:flex;flex-direction:column;flex:1;max-width:55%;gap:12px;direction:rtl;padding-right:24px;padding-left:24px;">
+
+      <!-- 3 summary boxes — CSS Grid for stable equal-width columns -->
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:16px;">
+        <div style="display:flex;flex-direction:column;">
+          <div id="sf-gross-label" style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">סכום משיכה גולמי (K &#x20AA;)</div>
+          <div id="sf-gross-withdrawal" style="font-size:17px;font-weight:800;color:#2563eb;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">חבות מס (K &#x20AA;)</div>
+          <div id="sf-tax-due" style="font-size:17px;font-weight:800;color:#dc2626;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">נטו לכיס (K &#x20AA;)</div>
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:nowrap;">
+            <div id="sf-net-bank" style="font-size:17px;font-weight:800;color:#16a34a;"></div>
+            <div id="sf-remaining-balance" style="font-size:10px;color:#94a3b8;font-weight:500;white-space:nowrap;"></div>
+          </div>
         </div>
       </div>
+
+      <!-- Toggle + collapsible detail segments -->
       <div>
-        <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">נטו לכיס (K &#x20AA;)</div>
-        <div id="sf-net-bank" style="font-size:19px;font-weight:800;color:#16a34a;"></div>
-        <div id="sf-remaining-balance" style="font-size:13px;color:#475569;font-weight:800;margin-top:6px;"></div>
+        <div onclick="_sfToggleDetails()"
+             style="cursor:pointer;display:flex;justify-content:flex-start;gap:8px;
+                    align-items:center;padding:4px 0;user-select:none;
+                    border-top:1px solid #f1f5f9;direction:rtl;">
+          <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
+          <span id="sf-details-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
+        </div>
+        <div id="sf-tax-segments" style="display:none;margin-top:6px;
+             font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;padding-left:24px;padding-right:24px;">
+        </div>
       </div>
+
     </div>
-    <!-- RIGHT: Pie chart -->
-    <canvas id="sf-pie-chart" width="190" height="190" style="flex-shrink:0;"></canvas>
   </div>
 
   <!-- Sliders — simulation controls -->
