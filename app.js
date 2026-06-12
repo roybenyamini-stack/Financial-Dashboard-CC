@@ -8579,8 +8579,6 @@ function ffsGetTotalInvestmentsK() {
 function ffsGetPensionAccumK() {
   if (!FFS_PROFILE.pension || !FFS_PROFILE.pension.length) return 0;
   return FFS_PROFILE.pension.reduce(function(s, x) {
-    // v177.46: strict active-only — skip inactive or zero records to prevent ghost balance
-    if (x.isActive === false) return s;
     var v = Number(x.accumulation);
     if (!isFinite(v) || v <= 0) return s;
     return s + v;
@@ -8852,7 +8850,7 @@ function simGetRoyPensionAccum() {
   // v177.90: pension_logic.md SSOT — only capital assets (pensionType=manager or isBituachMenahalim) count; קרן פנסיה is cash-flow only
   if (!isExcelLoaded() && FFS_PROFILE.pension && FFS_PROFILE.pension.length) {
     FFS_PROFILE.pension.forEach(function(x) {
-      if (x.isActive !== false && (x.pensionType === 'manager' || x.isBituachMenahalim)) total += (x.accumulation || 0) * 1000;
+      if (x.pensionType === 'manager' || x.isBituachMenahalim) total += (x.accumulation || 0) * 1000;
     });
   }
   return total;
@@ -8881,7 +8879,7 @@ function simGetRoyHarelAccum() {
   // v177.94: added isActive filter to match simRunEngine FFS init (prevents inactive items creating phantom Harel layer)
   if (!isExcelLoaded() && FFS_PROFILE.pension && FFS_PROFILE.pension.length) {
     FFS_PROFILE.pension.forEach(function(x) {
-      if (x.isActive !== false && x.pensionType === 'manager') total += (x.accumulation || 0) * 1000; // K₪ → ₪
+      if (x.pensionType === 'manager') total += (x.accumulation || 0) * 1000; // K₪ → ₪
     });
   }
   return total;
@@ -9208,6 +9206,9 @@ function ffsSavePensionFromModal() {
   }
   ffsSaveProfile();
   ffsRenderSection('pension');
+  var _mg = document.getElementById('mgrid-modal');
+  if (_mg && _mg.style.display !== 'none') renderMasterGrid();
+  ffsUpdateLiveSidebar();
   ffsClosePensionModal();
   var _toastMsg = isEdit ? 'הפוליסה עודכנה' : 'הפוליסה נוספה';
   showToast(_toastMsg, '#10b981', 2500);
@@ -10053,10 +10054,16 @@ function ffsApproveAsset(section, id) {
     ffsSaveProfile();
     ffsRenderSection('investments');
     ffsRenderSection('pension');
+    var _mg = document.getElementById('mgrid-modal');
+    if (_mg && _mg.style.display !== 'none') renderMasterGrid();
+    ffsUpdateLiveSidebar();
     return;
   }
   ffsSaveProfile();
   ffsRenderSection(section);
+  var _mg = document.getElementById('mgrid-modal');
+  if (_mg && _mg.style.display !== 'none') renderMasterGrid();
+  ffsUpdateLiveSidebar();
 }
 // v177.38: AI Import Modal
 function ffsOpenImportModal() {
@@ -10441,7 +10448,7 @@ function ffsUpdateLiveSidebar() {
   // תזרים נטו — monthly savings
   if (cashflowEl) {
     var sav = FFS_PROFILE.monthlySavings || 0;
-    cashflowEl.textContent = sav > 0 ? ('₪' + sav.toLocaleString('he-IL') + '/חודש') : '—';
+    cashflowEl.textContent = sav > 0 ? (sav.toLocaleString('he-IL') + ' ₪/ח\'') : '—';
   }
 
   // Breakdown rows: השקעות | נדל"ן | פנסיה
@@ -11359,7 +11366,11 @@ function simRunEngine() {
     for (var _fj = 0; _fj < _ffsManagerCaps.length; _fj++) {
       _fmgTotal += Math.max(0, Math.round(_ffsManagerCaps[_fj]));
     }
-    royData.push(liqVal + phxVal + hrlVal + reVal + _fmgTotal);
+    if (APP_MODE === 'SIMULATOR') {
+      royData.push(liqVal + reVal + _fmgTotal);
+    } else {
+      royData.push(liqVal + phxVal + hrlVal + reVal + _fmgTotal);
+    }
     yaelData.push(Math.max(0, Math.round(yaelCapital)));
     // v177.93: record per-item FFS snapshots
     for (var _fi = 0; _fi < _ffsManagerData.length; _fi++) {
@@ -11617,15 +11628,20 @@ function simRenderChart(result) {
         var _ffsBg  = ['rgba(59,130,246,0.22)','rgba(139,92,246,0.22)','rgba(245,158,11,0.22)','rgba(16,185,129,0.22)','rgba(239,68,68,0.22)','rgba(6,182,212,0.22)','rgba(249,115,22,0.22)'];
         var _ffsBdr = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
         var _ffsCum = liqTop.slice();
+        var _ffsShorten = function(s) {
+          var _m = [['הפניקס','הפניקס'],['הראל','הראל'],['אלטשולר','אלטשולר'],['מיטב','מיטב'],['מנורה','מנורה'],['כלל','כלל'],['מגדל','מגדל'],['מור','מור']];
+          for (var _i = 0; _i < _m.length; _i++) { if (s.indexOf(_m[_i][0]) !== -1) return _m[_i][1]; }
+          return s;
+        };
         var _ffsLblCount = {};
-        _ffsItems.forEach(function(p) { var l = p.name || p.provider || 'פנסיה'; _ffsLblCount[l] = (_ffsLblCount[l]||0)+1; });
+        _ffsItems.forEach(function(p) { var l = _ffsShorten(p.name || p.provider || 'פנסיה'); _ffsLblCount[l] = (_ffsLblCount[l]||0)+1; });
         var _ffsLblIdx = {};
         _ffsItems.forEach(function(p, idx) {
-          var baseLbl = p.name || p.provider || 'פנסיה';
+          var baseLbl = _ffsShorten(p.name || p.provider || 'פנסיה');
           var displayLbl = baseLbl;
           if (_ffsLblCount[baseLbl] > 1) {
             _ffsLblIdx[baseLbl] = (_ffsLblIdx[baseLbl]||0)+1;
-            displayLbl = p.accountNum ? baseLbl + ' ' + p.accountNum : baseLbl + ' ' + _ffsLblIdx[baseLbl];
+            displayLbl = baseLbl + ' ' + _ffsLblIdx[baseLbl];
           }
           var itemRaw = _ffsData[idx];
           var itemTop = _ffsCum.map(function(v, i) { return v + (itemRaw[i] || 0); });
@@ -11712,15 +11728,20 @@ function simRenderChart(result) {
         var _cFfsBg  = ['rgba(59,130,246,0.22)','rgba(139,92,246,0.22)','rgba(245,158,11,0.22)','rgba(16,185,129,0.22)','rgba(239,68,68,0.22)','rgba(6,182,212,0.22)','rgba(249,115,22,0.22)'];
         var _cFfsBdr = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
         var _cFfsCum = _cLiqTop.slice();
+        var _cFfsShorten = function(s) {
+          var _map = [['הפניקס','הפניקס'],['הראל','הראל'],['אלטשולר','אלטשולר'],['מיטב','מיטב'],['מנורה','מנורה'],['כלל','כלל'],['מגדל','מגדל'],['מור','מור']];
+          for (var _i = 0; _i < _map.length; _i++) { if (s.indexOf(_map[_i][0]) !== -1) return _map[_i][1]; }
+          return s;
+        };
         var _cFfsLblCount = {};
-        _cFfsItems.forEach(function(p) { var l = p.name || p.provider || 'פנסיה'; _cFfsLblCount[l] = (_cFfsLblCount[l]||0)+1; });
+        _cFfsItems.forEach(function(p) { var l = _cFfsShorten(p.name || p.provider || 'פנסיה'); _cFfsLblCount[l] = (_cFfsLblCount[l]||0)+1; });
         var _cFfsLblIdx = {};
         _cFfsItems.forEach(function(p, idx) {
-          var baseLbl = p.name || p.provider || 'פנסיה';
+          var baseLbl = _cFfsShorten(p.name || p.provider || 'פנסיה');
           var displayLbl = baseLbl;
           if (_cFfsLblCount[baseLbl] > 1) {
             _cFfsLblIdx[baseLbl] = (_cFfsLblIdx[baseLbl]||0)+1;
-            displayLbl = p.accountNum ? baseLbl + ' ' + p.accountNum : baseLbl + ' ' + _cFfsLblIdx[baseLbl];
+            displayLbl = baseLbl + ' ' + _cFfsLblIdx[baseLbl];
           }
           var itemRaw = _cFfsData[idx];
           var itemTop = _cFfsCum.map(function(v, i) { return v + (itemRaw[i] || 0); });
@@ -16923,6 +16944,17 @@ function masterGridSetLiquidity(section, id, val) {
   item.liquidity = val;
   ffsSaveProfile();
 }
+function masterGridUpdateAccum(section, id, val) {
+  var arr = FFS_PROFILE[section];
+  if (!arr) return;
+  var item = arr.find(function(x) { return x.id === id; });
+  if (!item) return;
+  var numVal = parseFloat(val);
+  if (isNaN(numVal) || numVal < 0) return;
+  if (section === 'investments') { item.balance = numVal; } else { item.accumulation = numVal; }
+  ffsSaveProfile();
+  ffsUpdateLiveSidebar();
+}
 function masterGridDeleteItem(section, id) {
   ffsRemoveItem(section, id);
   var attempts = 0;
@@ -16964,6 +16996,7 @@ function renderMasterGrid() {
                   : (item.category || (item.pensionType === 'manager' ? 'ביטוח מנהלים' : item.pensionSubtype === 'vatiqa' ? 'קרן ותיקה' : 'קרן פנסיה'));
     var track     = item.trackName || item.track || item.maslul || item.maslulName || item.maslul_name || item.type || '—';
     var balance   = section === 'investments' ? (item.balance || 0) * 1000 : (item.accumulation || 0) * 1000;
+    var rawK      = section === 'investments' ? (item.balance || 0) : (item.accumulation || 0);
     var safeId    = item.id.replace(/'/g, "\\'");
     var activeBtn = item.isActive
       ? '<span onclick="masterGridToggleActive(\''+section+'\',\''+safeId+'\')" title="לחץ לשינוי סטטוס" style="cursor:pointer;font-size:16px;">🟢</span>'
@@ -16990,7 +17023,7 @@ function renderMasterGrid() {
       + '<td style="'+td+'color:#475569;">'+assetType+'</td>'
       + '<td style="'+td+'color:#64748b;">'+track+'</td>'
       + '<td style="'+td+'font-family:monospace;color:#334155;">'+polisa+'</td>'
-      + '<td style="'+td+'font-weight:400;color:#0f172a;">'+fmtK(balance)+'</td>'
+      + '<td style="padding:0;overflow:hidden;"><input type="number" value="'+rawK+'" min="0" step="1" title="לחץ לעריכה" style="border:none;border-bottom:1px solid transparent;background:transparent;padding:7px 8px;font-size:12px;font-family:Heebo,sans-serif;color:#0f172a;font-weight:400;width:100%;text-align:center;outline:none;box-sizing:border-box;transition:border-color 0.15s;" onfocus="this.style.borderBottomColor=\'#3b82f6\'" onblur="this.style.borderBottomColor=\'transparent\';masterGridUpdateAccum(\''+section+'\',\''+safeId+'\',this.value)"></td>'
       + '<td style="padding:7px 10px;text-align:center;">'+activeBtn+'</td>'
       + '<td style="padding:7px 10px;text-align:right;">'+liqSel+'</td>'
       + '<td style="padding:7px 10px;text-align:center;">'+actions+'</td>'
@@ -17006,7 +17039,17 @@ function renderMasterGrid() {
       + label + ' <span style="font-size:11px;opacity:0.85;font-weight:400;">(' + subtitle + ')</span></div></td></tr>';
   };
   var pension     = FFS_PROFILE.pension     || [];
-  var investments = FFS_PROFILE.investments || [];
+  var _rawInv    = FFS_PROFILE.investments || [];
+  var _invCatOrd = [], _invCatMap = {};
+  var _liqKeys   = ['עו"ש', 'עו"ש $', 'קרן כספית'];
+  _rawInv.forEach(function(item) {
+    var cat = item.category || 'אחר';
+    var key = _liqKeys.indexOf(cat) !== -1 ? 'נזיל' : cat;
+    if (!_invCatMap[key]) { _invCatMap[key] = []; _invCatOrd.push(key); }
+    _invCatMap[key].push(item);
+  });
+  var investments = [];
+  _invCatOrd.forEach(function(k) { _invCatMap[k].forEach(function(x) { investments.push(x); }); });
   var managers  = pension.filter(function(x){ return x.pensionType === 'manager' || x.isBituachMenahalim; });
   var pensionAll = pension.filter(function(x){ return x.pensionType !== 'manager' && !x.isBituachMenahalim; });
   var html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;direction:rtl !important;text-align:right;font-size:14px;font-family:Heebo,sans-serif;">'
@@ -17299,6 +17342,12 @@ function ffsOpenStudyFundModal(itemId) {
   _sfRenderTimelineTicks();
   _sfSyncAllSliders();
   _sfRecalculate();
+
+  // Tax details always open on modal open
+  var _taxPanel = document.getElementById('sf-tax-segments');
+  var _taxChevron = document.getElementById('sf-details-chevron');
+  if (_taxPanel) _taxPanel.style.display = 'block';
+  if (_taxChevron) _taxChevron.innerHTML = '&#9650;';
 
   var bd = document.getElementById('sf-analysis-backdrop');
   var md = document.getElementById('sf-analysis-modal');
