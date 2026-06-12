@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.54</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.68</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1266,6 +1266,8 @@
 .ffs-tip:hover{color:#3b82f6;}
 .ffs-tip-body{display:none;position:absolute;bottom:calc(100% + 7px);right:50%;transform:translateX(50%);background:#1e293b;color:#f1f5f9;font-family:Heebo,sans-serif;font-size:11px;font-weight:400;padding:9px 13px;border-radius:9px;white-space:normal;width:max-content;max-width:280px;line-height:1.65;z-index:9999;pointer-events:none;direction:rtl;text-align:right;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);}
 .ffs-tip:hover .ffs-tip-body{display:block;}
+#ffs-drawer-body input:not([type="range"]):not(#ffs-monthly-savings),
+#ffs-drawer-body select{padding:7px 10px!important;font-size:13px!important;border-radius:8px!important;}
 </style>
 <div id="mkt-wrap">
 
@@ -1581,7 +1583,7 @@
   <div style="font-size:11px;font-weight:800;color:#a5b4fc;margin-bottom:8px;">✨ איך זה עובד?</div>
   <div style="font-size:11px;color:rgba(255,255,255,0.72);line-height:1.9;">
     <div><strong style="color:#f9a8d4;">הזנת נתונים</strong> בתפריט בצד ימין.</div>
-    <div><strong style="color:rgba(255,255,255,0.88);">בדוק מדדי צבירה</strong> בחלונית משמאל.</div>
+    <div><strong style="color:rgba(255,255,255,0.88);">בדוק צבירות</strong> בכרטיסיות למעלה.</div>
     <div>לחץ <strong style="color:#93c5fd;">הפעל סימולטור</strong> לראות השפעה.</div>
   </div>
   <button onclick="ffsToggleHelp()" style="margin-top:10px;font-size:10px;color:rgba(255,255,255,0.38);background:none;border:none;cursor:pointer;font-family:Heebo,sans-serif;padding:0;display:block;width:100%;text-align:center;">סגור ×</button>
@@ -1591,24 +1593,36 @@
 <div id="ffs-backdrop" onclick="closeFFSDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10099;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);"></div>
 <div id="ffs-drawer" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:1680px;height:88vh;z-index:10100;border-radius:20px;overflow:hidden;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 32px 100px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s ease,transform 0.25s ease;">
 
-  <!-- === MODAL HEADER === -->
-  <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:16px 28px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div id="ffs-drawer-title" style="color:white;font-size:16px;font-weight:800;letter-spacing:0.1px;">👤 מציג: אורח</div>
-      <div style="color:rgba(255,255,255,0.38);font-size:11px;">כיול נתונים אישיים לסימולטור</div>
-      <div id="ffs-excel-badge" style="display:none;background:rgba(59,130,246,0.22);border:1px solid rgba(96,165,250,0.45);color:#93c5fd;font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;letter-spacing:0.2px;">📊 נתוני אקסל פעילים — עריכה ידנית מושבתת</div>
+  <!-- === MODAL HEADER (v181.63) === -->
+  <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);gap:12px;">
+    <span onclick="closeFFSDrawer()" style="color:rgba(255,255,255,0.5);cursor:pointer;font-size:22px;line-height:1;padding:3px 8px;border-radius:7px;transition:color 0.15s;flex-shrink:0;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">✕</span>
+    <div style="display:flex;align-items:center;gap:0;flex:1;direction:rtl;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto;">
+        <input type="file" id="ffs-salkah-file-input" accept="image/*,.pdf" style="display:none;" onchange="ffsSalkahFileChange(event)">
+        <label class="cc-btn" title="טעינת פרופיל JSON" style="cursor:pointer;">📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)"></label>
+        <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
+        <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
+        <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="תצוגת טבלה">תצוגת טבלה <i class="fas fa-table"></i></button>
+        <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
+      </div>
+      <span style="border-right:1px solid rgba(255,255,255,0.2);height:24px;margin-left:10px;margin-right:10px;flex-shrink:0;display:inline-block;"></span>
+      <div style="display:flex;align-items:center;gap:6px;margin-right:25px;">
+        <button class="cc-btn" onclick="ffsLoadYoavProfile()" title="טען פרופיל לדוגמה">🎯 דוגמה</button>
+        <button class="cc-btn cc-btn-clear" onclick="ffsResetAndReload()" title="נקה את כל הנתונים">🗑️ נקה הכל</button>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
       <div id="ffs-source-switch" style="display:none;">
         <button id="ffs-switch-btn" onclick="ffsToggleDataSource()" style="padding:7px 14px;border:none;border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:white;cursor:pointer;background:#dc2626;transition:background 0.15s;">✏️ עבור למצב הזנה ידנית (FFS)</button>
       </div>
       <button id="ffs-new-profile-btn" onclick="ffsStartFreshProfile()" style="display:none;padding:7px 14px;border:1px solid rgba(248,113,113,0.45);border-radius:7px;font-family:Heebo,sans-serif;font-size:11px;font-weight:700;color:#fca5a5;cursor:pointer;background:rgba(239,68,68,0.12);">התחל פרופיל חדש 🆕</button>
-      <span onclick="closeFFSDrawer()" style="color:rgba(255,255,255,0.5);cursor:pointer;font-size:22px;line-height:1;padding:3px 8px;border-radius:7px;transition:color 0.15s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">✕</span>
+      <div id="ffs-drawer-title" style="color:white;font-size:14px;font-weight:800;letter-spacing:0.1px;white-space:nowrap;">👤 מציג: אורח</div>
+      <div id="ffs-excel-badge" style="display:none;background:rgba(59,130,246,0.22);border:1px solid rgba(96,165,250,0.45);color:#93c5fd;font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;letter-spacing:0.2px;">📊 נתוני אקסל פעילים — עריכה ידנית מושבתת</div>
     </div>
   </div>
 
   <!-- v177.46: Control Center — Neat minimalist buttons -->
-  <div id="ctrl-center" style="background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 28px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;direction:rtl;">
+  <div id="ctrl-center" style="background:rgba(0,0,0,0.22);border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 28px;display:none !important;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;direction:rtl;">
     <input type="file" id="ffs-salkah-file-input" accept="image/*,.pdf" style="display:none;" onchange="ffsSalkahFileChange(event)">
     <label class="cc-btn" title="טעינת פרופיל JSON" style="cursor:pointer;">
       📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
@@ -1627,13 +1641,41 @@
     <span style="font-size:13px;color:#64748b;font-weight:700;">📋</span>
     <span style="font-size:12px;color:#800020;font-weight:800;">הזן נתונים</span>
     <span style="color:#94a3b8;font-size:16px;">&larr;</span>
-    <span style="font-size:12px;color:#1e293b;font-weight:800;">בדוק מדדי צבירה</span>
+    <span style="font-size:12px;color:#1e293b;font-weight:800;">בדוק צבירות</span>
     <span style="color:#94a3b8;font-size:16px;">&larr;</span>
     <span style="font-size:12px;color:#1e293b;font-weight:800;">לחץ <strong style="color:#3b82f6;">הפעל סימולטור</strong></span>
   </div>
 
+  <!-- === KPI TOP BAR (v181.61) === -->
+  <div id="ffs-kpi-bar" style="display:flex;gap:16px;justify-content:space-between;padding:10px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0;direction:rtl;overflow-x:auto;">
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">סה״כ צבירה</div>
+      <div id="ffs-live-wealth" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">💰 תזרים נטו</div>
+      <div id="ffs-live-cashflow" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">📈 השקעות</div>
+      <div id="ffs-live-inv" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">🏠 נדל״ן</div>
+      <div id="ffs-live-re" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">🏦 פנסיה</div>
+      <div id="ffs-live-pen-accum" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+    <div style="background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);padding:12px 20px;border:1px solid #eaeaea;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px;white-space:nowrap;">🎯 פרישה</div>
+      <div id="ffs-live-retire" style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">—</div>
+    </div>
+  </div>
+
   <!-- === 3-COLUMN BODY === -->
-  <div id="ffs-cards-body" style="display:flex;flex:1;overflow:hidden;min-height:0;height:calc(88vh - 95px);">
+  <div id="ffs-cards-body" style="display:flex;flex:1;overflow:hidden;min-height:0;height:calc(88vh - 175px);">
 
     <!-- === RIGHT: Navigation Column (v170.3) === -->
     <nav style="width:210px;flex-shrink:0;background:#1e293b;padding:18px 10px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;border-left:1px solid rgba(255,255,255,0.12);">
@@ -2077,56 +2119,7 @@
 
     </div><!-- end #ffs-drawer-body -->
 
-    <!-- === LEFT: Current Assets Sidebar (v170.5) === -->
-    <div style="width:250px;flex-shrink:0;background:#0f172a;padding:20px 16px;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.12);">
-      <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.38);letter-spacing:1.6px;text-transform:uppercase;margin-bottom:6px;">מדדי צבירה</div>
-      <div id="ffs-profile-header-name" style="font-size:13px;color:#94a3b8;margin-bottom:14px;"></div>
-
-      <!-- KPI: סה"כ צבירה נוכחית -->
-      <div style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.32);border-radius:14px;padding:18px 16px;margin-bottom:16px;">
-        <div style="font-size:11px;color:#a5b4fc;font-weight:700;margin-bottom:8px;">סה״כ צבירה נוכחית</div>
-        <div id="ffs-live-wealth" style="font-size:22px;font-weight:900;color:#c4b5fd;line-height:1;letter-spacing:-0.5px;">—</div>
-        <div style="font-size:10px;color:rgba(165,180,252,0.55);margin-top:5px;">נכסים פיננסיים + נדל״ן (K ₪)</div>
-      </div>
-
-      <!-- 5 breakdown items in order: תזרים נטו | השקעות | נדל"ן | פנסיה | פרישה -->
-      <div style="display:flex;flex-direction:column;gap:7px;">
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.22);">
-          <span style="font-size:11px;color:#86efac;font-weight:700;">💰 תזרים נטו</span>
-          <span id="ffs-live-cashflow" style="font-size:13px;color:#4ade80;font-weight:800;">—</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">📈 השקעות <span title="נכסים ללא ייעוד מוגדר מחושבים כהון (Capital) כברירת מחדל" style="font-size:10px;color:rgba(255,255,255,0.32);cursor:help;vertical-align:super;margin-right:3px;">ⓘ</span></span>
-          <span id="ffs-live-inv" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🏠 נדל&quot;ן</span>
-          <span id="ffs-live-re" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🏦 פנסיה</span>
-          <span id="ffs-live-pen-accum" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);">
-          <span style="font-size:14px;color:rgba(255,255,255,0.7);font-weight:700;">🎯 פרישה</span>
-          <span id="ffs-live-retire" style="font-size:12px;color:#e2e8f0;font-weight:700;">—</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);">
-          <span style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:700;">📅 אירועים קבועים</span>
-          <span id="ffs-live-fixed-events" style="font-size:12px;color:#94a3b8;font-weight:700;">0</span>
-        </div>
-
-        <div style="margin-top:10px;padding:8px 10px;background:rgba(99,102,241,0.1);border-radius:8px;font-size:10px;color:rgba(165,180,252,0.7);text-align:center;line-height:1.5;">
-          החיזוי לעתיד זמין<br>בגרף הסימולטור הראשי
-        </div>
-      </div>
-    </div><!-- end live summary -->
+    <div style="display:none !important;"></div><!-- sidebar removed v181.61 -->
 
   </div><!-- end 3-column body -->
 
@@ -3108,9 +3101,9 @@
                     align-items:center;padding:4px 0;user-select:none;
                     border-top:1px solid #f1f5f9;direction:rtl;">
           <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
-          <span id="sf-details-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
+          <span id="sf-details-chevron" style="font-size:10px;color:#94a3b8;">&#9650;</span>
         </div>
-        <div id="sf-tax-segments" style="display:none;margin-top:6px;
+        <div id="sf-tax-segments" style="display:block;margin-top:6px;
              font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;padding-left:24px;padding-right:24px;">
         </div>
       </div>
@@ -3132,7 +3125,7 @@
           <div onclick="_sfSnapToRetirement()"
                style="background:#ffffff;color:#4f46e5;border:1px solid #4f46e5;font-size:8px;font-weight:800;
                padding:1px 5px;border-radius:3px;white-space:nowrap;text-align:center;
-               margin-bottom:2px;box-shadow:0 1px 3px rgba(79,70,229,0.15);cursor:pointer;pointer-events:auto;">לפרישה</div>
+               margin-bottom:2px;box-shadow:0 1px 3px rgba(79,70,229,0.15);cursor:pointer;pointer-events:auto;">לגיל פרישה</div>
           <div style="width:2px;height:14px;background:#ef4444;border-radius:1px;margin:0 auto;"></div>
         </div>
         <div id="sf-timeline-ticks-row" style="position:relative;height:18px;margin-top:2px;"></div>
@@ -3145,7 +3138,7 @@
 
     <!-- Investment Yield -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואת השקעות (%)</span>
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואה עד גיל פרישה (%)</span>
       <span id="sf-inv-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
       <input id="sf-inv-return-slider" type="range" min="0" max="15" step="0.5" value="4" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('inv-return')">
       <input id="sf-inv-return-input" type="number" min="0" max="15" step="0.5" value="4" oninput="_sfOnInput('inv-return')"
@@ -3154,10 +3147,10 @@
 
     <!-- Pension Yield -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואת פנסיה (%)</span>
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואה מגיל פרישה (%)</span>
       <span id="sf-pen-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
-      <input id="sf-pen-return-slider" type="range" min="0" max="10" step="0.5" value="3" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('pen-return')">
-      <input id="sf-pen-return-input" type="number" min="0" max="10" step="0.5" value="3" oninput="_sfOnInput('pen-return')"
+      <input id="sf-pen-return-slider" type="range" min="0" max="15" step="0.5" value="3" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('pen-return')">
+      <input id="sf-pen-return-input" type="number" min="0" max="15" step="0.5" value="3" oninput="_sfOnInput('pen-return')"
              style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
     </div>
 
@@ -3165,8 +3158,8 @@
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
       <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">אינפלציה (%)</span>
       <span id="sf-inflation-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;"></span>
-      <input id="sf-inflation-slider" type="range" min="0" max="10" step="0.5" value="2.5" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('inflation')">
-      <input id="sf-inflation-input" type="number" min="0" max="10" step="0.5" value="2.5" oninput="_sfOnInput('inflation')"
+      <input id="sf-inflation-slider" type="range" min="0" max="15" step="0.5" value="2.5" class="pns-slider" style="flex:1;" oninput="_sfOnSlider('inflation')">
+      <input id="sf-inflation-input" type="number" min="0" max="15" step="0.5" value="2.5" oninput="_sfOnInput('inflation')"
              style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
     </div>
 
