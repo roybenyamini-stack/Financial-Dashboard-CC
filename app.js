@@ -17554,16 +17554,41 @@ function _sfSaveSourceNote() {
 
 // ── v181.75: PDF Annual Report extraction ─────────────────────────────────────
 function parseAnnualReportPDF(file) {
-  return new Promise(function(resolve) {
-    var baseK = _sfCurrentItem ? (Number(_sfCurrentItem.balance) || 100) : 100;
-    setTimeout(function() {
-      resolve({
-        exemptPrincipal:  Math.round(baseK * 0.55),
-        exemptProfit:     Math.round(baseK * 0.20),
-        taxablePrincipal: Math.round(baseK * 0.18),
-        taxableProfit:    Math.round(baseK * 0.07)
-      });
-    }, 800);
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function() { reject(new Error('קריאת הקובץ נכשלה')); };
+    reader.onload = function(evt) {
+      // Chunk-encode to base64 to avoid call-stack overflow on large PDFs
+      var bytes  = new Uint8Array(evt.target.result);
+      var binary = '';
+      var chunk  = 8192;
+      for (var i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      var base64 = btoa(binary);
+
+      fetch('http://localhost:3001/api/parse-pdf', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ pdf: base64 })
+      })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e) {
+          throw new Error(e.error || 'שגיאת שרת ' + r.status);
+        });
+        return r.json();
+      })
+      .then(function(data) {
+        resolve({
+          exemptPrincipal:  Number(data.exemptPrincipal)  || 0,
+          exemptProfit:     Number(data.exemptProfit)     || 0,
+          taxablePrincipal: Number(data.taxablePrincipal) || 0,
+          taxableProfit:    Number(data.taxableProfit)    || 0
+        });
+      })
+      .catch(reject);
+    };
+    reader.readAsArrayBuffer(file);
   });
 }
 function _sfLoadPdfData(assetNum) {
@@ -17613,8 +17638,11 @@ function _sfHandlePdfFile(file) {
     _sfSavePdfData(_sfCurrentItem.assetNum, data);
     if (statusEl) { statusEl.style.background = '#f0fdf4'; statusEl.textContent = '✅ נתונים חולצו בהצלחה — מחשב מחדש...'; }
     setTimeout(function() { if (statusEl) statusEl.style.display = 'none'; _sfRecalculate(); }, 1200);
-  }).catch(function() {
-    if (statusEl) { statusEl.style.background = '#fef2f2'; statusEl.textContent = '❌ שגיאה בחילוץ הנתונים'; }
+  }).catch(function(err) {
+    if (statusEl) {
+      statusEl.style.background = '#fef2f2';
+      statusEl.textContent = '❌ ' + (err && err.message ? err.message : 'שגיאה בחילוץ הנתונים');
+    }
   });
 }
 
