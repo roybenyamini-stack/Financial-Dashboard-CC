@@ -52,6 +52,21 @@ app.post('/api/parse-masklaka', async (req, res) => {
   }
 });
 
+// ── /api/debug-api — live Anthropic connectivity check ───────────────────────
+app.get('/api/debug-api', async (req, res) => {
+  const model = 'claude-3-haiku-20240307';
+  try {
+    const msg = await client.messages.create({
+      model,
+      max_tokens: 10,
+      messages: [{ role: 'user', content: 'Reply with the single word: ok' }]
+    });
+    res.json({ status: 'ok', model: msg.model, reply: msg.content[0].text, apiKeyPrefix: (process.env.ANTHROPIC_API_KEY || '').slice(0, 8) + '...' });
+  } catch (err) {
+    res.json({ status: 'error', httpStatus: err.status, message: err.message, errorBody: err.error || null, apiKeyPrefix: (process.env.ANTHROPIC_API_KEY || '(not set)').slice(0, 8) + '...' });
+  }
+});
+
 // ── /api/parse-pdf — extract Keren Hishtalmut tax layers from annual report PDF ──
 const pdfParse = require('pdf-parse');
 
@@ -113,7 +128,8 @@ ${text.slice(0, 12000)}`;
     });
 
   } catch (err) {
-    res.status(500).json({ error: 'Anthropic API error: ' + err.message });
+    console.error('[parse-pdf] Anthropic error:', err.status, err.message, JSON.stringify(err.error || {}));
+    res.status(500).json({ error: 'Anthropic API error: ' + err.message, httpStatus: err.status, detail: err.error || null });
   }
 });
 
