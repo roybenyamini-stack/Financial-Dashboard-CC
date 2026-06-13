@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.79</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.80</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -3027,9 +3027,11 @@
       <div style="display:flex;direction:rtl;align-items:stretch;">
 
         <!-- RIGHT column (first in RTL): manual inputs + source note + buttons -->
-        <div style="flex:1;display:flex;flex-direction:column;gap:6px;justify-content:center;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span id="sf-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;flex-shrink:0;">לחישוב מס מדויק הזן סך הפקדות:</span>
+        <div style="flex:2;display:flex;flex-direction:column;gap:5px;justify-content:center;">
+          <div>
+            <span id="sf-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;">לחישוב מס מדויק הזן סך הפקדות:</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
             <input id="sf-manual-principal" type="number" min="0" step="1"
                    style="max-width:90px;border:1px solid #d1d5db;border-radius:6px;
                           padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;text-align:right;"
@@ -3038,16 +3040,6 @@
             <input id="sf-manual-joindate" type="date"
                    style="max-width:130px;border:1px solid #d1d5db;border-radius:6px;
                           padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;">
-          </div>
-          <div id="sf-xml-dropzone" style="display:flex;align-items:center;gap:6px;">
-            <span id="sf-source-label" style="font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0;">מקור נתונים (אופציונלי):</span>
-            <input id="sf-source-note" type="text"
-                   oninput="_sfSaveSourceNote()"
-                   style="flex:1;min-width:0;border:none;border-bottom:1px solid #e5e7eb;background:none;
-                          font-size:11px;color:#374151;outline:none;direction:rtl;
-                          font-family:Heebo,sans-serif;padding-bottom:2px;">
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
             <button onclick="_sfSaveCalibration()"
                     style="background:#2563eb;border:none;border-radius:6px;padding:4px 12px;
                            font-size:12px;color:#fff;cursor:pointer;font-family:Heebo,sans-serif;
@@ -3056,6 +3048,14 @@
                     style="display:none;background:#fff;border:1px solid #d1d5db;border-radius:6px;
                            padding:4px 10px;font-size:11px;color:#6b7280;cursor:pointer;
                            font-family:Heebo,sans-serif;white-space:nowrap;">מחק</button>
+          </div>
+          <div id="sf-xml-dropzone" style="display:flex;align-items:center;gap:6px;">
+            <span id="sf-source-label" style="font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0;">מקור נתונים (אופציונלי):</span>
+            <input id="sf-source-note" type="text"
+                   oninput="_sfSaveSourceNote()"
+                   style="flex:1;min-width:0;border:none;border-bottom:1px solid #e5e7eb;background:none;
+                          font-size:11px;color:#374151;outline:none;direction:rtl;
+                          font-family:Heebo,sans-serif;padding-bottom:2px;">
           </div>
           <div id="sf-calibration-hint"
                style="display:none;font-size:10px;color:#6b7280;direction:rtl;text-align:right;
@@ -3073,7 +3073,7 @@
         </div>
 
         <!-- LEFT column: PDF dropzone — IS the flex column; display toggled by JS to 'flex' -->
-        <div id="sf-pdf-section" style="display:none;flex:1;flex-direction:column;justify-content:center;">
+        <div id="sf-pdf-section" style="display:none;flex:0 0 185px;flex-direction:column;justify-content:center;">
           <div id="sf-pdf-dropzone" class="salkah-dropzone"
                style="padding:10px 14px;border-radius:12px;"
                onclick="document.getElementById('sf-pdf-input').click()"
