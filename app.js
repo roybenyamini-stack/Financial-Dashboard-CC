@@ -8202,8 +8202,10 @@ function ffsLoadProfile() {
   } catch(e) {}
 }
 function ffsSaveProfile() {
-  ffs_isDirty = true;
-  _ffsUpdateDirtyBadge();
+  if (!ffs_isInitializing) {         // v181.73: skip dirty during FFS init
+    ffs_isDirty = true;
+    _ffsUpdateDirtyBadge();
+  }
   try { localStorage.setItem(ffsGetActiveKey(), JSON.stringify(FFS_PROFILE)); } catch(e) {} // v169.1: scoped by mode
   if (typeof ffsDebouncedUpdate === 'function') ffsDebouncedUpdate(); // v170.1: live sidebar
 }
@@ -10315,6 +10317,8 @@ function openFFSDrawer() {
   }, 10);
   ffsUpdateNavSummaries();
   ffsUpdateLiveSidebar();
+  ffs_isInitializing = false;       // v181.73: drawer rendered, dirty tracking live
+  _ffsUpdateDirtyBadge();           // defensive: clear any phantom badge
 }
 function closeFFSDrawer() {
   _ffsDrawerOpen = false; // v177.36: release Iron Dome isolation
@@ -10672,6 +10676,8 @@ function ffsConfirmReset() {
   for (var _ri = SIM_USER_EVENTS.length - 1; _ri >= 0; _ri--) {
     if (SIM_USER_EVENTS[_ri].src !== 'events_timeline') SIM_USER_EVENTS.splice(_ri, 1);
   }
+  ffs_isDirty = false;              // v181.72: fresh reset = nothing unsaved
+  _ffsUpdateDirtyBadge();
   // Return to clean Guest state — no page reload needed
   switchMode('SIMULATOR');
   // v177.48: 300ms > closeFFSDrawer's 250ms animation — prevents race condition
@@ -11135,6 +11141,8 @@ function _ffsDoImport() {
       if (FFS_PROFILE.name && typeof simUpdateNameLabel === 'function') simUpdateNameLabel();
       ffsSaveProfile();
       ffsRenderAll();
+      ffs_isDirty = false;          // v181.72: imported file = in sync with disk
+      _ffsUpdateDirtyBadge();
       var _impName = FFS_PROFILE.name ? ' — ' + FFS_PROFILE.name : '';
       showToast('גיבוי נטען בהצלחה' + _impName, '#10b981', 3000);
     } catch(err) {
@@ -12031,7 +12039,8 @@ function _simSaveUserEvents() {
   }
 }
 // v181.69: dirty flag — true when profile saved to localStorage but not yet exported to file
-var ffs_isDirty = false;
+var ffs_isDirty        = false;
+var ffs_isInitializing = true;   // v181.73: blocks dirty flag until FFS UI is fully ready
 function _ffsUpdateDirtyBadge() {
   document.querySelectorAll('.ffs-export-btn').forEach(function(btn) {
     var badge = btn.querySelector('.ffs-dirty-badge');
@@ -16156,6 +16165,8 @@ function switchMode(mode) {
         if (typeof openFFSDrawer === 'function') openFFSDrawer();
         _ffsOpenStageA();
       }
+      ffs_isInitializing = false;   // v181.73: simulator fully rendered, dirty tracking live
+      _ffsUpdateDirtyBadge();
     }, 200);
     return;
   }
@@ -18008,8 +18019,18 @@ function _sfCalculateTax(product, withdrawalPct, globalConfig) {
     // Israeli tax law: tikrat=2 (above-ceiling) profit is ALWAYS taxed; tikrat=1 is exempt only when eligible
     var isExemptEligible = (effSeniority >= sfSeniorityYears) ||
                            (memberAge != null && effAge >= retirementAge);
-    var taxableSegTax = seg.taxableProfit * wdFraction * capitalTaxRate; // tikrat=2: always taxed
-    var exemptSegTax  = isExemptEligible ? 0 : seg.exemptProfit * wdFraction * capitalTaxRate; // tikrat=1: exempt if eligible
+    // v181.74: REAL Capital Gains Tax — nominal profit minus inflation adjustment on principal
+    var inflRate = (cfg.inflation != null ? cfg.inflation : 0) / 100;
+    // tikrat=2 (Taxable segment): realProfit = nominalProfit − inflation × taxablePrincipal
+    var nomTxProfit   = seg.taxableProfit  * wdFraction;
+    var inflAdjTx     = inflRate * seg.taxablePrincipal * wdFraction;
+    var realTxProfit  = Math.max(0, nomTxProfit - inflAdjTx); // floor: if real profit ≤ 0, tax = 0
+    var taxableSegTax = realTxProfit * capitalTaxRate;
+    // tikrat=1 (Exempt segment): only taxed when NOT eligible; same real logic
+    var nomExProfit   = seg.exemptProfit   * wdFraction;
+    var inflAdjEx     = inflRate * seg.exemptPrincipal * wdFraction;
+    var realExProfit  = Math.max(0, nomExProfit - inflAdjEx);
+    var exemptSegTax  = isExemptEligible ? 0 : realExProfit * capitalTaxRate;
     taxDueK = taxableSegTax + exemptSegTax;
 
     if (seg.taxableProfit <= 0 && seg.taxablePrincipal <= 0 && seg.exemptPrincipal <= 0) {
@@ -18080,7 +18101,9 @@ function _sfCalculateTax(product, withdrawalPct, globalConfig) {
     PF_EXEMPT_AGE:        'משיכה בגיל [X] — הסכום עד [Y] ₪ פטור ממס (סל פטור). יתרה של [Z] ₪ חייבת לפי מדרגות.',
     PF_TAXABLE_YOUNG:     'משיכה לפני גיל 60 מחושבת כהכנסה חייבת לפי מדרגות מס הכנסה.',
     PF_VATIKA:            'קרן וותיקה — חישוב המס מבוסס על כללי הפטור של המשטר הישן ועשוי להיות שונה מהחישוב הסטנדרטי.',
-    SF_MISSING_XML:       'נתוני המס חסרים. אנא טען מחדש את קבצי המסלקה כדי לצפות בסימולציה.'
+    SF_MISSING_XML:       '<span style="background:#fef3c7;color:#92400e;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">⚠ אמינות נמוכה — Low Confidence</span> ' +
+                          'אין נתוני פירוט פטור/חייב מהמסלקה. המס מחושב שמרנית על מלוא הרווח החייב. ' +
+                          'לחישוב מדויק: <b>העלה דו"ח שנתי PDF</b> או הזן ידנית את הסכום הפטור מול החייב בטופס למטה.' // v181.74
   };
   var DISCLAIMER = 'המס המוצג הוא הערכה בלבד ומבוסס על הנתונים הקיימים בקופה. לייעוץ מס אישי פנה לרואה חשבון.';
   var tpl = TEMPLATES[templateId] || '';
@@ -18097,7 +18120,7 @@ function _sfCalculateTax(product, withdrawalPct, globalConfig) {
   // ── Segment detail rows for transparency ────────────────────────────────────
   var segRows = [
     { type: 'קרן פטורה',  tikrat: 1, principal: seg.exemptPrincipal,   profit: seg.exemptProfit,   taxRate: 0,              taxDue: 0 },
-    { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : seg.taxableProfit * wdFraction * capitalTaxRate }
+    { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : realTxProfit * capitalTaxRate } // v181.74: real CGT
   ];
 
   return {
@@ -18223,7 +18246,7 @@ function _sfRecalculate() {
   var txP  = seg.taxablePrincipal;
   var exPr = seg.exemptProfit;
   var txPr = seg.taxableProfit;
-  var taxDetails = _sfCalculateTax(projItem, pctFraction, window.REAL_TAX_CONFIG || {});
+  var taxDetails = _sfCalculateTax(projItem, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74: pass inflation for real CGT
   _sfLastTaxDetails = taxDetails;
   var grossK  = taxDetails.grossWithdrawal;
   var taxDueK = taxDetails.totalTaxDue;
@@ -18243,7 +18266,7 @@ function _sfRecalculate() {
           })
         : grownSegs;
       var _projWithDep = Object.assign({}, projItem, { taxSegments: _segsWithDep });
-      var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, window.REAL_TAX_CONFIG || {});
+      var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74
       taxDueK = _tikratTaxDetails.totalTaxDue;
       netK    = _tikratTaxDetails.netToBank;
       taxDetails = Object.assign({}, _tikratTaxDetails, {
@@ -18253,10 +18276,12 @@ function _sfRecalculate() {
         }
       });
     } else {
-      // No tikrat data — flat 25% on profit (legacy path)
-      var _mPropK   = _mPrinK * pctFraction;
-      var _mTxProfK = Math.max(0, grossK - _mPropK);
-      taxDueK = _mTxProfK * 0.25;
+      // No tikrat data — real 25% CGT on profit (legacy path, v181.74: inflation-adjusted)
+      var _mPropK        = _mPrinK * pctFraction;
+      var _mTxProfK      = Math.max(0, grossK - _mPropK);
+      var _mInflRate     = inflation / 100;                                 // v181.74: real CGT
+      var _mRealTxProfit = Math.max(0, _mTxProfK - _mInflRate * _mPropK); // nominalProfit − inflation×principal
+      taxDueK = _mRealTxProfit * 0.25;
       netK    = grossK - taxDueK;
       taxDetails = Object.assign({}, taxDetails, {
         totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
