@@ -18463,11 +18463,12 @@ function _sfRecalculate() {
     }
   }
 
-  // v181.75: PDF dropzone visible only when Low Confidence and no PDF data uploaded yet
+  // v181.79: 2-col layout — show pdf section and OR divider together when no PDF uploaded
   var _sfPdfSec = document.getElementById('sf-pdf-section');
-  if (_sfPdfSec) {
-    _sfPdfSec.style.display = !_pdfData ? '' : 'none'; // v181.78: show whenever no PDF parsed
-  }
+  var _sfOrDiv  = document.getElementById('sf-or-divider');
+  var _showPdf  = !_pdfData;
+  if (_sfPdfSec) _sfPdfSec.style.display = _showPdf ? 'flex' : 'none';
+  if (_sfOrDiv)  _sfOrDiv.style.display  = _showPdf ? 'flex' : 'none';
 
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
   var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
