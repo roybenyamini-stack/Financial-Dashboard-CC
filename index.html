@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.74</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.75</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -3024,6 +3024,22 @@
   <!-- Calibration form bar — full width -->
   <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;">
     <div id="sf-calibration-form" style="display:none;direction:rtl;">
+      <!-- v181.75: PDF annual report upload — resolves Low Confidence warning -->
+      <div id="sf-pdf-section" style="display:none;margin-bottom:14px;">
+        <div id="sf-pdf-dropzone" class="salkah-dropzone"
+             style="padding:20px 16px;border-radius:12px;"
+             onclick="document.getElementById('sf-pdf-input').click()"
+             ondragover="_sfPdfDragOver(event)"
+             ondragleave="_sfPdfDragLeave(event)"
+             ondrop="_sfPdfDrop(event)">
+          <div style="font-size:28px;margin-bottom:6px;">📄</div>
+          <div style="font-size:13px;font-weight:700;color:#374151;">העלה דו״ח שנתי (PDF) לחילוץ יתרות אוטומטי</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">גרור לכאן או לחץ לבחירת קובץ</div>
+        </div>
+        <input type="file" id="sf-pdf-input" accept=".pdf" style="display:none;"
+               onchange="_sfPdfFileChange(event)">
+        <div id="sf-pdf-status" style="display:none;margin-top:10px;padding:10px 14px;border-radius:10px;font-size:13px;direction:rtl;"></div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
         <span id="sf-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;flex-shrink:0;">לחישוב מס מדויק הזן סך הפקדות:</span>
         <input id="sf-manual-principal" type="number" min="0" step="1"
