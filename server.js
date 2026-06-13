@@ -92,7 +92,7 @@ ${text.slice(0, 12000)}`;
 
   try {
     const message = await client.messages.create({
-      model:      'claude-3-5-sonnet-20241022',
+      model:      'claude-3-5-sonnet-20240620',
       max_tokens: 300,
       messages:   [{ role: 'user', content: PROMPT }]
     });
