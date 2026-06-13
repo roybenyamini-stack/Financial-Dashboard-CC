@@ -17495,13 +17495,31 @@ function _sfSaveCalibration() {
   var principal = pEl ? parseFloat(pEl.value) * 1000 : NaN;
   var joinDate = dEl ? (dEl.value || null) : null;
   if (!(principal > 0) && !joinDate) {
-    showToast('יש להזין לפחות תאריך הצטרפות או סכום הפקדות', '#d97706', 4000);
+    _sfClearCalibration(); // v181.78: 0/empty + no date → clear instead of toast error
     return;
   }
   localStorage.setItem('sf_manual_data_' + _sfCurrentItem.assetNum,
     JSON.stringify({ principalAmount: principal, joinDate: joinDate }));
   var clBtn = document.getElementById('sf-calibration-clear-btn');
   if (clBtn) clBtn.style.display = '';
+  _sfRecalculate();
+}
+
+function _sfOnManualPrincipalInput() {
+  var pEl = document.getElementById('sf-manual-principal');
+  if (!pEl || !_sfCurrentItem) return;
+  var raw = pEl.value.trim();
+  if (raw !== '' && parseFloat(raw) !== 0) return;   // still typing a real value
+  var stored = _sfLoadManualData(_sfCurrentItem.assetNum) || {};
+  if (!stored.principalAmount) return;               // nothing cached to clear
+  delete stored.principalAmount;
+  if (stored.joinDate) {
+    try { localStorage.setItem('sf_manual_data_' + _sfCurrentItem.assetNum, JSON.stringify(stored)); } catch(e) {}
+  } else {
+    localStorage.removeItem('sf_manual_data_' + _sfCurrentItem.assetNum);
+  }
+  var clBtn = document.getElementById('sf-calibration-clear-btn');
+  if (clBtn && !stored.joinDate) clBtn.style.display = 'none';
   _sfRecalculate();
 }
 
@@ -18448,7 +18466,7 @@ function _sfRecalculate() {
   // v181.75: PDF dropzone visible only when Low Confidence and no PDF data uploaded yet
   var _sfPdfSec = document.getElementById('sf-pdf-section');
   if (_sfPdfSec) {
-    _sfPdfSec.style.display = (!_pdfData && !_hasTikratData) ? '' : 'none';
+    _sfPdfSec.style.display = !_pdfData ? '' : 'none'; // v181.78: show whenever no PDF parsed
   }
 
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
