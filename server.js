@@ -21,7 +21,7 @@ app.post('/api/parse-masklaka', async (req, res) => {
 
   try {
     const message = await client.messages.create({
-      model:      'claude-3-haiku-20240307',
+      model:      'claude-haiku-4-5-20251001',
       max_tokens: 2000,
       system:     SYSTEM_PROMPT,
       messages:   [{ role: 'user', content: xmlString }]
@@ -54,7 +54,7 @@ app.post('/api/parse-masklaka', async (req, res) => {
 
 // ── /api/debug-api — live Anthropic connectivity check ───────────────────────
 app.get('/api/debug-api', async (req, res) => {
-  const model = 'claude-3-haiku-20240307';
+  const model = 'claude-haiku-4-5-20251001';
   try {
     const msg = await client.messages.create({
       model,
@@ -107,7 +107,7 @@ ${text.slice(0, 12000)}`;
 
   try {
     const message = await client.messages.create({
-      model:      'claude-3-haiku-20240307',
+      model:      'claude-haiku-4-5-20251001',
       max_tokens: 300,
       messages:   [{ role: 'user', content: PROMPT }]
     });
