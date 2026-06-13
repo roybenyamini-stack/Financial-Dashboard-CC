@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.68</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.71</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -1600,7 +1600,7 @@
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto;">
         <input type="file" id="ffs-salkah-file-input" accept="image/*,.pdf" style="display:none;" onchange="ffsSalkahFileChange(event)">
         <label class="cc-btn" title="טעינת פרופיל JSON" style="cursor:pointer;">📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)"></label>
-        <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
+        <button class="cc-btn ffs-export-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
         <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
         <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="תצוגת טבלה">תצוגת טבלה <i class="fas fa-table"></i></button>
         <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
@@ -1627,7 +1627,7 @@
     <label class="cc-btn" title="טעינת פרופיל JSON" style="cursor:pointer;">
       📂 טעינה<input type="file" accept=".json" style="display:none;" onchange="ffsImportData(event)">
     </label>
-    <button class="cc-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
+    <button class="cc-btn ffs-export-btn" onclick="ffsExportData()" title="שמור גיבוי JSON">💾 גיבוי</button>
     <button class="cc-btn" onclick="openSalkahModal()" title="יבוא קובץ XML מסלקה פנסיונית">🤖 יבוא מסלקה</button>
     <button id="btn-view-toggle" class="cc-btn" onclick="toggleMasterGridView()" title="תצוגת טבלה">תצוגת טבלה <i class="fas fa-table"></i></button>
     <button class="cc-btn cc-btn-run" onclick="ffsApplyAndClose()" title="הפעל את הסימולטור עם הנתונים הנוכחיים">🚀 הפעל סימולטור</button>
