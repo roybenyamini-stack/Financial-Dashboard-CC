@@ -17559,10 +17559,18 @@ function _sfClearPdfData() {
   localStorage.removeItem('sf_pdf_data_' + _sfCurrentItem.assetNum);
   _sfRecalculate();
 }
-function _sfPdfToSegments(d) {
+function _sfPdfToSegments(d, currentBalanceK) {
+  var exAmt  = (d.exemptPrincipal  || 0) + (d.exemptProfit  || 0);
+  var txAmt  = (d.taxablePrincipal || 0) + (d.taxableProfit || 0);
+  var total  = exAmt + txAmt || 1;
+  var base   = currentBalanceK || 0;
+  var exemptK  = base * (exAmt / total);
+  var taxableK = base * (txAmt / total);
+  var exPrinRatio = (d.exemptPrincipal  || 0) / (exAmt  || 1);
+  var txPrinRatio = (d.taxablePrincipal || 0) / (txAmt  || 1);
   return [
-    { tikrat: '1', deposits: d.exemptPrincipal,  accumulation: d.exemptPrincipal  + d.exemptProfit  },
-    { tikrat: '2', deposits: d.taxablePrincipal, accumulation: d.taxablePrincipal + d.taxableProfit }
+    { tikrat: '1', deposits: exemptK  * exPrinRatio, accumulation: exemptK  },
+    { tikrat: '2', deposits: taxableK * txPrinRatio, accumulation: taxableK }
   ];
 }
 function _sfPdfDragOver(e)  { e.preventDefault(); e.stopPropagation(); var dz = document.getElementById('sf-pdf-dropzone'); if (dz) dz.classList.add('drag-over'); }
@@ -18077,18 +18085,11 @@ function _sfCalculateTax(product, withdrawalPct, globalConfig) {
     // Israeli tax law: tikrat=2 (above-ceiling) profit is ALWAYS taxed; tikrat=1 is exempt only when eligible
     var isExemptEligible = (effSeniority >= sfSeniorityYears) ||
                            (memberAge != null && effAge >= retirementAge);
-    // v181.74: REAL Capital Gains Tax — nominal profit minus inflation adjustment on principal
-    var inflRate = (cfg.inflation != null ? cfg.inflation : 0) / 100;
-    // tikrat=2 (Taxable segment): realProfit = nominalProfit − inflation × taxablePrincipal
-    var nomTxProfit   = seg.taxableProfit  * wdFraction;
-    var inflAdjTx     = inflRate * seg.taxablePrincipal * wdFraction;
-    var realTxProfit  = Math.max(0, nomTxProfit - inflAdjTx); // floor: if real profit ≤ 0, tax = 0
-    var taxableSegTax = realTxProfit * capitalTaxRate;
-    // tikrat=1 (Exempt segment): only taxed when NOT eligible; same real logic
-    var nomExProfit   = seg.exemptProfit   * wdFraction;
-    var inflAdjEx     = inflRate * seg.exemptPrincipal * wdFraction;
-    var realExProfit  = Math.max(0, nomExProfit - inflAdjEx);
-    var exemptSegTax  = isExemptEligible ? 0 : realExProfit * capitalTaxRate;
+    // v181.76: nominal CGT — inflation slider only affects forward growthF projections
+    var nomTxProfit   = seg.taxableProfit * wdFraction;
+    var taxableSegTax = nomTxProfit * capitalTaxRate;
+    var nomExProfit   = seg.exemptProfit  * wdFraction;
+    var exemptSegTax  = isExemptEligible ? 0 : nomExProfit * capitalTaxRate;
     taxDueK = taxableSegTax + exemptSegTax;
 
     if (seg.taxableProfit <= 0 && seg.taxablePrincipal <= 0 && seg.exemptPrincipal <= 0) {
@@ -18178,7 +18179,7 @@ function _sfCalculateTax(product, withdrawalPct, globalConfig) {
   // ── Segment detail rows for transparency ────────────────────────────────────
   var segRows = [
     { type: 'קרן פטורה',  tikrat: 1, principal: seg.exemptPrincipal,   profit: seg.exemptProfit,   taxRate: 0,              taxDue: 0 },
-    { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : realTxProfit * capitalTaxRate } // v181.74: real CGT
+    { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : nomTxProfit * capitalTaxRate }
   ];
 
   return {
@@ -18278,7 +18279,7 @@ function _sfRecalculate() {
   // v181.75: PDF data override — synthesize authoritative taxSegments, bypass rawXml gate with stub
   var _pdfData = _sfLoadPdfData(item.assetNum);
   var _itemSrc = _pdfData
-    ? Object.assign({}, item, { taxSegments: _sfPdfToSegments(_pdfData), rawXml: item.rawXml || '<Mutzar/>' })
+    ? Object.assign({}, item, { taxSegments: _sfPdfToSegments(_pdfData, baseK), rawXml: item.rawXml || '<Mutzar/>' })
     : item;
 
   // Build growth-adjusted segments so _sfCalculateTax sees projected profits, not original ones
@@ -18310,7 +18311,7 @@ function _sfRecalculate() {
   var txP  = seg.taxablePrincipal;
   var exPr = seg.exemptProfit;
   var txPr = seg.taxableProfit;
-  var taxDetails = _sfCalculateTax(projItem, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74: pass inflation for real CGT
+  var taxDetails = _sfCalculateTax(projItem, pctFraction, window.REAL_TAX_CONFIG || {});
   _sfLastTaxDetails = taxDetails;
   var grossK  = taxDetails.grossWithdrawal;
   var taxDueK = taxDetails.totalTaxDue;
@@ -18330,7 +18331,7 @@ function _sfRecalculate() {
           })
         : grownSegs;
       var _projWithDep = Object.assign({}, projItem, { taxSegments: _segsWithDep });
-      var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74
+      var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, window.REAL_TAX_CONFIG || {});
       taxDueK = _tikratTaxDetails.totalTaxDue;
       netK    = _tikratTaxDetails.netToBank;
       taxDetails = Object.assign({}, _tikratTaxDetails, {
@@ -18340,12 +18341,10 @@ function _sfRecalculate() {
         }
       });
     } else {
-      // No tikrat data — real 25% CGT on profit (legacy path, v181.74: inflation-adjusted)
-      var _mPropK        = _mPrinK * pctFraction;
-      var _mTxProfK      = Math.max(0, grossK - _mPropK);
-      var _mInflRate     = inflation / 100;                                 // v181.74: real CGT
-      var _mRealTxProfit = Math.max(0, _mTxProfK - _mInflRate * _mPropK); // nominalProfit − inflation×principal
-      taxDueK = _mRealTxProfit * 0.25;
+      // No tikrat data — nominal 25% CGT on profit (v181.76: inflation removed from tax math)
+      var _mPropK   = _mPrinK * pctFraction;
+      var _mTxProfK = Math.max(0, grossK - _mPropK);
+      taxDueK = _mTxProfK * 0.25;
       netK    = grossK - taxDueK;
       taxDetails = Object.assign({}, taxDetails, {
         totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
@@ -18449,9 +18448,10 @@ function _sfRecalculate() {
   // v181.75: PDF dropzone visible only when Low Confidence and no PDF data uploaded yet
   var _sfPdfSec = document.getElementById('sf-pdf-section');
   if (_sfPdfSec) {
-    _sfPdfSec.style.display = (!_pdfData && taxDetails.explanation.templateId === 'SF_MISSING_XML') ? '' : 'none';
+    _sfPdfSec.style.display = (!_pdfData && !_hasTikratData) ? '' : 'none';
   }
 
+  var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
   var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
   var te = document.getElementById('sf-tax-due');
   if (te) {
@@ -18463,11 +18463,11 @@ function _sfRecalculate() {
       te.textContent = 'פטור';
     } else {
       te.style.color = '#dc2626';
-      te.textContent = Math.round(taxDueK).toLocaleString('he-IL');
+      te.textContent = _estPrefix + Math.round(taxDueK).toLocaleString('he-IL');
     }
   }
   var ne = document.getElementById('sf-net-bank');
-  if (ne) ne.textContent = netK === null ? '---' : Math.round(netK).toLocaleString('he-IL');
+  if (ne) ne.textContent = netK === null ? '---' : _estPrefix + Math.round(netK).toLocaleString('he-IL');
   var re = document.getElementById('sf-remaining-balance');
   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
   if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
