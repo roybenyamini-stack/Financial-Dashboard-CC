@@ -6136,9 +6136,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof pensionSliderChange === 'function') pensionSliderChange(_sldrInit ? _sldrInit.value : '35');
   }
 
-  // v171.0: mode-aware event restore on startup — Excel events for REAL mode, FFS events for GUEST mode
+  // v181.70: mode-aware event restore on startup — Excel events for REAL mode, permanent profile events for SIMULATOR
   if (APP_MODE === 'EXCEL') _simRestoreExcelEvents();
-  else _simRestoreUserEvents();
+  else (FFS_PROFILE.events || []).forEach(function(ev) {
+    if (!SIM_USER_EVENTS.some(function(e) { return e.yr === ev.yr && e.mo === ev.mo && e.label === ev.label && e.type === ev.type; })) SIM_USER_EVENTS.push(ev);
+  });
 
   // v173.5: Instant Meter — synchronous engine pre-run BEFORE switchTab queues the 80ms render
   if (APP_MODE === 'EXCEL') _excelEngineSync();
@@ -7938,7 +7940,7 @@ function ffsCalculateNetPension(gross, monthlyExemptAmount, creditPoints, custom
   var finalTax = Math.max(0, baseTax - (creditPoints * _cpv));
   return gross - finalTax;
 } // v180.50: dynamic engine — reads taxRates/taxBrackets/creditPointValue from FFS_PROFILE with statutory fallbacks
-var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:DEFAULT_RETIREMENT_EXPENSE, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5, taxFixationPercent:52, additionalIncomes:[], creditPoints:2.25, marginalTax:0.35, taxCeiling:null, taxRate:null, taxBasket:null, creditPointValue:null, taxRates:null, taxBrackets:null }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90 + v178.3 + v178.5 + v180.33 + v180.39 + v180.44 + v180.45 + v180.50
+var FFS_PROFILE = { name:'', birthDate:'', retirementAge:67, lifeExpectancy:84, investments:[], realEstate:[], pension:[], monthlySavings:0, savingsGrowth:0, retirementExpense:DEFAULT_RETIREMENT_EXPENSE, retirementIncome:0, bridgeAge:0, bridgeCashflow:0, bridgePensionContrib:false, incomePhases:[], ffsEvents:[], events:[], macroInflation:2.5, macroTax:25, macroYield:4.0, macroWage:2.0, macroPensionRate:3.0, macroReGrowth:2.5, taxFixationPercent:52, additionalIncomes:[], creditPoints:2.25, marginalTax:0.35, taxCeiling:null, taxRate:null, taxBasket:null, creditPointValue:null, taxRates:null, taxBrackets:null }; // v168.77/90 + v170.2 + v170.4 + v177.88 + v177.90 + v178.3 + v178.5 + v180.33 + v180.39 + v180.44 + v180.45 + v180.50
 var SIM_TARGET_EXP     = 0;     // monthly expense target NIS — set on init
 var SIM_RETIRE_EXP     = 29000; // v168.101: settings-driven expected monthly retirement expense (drives slider range + KPI#3)
 var SIM_INSTRUCTOR_SAL = 35000; // monthly instructor salary NIS
@@ -8160,6 +8162,20 @@ function ffsLoadProfile() {
       FFS_PROFILE.bridgePensionContrib = saved.bridgePensionContrib || false;
       FFS_PROFILE.incomePhases         = saved.incomePhases         || []; // v170.2
       FFS_PROFILE.ffsEvents            = saved.ffsEvents            || []; // v170.4
+      FFS_PROFILE.events               = saved.events               || []; // v181.69: permanent user events
+      // v181.70: dedup guard (in case a previous session double-saved)
+      FFS_PROFILE.events = FFS_PROFILE.events.filter(function(ev, i, arr) {
+        return arr.findIndex(function(e) { return e.yr === ev.yr && e.mo === ev.mo && e.label === ev.label && e.type === ev.type; }) === i;
+      });
+      // v181.70: one-time migration for users whose permanent events are only in the old localStorage key
+      if (!FFS_PROFILE.events.length) {
+        try {
+          var _oldEvs = JSON.parse(localStorage.getItem('sim_user_events') || '[]');
+          FFS_PROFILE.events = (_oldEvs || []).filter(function(ev) {
+            return ev.isSimulation === false && ev.src !== 'events_timeline' && ev.src !== 'ffs_event';
+          });
+        } catch(e) {}
+      }
       FFS_PROFILE.personalId           = saved.personalId           || '';
       FFS_PROFILE.macroInflation   = saved.macroInflation   != null ? saved.macroInflation   : 2.5;
       FFS_PROFILE.macroTax         = saved.macroTax         != null ? saved.macroTax         : 25;
@@ -8186,6 +8202,8 @@ function ffsLoadProfile() {
   } catch(e) {}
 }
 function ffsSaveProfile() {
+  ffs_isDirty = true;
+  _ffsUpdateDirtyBadge();
   try { localStorage.setItem(ffsGetActiveKey(), JSON.stringify(FFS_PROFILE)); } catch(e) {} // v169.1: scoped by mode
   if (typeof ffsDebouncedUpdate === 'function') ffsDebouncedUpdate(); // v170.1: live sidebar
 }
@@ -8940,6 +8958,7 @@ function ffsConfirmDelete() {
   if (_pendingClearSimEvents) {
     SIM_USER_EVENTS = SIM_USER_EVENTS.filter(function(ev) { return ev.permanent || ev.isSimulation === false; });
     _simSaveUserEvents();
+    _ffsMirrorEventsToProfile(); // v181.69: sync remaining permanent events to profile
     ffsRenderEventsPanel();
     simRenderTimeline();
     simRenderChart(simRunEngine());
@@ -8950,6 +8969,7 @@ function ffsConfirmDelete() {
   if (_pendingDeleteEventIdx !== null) {
     SIM_USER_EVENTS.splice(_pendingDeleteEventIdx, 1);
     _simSaveUserEvents();
+    _ffsMirrorEventsToProfile(); // v181.69: sync permanent events to profile
     ffsRenderEventsPanel();
     simRenderTimeline();
     simRenderChart(simRunEngine());
@@ -11050,6 +11070,8 @@ function ffsExportData() {
   var _expYY   = String(_expNow.getFullYear()).slice(2);
   a.download = 'Profile_' + _expName + _agePart + '_' + _expDD + '-' + _expMM + '-' + _expYY + '.json';
   a.click();
+  ffs_isDirty = false;
+  _ffsUpdateDirtyBadge();
   showToast('גיבוי הורד בהצלחה', '#10b981', 3000);
 }
 
@@ -12001,14 +12023,42 @@ var simEngine = {
 
 function _simSaveUserEvents() {
   SIM_USER_EVENTS.sort(function(a, b) { if (a.yr !== b.yr) return a.yr - b.yr; return (a.mo || 1) - (b.mo || 1); });
-  // v171.0: storage segregation — Excel timeline events saved separately from FFS/manual events
+  // v181.70: only Excel events saved here; permanent user events are in FFS_PROFILE.events (via ffsSaveProfile)
+  // Temporary events are session-only — intentionally not persisted across mode switches
   var _excelEvs = SIM_USER_EVENTS.filter(function(ev) { return ev.src === 'events_timeline'; });
-  var _userEvs  = SIM_USER_EVENTS.filter(function(ev) { return ev.src !== 'events_timeline'; });
   if (_excelEvs.length) {
     try { localStorage.setItem(_SIM_EXCEL_EVENTS_LS_KEY, JSON.stringify(_excelEvs)); } catch(e) {}
   }
-  try { localStorage.setItem(_SIM_EVENTS_LS_KEY, JSON.stringify(_userEvs)); } catch(e) {}
 }
+// v181.69: dirty flag — true when profile saved to localStorage but not yet exported to file
+var ffs_isDirty = false;
+function _ffsUpdateDirtyBadge() {
+  document.querySelectorAll('.ffs-export-btn').forEach(function(btn) {
+    var badge = btn.querySelector('.ffs-dirty-badge');
+    if (ffs_isDirty) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'ffs-dirty-badge';
+        badge.title = 'יש שינויים שלא יוצאו לגיבוי';
+        badge.style.cssText = 'position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:50%;pointer-events:none;border:2px solid white;';
+        btn.style.position = 'relative';
+        btn.appendChild(badge);
+      }
+    } else {
+      if (badge) badge.remove();
+    }
+  });
+}
+// v181.69: mirror permanent user events into FFS_PROFILE.events after any mutation
+function _ffsMirrorEventsToProfile() {
+  FFS_PROFILE.events = SIM_USER_EVENTS.filter(function(ev) {
+    return ev.isSimulation === false && ev.src !== 'events_timeline' && ev.src !== 'ffs_event';
+  });
+  ffsSaveProfile();
+}
+window.addEventListener('beforeunload', function(e) {
+  if (ffs_isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
 function _simRestoreUserEvents() {
   // v171.0: restore only FFS/manual events (SIMULATOR mode) — not Excel events
   try {
@@ -12447,6 +12497,7 @@ function simConfirmAddEvent() {
     SIM_USER_EVENTS.push(ev); // add new
   }
   _simSaveUserEvents(); // v158.0: persist
+  if (ev.isSimulation === false) _ffsMirrorEventsToProfile(); // v181.69: persist permanent events in profile
 
   var _wasFixed = _ffsFixedMode;
   _ffsFixedMode = false; // reset after confirm
@@ -12463,6 +12514,7 @@ function simDeleteEditedEvent() {
   if (SIM_EDIT_IDX === null || SIM_EDIT_IDX < 0) return;
   SIM_USER_EVENTS.splice(SIM_EDIT_IDX, 1);
   _simSaveUserEvents(); // v158.0: persist
+  _ffsMirrorEventsToProfile(); // v181.69: sync permanent events to profile
   simCloseEventModal();
   simRenderTimeline();
   simRenderChart(simRunEngine());
@@ -12499,6 +12551,7 @@ function simPromptClearSimEvents() {
 function simRemoveUserEvent(idx) {
   SIM_USER_EVENTS.splice(idx, 1);
   _simSaveUserEvents(); // v158.0: persist
+  _ffsMirrorEventsToProfile(); // v181.69: sync permanent events to profile
   simRenderTimeline();
   simRenderChart(simRunEngine());
 }
@@ -13005,9 +13058,12 @@ function simInit() {
   if (expValEl) expValEl.textContent = simFmtNIS(SIM_TARGET_EXP);
   // v168.78: FFS profile overrides CF-data defaults on load (anti-ghosting)
   ffsSyncSliders();
-  // v171.0: mode-aware event restore in simInit — Excel events for REAL, FFS events for GUEST
+  // v181.70: mode-aware event restore in simInit — dedup-guarded to prevent double-load from switchMode()
   if (APP_MODE === 'EXCEL') _simRestoreExcelEvents();
-  else _simRestoreUserEvents();
+  else (FFS_PROFILE.events || []).forEach(function(ev) {
+    if (!SIM_USER_EVENTS.some(function(e) { return e.yr === ev.yr && e.mo === ev.mo && e.label === ev.label && e.type === ev.type; })) SIM_USER_EVENTS.push(ev);
+  });
+  if (typeof ffsRenderEventsPanel === 'function') ffsRenderEventsPanel(); // v181.71: clear stale DOM from previous session
 
   // v156.0: sync saved settings → sliders before first render (silent: skip re-render, simInit renders below)
   if (typeof syncSettingsToSliders === 'function') {
@@ -16056,6 +16112,7 @@ function switchMode(mode) {
     FFS_PROFILE.incomePhases = []; FFS_PROFILE.ffsEvents = []; FFS_PROFILE.isDemo = false;
     // Load ONLY from FINANCIAL_SIM_PERSONAL_DATA (APP_MODE is already SIMULATOR); skips if isDemo flag set
     ffsLoadProfile();
+    (FFS_PROFILE.events || []).forEach(function(ev) { SIM_USER_EVENTS.push(ev); }); // v181.69: restore permanent events
     _ffsGuestModeUI(true);
 
     // v171.8: UI Sync — sync retirement age input to the loaded FFS profile (or 67 for Guest)
