@@ -18376,34 +18376,43 @@ function _sfRecalculate() {
     _sfLastTaxDetails = taxDetails;
   }
 
-  // ── Push-UX ──────────────────────────────────────────────────────────────
+  // ── Push-UX: 3-state accuracy subtitle (v181.81) ─────────────────────────
   var _pushMsgEl = document.getElementById('sf-tax-inline-msg');
   var _segEl = document.getElementById('sf-tax-segments');
   if (_segEl) _segEl.innerHTML = '';
   if (_pushMsgEl) {
     var _pushTid = taxDetails.explanation.templateId;
-    if (_pushTid === 'SF_MISSING_XML') {
-      _pushMsgEl.style.color      = '#d97706';
-      _pushMsgEl.innerHTML        = taxDetails.explanation.rendered;
-      _pushMsgEl.style.visibility = 'visible';
-    } else if (_pushTid === 'SF_MANUAL_CALIBRATION') {
-      _pushMsgEl.style.color      = '#6b7280';
-      _pushMsgEl.innerHTML        = 'החישוב משלב נתוני מסלקה ונתונים ידניים.';
-      _pushMsgEl.style.visibility = 'visible';
-    } else if (_pushTid === 'SF_UNKNOWN_SENIORITY') {
-      _pushMsgEl.style.color      = '#6b7280';
-      _pushMsgEl.innerHTML        = 'חישוב המס המוצג שמרני. הזן סך הפקדות ידני לחישוב מדויק.';
-      _pushMsgEl.style.visibility = 'visible';
+
+    // Preserve receipt rendering for states that have real segment data
+    if (_pushTid === 'SF_UNKNOWN_SENIORITY' || _pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
       if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-    } else if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
+    }
+
+    if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
       var _dateStr = taxDetails.joinDateFormatted
         ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
       _pushMsgEl.style.color      = '#16a34a';
       _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
       _pushMsgEl.style.visibility = 'visible';
-    } else if (_pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
-      if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-      _pushMsgEl.style.visibility = 'hidden';
+    } else {
+      // 3-state accuracy indicator based on data source
+      var _accPdfData = _sfCurrentItem ? _sfLoadPdfData(_sfCurrentItem.assetNum) : null;
+      if (_accPdfData) {
+        _pushMsgEl.style.color      = '#16a34a';
+        _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי).';
+        _pushMsgEl.style.visibility = 'visible';
+      } else {
+        var _accManual = _sfCurrentItem ? _sfLoadManualData(_sfCurrentItem.assetNum) : null;
+        if (_accManual && _accManual.principalAmount > 0) {
+          _pushMsgEl.style.color      = '#2563eb';
+          _pushMsgEl.innerHTML        = 'רמת דיוק: סבירה (מבוסס על נתונים שהוזנו ידנית).';
+          _pushMsgEl.style.visibility = 'visible';
+        } else {
+          _pushMsgEl.style.color      = '#d97706';
+          _pushMsgEl.innerHTML        = 'רמת דיוק: השערה (מבוסס על נתוני מסלקה). להגדלת הדיוק, העלה דו״ח שנתי או הזן הפקדות.';
+          _pushMsgEl.style.visibility = 'visible';
+        }
+      }
     }
   }
 
