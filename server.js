@@ -89,27 +89,35 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   }
 
   // Step 2: ask Claude to extract the 4 tax-layer values
-  console.log('[parse-pdf] text snippet (0-500):', text.slice(0, 500));
+  console.log('[parse-pdf] text total length:', text.length);
+  console.log('[parse-pdf] text FIRST 1000:', text.slice(0, 1000));
+  console.log('[parse-pdf] text LAST 500:', text.slice(-500));
 
+  const textHead = text.slice(0, 15000);
+  const textTail = text.length > 15000 ? text.slice(-15000) : '';
   const PROMPT = `You are extracting tax-layer data from an Israeli Keren Hishtalmut (study fund) annual report.
-The report may use any of the following Hebrew terms for the 4 values — match them regardless of exact wording:
 
-- exemptPrincipal  (קרן פטורה / הפקדות עד תקרה / הפקדות מוטבות / קרן מוטבת / עד תקרה / קרן עד תקרה)
-- exemptProfit     (רווח פטור / רווח על קרן פטורה / ריבית פטורה / רווח מוטב)
-- taxablePrincipal (קרן חייבת / הפקדות מעל תקרה / קרן עודפת / מעל תקרה / קרן מעל תקרה / קרן שאינה פטורה)
-- taxableProfit    (רווח חייב / רווח על קרן חייבת / ריבית חייבת / רווח חייב במס)
+IMPORTANT: Hebrew PDF text is sometimes extracted in visual order (characters reversed left-to-right). Labels may appear in normal Hebrew OR reversed. Match both variants:
 
-Return ONLY a JSON object with these 4 keys. Use the same numeric units as the report (do NOT convert units):
+- exemptPrincipal:  "קרן פטורה" OR reversed "הרוטפ ןרק" | "הפקדות עד תקרה" OR "הרקת דע תודקפה" | "קרן מוטבת" OR "תבטומ ןרק"
+- exemptProfit:     "רווח פטור" OR reversed "רוטפ חוור" | "ריבית פטורה" OR "הרוטפ תיביר"
+- taxablePrincipal: "קרן חייבת" OR reversed "תבייח ןרק" | "הפקדות מעל תקרה" OR "הרקת לעמ תודקפה" | "קרן עודפת" OR "תפדוע ןרק"
+- taxableProfit:    "רווח חייב" OR reversed "בייח חוור" | "ריבית חייבת" OR "תבייח תיביר"
+
+The values are numbers (thousands of NIS). Numbers are reliable even when Hebrew label text is reversed — look for numerals adjacent to any of the above labels.
+
+Return ONLY raw JSON (no markdown, no explanation):
 {"exemptPrincipal": ..., "exemptProfit": ..., "taxablePrincipal": ..., "taxableProfit": ...}
 
 Rules:
-1. Use 0 only if a value is genuinely absent from the report.
+1. Use 0 ONLY if the value is genuinely absent from the report.
 2. All values must be >= 0.
-3. Return ONLY raw JSON — no markdown fences, no explanation.
-4. Sanity check: the sum of all 4 values should roughly equal the total fund balance shown in the report. If your numbers do not add up, re-read and adjust.
+3. Sanity: the sum of all 4 values should roughly equal the total fund balance shown in the report.
 
-Annual report text:
-${text.slice(0, 25000)}`;
+--- REPORT START (beginning of document) ---
+${textHead}
+--- REPORT END (end of document) ---
+${textTail}`;
 
   try {
     const message = await client.messages.create({
