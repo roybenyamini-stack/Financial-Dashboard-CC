@@ -18428,7 +18428,7 @@ function _sfRecalculate() {
       var _accPdfData = _sfCurrentItem ? _sfLoadPdfData(_sfCurrentItem.assetNum) : null;
       if (_accPdfData) {
         _pushMsgEl.style.color      = '#16a34a';
-        _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי).';
+        _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
         _pushMsgEl.style.visibility = 'visible';
       } else {
         var _accManual = _sfCurrentItem ? _sfLoadManualData(_sfCurrentItem.assetNum) : null;
