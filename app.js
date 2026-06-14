@@ -17553,7 +17553,7 @@ function _sfSaveSourceNote() {
 }
 
 // ── v181.75: PDF Annual Report extraction ─────────────────────────────────────
-function parseAnnualReportPDF(file) {
+function parseAnnualReportPDF(file, assetNum) {
   return new Promise(function(resolve, reject) {
     var reader = new FileReader();
     reader.onerror = function() { reject(new Error('קריאת הקובץ נכשלה')); };
@@ -17570,7 +17570,7 @@ function parseAnnualReportPDF(file) {
       fetch('http://localhost:3001/api/parse-pdf', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ pdf: base64 })
+        body:    JSON.stringify({ pdf: base64, assetNum: assetNum })
       })
       .then(function(r) {
         if (!r.ok) return r.json().then(function(e) {
@@ -17634,7 +17634,7 @@ function _sfHandlePdfFile(file) {
   if (!_sfCurrentItem) return;
   var statusEl = document.getElementById('sf-pdf-status');
   if (statusEl) { statusEl.style.display = ''; statusEl.style.background = '#eff6ff'; statusEl.textContent = '⏳ מחלץ נתונים מהדו"ח...'; }
-  parseAnnualReportPDF(file).then(function(data) {
+  parseAnnualReportPDF(file, _sfCurrentItem.assetNum).then(function(data) {
     _sfSavePdfData(_sfCurrentItem.assetNum, data);
     if (statusEl) { statusEl.style.background = '#f0fdf4'; statusEl.textContent = '✅ נתונים חולצו בהצלחה — מחשב מחדש...'; }
     setTimeout(function() { if (statusEl) statusEl.style.display = 'none'; _sfRecalculate(); }, 1200);
