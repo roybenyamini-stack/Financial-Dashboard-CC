@@ -71,8 +71,9 @@ app.get('/api/debug-api', async (req, res) => {
 const pdfParse = require('pdf-parse');
 
 app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => {
-  const { pdf } = req.body || {};
+  const { pdf, assetNum } = req.body || {};
   if (!pdf) return res.status(400).json({ error: 'Missing pdf field (base64)' });
+  if (!assetNum) return res.status(400).json({ error: 'Missing assetNum field' });
 
   // Step 1: extract text from PDF bytes
   let text;
@@ -93,31 +94,28 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   console.log('[parse-pdf] text FIRST 1000:', text.slice(0, 1000));
   console.log('[parse-pdf] text LAST 500:', text.slice(-500));
 
-  const textHead = text.slice(0, 15000);
-  const textTail = text.length > 15000 ? text.slice(-15000) : '';
-  const PROMPT = `You are extracting tax-layer data from an Israeli Keren Hishtalmut (study fund) annual report.
+  const PROMPT = `You are extracting tax-layer data from a large consolidated Israeli annual report that covers multiple Keren Hishtalmut accounts.
 
-IMPORTANT: Hebrew PDF text is sometimes extracted in visual order (characters reversed left-to-right). Labels may appear in normal Hebrew OR reversed. Match both variants:
+CRITICAL: Extract data ONLY for account number: ${assetNum}. Ignore all other accounts completely.
 
-- exemptPrincipal:  "קרן פטורה" OR reversed "הרוטפ ןרק" | "הפקדות עד תקרה" OR "הרקת דע תודקפה" | "קרן מוטבת" OR "תבטומ ןרק"
-- exemptProfit:     "רווח פטור" OR reversed "רוטפ חוור" | "ריבית פטורה" OR "הרוטפ תיביר"
-- taxablePrincipal: "קרן חייבת" OR reversed "תבייח ןרק" | "הפקדות מעל תקרה" OR "הרקת לעמ תודקפה" | "קרן עודפת" OR "תפדוע ןרק"
-- taxableProfit:    "רווח חייב" OR reversed "בייח חוור" | "ריבית חייבת" OR "תבייח תיביר"
+Find the section for account ${assetNum} and return the 4 tax-layer values for that account only.
+Hebrew PDF text may appear in visual order (reversed). Match all variants:
 
-The values are numbers (thousands of NIS). Numbers are reliable even when Hebrew label text is reversed — look for numerals adjacent to any of the above labels.
+- exemptPrincipal:  "קרן פטורה" / "הרוטפ ןרק" / "הפקדות עד תקרה" / "הרקת דע תודקפה" / "קרן מוטבת" / "תבטומ ןרק"
+- exemptProfit:     "רווח פטור" / "רוטפ חוור" / "ריבית פטורה" / "הרוטפ תיביר"
+- taxablePrincipal: "קרן חייבת" / "תבייח ןרק" / "הפקדות מעל תקרה" / "הרקת לעמ תודקפה" / "קרן עודפת" / "תפדוע ןרק"
+- taxableProfit:    "רווח חייב" / "בייח חוור" / "ריבית חייבת" / "תבייח תיביר"
 
 Return ONLY raw JSON (no markdown, no explanation):
 {"exemptPrincipal": ..., "exemptProfit": ..., "taxablePrincipal": ..., "taxableProfit": ...}
 
 Rules:
-1. Use 0 ONLY if the value is genuinely absent from the report.
-2. All values must be >= 0.
-3. Sanity: the sum of all 4 values should roughly equal the total fund balance shown in the report.
+1. Use 0 ONLY if genuinely absent for account ${assetNum}.
+2. All values >= 0. Values are in thousands of NIS unless the report uses different units.
+3. If account ${assetNum} is not found in the report, return all zeros.
 
---- REPORT START (beginning of document) ---
-${textHead}
---- REPORT END (end of document) ---
-${textTail}`;
+Full report text:
+${text}`;
 
   try {
     const message = await client.messages.create({
