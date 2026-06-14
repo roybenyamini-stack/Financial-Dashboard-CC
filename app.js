@@ -18447,9 +18447,8 @@ function _sfRecalculate() {
   // ── Calibration form: show when data partial; pre-fill inputs from localStorage ──
   var _calibFormEl = document.getElementById('sf-calibration-form');
   if (_calibFormEl) {
-    var _needsCalib = (taxDetails.explanation.templateId === 'SF_MISSING_XML' ||
-                       taxDetails.explanation.templateId === 'SF_UNKNOWN_SENIORITY' ||
-                       taxDetails.explanation.templateId === 'SF_MANUAL_CALIBRATION');
+    var _needsCalib = (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
+                       taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
     _calibFormEl.style.display = _needsCalib ? '' : 'none';
     var _sourceBoxEl = document.getElementById('sf-xml-dropzone');
     if (_sourceBoxEl) _sourceBoxEl.style.display = _needsCalib ? '' : 'none';
