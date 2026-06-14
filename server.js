@@ -94,25 +94,41 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   console.log('[parse-pdf] text FIRST 1000:', text.slice(0, 1000));
   console.log('[parse-pdf] text LAST 500:', text.slice(-500));
 
-  const PROMPT = `You are extracting tax-layer data from a large consolidated Israeli annual report that covers multiple Keren Hishtalmut accounts.
+  const PROMPT = `You are extracting tax-layer data from an Altshuler Shaham (אלטשולר שחם) Keren Hishtalmut annual report.
 
-CRITICAL: Extract data ONLY for account number: ${assetNum}. Ignore all other accounts completely.
+This is a large consolidated report covering multiple accounts. Work ONLY with the data for account number: ${assetNum}.
 
-Find the section for account ${assetNum} and return the 4 tax-layer values for that account only.
-Hebrew PDF text may appear in visual order (reversed). Match all variants:
+STEP 1 — Find the table for account ${assetNum}:
+Look for a section header or table titled (approximately):
+  "8.1. פירוט סכומים בהתאם לרפורמה במיסוי רווחי הון בקרן השתלמות"
+  (or its reversed visual-order form: "תלמשתה ןרקב ןוהה יחוור יוסימב המרופרל םאתהב םימוכס טוריפ .1.8")
+Make sure this table belongs to account ${assetNum}.
 
-- exemptPrincipal:  "קרן פטורה" / "הרוטפ ןרק" / "הפקדות עד תקרה" / "הרקת דע תודקפה" / "קרן מוטבת" / "תבטומ ןרק"
-- exemptProfit:     "רווח פטור" / "רוטפ חוור" / "ריבית פטורה" / "הרוטפ תיביר"
-- taxablePrincipal: "קרן חייבת" / "תבייח ןרק" / "הפקדות מעל תקרה" / "הרקת לעמ תודקפה" / "קרן עודפת" / "תפדוע ןרק"
-- taxableProfit:    "רווח חייב" / "בייח חוור" / "ריבית חייבת" / "תבייח תיביר"
+STEP 2 — Identify the columns (may appear reversed in extracted text):
+  קרן = Principal
+  רווחים ריאליים = Real Profits
+  הפרשי הצמדה = Linkage Differences
+  שיעור המס = Tax Rate
+  סה"כ = Total
+
+STEP 3 — Split rows by tax rate:
+  EXEMPT rows:  tax rate = 0% (rows mentioning "0%" or "פטור" or "עד לגובה של תקרת ההפקדה המוטבת" or "עד ליום 31.12.2002")
+  TAXABLE rows: tax rate > 0% (15%, 20%, or 25%) (rows mentioning "מעל לתקרת ההפקדה המוטבת" or "מעל תקרת ההפקדה")
+
+STEP 4 — Calculate each of the 4 values:
+  exemptPrincipal  = SUM of "קרן" (Principal) for all EXEMPT rows (0% tax)
+  exemptProfit     = SUM of "רווחים ריאליים" + "הפרשי הצמדה" for all EXEMPT rows (0% tax)
+  taxablePrincipal = SUM of "קרן" (Principal) for all TAXABLE rows (>0% tax)
+  taxableProfit    = SUM of "רווחים ריאליים" + "הפרשי הצמדה" for all TAXABLE rows (>0% tax)
 
 Return ONLY raw JSON (no markdown, no explanation):
 {"exemptPrincipal": ..., "exemptProfit": ..., "taxablePrincipal": ..., "taxableProfit": ...}
 
 Rules:
-1. Use 0 ONLY if genuinely absent for account ${assetNum}.
-2. All values >= 0. Values are in thousands of NIS unless the report uses different units.
-3. If account ${assetNum} is not found in the report, return all zeros.
+1. All values must be >= 0.
+2. Use 0 if a category is genuinely absent for account ${assetNum}.
+3. Sanity check: exemptPrincipal + exemptProfit + taxablePrincipal + taxableProfit should roughly equal the total account balance.
+4. If account ${assetNum} is not found, return all zeros.
 
 Full report text:
 ${text}`;
