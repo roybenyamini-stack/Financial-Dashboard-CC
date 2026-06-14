@@ -89,21 +89,27 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   }
 
   // Step 2: ask Claude to extract the 4 tax-layer values
-  const PROMPT = `You are extracting tax layer data from an Israeli Keren Hishtalmut (study fund) annual report.
+  console.log('[parse-pdf] text snippet (0-500):', text.slice(0, 500));
 
-Find and return ONLY a JSON object with exactly these 4 keys (values in thousands of NIS, as numbers):
-- exemptPrincipal: total deposits/principal under the annual ceiling (קרן פטורה)
-- exemptProfit: profit/gains on exempt deposits (רווח פטור)
-- taxablePrincipal: deposits above the annual ceiling (קרן חייבת)
-- taxableProfit: profit/gains on taxable deposits (רווח חייב)
+  const PROMPT = `You are extracting tax-layer data from an Israeli Keren Hishtalmut (study fund) annual report.
+The report may use any of the following Hebrew terms for the 4 values — match them regardless of exact wording:
+
+- exemptPrincipal  (קרן פטורה / הפקדות עד תקרה / הפקדות מוטבות / קרן מוטבת / עד תקרה / קרן עד תקרה)
+- exemptProfit     (רווח פטור / רווח על קרן פטורה / ריבית פטורה / רווח מוטב)
+- taxablePrincipal (קרן חייבת / הפקדות מעל תקרה / קרן עודפת / מעל תקרה / קרן מעל תקרה / קרן שאינה פטורה)
+- taxableProfit    (רווח חייב / רווח על קרן חייבת / ריבית חייבת / רווח חייב במס)
+
+Return ONLY a JSON object with these 4 keys. Use the same numeric units as the report (do NOT convert units):
+{"exemptPrincipal": ..., "exemptProfit": ..., "taxablePrincipal": ..., "taxableProfit": ...}
 
 Rules:
-1. Use 0 for any value not found.
-2. All values must be non-negative numbers.
+1. Use 0 only if a value is genuinely absent from the report.
+2. All values must be >= 0.
 3. Return ONLY raw JSON — no markdown fences, no explanation.
+4. Sanity check: the sum of all 4 values should roughly equal the total fund balance shown in the report. If your numbers do not add up, re-read and adjust.
 
-Annual report text (first 12000 chars):
-${text.slice(0, 12000)}`;
+Annual report text:
+${text.slice(0, 25000)}`;
 
   try {
     const message = await client.messages.create({
@@ -113,6 +119,7 @@ ${text.slice(0, 12000)}`;
     });
 
     const raw     = (message.content[0].text || '').trim();
+    console.log('[parse-pdf] raw Claude response:', raw);
     const jsonStr = raw.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim();
 
     let parsed;
@@ -120,6 +127,7 @@ ${text.slice(0, 12000)}`;
       return res.status(500).json({ error: 'AI returned invalid JSON', raw });
     }
 
+    console.log('[parse-pdf] parsed result:', parsed);
     res.json({
       exemptPrincipal:  Number(parsed.exemptPrincipal)  || 0,
       exemptProfit:     Number(parsed.exemptProfit)     || 0,
