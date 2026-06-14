@@ -18324,6 +18324,7 @@ function _sfRecalculate() {
 
   // v181.75: PDF data override — synthesize authoritative taxSegments, bypass rawXml gate with stub
   var _pdfData = _sfLoadPdfData(item.assetNum);
+  console.log('Extracted PDF Data:', _pdfData);
   var _itemSrc = _pdfData
     ? Object.assign({}, item, { taxSegments: _sfPdfToSegments(_pdfData, baseK), rawXml: item.rawXml || '<Mutzar/>' })
     : item;
