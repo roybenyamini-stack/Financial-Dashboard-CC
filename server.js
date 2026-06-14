@@ -126,10 +126,11 @@ ${text}`;
 
     const raw     = (message.content[0].text || '').trim();
     console.log('[parse-pdf] raw Claude response:', raw);
-    const jsonStr = raw.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim();
+    const jsonStr = (raw.match(/\{[\s\S]*\}/) || [])[0] || raw;
 
     let parsed;
     try { parsed = JSON.parse(jsonStr); } catch (e) {
+      console.error('[parse-pdf] Failed to parse JSON. Raw response was:', raw);
       return res.status(500).json({ error: 'AI returned invalid JSON', raw });
     }
 
