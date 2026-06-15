@@ -1,4 +1,5 @@
 // System check: Claude Code is active.
+// Version: v182.05
 
 // LOGIN — v97.6
 (function() {
@@ -17580,10 +17581,16 @@ function parseAnnualReportPDF(file, assetNum) {
       })
       .then(function(data) {
         resolve({
+          _promptVersion:   7,
           exemptPrincipal:  Number(data.exemptPrincipal)  || 0,
           exemptProfit:     Number(data.exemptProfit)     || 0,
           taxablePrincipal: Number(data.taxablePrincipal) || 0,
-          taxableProfit:    Number(data.taxableProfit)    || 0
+          taxableProfit:    Number(data.taxableProfit)    || (Number(data.taxableProfit15) + Number(data.taxableProfit20) + Number(data.taxableProfit25)) || 0,
+          taxableProfit15:  Number(data.taxableProfit15)  || 0,
+          taxableProfit20:  Number(data.taxableProfit20)  || 0,
+          taxableProfit25:  Number(data.taxableProfit25)  || 0,
+          pdfTotalBalance:  Number(data.pdfTotalBalance)  || 0,
+          reportYear:       Number(data.reportYear)       || 0
         });
       })
       .catch(reject);
@@ -17603,14 +17610,35 @@ function _sfClearPdfData() {
   _sfRecalculate();
 }
 function _sfPdfToSegments(d, currentBalanceK) {
+  var base = currentBalanceK || 0;
+  var hasExactTiers = (d.taxableProfit15 > 0 || d.taxableProfit20 > 0 || d.taxableProfit25 > 0);
+
+  if (hasExactTiers) {
+    var taxableProfitTotalNIS = (d.taxableProfit15 || 0) + (d.taxableProfit20 || 0) + (d.taxableProfit25 || 0);
+    var exactTaxNIS = (d.taxableProfit15 * 0.15) + (d.taxableProfit20 * 0.20) + (d.taxableProfit25 * 0.25);
+    var taxableK = taxableProfitTotalNIS / 1000;
+    var exemptK  = base - taxableK;
+
+    console.log("--- v181.10 MATH TRACE ---");
+    console.log("15% Tier: " + d.taxableProfit15 + " * 0.15 = " + (d.taxableProfit15 * 0.15));
+    console.log("20% Tier: " + d.taxableProfit20 + " * 0.20 = " + (d.taxableProfit20 * 0.20));
+    console.log("25% Tier: " + d.taxableProfit25 + " * 0.25 = " + (d.taxableProfit25 * 0.25));
+
+
+    return [
+      { tikrat: '1', deposits: exemptK,            accumulation: exemptK  },
+      { tikrat: '2', deposits: exactTaxNIS / 1000, accumulation: taxableK }
+    ];
+  }
+
   var exAmt  = (d.exemptPrincipal  || 0) + (d.exemptProfit  || 0);
   var txAmt  = (d.taxablePrincipal || 0) + (d.taxableProfit || 0);
   var total  = exAmt + txAmt || 1;
-  var base   = currentBalanceK || 0;
   var exemptK  = base * (exAmt / total);
   var taxableK = base * (txAmt / total);
   var exPrinRatio = (d.exemptPrincipal  || 0) / (exAmt  || 1);
   var txPrinRatio = (d.taxablePrincipal || 0) / (txAmt  || 1);
+
   return [
     { tikrat: '1', deposits: exemptK  * exPrinRatio, accumulation: exemptK  },
     { tikrat: '2', deposits: taxableK * txPrinRatio, accumulation: taxableK }
@@ -17745,7 +17773,7 @@ function _sfBuildManualReceipt(grossK, mPrinK, pctFraction, mPropK, mTxProfK, ta
     + _sfReceiptRow('ניכוי הפקדות יחסי', '− ' + fmt(mPropK) + ' K ₪', '#6b7280')
     + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
     + _sfReceiptRow('רווח חייב במס', fmt(mTxProfK) + ' K ₪', '#374151')
-    + _sfReceiptRow('מס רווח הון 25%', '− ' + fmt(taxDueK) + ' K ₪', '#dc2626')
+    + _sfReceiptRow('מס רווח הון', '− ' + fmt(taxDueK) + ' K ₪', '#dc2626')
     + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
     + _sfReceiptRow('נטו לכיס', fmt(netK) + ' K ₪', '#16a34a')
     + '</div>'
@@ -17765,10 +17793,47 @@ function _sfBuildAutoReceipt(grossK, taxDetails, pctFraction) {
     + _sfReceiptRow('ניכוי הפקדות יחסי', '− ' + fmt(depK) + ' K ₪', '#6b7280')
     + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
     + _sfReceiptRow('רווח חייב במס', fmt(profK) + ' K ₪', '#374151')
-    + _sfReceiptRow('מס רווח הון 25%', '− ' + fmt(taxK) + ' K ₪', '#dc2626')
+    + _sfReceiptRow('מס רווח הון', '− ' + fmt(taxK) + ' K ₪', '#dc2626')
     + '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>'
     + _sfReceiptRow('נטו לכיס', fmt(netK) + ' K ₪', '#16a34a')
     + '</div>';
+}
+
+function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData) {
+  var fmt  = function(n) { return Math.round(n).toLocaleString('he-IL'); };
+  var fmtK = function(n) { return fmt(n / 1000); };
+  var p15  = pdfData.taxableProfit15 || 0;
+  var p20  = pdfData.taxableProfit20 || 0;
+  var p25  = pdfData.taxableProfit25 || 0;
+  var t15  = p15 * 0.15;
+  var t20  = p20 * 0.20;
+  var t25  = p25 * 0.25;
+  var totalTaxK = (t15 + t20 + t25) / 1000;
+  var exemptTotal = (pdfData.exemptPrincipal || 0) + (pdfData.exemptProfit || 0);
+  var html = '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב מס (מדרגות היסטוריות)</div>'
+    + '<div style="display:flex;flex-direction:column;gap:3px;">';
+  if (exemptTotal > 0)
+    html += _sfReceiptRow('פטור (הפקדות לפני 2002)', '₪' + fmtK(exemptTotal) + ' K', '#16a34a');
+  if (p15 > 0)
+    html += _sfReceiptRow('רווח 15% (2003-2005): ₪' + fmtK(p15) + ' K', '← מס: ₪' + fmtK(t15) + ' K', '#dc2626');
+  if (p20 > 0)
+    html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + ' K', '← מס: ₪' + fmtK(t20) + ' K', '#dc2626');
+  if (p25 > 0)
+    html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + ' K', '← מס: ₪' + fmtK(t25) + ' K', '#dc2626');
+  var ytdTaxK  = (ytdData && ytdData.ytdTaxDueK    > 0) ? ytdData.ytdTaxDueK    : 0;
+  var ytdProfK = (ytdData && ytdData.realYtdProfitK > 0) ? ytdData.realYtdProfitK : 0;
+  if (ytdProfK > 0) {
+    html += '<div style="border-top:2px dashed #d97706;margin:8px 0 4px 0;"></div>';
+    html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;">— הערכת צמיחה שוטפת (2026) —</div>';
+    html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + ' K', '← מס: ₪' + fmt(ytdTaxK) + ' K', '#b45309');
+  } else {
+    html += '<div style="font-size:12px;color:#d97706;margin-top:12px;text-align:center;font-weight:500;">המס חושב לתאריך הדו״ח. קיים מס מתאריך הדו״ח ועד היום, שלא חושב.</div>';
+  }
+  html += '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>';
+  html += _sfReceiptRow('סה"כ מס לתשלום', '₪' + fmt(totalTaxK + ytdTaxK) + ' K', '#dc2626');
+  html += _sfReceiptRow('נטו לכיס', '₪' + fmt(netK) + ' K', '#16a34a');
+  html += '</div>';
+  return html;
 }
 
 // Renders year tick labels and retirement marker; ticks are proportional to current scale
@@ -18323,8 +18388,21 @@ function _sfRecalculate() {
   }
 
   // v181.75: PDF data override — synthesize authoritative taxSegments, bypass rawXml gate with stub
-  var _pdfData = _sfLoadPdfData(item.assetNum);
-  console.log('Extracted PDF Data:', _pdfData);
+  var _pdfDataRaw = _sfLoadPdfData(item.assetNum);
+  if (_pdfDataRaw && (_pdfDataRaw._promptVersion || 0) < 7) {
+    localStorage.removeItem('sf_pdf_data_' + item.assetNum);
+    _pdfDataRaw = null;
+  }
+  var _pdfData = (_pdfDataRaw && (
+    (_pdfDataRaw.exemptPrincipal  || 0) > 0 ||
+    (_pdfDataRaw.exemptProfit     || 0) > 0 ||
+    (_pdfDataRaw.taxablePrincipal || 0) > 0 ||
+    (_pdfDataRaw.taxableProfit    || 0) > 0 ||
+    (_pdfDataRaw.taxableProfit15  || 0) > 0 ||
+    (_pdfDataRaw.taxableProfit20  || 0) > 0 ||
+    (_pdfDataRaw.taxableProfit25  || 0) > 0
+  )) ? _pdfDataRaw : null;
+  console.log('Extracted PDF Data:', _pdfData, '(raw:', _pdfDataRaw, ')');
   var _itemSrc = _pdfData
     ? Object.assign({}, item, { taxSegments: _sfPdfToSegments(_pdfData, baseK), rawXml: item.rawXml || '<Mutzar/>' })
     : item;
@@ -18363,6 +18441,34 @@ function _sfRecalculate() {
   var grossK  = taxDetails.grossWithdrawal;
   var taxDueK = taxDetails.totalTaxDue;
   var netK    = taxDetails.netToBank;
+
+  var _hasExactTiers  = !!(_pdfData && ((_pdfData.taxableProfit15||0) > 0 || (_pdfData.taxableProfit20||0) > 0 || (_pdfData.taxableProfit25||0) > 0));
+  var _ytdTaxDueK     = 0;
+  var _realYtdProfitK = 0;
+  if (_hasExactTiers) {
+    var _pdfTierTaxK = (((_pdfData.taxableProfit15||0) * 0.15) + ((_pdfData.taxableProfit20||0) * 0.20) + ((_pdfData.taxableProfit25||0) * 0.25)) / 1000;
+    var _pdfBalK = (_pdfData.pdfTotalBalance || 0) / 1000;
+    if (_pdfBalK > 0 && baseK > _pdfBalK) {
+      var _deltaK        = baseK - _pdfBalK;
+      var _today        = new Date();
+      var _reportYear   = (_pdfData.reportYear && _pdfData.reportYear > 2000) ? _pdfData.reportYear : 0;
+      var _currentYear  = _today.getFullYear();
+      var _currentMonth = _today.getMonth() + 1;
+      var _yearsPassed  = _reportYear > 0 ? (_currentYear - _reportYear - 1) + (_currentMonth / 12) : 0.5;
+      var _ytdInflRate  = (inflation / 100) * _yearsPassed;
+      var _inflDeductK   = _pdfBalK * _ytdInflRate;
+      _realYtdProfitK      = Math.max(0, _deltaK - _inflDeductK);
+      var _exemptTotalNIS  = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
+      var _pdfBalNIS       = _pdfData.pdfTotalBalance || 0;
+      var _taxableRatio    = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
+      _ytdTaxDueK          = Math.max(0, _realYtdProfitK * _taxableRatio * 0.25);
+    }
+    taxDueK = _pdfTierTaxK + _ytdTaxDueK;
+    netK    = grossK - taxDueK;
+  } else {
+    taxDueK = null;
+    netK    = null;
+  }
 
   // ── Manual calibration override ──────────────────────────────────────────
   var _manualData    = _sfLoadManualData(item.assetNum);
@@ -18409,40 +18515,31 @@ function _sfRecalculate() {
   var _pushMsgEl = document.getElementById('sf-tax-inline-msg');
   var _segEl = document.getElementById('sf-tax-segments');
   if (_segEl) _segEl.innerHTML = '';
-  if (_pushMsgEl) {
-    var _pushTid = taxDetails.explanation.templateId;
-
-    // Preserve receipt rendering for states that have real segment data
-    if (_pushTid === 'SF_UNKNOWN_SENIORITY' || _pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
-      if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-    }
-
-    if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
-      var _dateStr = taxDetails.joinDateFormatted
-        ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
-      _pushMsgEl.style.color      = '#16a34a';
-      _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
+  if (!_pdfData) {
+    // No PDF uploaded — waiting state
+    if (_pushMsgEl) {
+      _pushMsgEl.style.color      = '#6b7280';
+      _pushMsgEl.innerHTML        = 'ממתין להעלאת דו״ח שנתי לחישוב מס מדויק';
       _pushMsgEl.style.visibility = 'visible';
-    } else {
-      // 3-state accuracy indicator based on data source
-      var _accPdfData = _sfCurrentItem ? _sfLoadPdfData(_sfCurrentItem.assetNum) : null;
-      if (_accPdfData) {
-        _pushMsgEl.style.color      = '#16a34a';
-        _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
-        _pushMsgEl.style.visibility = 'visible';
-      } else {
-        var _accManual = _sfCurrentItem ? _sfLoadManualData(_sfCurrentItem.assetNum) : null;
-        if (_accManual && _accManual.principalAmount > 0) {
-          _pushMsgEl.style.color      = '#2563eb';
-          _pushMsgEl.innerHTML        = 'רמת דיוק: סבירה (מבוסס על נתונים שהוזנו ידנית).';
-          _pushMsgEl.style.visibility = 'visible';
-        } else {
-          _pushMsgEl.style.color      = '#d97706';
-          _pushMsgEl.innerHTML        = 'רמת דיוק: השערה (מבוסס על נתוני מסלקה). להגדלת הדיוק, העלה דו״ח שנתי או הזן הפקדות.';
-          _pushMsgEl.style.visibility = 'visible';
-        }
-      }
     }
+  } else if (_hasExactTiers) {
+    // PDF with exact tiers — transparent breakdown receipt
+    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK });
+    if (_pushMsgEl) {
+      _pushMsgEl.style.color      = '#16a34a';
+      _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
+      _pushMsgEl.style.visibility = 'visible';
+    }
+  } else if (_pdfData && _pushMsgEl) {
+    // PDF uploaded but tier extraction produced all zeros — show amber warning + clear button
+    _pushMsgEl.style.color      = '#d97706';
+    _pushMsgEl.innerHTML        = '⚠️ נתוני המס חסרים בדו״ח - לא ניתן לחשב במדויק. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק ונסה שוב</button>';
+    _pushMsgEl.style.visibility = 'visible';
+  } else if (_pushMsgEl) {
+    // No PDF — waiting state
+    _pushMsgEl.style.color      = '#6b7280';
+    _pushMsgEl.innerHTML        = 'ממתין להעלאת דו״ח שנתי לחישוב מס מדויק';
+    _pushMsgEl.style.visibility = 'visible';
   }
 
   // ── Calibration form: show when data partial; pre-fill inputs from localStorage ──
@@ -18559,7 +18656,7 @@ function _sfRecalculate() {
 
   // Route manual receipt to collapsible sf-tax-segments
   var _receiptEl = document.getElementById('sf-tax-segments');
-  if (_receiptEl && _manualReceipt) {
+  if (_receiptEl && _manualReceipt && !_hasExactTiers) {
     _receiptEl.innerHTML = _manualReceipt;
   }
   var _calibReceiptEl = document.getElementById('sf-calibration-receipt');
@@ -18573,8 +18670,27 @@ function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {
   if (!canvas) return;
 
   if (taxDueK === null) {
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:#9ca3af;">אין נתוני מס זמינים</span>';
+    _sfPieChart = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['ברוטו (טרם חישוב מס)'],
+        datasets: [{ data: [Math.round(grossK || 0)], backgroundColor: ['#2563eb'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        animation: { duration: 0 }, responsive: false, cutout: '60%',
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: function(c) { return '  ' + c.label + ': ' + c.parsed.toLocaleString('he-IL') + ' K ₪'; } },
+          backgroundColor: '#fff', titleColor: '#6b7280', bodyColor: '#111827',
+          borderColor: '#e5e7eb', borderWidth: 1, cornerRadius: 10,
+          bodyFont: { family: 'Heebo', size: 12, weight: '600' }
+        }}
+      }
+    });
+    if (legendEl) legendEl.innerHTML =
+      '<div style="display:flex;align-items:center;gap:6px;font-size:12px;">'
+      + '<span style="width:10px;height:10px;border-radius:2px;background:#2563eb;display:inline-block;"></span>'
+      + '<span style="color:#374151;">ברוטו: ' + Math.round(grossK||0).toLocaleString('he-IL') + ' K ₪</span>'
+      + '</div>';
     return;
   }
 

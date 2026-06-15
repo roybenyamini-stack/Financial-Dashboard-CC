@@ -1,5 +1,5 @@
 # Audit Report — Keren Hishtalmut Tax Logic
-**Generated:** 2026-06-13T15:31:54.345Z
+**Generated:** 2026-06-13T20:00:09.437Z
 **Mode:** STUB (no AUDIT_API_KEY set — no real API call was made)
 
 ---
@@ -1205,558 +1205,580 @@ Your job is to verify that the JavaScript code below correctly implements the ru
 
 ...
 
-17576:       if (/^\d{8}$/.test(rawDate)) {
-17577:         isoDate = rawDate.slice(0,4) + '-' + rawDate.slice(4,6) + '-' + rawDate.slice(6,8);
-17578:       }
-17579: 
-17580:       var segs = '';
-17581:       if (fd.accumExempt_tikrat1 > 0) {
-17582:         segs += '<PerutYitraLeTkufa>'
-17583:               + '<TIKRAT-HAFKADA-MUTEVET>1</TIKRAT-HAFKADA-MUTEVET>'
-17584:               + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumExempt_tikrat1) + '</SACH-ITRA-LESHICHVA-BESHACH>'
-17585:               + '</PerutYitraLeTkufa>';
-17586:       }
-17587:       if (fd.accumTaxable_tikrat2 > 0) {
-17588:         segs += '<PerutYitraLeTkufa>'
-17589:               + '<TIKRAT-HAFKADA-MUTEVET>2</TIKRAT-HAFKADA-MUTEVET>'
-17590:               + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumTaxable_tikrat2) + '</SACH-ITRA-LESHICHVA-BESHACH>'
-17591:               + '</PerutYitraLeTkufa>';
-17592:       }
-17593: 
-17594:       // Synthetic plain-XML rawXml — passes _sfCalculateTax rawXml gate with no parser changes
-17595:       inv.rawXml = '<HeshbonOPolisa>'
-17596:         + (isoDate ? '<TAARICH-HITZTARFUT-RISHON>' + isoDate + '</TAARICH-HITZTARFUT-RISHON>' : '')
-17597:         + segs
-17598:         + '</HeshbonOPolisa>';
-17599: 
-17600:       if (isoDate) inv.joinDate = isoDate;
-17601:       if (fd.accumExempt_tikrat1  >= 0) inv.accumExempt_tikrat1  = fd.accumExempt_tikrat1;
-17602:       if (fd.accumTaxable_tikrat2 >= 0) inv.accumTaxable_tikrat2 = fd.accumTaxable_tikrat2;
-17603:       inv._agentDataSource = true;
-17604:       updated++;
-17605:     });
-17606:   });
-17607: 
+17538: function parseAnnualReportPDF(file) {
+17539:   return new Promise(function(resolve) {
+17540:     var baseK = _sfCurrentItem ? (Number(_sfCurrentItem.balance) || 100) : 100;
+17541:     setTimeout(function() {
+17542:       resolve({
+17543:         exemptPrincipal:  Math.round(baseK * 0.55),
+17544:         exemptProfit:     Math.round(baseK * 0.20),
+17545:         taxablePrincipal: Math.round(baseK * 0.18),
+17546:         taxableProfit:    Math.round(baseK * 0.07)
+17547:       });
+17548:     }, 800);
+17549:   });
+17550: }
+17551: function _sfLoadPdfData(assetNum) {
 
 ...
 
-17642: 
-17643: function _sfBuildAutoReceipt(grossK, taxDetails, pctFraction) {
-17644:   var fmt    = function(n) { return Math.round(n).toLocaleString('he-IL'); };
-17645:   var pctLbl = Math.round(pctFraction * 100) + '%';
-17646:   var depK   = taxDetails.depositsPropK      || 0;
-17647:   var profK  = taxDetails.taxableProfitPropK || 0;
-17648:   var taxK   = taxDetails.totalTaxDue        || 0;
-17649:   var netK   = taxDetails.netToBank          || 0;
-17650:   return '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב (נתוני מסלקה)</div>'
-17651:     + '<div style="display:flex;flex-direction:column;gap:1px;">'
-17652:     + _sfReceiptRow('סכום משיכה (' + pctLbl + ')', fmt(grossK) + ' K ₪', '#1e293b')
+17558:   if (!_sfCurrentItem) return;
+17559:   localStorage.removeItem('sf_pdf_data_' + _sfCurrentItem.assetNum);
+17560:   _sfRecalculate();
+17561: }
+17562: function _sfPdfToSegments(d, currentBalanceK) {
+17563:   var exAmt  = (d.exemptPrincipal  || 0) + (d.exemptProfit  || 0);
+17564:   var txAmt  = (d.taxablePrincipal || 0) + (d.taxableProfit || 0);
+17565:   var total  = exAmt + txAmt || 1;
+17566:   var base   = currentBalanceK || 0;
+17567:   var exemptK  = base * (exAmt / total);
+17568:   var taxableK = base * (txAmt / total);
+17569:   var exPrinRatio = (d.exemptPrincipal  || 0) / (exAmt  || 1);
+17570:   var txPrinRatio = (d.taxablePrincipal || 0) / (txAmt  || 1);
+17571:   return [
+17572:     { tikrat: '1', deposits: exemptK  * exPrinRatio, accumulation: exemptK  },
+17573:     { tikrat: '2', deposits: taxableK * txPrinRatio, accumulation: taxableK }
+17574:   ];
+17575: }
+17576: function _sfPdfDragOver(e)  { e.preventDefault(); e.stopPropagation(); var dz = document.getElementById('sf-pdf-dropzone'); if (dz) dz.classList.add('drag-over'); }
+17577: function _sfPdfDragLeave(e) { e.preventDefault(); e.stopPropagation(); var dz = document.getElementById('sf-pdf-dropzone'); if (dz) dz.classList.remove('drag-over'); }
+17578: function _sfPdfDrop(e) {
 
 ...
 
-17748: function _sfSyncPair(key, source) {
-17749:   var pairs = {
-17750:     'timeline':         ['sf-timeline-slider',         'sf-timeline-input'],
-17751:     'inv-return':       ['sf-inv-return-slider',       'sf-inv-return-input'],
-17752:     'pen-return':       ['sf-pen-return-slider',       'sf-pen-return-input'],
-17753:     'inflation':        ['sf-inflation-slider',        'sf-inflation-input'],
-17754:     'withdrawal':       ['sf-withdrawal-slider',       'sf-withdrawal-input'],
-17755:     'withdrawal-fixed': ['sf-withdrawal-fixed-slider', 'sf-withdrawal-fixed-input']
-17756:   };
-17757:   var ids = pairs[key];
-17758:   if (!ids) return;
-17759:   var slId = ids[0], inId = ids[1];
-17760:   var slEl = document.getElementById(slId);
+17642:       if (/^\d{8}$/.test(rawDate)) {
+17643:         isoDate = rawDate.slice(0,4) + '-' + rawDate.slice(4,6) + '-' + rawDate.slice(6,8);
+17644:       }
+17645: 
+17646:       var segs = '';
+17647:       if (fd.accumExempt_tikrat1 > 0) {
+17648:         segs += '<PerutYitraLeTkufa>'
+17649:               + '<TIKRAT-HAFKADA-MUTEVET>1</TIKRAT-HAFKADA-MUTEVET>'
+17650:               + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumExempt_tikrat1) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+17651:               + '</PerutYitraLeTkufa>';
+17652:       }
+17653:       if (fd.accumTaxable_tikrat2 > 0) {
+17654:         segs += '<PerutYitraLeTkufa>'
+17655:               + '<TIKRAT-HAFKADA-MUTEVET>2</TIKRAT-HAFKADA-MUTEVET>'
+17656:               + '<SACH-ITRA-LESHICHVA-BESHACH>' + Math.round(fd.accumTaxable_tikrat2) + '</SACH-ITRA-LESHICHVA-BESHACH>'
+17657:               + '</PerutYitraLeTkufa>';
+17658:       }
+17659: 
+17660:       // Synthetic plain-XML rawXml — passes _sfCalculateTax rawXml gate with no parser changes
+17661:       inv.rawXml = '<HeshbonOPolisa>'
+17662:         + (isoDate ? '<TAARICH-HITZTARFUT-RISHON>' + isoDate + '</TAARICH-HITZTARFUT-RISHON>' : '')
+17663:         + segs
+17664:         + '</HeshbonOPolisa>';
+17665: 
+17666:       if (isoDate) inv.joinDate = isoDate;
+17667:       if (fd.accumExempt_tikrat1  >= 0) inv.accumExempt_tikrat1  = fd.accumExempt_tikrat1;
+17668:       if (fd.accumTaxable_tikrat2 >= 0) inv.accumTaxable_tikrat2 = fd.accumTaxable_tikrat2;
+17669:       inv._agentDataSource = true;
+17670:       updated++;
+17671:     });
+17672:   });
+17673: 
 
 ...
 
-17784: }
-17785: 
-17786: function _sfSyncAllSliders() {
-17787:   var ids = [
-17788:     'sf-timeline-slider', 'sf-inv-return-slider', 'sf-pen-return-slider',
-17789:     'sf-inflation-slider', 'sf-withdrawal-slider', 'sf-withdrawal-fixed-slider'
-17790:   ];
-17791:   ids.forEach(function(id) {
-17792:     var el = document.getElementById(id);
-17793:     if (!el) return;
-17794:     var min = parseFloat(el.min) || 0;
+17708: 
+17709: function _sfBuildAutoReceipt(grossK, taxDetails, pctFraction) {
+17710:   var fmt    = function(n) { return Math.round(n).toLocaleString('he-IL'); };
+17711:   var pctLbl = Math.round(pctFraction * 100) + '%';
+17712:   var depK   = taxDetails.depositsPropK      || 0;
+17713:   var profK  = taxDetails.taxableProfitPropK || 0;
+17714:   var taxK   = taxDetails.totalTaxDue        || 0;
+17715:   var netK   = taxDetails.netToBank          || 0;
+17716:   return '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב (נתוני מסלקה)</div>'
+17717:     + '<div style="display:flex;flex-direction:column;gap:1px;">'
+17718:     + _sfReceiptRow('סכום משיכה (' + pctLbl + ')', fmt(grossK) + ' K ₪', '#1e293b')
 
 ...
 
-17797:     var pct = max > min ? ((val - min) / (max - min) * 100).toFixed(1) : '0';
-17798:     el.style.setProperty('--pns-val', pct + '%');
-17799:   });
-17800: }
-17801: 
-17802: // Withdrawal mode toggle
-17803: function _sfSetWdMode(mode) {
-17804:   _sfWithdrawalMode = mode;
-17805:   // Cross-convert when switching
-17806:   if (_sfCurrentItem) {
-17807:     var balK = Number(_sfCurrentItem.balance) || 0;
-17808:     var projBalK = _sfGetProjectedBalance(); // K units
-17809:     if (mode === 'fixed') {
-17810:       // Convert current % to fixed K
-17811:       var pctEl = document.getElementById('sf-withdrawal-slider');
-17812:       var pct = pctEl ? parseFloat(pctEl.value) : 100;
-17813:       var fixedK = Math.round(projBalK * pct / 100);
-17814:       var wdFixSl = document.getElementById('sf-withdrawal-fixed-slider');
-17815:       var wdFixIn = document.getElementById('sf-withdrawal-fixed-input');
-17816:       if (wdFixSl) { wdFixSl.max = Math.round(projBalK); wdFixSl.value = fixedK; }
-17817:       if (wdFixIn) wdFixIn.value = fixedK;
-17818:     } else {
-17819:       // Convert current fixed K to %
-17820:       var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
-17821:       var fixedVal = fixEl ? parseFloat(fixEl.value) : 0;
-17822:       var pctConverted = projBalK > 0 ? Math.min(100, Math.round(fixedVal / projBalK * 100)) : 100;
-17823:       var wdSl = document.getElementById('sf-withdrawal-slider');
-17824:       var wdIn = document.getElementById('sf-withdrawal-input');
-17825:       if (wdSl) wdSl.value = pctConverted;
-17826:       if (wdIn) wdIn.value = pctConverted;
-17827:     }
-17828:   }
-17829:   _sfApplyWdModeUI();
+17814: function _sfSyncPair(key, source) {
+17815:   var pairs = {
+17816:     'timeline':         ['sf-timeline-slider',         'sf-timeline-input'],
+17817:     'inv-return':       ['sf-inv-return-slider',       'sf-inv-return-input'],
+17818:     'pen-return':       ['sf-pen-return-slider',       'sf-pen-return-input'],
+17819:     'inflation':        ['sf-inflation-slider',        'sf-inflation-input'],
+17820:     'withdrawal':       ['sf-withdrawal-slider',       'sf-withdrawal-input'],
+17821:     'withdrawal-fixed': ['sf-withdrawal-fixed-slider', 'sf-withdrawal-fixed-input']
+17822:   };
+17823:   var ids = pairs[key];
+17824:   if (!ids) return;
+17825:   var slId = ids[0], inId = ids[1];
+17826:   var slEl = document.getElementById(slId);
 
 ...
 
-17834: function _sfApplyWdModeUI() {
-17835:   var pctRow   = document.getElementById('sf-wd-pct-row');
-17836:   var fixedRow = document.getElementById('sf-wd-fixed-row');
-17837:   var pctBtn   = document.getElementById('sf-wd-pct-btn');
-17838:   var fixBtn   = document.getElementById('sf-wd-fixed-btn');
-17839:   var isPct = (_sfWithdrawalMode === 'pct');
-17840:   if (pctRow)   pctRow.style.display   = isPct ? 'flex' : 'none';
-17841:   if (fixedRow) fixedRow.style.display = isPct ? 'none' : 'flex';
-17842:   var onSt  = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#2563eb;color:white;font-weight:700;';
-17843:   var offSt = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#f1f5f9;color:#64748b;font-weight:600;';
-17844:   if (pctBtn)  pctBtn.style.cssText  = isPct ? onSt : offSt;
+17850: }
+17851: 
+17852: function _sfSyncAllSliders() {
+17853:   var ids = [
+17854:     'sf-timeline-slider', 'sf-inv-return-slider', 'sf-pen-return-slider',
+17855:     'sf-inflation-slider', 'sf-withdrawal-slider', 'sf-withdrawal-fixed-slider'
+17856:   ];
+17857:   ids.forEach(function(id) {
+17858:     var el = document.getElementById(id);
+17859:     if (!el) return;
+17860:     var min = parseFloat(el.min) || 0;
 
 ...
 
-17849: function _sfGetProjectedBalance() {
-17850:   if (!_sfCurrentItem) return 0;
-17851:   var baseK  = (Number(_sfCurrentItem.balance) || 0);
-17852:   var tlSl   = document.getElementById('sf-timeline-slider');
-17853:   var irSl   = document.getElementById('sf-inv-return-slider');
-17854:   var infSl  = document.getElementById('sf-inflation-slider');
-17855:   var months = tlSl  ? parseFloat(tlSl.value || 0) : 0;
-17856:   var invRet = irSl  ? parseFloat(irSl.value)  : 4;
-17857:   var inf    = infSl ? parseFloat(infSl.value) : 2.5;
-17858:   var years  = months / 12;
-17859:   var realR  = (1 + invRet / 100) / (1 + inf / 100) - 1;
-17860:   return baseK * Math.pow(1 + realR, years);
-17861: }
-17862: 
-17863: function _sfCalcSegments(item) {
-17864:   var segs = item.taxSegments || [];
-17865:   var exemptPrincipal = 0, taxablePrincipal = 0, exemptProfit = 0, taxableProfit = 0;
-17866:   if (segs.length > 0) {
-17867:     segs.forEach(function(seg) {
-17868:       var accum = (seg.accumulation != null && seg.accumulation !== '') ? Number(seg.accumulation) : null;
-17869:       if (accum == null) return;
-17870:       var dep   = (seg.deposits != null && seg.deposits !== '') ? Number(seg.deposits) : 0;
-17871:       var profit = Math.max(0, accum - dep);
-17872:       if (Number(seg.tikrat) === 1) { exemptPrincipal  += dep; exemptProfit  += profit; }
-17873:       else if (Number(seg.tikrat) === 2) { taxablePrincipal += dep; taxableProfit += profit; }
-17874:     });
-17875:   } else {
-17876:     exemptPrincipal = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
-17877:   }
-17878:   return { exemptPrincipal: exemptPrincipal, taxablePrincipal: taxablePrincipal, exemptProfit: exemptProfit, taxableProfit: taxableProfit };
-17879: }
-17880: 
-17881: // v181.21: Tax engine — pure calculation, no DOM access. Returns TaxDetails per docs/TaxLogic.md.
-17882: // Both Simulation and Real Data modes call this; mode affects the product fed in, not the rules.
-17883: function _sfCalculateTax(product, withdrawalPct, globalConfig) {
-17884:   var cfg = globalConfig || window.REAL_TAX_CONFIG || {};
-17885: 
-17886:   // ── Config resolution (all fallbacks, no hardcoded statics) ─────────────────
-17887:   var rawCapTax        = cfg.capitalTaxRate   != null ? cfg.capitalTaxRate   : (typeof SIM_CAPITAL_TAX !== 'undefined' ? SIM_CAPITAL_TAX : 0.25);
-17888:   var capitalTaxRate   = rawCapTax > 1 ? rawCapTax / 100 : rawCapTax;  // normalize: 25 → 0.25
-17889:   var sfSeniorityYears = cfg.sfSeniorityYears != null ? cfg.sfSeniorityYears : 6;
-17890:   var retirementAge    = cfg.retirementAge    != null ? cfg.retirementAge    : 67;
-17891:   var pfWithdrawalAge  = cfg.pfWithdrawalAge  != null ? cfg.pfWithdrawalAge  : 60;
-17892:   var exemptBasket     = cfg.taxBasket        != null ? cfg.taxBasket        : (cfg.exemptBasket != null ? cfg.exemptBasket : (typeof pnsExemptBasket !== 'undefined' ? pnsExemptBasket : 882924));
-17893:   var brackets         = (cfg.taxBrackets && cfg.taxBrackets.length === 6) ? cfg.taxBrackets : [7010, 10060, 16150, 22440, 46690, 60130];
-17894:   var rates            = (cfg.taxRates    && cfg.taxRates.length    === 7) ? cfg.taxRates    : [10, 14, 20, 31, 35, 47, 50];
-17895:   var creditValue      = cfg.creditPointValue != null ? cfg.creditPointValue : 242;
-17896:   var creditPts        = cfg.creditPoints     != null ? cfg.creditPoints     : 2.25;
-17897: 
-17898:   // ── rawXml gate ───────────────────────────────────────────────────────────────
-17899:   if (!product.rawXml) {
-17900:     return {
-17901:       productType: 'לא ידוע', sugMutzar: null, seniority: '—', memberAge: null,
-17902:       exemptionApplied: true, exemptionReason: 'rawXml חסר',
-17903:       segments: [], withdrawalPct: 0,
-17904:       grossWithdrawal: 0, totalTaxDue: null, netToBank: null, currency: 'ILS', unit: 'K',
-17905:       confidence: { level: 'low', score: 0, notes: ['rawXml חסר — יש לייבא מחדש את קבצי המסלקה'] },
-17906:       explanation: { templateId: 'SF_MISSING_XML', placeholders: {},
-17907:                      rendered: '<div>נתוני המס חסרים. אנא טען מחדש את קבצי המסלקה כדי לצפות בסימולציה.</div>' },
-17908:       disclaimer: 'יש לייבא מחדש את קובץ המסלקה כדי לאפשר חישוב מס.'
-17909:     };
+17863:     var pct = max > min ? ((val - min) / (max - min) * 100).toFixed(1) : '0';
+17864:     el.style.setProperty('--pns-val', pct + '%');
+17865:   });
+17866: }
+17867: 
+17868: // Withdrawal mode toggle
+17869: function _sfSetWdMode(mode) {
+17870:   _sfWithdrawalMode = mode;
+17871:   // Cross-convert when switching
+17872:   if (_sfCurrentItem) {
+17873:     var balK = Number(_sfCurrentItem.balance) || 0;
+17874:     var projBalK = _sfGetProjectedBalance(); // K units
+17875:     if (mode === 'fixed') {
+17876:       // Convert current % to fixed K
+17877:       var pctEl = document.getElementById('sf-withdrawal-slider');
+17878:       var pct = pctEl ? parseFloat(pctEl.value) : 100;
+17879:       var fixedK = Math.round(projBalK * pct / 100);
+17880:       var wdFixSl = document.getElementById('sf-withdrawal-fixed-slider');
+17881:       var wdFixIn = document.getElementById('sf-withdrawal-fixed-input');
+17882:       if (wdFixSl) { wdFixSl.max = Math.round(projBalK); wdFixSl.value = fixedK; }
+17883:       if (wdFixIn) wdFixIn.value = fixedK;
+17884:     } else {
+17885:       // Convert current fixed K to %
+17886:       var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
+17887:       var fixedVal = fixEl ? parseFloat(fixEl.value) : 0;
+17888:       var pctConverted = projBalK > 0 ? Math.min(100, Math.round(fixedVal / projBalK * 100)) : 100;
+17889:       var wdSl = document.getElementById('sf-withdrawal-slider');
+17890:       var wdIn = document.getElementById('sf-withdrawal-input');
+17891:       if (wdSl) wdSl.value = pctConverted;
+17892:       if (wdIn) wdIn.value = pctConverted;
+17893:     }
+17894:   }
+17895:   _sfApplyWdModeUI();
 
 ...
 
-18001: 
-18002:   // ── Downgrade to Low if two+ Medium triggers ─────────────────────────────────
-18003:   if (mediumTriggers >= 2 && confidence.level !== 'low') { confidence.level = 'low'; confidence.score = 50; }
-18004:   else if (mediumTriggers >= 1 && confidence.level === 'high') { confidence.level = 'medium'; confidence.score = 80; }
-18005: 
-18006:   // ── Balance & withdrawal ─────────────────────────────────────────────────────
-18007:   var balanceK    = (product.balance != null && product.balance !== '') ? Number(product.balance) : 0;
-18008:   var wdFraction  = (withdrawalPct != null) ? Math.min(1, Math.max(0, Number(withdrawalPct))) : 1;
-18009:   var grossK      = balanceK * wdFraction;
-18010: 
-18011:   // ── Tax calculation branch ───────────────────────────────────────────────────
-18012:   var taxDueK = 0;
-18013:   var exemptionApplied = false, exemptionReason = '', templateId = '', placeholders = {};
-18014:   var effSeniority = seniority != null ? seniority : 0;
-18015:   var effAge       = memberAge != null ? memberAge : 0;
-18016: 
-18017:   if (sugMutzar === 4) {
-18018:     // Study Fund path
-18019:     // Israeli tax law: tikrat=2 (above-ceiling) profit is ALWAYS taxed; tikrat=1 is exempt only when eligible
-18020:     var isExemptEligible = (effSeniority >= sfSeniorityYears) ||
-18021:                            (memberAge != null && effAge >= retirementAge);
-18022:     // v181.74: REAL Capital Gains Tax — nominal profit minus inflation adjustment on principal
-18023:     var inflRate = (cfg.inflation != null ? cfg.inflation : 0) / 100;
-18024:     // tikrat=2 (Taxable segment): realProfit = nominalProfit − inflation × taxablePrincipal
-18025:     var nomTxProfit   = seg.taxableProfit  * wdFraction;
-18026:     var inflAdjTx     = inflRate * seg.taxablePrincipal * wdFraction;
-18027:     var realTxProfit  = Math.max(0, nomTxProfit - inflAdjTx); // floor: if real profit ≤ 0, tax = 0
-18028:     var taxableSegTax = realTxProfit * capitalTaxRate;
-18029:     // tikrat=1 (Exempt segment): only taxed when NOT eligible; same real logic
-18030:     var nomExProfit   = seg.exemptProfit   * wdFraction;
-18031:     var inflAdjEx     = inflRate * seg.exemptPrincipal * wdFraction;
-18032:     var realExProfit  = Math.max(0, nomExProfit - inflAdjEx);
-18033:     var exemptSegTax  = isExemptEligible ? 0 : realExProfit * capitalTaxRate;
-18034:     taxDueK = taxableSegTax + exemptSegTax;
-18035: 
-18036:     if (seg.taxableProfit <= 0 && seg.taxablePrincipal <= 0 && seg.exemptPrincipal <= 0) {
-18037:       // No segment data at all
-18038:       taxDueK = 0; exemptionApplied = true;
-18039:       templateId = 'SF_NO_TAXABLE_PROFIT';
-18040:       exemptionReason = 'אין נתוני מקטעים';
-18041:     } else if (taxableSegTax > 0 && isExemptEligible) {
-18042:       // Mixed: tikrat=1 exempt by seniority/age, tikrat=2 still taxed
-18043:       exemptionApplied = false;
-18044:       templateId = 'SF_MIXED';
-18045:       placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
-18046:       exemptionReason = 'קרן מוטבת פטורה, קרן חייבת חייבת';
-18047:     } else if (isExemptEligible) {
-18048:       // Fully exempt: no taxable segment profit
-18049:       taxDueK = 0; exemptionApplied = true;
-18050:       if (effSeniority >= sfSeniorityYears) {
-18051:         templateId = 'SF_EXEMPT_SENIORITY';
-18052:         placeholders = { X: String(Math.floor(effSeniority)) };
-18053:         exemptionReason = 'ותק מעל ' + sfSeniorityYears + ' שנים';
-18054:       } else {
-18055:         templateId = 'SF_EXEMPT_AGE';
-18056:         placeholders = { X: String(Math.floor(effAge)) };
-18057:         exemptionReason = 'גיל פרישה';
-18058:       }
-18059:     } else {
-18060:       // Not eligible: both tikrat=1 and tikrat=2 profits taxed
-18061:       if (seniority == null) {
-18062:         templateId = 'SF_UNKNOWN_SENIORITY';
-18063:         placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
-18064:       } else {
-18065:         templateId = 'SF_TAXABLE';
-18066:         placeholders = { X: String(Math.floor(effSeniority)), RATE: Math.round(capitalTaxRate * 100) + '%' };
-18067:       }
-18068:     }
-18069: 
-18070:   } else if (sugMutzar === 3) {
-18071:     // Provident Fund path
-18072:     if (effAge >= pfWithdrawalAge) {
-18073:       var exemptAmt  = Math.min(balanceK, exemptBasket);
-18074:       var taxableAmt = Math.max(0, balanceK - exemptAmt);
-18075:       taxDueK = _sfProgressiveTax(taxableAmt) * wdFraction;
-18076:       templateId = 'PF_EXEMPT_AGE';
-18077:       placeholders = { X: String(Math.floor(effAge)), Y: Math.round(exemptAmt).toLocaleString('he-IL'), Z: Math.round(taxableAmt).toLocaleString('he-IL') };
-18078:     } else {
-18079:       taxDueK = _sfProgressiveTax(balanceK) * wdFraction;
-18080:       templateId = 'PF_TAXABLE_YOUNG';
-18081:       placeholders = {};
-18082:     }
-18083:     if (product.isVatika) templateId = 'PF_VATIKA';
-18084:   }
-18085: 
+17900: function _sfApplyWdModeUI() {
+17901:   var pctRow   = document.getElementById('sf-wd-pct-row');
+17902:   var fixedRow = document.getElementById('sf-wd-fixed-row');
+17903:   var pctBtn   = document.getElementById('sf-wd-pct-btn');
+17904:   var fixBtn   = document.getElementById('sf-wd-fixed-btn');
+17905:   var isPct = (_sfWithdrawalMode === 'pct');
+17906:   if (pctRow)   pctRow.style.display   = isPct ? 'flex' : 'none';
+17907:   if (fixedRow) fixedRow.style.display = isPct ? 'none' : 'flex';
+17908:   var onSt  = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#2563eb;color:white;font-weight:700;';
+17909:   var offSt = 'padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#f1f5f9;color:#64748b;font-weight:600;';
+17910:   if (pctBtn)  pctBtn.style.cssText  = isPct ? onSt : offSt;
 
 ...
 
-18090:   var senMonths = Math.round((effSeniority - senYears) * 12);
-18091:   var senLabel  = (senYears > 0 ? senYears + ' שנים' : '') + (senYears > 0 && senMonths > 0 ? ' ו-' : '') + (senMonths > 0 ? senMonths + ' חודשים' : '') || '0 חודשים';
-18092: 
-18093:   // ── Explainability templates ─────────────────────────────────────────────────
-18094:   var TEMPLATES = {
-18095:     SF_EXEMPT_SENIORITY:  'החישוב מתבסס על ותק של [X] שנים, ולכן הקופה פטורה ממס.',
-18096:     SF_EXEMPT_AGE:        'החבר הגיע לגיל פרישה ([X]), ולכן הקופה פטורה ממס ללא תלות בוותק.',
-18097:     SF_TAXABLE:           'ותק של [X] שנים בלבד — חלק הרווח בקרן החייבת חייב במס רווח הון של [RATE].',
-18098:     SF_NO_TAXABLE_PROFIT: 'אין רווחים החייבים במס בקופה זו (כל הכספים מסווגים כפטורים).',
-18099:     SF_MIXED:             'הקרן המוטבת פטורה בשל ותק. חלה חבות מס של [RATE] על רווחי הקרן החייבת (מעל התקרה).',
-18100:     SF_UNKNOWN_SENIORITY: '<span title="המידע חסר במסלקה. ניתן למצוא את נתוני ההפקדות והתאריכים בדו&quot;ח השנתי של הגוף המנהל. ניתן להזינם כאן ידנית לדיוק מלא." style="border-bottom:1px dotted #6b7280;cursor:help;white-space:nowrap;">החישוב מתבסס על נתונים חלקיים</span> — חבות מס של [RATE] על הקרן החייבת (מעל התקרה).',
-18101:     PF_EXEMPT_AGE:        'משיכה בגיל [X] — הסכום עד [Y] ₪ פטור ממס (סל פטור). יתרה של [Z] ₪ חייבת לפי מדרגות.',
-18102:     PF_TAXABLE_YOUNG:     'משיכה לפני גיל 60 מחושבת כהכנסה חייבת לפי מדרגות מס הכנסה.',
-18103:     PF_VATIKA:            'קרן וותיקה — חישוב המס מבוסס על כללי הפטור של המשטר הישן ועשוי להיות שונה מהחישוב הסטנדרטי.',
-18104:     SF_MISSING_XML:       '<span style="background:#fef3c7;color:#92400e;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">⚠ אמינות נמוכה — Low Confidence</span> ' +
-18105:                           'אין נתוני פירוט פטור/חייב מהמסלקה. המס מחושב שמרנית על מלוא הרווח החייב. ' +
-18106:                           'לחישוב מדויק: <b>העלה דו"ח שנתי PDF</b> או הזן ידנית את הסכום הפטור מול החייב בטופס למטה.' // v181.74
-18107:   };
+17915: function _sfGetProjectedBalance() {
+17916:   if (!_sfCurrentItem) return 0;
+17917:   var baseK  = (Number(_sfCurrentItem.balance) || 0);
+17918:   var tlSl   = document.getElementById('sf-timeline-slider');
+17919:   var irSl   = document.getElementById('sf-inv-return-slider');
+17920:   var infSl  = document.getElementById('sf-inflation-slider');
+17921:   var months = tlSl  ? parseFloat(tlSl.value || 0) : 0;
+17922:   var invRet = irSl  ? parseFloat(irSl.value)  : 4;
+17923:   var inf    = infSl ? parseFloat(infSl.value) : 2.5;
+17924:   var years  = months / 12;
+17925:   var realR  = (1 + invRet / 100) / (1 + inf / 100) - 1;
+17926:   return baseK * Math.pow(1 + realR, years);
+17927: }
+17928: 
+17929: function _sfCalcSegments(item) {
+17930:   var segs = item.taxSegments || [];
+17931:   var exemptPrincipal = 0, taxablePrincipal = 0, exemptProfit = 0, taxableProfit = 0;
+17932:   if (segs.length > 0) {
+17933:     segs.forEach(function(seg) {
+17934:       var accum = (seg.accumulation != null && seg.accumulation !== '') ? Number(seg.accumulation) : null;
+17935:       if (accum == null) return;
+17936:       var dep   = (seg.deposits != null && seg.deposits !== '') ? Number(seg.deposits) : 0;
+17937:       var profit = Math.max(0, accum - dep);
+17938:       if (Number(seg.tikrat) === 1) { exemptPrincipal  += dep; exemptProfit  += profit; }
+17939:       else if (Number(seg.tikrat) === 2) { taxablePrincipal += dep; taxableProfit += profit; }
+17940:     });
+17941:   } else {
+17942:     exemptPrincipal = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
+17943:   }
+17944:   return { exemptPrincipal: exemptPrincipal, taxablePrincipal: taxablePrincipal, exemptProfit: exemptProfit, taxableProfit: taxableProfit };
+17945: }
+17946: 
+17947: // v181.21: Tax engine — pure calculation, no DOM access. Returns TaxDetails per docs/TaxLogic.md.
+17948: // Both Simulation and Real Data modes call this; mode affects the product fed in, not the rules.
+17949: function _sfCalculateTax(product, withdrawalPct, globalConfig) {
+17950:   var cfg = globalConfig || window.REAL_TAX_CONFIG || {};
+17951: 
+17952:   // ── Config resolution (all fallbacks, no hardcoded statics) ─────────────────
+17953:   var rawCapTax        = cfg.capitalTaxRate   != null ? cfg.capitalTaxRate   : (typeof SIM_CAPITAL_TAX !== 'undefined' ? SIM_CAPITAL_TAX : 0.25);
+17954:   var capitalTaxRate   = rawCapTax > 1 ? rawCapTax / 100 : rawCapTax;  // normalize: 25 → 0.25
+17955:   var sfSeniorityYears = cfg.sfSeniorityYears != null ? cfg.sfSeniorityYears : 6;
+17956:   var retirementAge    = cfg.retirementAge    != null ? cfg.retirementAge    : 67;
+17957:   var pfWithdrawalAge  = cfg.pfWithdrawalAge  != null ? cfg.pfWithdrawalAge  : 60;
+17958:   var exemptBasket     = cfg.taxBasket        != null ? cfg.taxBasket        : (cfg.exemptBasket != null ? cfg.exemptBasket : (typeof pnsExemptBasket !== 'undefined' ? pnsExemptBasket : 882924));
+17959:   var brackets         = (cfg.taxBrackets && cfg.taxBrackets.length === 6) ? cfg.taxBrackets : [7010, 10060, 16150, 22440, 46690, 60130];
+17960:   var rates            = (cfg.taxRates    && cfg.taxRates.length    === 7) ? cfg.taxRates    : [10, 14, 20, 31, 35, 47, 50];
+17961:   var creditValue      = cfg.creditPointValue != null ? cfg.creditPointValue : 242;
+17962:   var creditPts        = cfg.creditPoints     != null ? cfg.creditPoints     : 2.25;
+17963: 
+17964:   // ── rawXml gate ───────────────────────────────────────────────────────────────
+17965:   if (!product.rawXml) {
+17966:     return {
+17967:       productType: 'לא ידוע', sugMutzar: null, seniority: '—', memberAge: null,
+17968:       exemptionApplied: true, exemptionReason: 'rawXml חסר',
+17969:       segments: [], withdrawalPct: 0,
+17970:       grossWithdrawal: 0, totalTaxDue: null, netToBank: null, currency: 'ILS', unit: 'K',
+17971:       confidence: { level: 'low', score: 0, notes: ['rawXml חסר — יש לייבא מחדש את קבצי המסלקה'] },
+17972:       explanation: { templateId: 'SF_MISSING_XML', placeholders: {},
+17973:                      rendered: '<div>נתוני המס חסרים. אנא טען מחדש את קבצי המסלקה כדי לצפות בסימולציה.</div>' },
+17974:       disclaimer: 'יש לייבא מחדש את קובץ המסלקה כדי לאפשר חישוב מס.'
+17975:     };
 
 ...
 
-18117:     '</ul>' +
-18118:     '</div>';
-18119: 
-18120:   // ── Segment detail rows for transparency ────────────────────────────────────
-18121:   var segRows = [
-18122:     { type: 'קרן פטורה',  tikrat: 1, principal: seg.exemptPrincipal,   profit: seg.exemptProfit,   taxRate: 0,              taxDue: 0 },
-18123:     { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : realTxProfit * capitalTaxRate } // v181.74: real CGT
-18124:   ];
-18125: 
-18126:   return {
-18127:     productType: productType,
-18128:     sugMutzar:   sugMutzar,
-18129:     seniority:   senLabel,
-18130:     memberAge:   memberAge != null ? Math.floor(memberAge) : null,
-18131:     exemptionApplied:  exemptionApplied,
-18132:     exemptionReason:   exemptionReason,
-18133:     segments:    segRows,
-18134:     withdrawalPct: wdFraction,
-18135:     grossWithdrawal: Math.round(grossK),
-18136:     totalTaxDue:    Math.round(taxDueK),
-18137:     netToBank:      Math.round(netK),
-18138:     currency: 'ILS', unit: 'K',
-18139:     confidence: confidence,
-18140:     explanation: { templateId: templateId, placeholders: placeholders, rendered: tpl },
-18141:     disclaimer:  DISCLAIMER,
-18142:     joinDateFormatted:   _sfFmtDate(joinDate),
-18143:     depositsPropK:       Math.round((seg.exemptPrincipal + seg.taxablePrincipal) * wdFraction),
-18144:     taxableProfitPropK:  Math.round((templateId === 'SF_TAXABLE'
-18145:                            ? (seg.exemptProfit + seg.taxableProfit)
-18146:                            : seg.taxableProfit) * wdFraction)
-18147:   };
-18148: }
-18149: 
-18150: function _sfRecalculate() {
-18151:   if (!_sfCurrentItem) return;
-18152:   var item = _sfCurrentItem;
-18153: 
-18154:   var tlSl  = document.getElementById('sf-timeline-slider');
-18155:   var irSl  = document.getElementById('sf-inv-return-slider');
-18156:   var infSl = document.getElementById('sf-inflation-slider');
-18157: 
-18158:   var months     = tlSl  ? parseFloat(tlSl.value || 0) : 0;
-18159:   var invReturn  = irSl  ? parseFloat(irSl.value)  : 4;
-18160:   var inflation  = infSl ? parseFloat(infSl.value) : 2.5;
-18161:   var years      = months / 12;
-18162: 
-18163:   // Timeline display label: X שנים וY חודשים
-18164:   var tlYears  = Math.floor(years);
-18165:   var tlMonths = Math.round((years - tlYears) * 12);
+18067: 
+18068:   // ── Downgrade to Low if two+ Medium triggers ─────────────────────────────────
+18069:   if (mediumTriggers >= 2 && confidence.level !== 'low') { confidence.level = 'low'; confidence.score = 50; }
+18070:   else if (mediumTriggers >= 1 && confidence.level === 'high') { confidence.level = 'medium'; confidence.score = 80; }
+18071: 
+18072:   // ── Balance & withdrawal ─────────────────────────────────────────────────────
+18073:   var balanceK    = (product.balance != null && product.balance !== '') ? Number(product.balance) : 0;
+18074:   var wdFraction  = (withdrawalPct != null) ? Math.min(1, Math.max(0, Number(withdrawalPct))) : 1;
+18075:   var grossK      = balanceK * wdFraction;
+18076: 
+18077:   // ── Tax calculation branch ───────────────────────────────────────────────────
+18078:   var taxDueK = 0;
+18079:   var exemptionApplied = false, exemptionReason = '', templateId = '', placeholders = {};
+18080:   var effSeniority = seniority != null ? seniority : 0;
+18081:   var effAge       = memberAge != null ? memberAge : 0;
+18082: 
+18083:   if (sugMutzar === 4) {
+18084:     // Study Fund path
+18085:     // Israeli tax law: tikrat=2 (above-ceiling) profit is ALWAYS taxed; tikrat=1 is exempt only when eligible
+18086:     var isExemptEligible = (effSeniority >= sfSeniorityYears) ||
+18087:                            (memberAge != null && effAge >= retirementAge);
+18088:     // v181.76: nominal CGT — inflation slider only affects forward growthF projections
+18089:     var nomTxProfit   = seg.taxableProfit * wdFraction;
+18090:     var taxableSegTax = nomTxProfit * capitalTaxRate;
+18091:     var nomExProfit   = seg.exemptProfit  * wdFraction;
+18092:     var exemptSegTax  = isExemptEligible ? 0 : nomExProfit * capitalTaxRate;
+18093:     taxDueK = taxableSegTax + exemptSegTax;
+18094: 
+18095:     if (seg.taxableProfit <= 0 && seg.taxablePrincipal <= 0 && seg.exemptPrincipal <= 0) {
+18096:       // No segment data at all
+18097:       taxDueK = 0; exemptionApplied = true;
+18098:       templateId = 'SF_NO_TAXABLE_PROFIT';
+18099:       exemptionReason = 'אין נתוני מקטעים';
+18100:     } else if (taxableSegTax > 0 && isExemptEligible) {
+18101:       // Mixed: tikrat=1 exempt by seniority/age, tikrat=2 still taxed
+18102:       exemptionApplied = false;
+18103:       templateId = 'SF_MIXED';
+18104:       placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
+18105:       exemptionReason = 'קרן מוטבת פטורה, קרן חייבת חייבת';
+18106:     } else if (isExemptEligible) {
+18107:       // Fully exempt: no taxable segment profit
+18108:       taxDueK = 0; exemptionApplied = true;
+18109:       if (effSeniority >= sfSeniorityYears) {
+18110:         templateId = 'SF_EXEMPT_SENIORITY';
+18111:         placeholders = { X: String(Math.floor(effSeniority)) };
+18112:         exemptionReason = 'ותק מעל ' + sfSeniorityYears + ' שנים';
+18113:       } else {
+18114:         templateId = 'SF_EXEMPT_AGE';
+18115:         placeholders = { X: String(Math.floor(effAge)) };
+18116:         exemptionReason = 'גיל פרישה';
+18117:       }
+18118:     } else {
+18119:       // Not eligible: both tikrat=1 and tikrat=2 profits taxed
+18120:       if (seniority == null) {
+18121:         templateId = 'SF_UNKNOWN_SENIORITY';
+18122:         placeholders = { RATE: Math.round(capitalTaxRate * 100) + '%' };
+18123:       } else {
+18124:         templateId = 'SF_TAXABLE';
+18125:         placeholders = { X: String(Math.floor(effSeniority)), RATE: Math.round(capitalTaxRate * 100) + '%' };
+18126:       }
+18127:     }
+18128: 
+18129:   } else if (sugMutzar === 3) {
+18130:     // Provident Fund path
+18131:     if (effAge >= pfWithdrawalAge) {
+18132:       var exemptAmt  = Math.min(balanceK, exemptBasket);
+18133:       var taxableAmt = Math.max(0, balanceK - exemptAmt);
+18134:       taxDueK = _sfProgressiveTax(taxableAmt) * wdFraction;
+18135:       templateId = 'PF_EXEMPT_AGE';
+18136:       placeholders = { X: String(Math.floor(effAge)), Y: Math.round(exemptAmt).toLocaleString('he-IL'), Z: Math.round(taxableAmt).toLocaleString('he-IL') };
+18137:     } else {
+18138:       taxDueK = _sfProgressiveTax(balanceK) * wdFraction;
+18139:       templateId = 'PF_TAXABLE_YOUNG';
+18140:       placeholders = {};
+18141:     }
+18142:     if (product.isVatika) templateId = 'PF_VATIKA';
+18143:   }
+18144: 
 
 ...
 
-18176:   var irV = document.getElementById('sf-inv-return-val');
-18177:   if (irV) irV.textContent = invReturn.toFixed(1) + '%';
-18178:   var prV = document.getElementById('sf-pen-return-val');
-18179:   var prSl = document.getElementById('sf-pen-return-slider');
-18180:   if (prV && prSl) prV.textContent = parseFloat(prSl.value).toFixed(1) + '%';
-18181:   var infV = document.getElementById('sf-inflation-val');
-18182:   if (infV) infV.textContent = inflation.toFixed(1) + '%';
-18183: 
-18184:   // Project balance (real return = inflation-adjusted)
-18185:   var baseK    = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
-18186:   var realR    = (1 + invReturn / 100) / (1 + inflation / 100) - 1;
-18187:   var growthF  = Math.pow(1 + realR, years);
-18188:   var projBalK = baseK * growthF;
-18189: 
-18190:   // Resolve withdrawal fraction
-18191:   var pctFraction;
-18192:   if (_sfWithdrawalMode === 'fixed') {
-18193:     var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
-18194:     var fixedValK = fixEl ? parseFloat(fixEl.value) : 0; // in K ₪
-18195:     pctFraction = projBalK > 0 ? Math.min(1, fixedValK / projBalK) : 0;
-18196:     var wdV = document.getElementById('sf-withdrawal-val');
-18197:     if (wdV) wdV.style.display = 'none';
-18198:     // keep % slider in sync silently
-18199:     var wdSl = document.getElementById('sf-withdrawal-slider');
-18200:     var wdIn = document.getElementById('sf-withdrawal-input');
-18201:     var syncPct = Math.round(pctFraction * 100);
-18202:     if (wdSl && document.activeElement !== wdSl) wdSl.value = syncPct;
-18203:     if (wdIn && document.activeElement !== wdIn) wdIn.value = syncPct;
-18204:   } else {
-18205:     var wdSlEl = document.getElementById('sf-withdrawal-slider');
-18206:     var pct = wdSlEl ? parseInt(wdSlEl.value, 10) : 100;
-18207:     pctFraction = pct / 100;
-18208:     var wdVEl = document.getElementById('sf-withdrawal-val');
-18209:     if (wdVEl) wdVEl.style.display = 'none';
-18210:     // keep fixed slider in sync silently (K ₪ units)
-18211:     var fixSl = document.getElementById('sf-withdrawal-fixed-slider');
-18212:     var fixIn = document.getElementById('sf-withdrawal-fixed-input');
-18213:     var syncFixed = Math.round(projBalK * pctFraction);
-18214:     if (fixSl) { fixSl.max = Math.round(projBalK); if (document.activeElement !== fixSl) fixSl.value = syncFixed; }
-18215:     if (fixIn && document.activeElement !== fixIn) fixIn.value = syncFixed;
-18216:     var fixMaxLbl = document.getElementById('sf-wd-fix-max-label');
-18217:     if (fixMaxLbl) fixMaxLbl.textContent = Math.round(projBalK).toLocaleString('he-IL') + ' K ₪';
+18149:   var senMonths = Math.round((effSeniority - senYears) * 12);
+18150:   var senLabel  = (senYears > 0 ? senYears + ' שנים' : '') + (senYears > 0 && senMonths > 0 ? ' ו-' : '') + (senMonths > 0 ? senMonths + ' חודשים' : '') || '0 חודשים';
+18151: 
+18152:   // ── Explainability templates ─────────────────────────────────────────────────
+18153:   var TEMPLATES = {
+18154:     SF_EXEMPT_SENIORITY:  'החישוב מתבסס על ותק של [X] שנים, ולכן הקופה פטורה ממס.',
+18155:     SF_EXEMPT_AGE:        'החבר הגיע לגיל פרישה ([X]), ולכן הקופה פטורה ממס ללא תלות בוותק.',
+18156:     SF_TAXABLE:           'ותק של [X] שנים בלבד — חלק הרווח בקרן החייבת חייב במס רווח הון של [RATE].',
+18157:     SF_NO_TAXABLE_PROFIT: 'אין רווחים החייבים במס בקופה זו (כל הכספים מסווגים כפטורים).',
+18158:     SF_MIXED:             'הקרן המוטבת פטורה בשל ותק. חלה חבות מס של [RATE] על רווחי הקרן החייבת (מעל התקרה).',
+18159:     SF_UNKNOWN_SENIORITY: '<span title="המידע חסר במסלקה. ניתן למצוא את נתוני ההפקדות והתאריכים בדו&quot;ח השנתי של הגוף המנהל. ניתן להזינם כאן ידנית לדיוק מלא." style="border-bottom:1px dotted #6b7280;cursor:help;white-space:nowrap;">החישוב מתבסס על נתונים חלקיים</span> — חבות מס של [RATE] על הקרן החייבת (מעל התקרה).',
+18160:     PF_EXEMPT_AGE:        'משיכה בגיל [X] — הסכום עד [Y] ₪ פטור ממס (סל פטור). יתרה של [Z] ₪ חייבת לפי מדרגות.',
+18161:     PF_TAXABLE_YOUNG:     'משיכה לפני גיל 60 מחושבת כהכנסה חייבת לפי מדרגות מס הכנסה.',
+18162:     PF_VATIKA:            'קרן וותיקה — חישוב המס מבוסס על כללי הפטור של המשטר הישן ועשוי להיות שונה מהחישוב הסטנדרטי.',
+18163:     SF_MISSING_XML:       '<span style="background:#fef3c7;color:#92400e;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">⚠ אמינות נמוכה — Low Confidence</span> ' +
+18164:                           'אין נתוני פירוט פטור/חייב מהמסלקה. המס מחושב שמרנית על מלוא הרווח החייב. ' +
+18165:                           'לחישוב מדויק: <b>העלה דו"ח שנתי PDF</b> או הזן ידנית את הסכום הפטור מול החייב בטופס למטה.' // v181.74
+18166:   };
 
 ...
 
-18240:   var projItem   = Object.assign({}, item, { balance: projBalK, taxSegments: grownSegs });
-18241:   var _hasTikratData = grownSegs.some(function(s) {
-18242:     return (Number(s.tikrat) === 1 || Number(s.tikrat) === 2) && Number(s.accumulation) > 0;
-18243:   });
-18244:   var seg  = _sfCalcSegments(projItem);
-18245:   var exP  = seg.exemptPrincipal;
-18246:   var txP  = seg.taxablePrincipal;
-18247:   var exPr = seg.exemptProfit;
-18248:   var txPr = seg.taxableProfit;
-18249:   var taxDetails = _sfCalculateTax(projItem, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74: pass inflation for real CGT
-18250:   _sfLastTaxDetails = taxDetails;
-18251:   var grossK  = taxDetails.grossWithdrawal;
-18252:   var taxDueK = taxDetails.totalTaxDue;
-18253:   var netK    = taxDetails.netToBank;
-18254: 
-18255:   // ── Manual calibration override ──────────────────────────────────────────
-18256:   var _manualData    = _sfLoadManualData(item.assetNum);
+18176:     '</ul>' +
+18177:     '</div>';
+18178: 
+18179:   // ── Segment detail rows for transparency ────────────────────────────────────
+18180:   var segRows = [
+18181:     { type: 'קרן פטורה',  tikrat: 1, principal: seg.exemptPrincipal,   profit: seg.exemptProfit,   taxRate: 0,              taxDue: 0 },
+18182:     { type: 'קרן חייבת',  tikrat: 2, principal: seg.taxablePrincipal,  profit: seg.taxableProfit,  taxRate: exemptionApplied ? 0 : capitalTaxRate, taxDue: exemptionApplied ? 0 : nomTxProfit * capitalTaxRate }
+18183:   ];
+18184: 
+18185:   return {
+18186:     productType: productType,
+18187:     sugMutzar:   sugMutzar,
+18188:     seniority:   senLabel,
+18189:     memberAge:   memberAge != null ? Math.floor(memberAge) : null,
+18190:     exemptionApplied:  exemptionApplied,
+18191:     exemptionReason:   exemptionReason,
+18192:     segments:    segRows,
+18193:     withdrawalPct: wdFraction,
+18194:     grossWithdrawal: Math.round(grossK),
+18195:     totalTaxDue:    Math.round(taxDueK),
+18196:     netToBank:      Math.round(netK),
+18197:     currency: 'ILS', unit: 'K',
+18198:     confidence: confidence,
+18199:     explanation: { templateId: templateId, placeholders: placeholders, rendered: tpl },
+18200:     disclaimer:  DISCLAIMER,
+18201:     joinDateFormatted:   _sfFmtDate(joinDate),
+18202:     depositsPropK:       Math.round((seg.exemptPrincipal + seg.taxablePrincipal) * wdFraction),
+18203:     taxableProfitPropK:  Math.round((templateId === 'SF_TAXABLE'
+18204:                            ? (seg.exemptProfit + seg.taxableProfit)
+18205:                            : seg.taxableProfit) * wdFraction)
+18206:   };
+18207: }
+18208: 
+18209: function _sfRecalculate() {
+18210:   if (!_sfCurrentItem) return;
+18211:   var item = _sfCurrentItem;
+18212: 
+18213:   var tlSl  = document.getElementById('sf-timeline-slider');
+18214:   var irSl  = document.getElementById('sf-inv-return-slider');
+18215:   var infSl = document.getElementById('sf-inflation-slider');
+18216: 
+18217:   var months     = tlSl  ? parseFloat(tlSl.value || 0) : 0;
+18218:   var invReturn  = irSl  ? parseFloat(irSl.value)  : 4;
+18219:   var inflation  = infSl ? parseFloat(infSl.value) : 2.5;
+18220:   var years      = months / 12;
+18221: 
+18222:   // Timeline display label: X שנים וY חודשים
+18223:   var tlYears  = Math.floor(years);
+18224:   var tlMonths = Math.round((years - tlYears) * 12);
 
 ...
 
-18264:         ? grownSegs.map(function(g) {
-18265:             return Object.assign({}, g, { deposits: _mPrinK * (Number(g.accumulation) / _totalAccumK) });
-18266:           })
-18267:         : grownSegs;
-18268:       var _projWithDep = Object.assign({}, projItem, { taxSegments: _segsWithDep });
-18269:       var _tikratTaxDetails = _sfCalculateTax(_projWithDep, pctFraction, Object.assign({ inflation: inflation }, window.REAL_TAX_CONFIG || {})); // v181.74
-18270:       taxDueK = _tikratTaxDetails.totalTaxDue;
-18271:       netK    = _tikratTaxDetails.netToBank;
-18272:       taxDetails = Object.assign({}, _tikratTaxDetails, {
-18273:         explanation: {
-18274:           templateId: 'SF_MANUAL_CALIBRATION',
-18275:           rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
-18276:         }
-18277:       });
-18278:     } else {
-18279:       // No tikrat data — real 25% CGT on profit (legacy path, v181.74: inflation-adjusted)
-18280:       var _mPropK        = _mPrinK * pctFraction;
-18281:       var _mTxProfK      = Math.max(0, grossK - _mPropK);
-18282:       var _mInflRate     = inflation / 100;                                 // v181.74: real CGT
-18283:       var _mRealTxProfit = Math.max(0, _mTxProfK - _mInflRate * _mPropK); // nominalProfit − inflation×principal
-18284:       taxDueK = _mRealTxProfit * 0.25;
-18285:       netK    = grossK - taxDueK;
-18286:       taxDetails = Object.assign({}, taxDetails, {
-18287:         totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
-18288:         explanation: {
-18289:           templateId: 'SF_MANUAL_CALIBRATION',
-18290:           rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
-18291:         }
-18292:       });
+18235:   var irV = document.getElementById('sf-inv-return-val');
+18236:   if (irV) irV.textContent = invReturn.toFixed(1) + '%';
+18237:   var prV = document.getElementById('sf-pen-return-val');
+18238:   var prSl = document.getElementById('sf-pen-return-slider');
+18239:   if (prV && prSl) prV.textContent = parseFloat(prSl.value).toFixed(1) + '%';
+18240:   var infV = document.getElementById('sf-inflation-val');
+18241:   if (infV) infV.textContent = inflation.toFixed(1) + '%';
+18242: 
+18243:   // Project balance (real return = inflation-adjusted)
+18244:   var baseK    = (item.balance != null && item.balance !== '') ? Number(item.balance) : 0;
+18245:   var realR    = (1 + invReturn / 100) / (1 + inflation / 100) - 1;
+18246:   var growthF  = Math.pow(1 + realR, years);
+18247:   var projBalK = baseK * growthF;
+18248: 
+18249:   // Resolve withdrawal fraction
+18250:   var pctFraction;
+18251:   if (_sfWithdrawalMode === 'fixed') {
+18252:     var fixEl = document.getElementById('sf-withdrawal-fixed-slider');
+18253:     var fixedValK = fixEl ? parseFloat(fixEl.value) : 0; // in K ₪
+18254:     pctFraction = projBalK > 0 ? Math.min(1, fixedValK / projBalK) : 0;
+18255:     var wdV = document.getElementById('sf-withdrawal-val');
+18256:     if (wdV) wdV.style.display = 'none';
+18257:     // keep % slider in sync silently
+18258:     var wdSl = document.getElementById('sf-withdrawal-slider');
+18259:     var wdIn = document.getElementById('sf-withdrawal-input');
+18260:     var syncPct = Math.round(pctFraction * 100);
+18261:     if (wdSl && document.activeElement !== wdSl) wdSl.value = syncPct;
+18262:     if (wdIn && document.activeElement !== wdIn) wdIn.value = syncPct;
+18263:   } else {
+18264:     var wdSlEl = document.getElementById('sf-withdrawal-slider');
+18265:     var pct = wdSlEl ? parseInt(wdSlEl.value, 10) : 100;
+18266:     pctFraction = pct / 100;
+18267:     var wdVEl = document.getElementById('sf-withdrawal-val');
+18268:     if (wdVEl) wdVEl.style.display = 'none';
+18269:     // keep fixed slider in sync silently (K ₪ units)
+18270:     var fixSl = document.getElementById('sf-withdrawal-fixed-slider');
+18271:     var fixIn = document.getElementById('sf-withdrawal-fixed-input');
+18272:     var syncFixed = Math.round(projBalK * pctFraction);
+18273:     if (fixSl) { fixSl.max = Math.round(projBalK); if (document.activeElement !== fixSl) fixSl.value = syncFixed; }
+18274:     if (fixIn && document.activeElement !== fixIn) fixIn.value = syncFixed;
+18275:     var fixMaxLbl = document.getElementById('sf-wd-fix-max-label');
+18276:     if (fixMaxLbl) fixMaxLbl.textContent = Math.round(projBalK).toLocaleString('he-IL') + ' K ₪';
 
 ...
 
-18312:     } else if (_pushTid === 'SF_UNKNOWN_SENIORITY') {
-18313:       _pushMsgEl.style.color      = '#6b7280';
-18314:       _pushMsgEl.innerHTML        = 'חישוב המס המוצג שמרני. הזן סך הפקדות ידני לחישוב מדויק.';
-18315:       _pushMsgEl.style.visibility = 'visible';
-18316:       if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-18317:     } else if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
-18318:       var _dateStr = taxDetails.joinDateFormatted
-18319:         ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
-18320:       _pushMsgEl.style.color      = '#16a34a';
-18321:       _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
-18322:       _pushMsgEl.style.visibility = 'visible';
-18323:     } else if (_pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
-18324:       if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
-18325:       _pushMsgEl.style.visibility = 'hidden';
-18326:     }
-18327:   }
-18328: 
+18305:   var projItem   = Object.assign({}, _itemSrc, { balance: projBalK, taxSegments: grownSegs });
+18306:   var _hasTikratData = grownSegs.some(function(s) {
+18307:     return (Number(s.tikrat) === 1 || Number(s.tikrat) === 2) && Number(s.accumulation) > 0;
+18308:   });
+18309:   var seg  = _sfCalcSegments(projItem);
+18310:   var exP  = seg.exemptPrincipal;
+18311:   var txP  = seg.taxablePrincipal;
+18312:   var exPr = seg.exemptProfit;
+18313:   var txPr = seg.taxableProfit;
+18314:   var taxDetails = _sfCalculateTax(projItem, pctFraction, window.REAL_TAX_CONFIG || {});
+18315:   _sfLastTaxDetails = taxDetails;
+18316:   var grossK  = taxDetails.grossWithdrawal;
+18317:   var taxDueK = taxDetails.totalTaxDue;
+18318:   var netK    = taxDetails.netToBank;
+18319: 
+18320:   // ── Manual calibration override ──────────────────────────────────────────
+18321:   var _manualData    = _sfLoadManualData(item.assetNum);
 
 ...
 
-18380:         }
-18381:       }
-18382:     }
-18383:   }
-18384: 
-18385:   var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
-18386:   var te = document.getElementById('sf-tax-due');
-18387:   if (te) {
-18388:     if (taxDueK === null) {
-18389:       te.style.color = '#dc2626';
-18390:       te.textContent = '---';
-18391:     } else if (taxDetails.exemptionApplied && taxDueK === 0) {
-18392:       te.style.color = '#16a34a';
-18393:       te.textContent = 'פטור';
-18394:     } else {
-18395:       te.style.color = '#dc2626';
-18396:       te.textContent = Math.round(taxDueK).toLocaleString('he-IL');
+18339:           templateId: 'SF_MANUAL_CALIBRATION',
+18340:           rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
+18341:         }
+18342:       });
+18343:     } else {
+18344:       // No tikrat data — nominal 25% CGT on profit (v181.76: inflation removed from tax math)
+18345:       var _mPropK   = _mPrinK * pctFraction;
+18346:       var _mTxProfK = Math.max(0, grossK - _mPropK);
+18347:       taxDueK = _mTxProfK * 0.25;
+18348:       netK    = grossK - taxDueK;
+18349:       taxDetails = Object.assign({}, taxDetails, {
+18350:         totalTaxDue: taxDueK, netToBank: netK, exemptionApplied: false,
+18351:         explanation: {
+18352:           templateId: 'SF_MANUAL_CALIBRATION',
+18353:           rendered:   '<div style="color:#16a34a;font-weight:600;">חישוב המס משלב נתוני מסלקה אוטומטיים (תקרות מס ותאריך פתיחה) יחד עם סך ההפקדות ההיסטוריות שהוזנו ידנית.</div>'
+18354:         }
+18355:       });
 
 ...
 
-18402:   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
-18403:   if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
-18404: 
-18405:   var wdThumb    = document.getElementById('sf-wd-thumb-tip');
-18406:   var wdFixThumb = document.getElementById('sf-wd-fix-thumb-tip');
-18407:   if (_sfWithdrawalMode === 'pct') {
-18408:     if (wdFixThumb) wdFixThumb.style.display = 'none';
-18409:     if (wdThumb) {
-18410:       var wdSlPct2 = document.getElementById('sf-withdrawal-slider');
-18411:       if (wdSlPct2) {
-18412:         var pctV = parseInt(wdSlPct2.value, 10);
-18413:         wdThumb.style.display = 'block';
-18414:         wdThumb.style.left = ((1 - pctV / 100) * 100).toFixed(1) + '%';
-18415:         wdThumb.textContent = Math.round(grossK) + ' K ₪';
-18416:       } else { wdThumb.style.display = 'none'; }
-18417:     }
-18418:   } else {
-18419:     if (wdThumb) wdThumb.style.display = 'none';
-18420:     if (wdFixThumb) {
-18421:       var fixSlEl2 = document.getElementById('sf-withdrawal-fixed-slider');
-18422:       if (fixSlEl2) {
-18423:         var fixValV = parseFloat(fixSlEl2.value) || 0;
-18424:         var fixMaxV = parseFloat(fixSlEl2.max)   || 1;
-18425:         wdFixThumb.style.display = 'block';
-18426:         wdFixThumb.style.left = ((1 - fixValV / fixMaxV) * 100).toFixed(1) + '%';
-18427:         wdFixThumb.textContent = Math.round(fixValV) + ' K ₪';
-18428:       } else { wdFixThumb.style.display = 'none'; }
-18429:     }
-18430:   }
-18431: 
-18432:   _sfUpdatePieChart(grossK, taxDueK, taxDetails.exemptionApplied);
-18433: 
-18434:   // Route manual receipt to collapsible sf-tax-segments
-18435:   var _receiptEl = document.getElementById('sf-tax-segments');
-18436:   if (_receiptEl && _manualReceipt) {
-18437:     _receiptEl.innerHTML = _manualReceipt;
-18438:   }
-18439:   var _calibReceiptEl = document.getElementById('sf-calibration-receipt');
-18440:   if (_calibReceiptEl) { _calibReceiptEl.innerHTML = ''; _calibReceiptEl.style.display = 'none'; }
-18441: }
-18442: 
-18443: function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {
-18444:   if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
-18445:   var canvas   = document.getElementById('sf-pie-chart');
-18446:   var legendEl = document.getElementById('sf-pie-legend');
-18447:   if (!canvas) return;
-18448: 
+18375:     } else if (_pushTid === 'SF_UNKNOWN_SENIORITY') {
+18376:       _pushMsgEl.style.color      = '#6b7280';
+18377:       _pushMsgEl.innerHTML        = 'חישוב המס המוצג שמרני. הזן סך הפקדות ידני לחישוב מדויק.';
+18378:       _pushMsgEl.style.visibility = 'visible';
+18379:       if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
+18380:     } else if (_pushTid === 'SF_EXEMPT_SENIORITY' || _pushTid === 'SF_EXEMPT_AGE') {
+18381:       var _dateStr = taxDetails.joinDateFormatted
+18382:         ? ' (תאריך הצטרפות מקורי: ' + taxDetails.joinDateFormatted + ')' : '';
+18383:       _pushMsgEl.style.color      = '#16a34a';
+18384:       _pushMsgEl.innerHTML        = '<div style="font-weight:700;color:#16a34a;">פטור ממס רווחי הון – ותק הקופה מעל 6 שנים' + _dateStr + '</div>';
+18385:       _pushMsgEl.style.visibility = 'visible';
+18386:     } else if (_pushTid === 'SF_TAXABLE' || _pushTid === 'SF_MIXED') {
+18387:       if (_segEl) _segEl.innerHTML = _sfBuildAutoReceipt(grossK, taxDetails, pctFraction);
+18388:       _pushMsgEl.style.visibility = 'hidden';
+18389:     }
+18390:   }
+18391: 
 
 ...
 
-18452:     return;
-18453:   }
-18454: 
-18455:   var taxRnd  = Math.round(taxDueK  || 0);
-18456:   var netK    = Math.max(0, Math.round(grossK || 0) - taxRnd);
-18457:   var netLabel = exemptionApplied ? 'נטו לכיס (פטור)' : 'נטו לכיס';
-18458:   var defs = [
-18459:     { label: 'חבות מס', val: taxRnd, color: '#dc2626' },
-18460:     { label: netLabel,   val: netK,   color: '#16a34a' }
-18461:   ].filter(function(d) { return d.val > 0; });
-18462: 
+18450:   if (_sfPdfSec) {
+18451:     _sfPdfSec.style.display = (!_pdfData && !_hasTikratData) ? '' : 'none';
+18452:   }
+18453: 
+18454:   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
+18455:   var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
+18456:   var te = document.getElementById('sf-tax-due');
+18457:   if (te) {
+18458:     if (taxDueK === null) {
+18459:       te.style.color = '#dc2626';
+18460:       te.textContent = '---';
+18461:     } else if (taxDetails.exemptionApplied && taxDueK === 0) {
+18462:       te.style.color = '#16a34a';
+18463:       te.textContent = 'פטור';
+18464:     } else {
+18465:       te.style.color = '#dc2626';
+18466:       te.textContent = _estPrefix + Math.round(taxDueK).toLocaleString('he-IL');
+
+...
+
+18472:   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
+18473:   if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
+18474: 
+18475:   var wdThumb    = document.getElementById('sf-wd-thumb-tip');
+18476:   var wdFixThumb = document.getElementById('sf-wd-fix-thumb-tip');
+18477:   if (_sfWithdrawalMode === 'pct') {
+18478:     if (wdFixThumb) wdFixThumb.style.display = 'none';
+18479:     if (wdThumb) {
+18480:       var wdSlPct2 = document.getElementById('sf-withdrawal-slider');
+18481:       if (wdSlPct2) {
+18482:         var pctV = parseInt(wdSlPct2.value, 10);
+18483:         wdThumb.style.display = 'block';
+18484:         wdThumb.style.left = ((1 - pctV / 100) * 100).toFixed(1) + '%';
+18485:         wdThumb.textContent = Math.round(grossK) + ' K ₪';
+18486:       } else { wdThumb.style.display = 'none'; }
+18487:     }
+18488:   } else {
+18489:     if (wdThumb) wdThumb.style.display = 'none';
+18490:     if (wdFixThumb) {
+18491:       var fixSlEl2 = document.getElementById('sf-withdrawal-fixed-slider');
+18492:       if (fixSlEl2) {
+18493:         var fixValV = parseFloat(fixSlEl2.value) || 0;
+18494:         var fixMaxV = parseFloat(fixSlEl2.max)   || 1;
+18495:         wdFixThumb.style.display = 'block';
+18496:         wdFixThumb.style.left = ((1 - fixValV / fixMaxV) * 100).toFixed(1) + '%';
+18497:         wdFixThumb.textContent = Math.round(fixValV) + ' K ₪';
+18498:       } else { wdFixThumb.style.display = 'none'; }
+18499:     }
+18500:   }
+18501: 
+18502:   _sfUpdatePieChart(grossK, taxDueK, taxDetails.exemptionApplied);
+18503: 
+18504:   // Route manual receipt to collapsible sf-tax-segments
+18505:   var _receiptEl = document.getElementById('sf-tax-segments');
+18506:   if (_receiptEl && _manualReceipt) {
+18507:     _receiptEl.innerHTML = _manualReceipt;
+18508:   }
+18509:   var _calibReceiptEl = document.getElementById('sf-calibration-receipt');
+18510:   if (_calibReceiptEl) { _calibReceiptEl.innerHTML = ''; _calibReceiptEl.style.display = 'none'; }
+18511: }
+18512: 
+18513: function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {
+18514:   if (_sfPieChart) { _sfPieChart.destroy(); _sfPieChart = null; }
+18515:   var canvas   = document.getElementById('sf-pie-chart');
+18516:   var legendEl = document.getElementById('sf-pie-legend');
+18517:   if (!canvas) return;
+18518: 
+
+...
+
+18522:     return;
+18523:   }
+18524: 
+18525:   var taxRnd  = Math.round(taxDueK  || 0);
+18526:   var netK    = Math.max(0, Math.round(grossK || 0) - taxRnd);
+18527:   var netLabel = exemptionApplied ? 'נטו לכיס (פטור)' : 'נטו לכיס';
+18528:   var defs = [
+18529:     { label: 'חבות מס', val: taxRnd, color: '#dc2626' },
+18530:     { label: netLabel,   val: netK,   color: '#16a34a' }
+18531:   ].filter(function(d) { return d.val > 0; });
+18532: 
 ```
 
 ## YOUR TASK

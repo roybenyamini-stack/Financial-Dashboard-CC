@@ -1,3 +1,4 @@
+// Version: v182.05
 require('dotenv').config();
 const express   = require('express');
 const cors      = require('cors');
@@ -7,6 +8,8 @@ const path      = require('path');
 
 const app    = express();
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const stripMd = s => s.replace(/```[a-z]*/g, '').replace(/```/g, '').trim();
 
 const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'specialist_prompts.md'), 'utf8');
 
@@ -94,68 +97,93 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   console.log('[parse-pdf] text FIRST 1000:', text.slice(0, 1000));
   console.log('[parse-pdf] text LAST 500:', text.slice(-500));
 
-  const PROMPT = `You are extracting tax-layer data from an Altshuler Shaham (אלטשולר שחם) Keren Hishtalmut annual report.
+  const TIER_PROMPT = `CRITICAL: Output ONLY valid JSON starting with { and ending with }. No text, no markdown, no code blocks.
 
-This is a large consolidated report covering multiple accounts. Work ONLY with the data for account number: ${assetNum}.
+You are analyzing an Israeli Keren Hishtalmut (savings fund) annual financial report.
+Work ONLY with account ${assetNum}.
 
-STEP 1 — Find the table for account ${assetNum}:
-Look for a section header or table titled (approximately):
-  "8.1. פירוט סכומים בהתאם לרפורמה במיסוי רווחי הון בקרן השתלמות"
-  (or its reversed visual-order form: "תלמשתה ןרקב ןוהה יחוור יוסימב המרופרל םאתהב םימוכס טוריפ .1.8")
-Make sure this table belongs to account ${assetNum}.
+Find the Israeli capital gains tax reform table that shows the fund's assets broken down by historical periods and tax rates (0%, 15%, 20%, 25%). The table has 4 monetary columns per row: קרן (principal) | רווחים ריאליים (real profits) | הפרשי הצמדה (linkage differences) | סה"כ (total).
 
-STEP 2 — Identify the columns (may appear reversed in extracted text):
-  קרן = Principal
-  רווחים ריאליים = Real Profits
-  הפרשי הצמדה = Linkage Differences
-  שיעור המס = Tax Rate
-  סה"כ = Total
+WARNING: Do NOT use the סה"כ (total) column — it is always the largest number in the row and is the sum of the other 3 columns. You must report the exact value under רווחים ריאליים (real profits) for the realProfit field. The רווחים ריאליים column is the SECOND column and is typically NOT the largest number.
 
-STEP 3 — Split rows by tax rate:
-  EXEMPT rows:  tax rate = 0% (rows mentioning "0%" or "פטור" or "עד לגובה של תקרת ההפקדה המוטבת" or "עד ליום 31.12.2002")
-  TAXABLE rows: tax rate > 0% (15%, 20%, or 25%) (rows mentioning "מעל לתקרת ההפקדה המוטבת" or "מעל תקרת ההפקדה")
+For EACH row in this table, report ALL THREE non-total column values EXACTLY as they appear. Do NOT calculate, do NOT combine columns, do NOT aggregate.
+The taxRate field must be the integer tax rate for that row (0, 15, 20, or 25).
 
-STEP 4 — Calculate each of the 4 values:
-  exemptPrincipal  = SUM of "קרן" (Principal) for all EXEMPT rows (0% tax)
-  exemptProfit     = SUM of "רווחים ריאליים" + "הפרשי הצמדה" for all EXEMPT rows (0% tax)
-  taxablePrincipal = SUM of "קרן" (Principal) for all TAXABLE rows (>0% tax)
-  taxableProfit    = SUM of "רווחים ריאליים" + "הפרשי הצמדה" for all TAXABLE rows (>0% tax)
+Return EXACTLY this JSON:
+{"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
 
-Return ONLY raw JSON (no markdown, no explanation):
-{"exemptPrincipal": ..., "exemptProfit": ..., "taxablePrincipal": ..., "taxableProfit": ...}
+There must be one object per table row.
 
-Rules:
-1. All values must be >= 0.
-2. Use 0 if a category is genuinely absent for account ${assetNum}.
-3. Sanity check: exemptPrincipal + exemptProfit + taxablePrincipal + taxableProfit should roughly equal the total account balance.
-4. If account ${assetNum} is not found, return all zeros.
+Report text:
+${text}`;
 
-Full report text:
+  const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
+In this Israeli financial report for account ${assetNum}:
+1. Find the total fund balance at end of reporting period ("יתרה לתום תקופת הדיווח" or "יתרה כוללת"). Report in NIS as a plain number without commas.
+2. Find the report year (the calendar year this annual report covers). Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
+Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
+Report text:
 ${text}`;
 
   try {
-    const message = await client.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      messages:   [{ role: 'user', content: PROMPT }]
+    // Step 1 — tier extraction (fatal if it fails)
+    const tierMsg = await client.messages.create({
+      model:       'claude-haiku-4-5-20251001',
+      max_tokens:  1000,
+      temperature: 0,
+      messages:    [{ role: 'user', content: TIER_PROMPT }]
     });
 
-    const raw     = (message.content[0].text || '').trim();
-    console.log('[parse-pdf] raw Claude response:', raw);
-    const jsonStr = (raw.match(/\{[\s\S]*\}/) || [])[0] || raw;
+    const rawTier = stripMd((tierMsg.content[0].text || '').trim());
+    console.log('[parse-pdf] raw tier response:', rawTier);
+    const tierStr = (rawTier.match(/\{[\s\S]*\}/) || [])[0] || '{}';
 
     let parsed;
-    try { parsed = JSON.parse(jsonStr); } catch (e) {
-      console.error('[parse-pdf] Failed to parse JSON. Raw response was:', raw);
-      return res.status(500).json({ error: 'AI returned invalid JSON', raw });
+    try { parsed = JSON.parse(tierStr); } catch (e) {
+      console.error('[parse-pdf] Failed to parse tier JSON:', rawTier);
+      return res.status(500).json({ error: 'AI returned invalid JSON for tiers', raw: rawTier });
     }
 
-    console.log('[parse-pdf] parsed result:', parsed);
+    // Step 2 — balance + reportYear extraction (non-fatal: falls back to 0 on any failure)
+    let pdfTotalBalance = 0;
+    let reportYear      = 0;
+    let rawBalance      = 'NOT_YET_CALLED';
+    try {
+      const balanceMsg = await client.messages.create({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages:   [{ role: 'user', content: BALANCE_PROMPT }]
+      });
+      rawBalance = stripMd((balanceMsg.content[0].text || '').trim());
+      console.log('[parse-pdf] raw balance response:', rawBalance);
+      const balanceStr = (rawBalance.match(/\{[\s\S]*\}/) || [])[0] || '{}';
+      const parsedBal  = JSON.parse(balanceStr);
+      pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
+      reportYear      = Number(parsedBal.reportYear)      || 0;
+    } catch (balErr) {
+      console.error('[parse-pdf] Balance extraction FAILED. Raw response was:', rawBalance, '| Error:', balErr.message);
+    }
+
+    let exemptPrincipal = 0, exemptProfit = 0, taxablePrincipal = 0;
+    let taxableProfit15 = 0, taxableProfit20 = 0, taxableProfit25 = 0;
+    for (const row of (parsed.rows || [])) {
+      const tr = Number(row.taxRate);
+      const p  = Number(row.principal)  || 0;
+      const rp = Number(row.realProfit) || 0;
+      const lk = Number(row.linkage)    || 0;
+      if (tr === 0)  { exemptPrincipal += p; exemptProfit += (rp + lk); }
+      else             taxablePrincipal += p;
+      if (tr === 15)   taxableProfit15  += rp;
+      if (tr === 20)   taxableProfit20  += rp;
+      if (tr === 25)   taxableProfit25  += rp;
+    }
+    console.log('[parse-pdf] aggregated tiers: p15=%d p20=%d p25=%d | pdfTotalBalance:%d | reportYear:%d',
+      taxableProfit15, taxableProfit20, taxableProfit25, pdfTotalBalance, reportYear);
     res.json({
-      exemptPrincipal:  Number(parsed.exemptPrincipal)  || 0,
-      exemptProfit:     Number(parsed.exemptProfit)     || 0,
-      taxablePrincipal: Number(parsed.taxablePrincipal) || 0,
-      taxableProfit:    Number(parsed.taxableProfit)    || 0
+      exemptPrincipal, exemptProfit, taxablePrincipal,
+      taxableProfit:   taxableProfit15 + taxableProfit20 + taxableProfit25,
+      taxableProfit15, taxableProfit20, taxableProfit25,
+      pdfTotalBalance, reportYear
     });
 
   } catch (err) {
