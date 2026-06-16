@@ -1,5 +1,5 @@
 // System check: Claude Code is active.
-// Version: v182.05
+// Version: v182.26
 
 // LOGIN — v97.6
 (function() {
@@ -17609,6 +17609,65 @@ function _sfClearPdfData() {
   localStorage.removeItem('sf_pdf_data_' + _sfCurrentItem.assetNum);
   _sfRecalculate();
 }
+
+// v182.08: Reset all simulation sliders to defaults
+function _sfResetSimulation() {
+  var _setSlider = function(id, val) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.value = val;
+      el.dispatchEvent(new Event('input'));
+    }
+  };
+  _setSlider('sf-timeline-slider',         0);
+  _setSlider('sf-inv-return-slider',       4);
+  _setSlider('sf-pen-return-slider',       3);
+  _setSlider('sf-inflation-slider',        2.5);
+  _setSlider('sf-withdrawal-slider',       100);
+  _setSlider('sf-withdrawal-fixed-slider', 0);
+  _sfSetViewMode('nominal');
+  _sfRecalculate();
+}
+
+// v182.07: Toggle manual calibration form visibility when PDF is verified
+function _sfToggleManualCalib() {
+  var formEl   = document.getElementById('sf-calibration-form');
+  var toggleEl = document.getElementById('sf-manual-toggle-row');
+  if (!formEl) return;
+  var isHidden = formEl.style.display === 'none';
+  formEl.style.display = isHidden ? '' : 'none';
+  if (toggleEl) {
+    var btn = toggleEl.querySelector('button');
+    if (btn) btn.textContent = isHidden ? '🔧 הסתר חישוב ידני' : '🔧 חישוב מס ידני (למתקדמים)';
+  }
+}
+
+// v182.07: Nominal / Real display toggle state
+var _sfViewMode   = 'nominal';
+var _sfLastGrossK = 0;
+var _sfLastNetK   = 0;
+
+function _sfSetViewMode(mode) {
+  _sfViewMode = mode;
+  var nomBtn = document.getElementById('sf-viewmode-nominal');
+  var realBtn = document.getElementById('sf-viewmode-real');
+  if (nomBtn) nomBtn.className = 'sim-viewmode-btn' + (mode === 'nominal' ? ' sim-viewmode-nominal-active' : '');
+  if (realBtn) realBtn.className = 'sim-viewmode-btn' + (mode === 'real' ? ' sim-viewmode-real-active' : '');
+  _sfApplyViewMode();
+}
+
+function _sfApplyViewMode() {
+  var tlSl  = document.getElementById('sf-timeline-slider');
+  var infSl = document.getElementById('sf-inflation-slider');
+  var years = tlSl  ? parseFloat(tlSl.value  || 0) / 12 : 0;
+  var infl  = infSl ? parseFloat(infSl.value) : 2.5;
+  var deflF = (years > 0 && _sfViewMode === 'real') ? Math.pow(1 + infl / 100, years) : 1;
+  var ge    = document.getElementById('sf-gross-withdrawal');
+  var ne    = document.getElementById('sf-net-bank');
+  if (ge && _sfLastGrossK) ge.textContent = Math.round(_sfLastGrossK / deflF).toLocaleString('he-IL');
+  if (ne && _sfLastNetK != null) ne.textContent = Math.round(_sfLastNetK / deflF).toLocaleString('he-IL');
+}
+
 function _sfPdfToSegments(d, currentBalanceK) {
   var base = currentBalanceK || 0;
   var hasExactTiers = (d.taxableProfit15 > 0 || d.taxableProfit20 > 0 || d.taxableProfit25 > 0);
@@ -17799,7 +17858,7 @@ function _sfBuildAutoReceipt(grossK, taxDetails, pctFraction) {
     + '</div>';
 }
 
-function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData) {
+function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFraction) {
   var fmt  = function(n) { return Math.round(n).toLocaleString('he-IL'); };
   var fmtK = function(n) { return fmt(n / 1000); };
   var p15  = pdfData.taxableProfit15 || 0;
@@ -17813,25 +17872,61 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData) {
   var html = '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב מס (מדרגות היסטוריות)</div>'
     + '<div style="display:flex;flex-direction:column;gap:3px;">';
   if (exemptTotal > 0)
-    html += _sfReceiptRow('פטור (הפקדות לפני 2002)', '₪' + fmtK(exemptTotal) + ' K', '#16a34a');
+    html += _sfReceiptRow('פטור (הפקדות לפני 2002)', '₪' + fmtK(exemptTotal) + 'K', '#16a34a');
   if (p15 > 0)
-    html += _sfReceiptRow('רווח 15% (2003-2005): ₪' + fmtK(p15) + ' K', '← מס: ₪' + fmtK(t15) + ' K', '#dc2626');
+    html += _sfReceiptRow('רווח 15% (2003-2005): ₪' + fmtK(p15) + 'K', '← מס: ₪' + fmtK(t15) + 'K', '#dc2626');
   if (p20 > 0)
-    html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + ' K', '← מס: ₪' + fmtK(t20) + ' K', '#dc2626');
+    html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + 'K', '← מס: ₪' + fmtK(t20) + 'K', '#dc2626');
   if (p25 > 0)
-    html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + ' K', '← מס: ₪' + fmtK(t25) + ' K', '#dc2626');
+    html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626');
   var ytdTaxK  = (ytdData && ytdData.ytdTaxDueK    > 0) ? ytdData.ytdTaxDueK    : 0;
   var ytdProfK = (ytdData && ytdData.realYtdProfitK > 0) ? ytdData.realYtdProfitK : 0;
   if (ytdProfK > 0) {
     html += '<div style="border-top:2px dashed #d97706;margin:8px 0 4px 0;"></div>';
     html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;">— הערכת צמיחה שוטפת (2026) —</div>';
-    html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + ' K', '← מס: ₪' + fmt(ytdTaxK) + ' K', '#b45309');
+    html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
   } else {
     html += '<div style="font-size:12px;color:#d97706;margin-top:12px;text-align:center;font-weight:500;">המס חושב לתאריך הדו״ח. קיים מס מתאריך הדו״ח ועד היום, שלא חושב.</div>';
   }
+  var _hasSimData = (simData && typeof simData.simRealProfitK !== 'undefined' && simData.simRealProfitK !== 0);
+  var simProfK = _hasSimData ? simData.simRealProfitK : 0;
+  var simTaxK  = _hasSimData ? (simData.simTaxDueK || 0) : 0;
+  if (_hasSimData) {
+    html += '<div style="border-top:2px dashed #6366f1;margin:8px 0 4px 0;"></div>';
+    html += '<div style="font-size:10px;color:#4338ca;text-align:center;margin-bottom:4px;font-weight:600;">— סימולציה עתידית —</div>';
+    var arrow    = String.fromCharCode(0x2190);
+    var shekel   = String.fromCharCode(0x20AA);
+    var mem      = String.fromCharCode(0x05DE);
+    var samech   = String.fromCharCode(0x05E1);
+    var gimel    = String.fromCharCode(0x05D2);
+    var nunFinal = String.fromCharCode(0x05DF);
+    var resh     = String.fromCharCode(0x05E8);
+    var vav      = String.fromCharCode(0x05D5);
+    var chet     = String.fromCharCode(0x05D7);
+    var he       = String.fromCharCode(0x05D4);
+    var pe       = String.fromCharCode(0x05E4);
+    var dalet    = String.fromCharCode(0x05D3);
+    var yod      = String.fromCharCode(0x05D9);
+    var alef     = String.fromCharCode(0x05D0);
+    var lamed    = String.fromCharCode(0x05DC);
+    var shin     = String.fromCharCode(0x05E9);
+    var ayin     = String.fromCharCode(0x05E2);
+    var mas      = mem + samech;
+    var magenMas = mem + gimel + nunFinal + ' ' + mas;
+    var revach   = resh + vav + vav + chet;
+    var hefsed   = he + pe + samech + dalet;
+    var riali    = resh + yod + alef + lamed + yod;
+    var meshuar  = mem + shin + vav + ayin + resh;
+    var _simProfLbl = (simProfK < 0 ? hefsed : revach) + ' ' + riali + ' ' + meshuar + ': ' + shekel + fmt(simProfK) + 'K';
+    var _simTaxLbl = arrow + ' ' + mas + (simTaxK < 0 ? ' (' + magenMas + ')' : '') + ': ' + shekel + fmt(simTaxK) + 'K';
+    html += _sfReceiptRow(_simProfLbl, _simTaxLbl, simTaxK < 0 ? '#ea580c' : '#6366f1');
+  }
   html += '<div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div>';
-  html += _sfReceiptRow('סה"כ מס לתשלום', '₪' + fmt(totalTaxK + ytdTaxK) + ' K', '#dc2626');
-  html += _sfReceiptRow('נטו לכיס', '₪' + fmt(netK) + ' K', '#16a34a');
+  var _wRatio = (typeof pctFraction === 'number' && pctFraction < 1) ? pctFraction : 1;
+  var _finalTaxK = Math.max(0, (totalTaxK + ytdTaxK + simTaxK) * _wRatio);
+  var _taxLabel = 'סה"כ מס לתשלום' + (_wRatio < 1 ? ' (' + Math.round(_wRatio * 100) + '%)' : '');
+  html += _sfReceiptRow(_taxLabel, '₪' + fmt(_finalTaxK) + 'K', '#dc2626');
+  html += _sfReceiptRow('נטו לכיס', '₪' + fmt(netK) + 'K', '#16a34a');
   html += '</div>';
   return html;
 }
@@ -18348,6 +18443,7 @@ function _sfRecalculate() {
   var prV = document.getElementById('sf-pen-return-val');
   var prSl = document.getElementById('sf-pen-return-slider');
   if (prV && prSl) prV.textContent = parseFloat(prSl.value).toFixed(1) + '%';
+  var penReturn = prSl ? parseFloat(prSl.value) : 4;
   var infV = document.getElementById('sf-inflation-val');
   if (infV) infV.textContent = inflation.toFixed(1) + '%';
 
@@ -18442,12 +18538,18 @@ function _sfRecalculate() {
   var taxDueK = taxDetails.totalTaxDue;
   var netK    = taxDetails.netToBank;
 
+  var _simTaxDueK     = 0;
+  var _simRealProfitK = 0;
+  var _taxableRatio   = 1;
   var _hasExactTiers  = !!(_pdfData && ((_pdfData.taxableProfit15||0) > 0 || (_pdfData.taxableProfit20||0) > 0 || (_pdfData.taxableProfit25||0) > 0));
   var _ytdTaxDueK     = 0;
   var _realYtdProfitK = 0;
   if (_hasExactTiers) {
-    var _pdfTierTaxK = (((_pdfData.taxableProfit15||0) * 0.15) + ((_pdfData.taxableProfit20||0) * 0.20) + ((_pdfData.taxableProfit25||0) * 0.25)) / 1000;
-    var _pdfBalK = (_pdfData.pdfTotalBalance || 0) / 1000;
+    var _pdfTierTaxK    = (((_pdfData.taxableProfit15||0) * 0.15) + ((_pdfData.taxableProfit20||0) * 0.20) + ((_pdfData.taxableProfit25||0) * 0.25)) / 1000;
+    var _pdfBalK        = (_pdfData.pdfTotalBalance || 0) / 1000;
+    var _exemptTotalNIS = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
+    var _pdfBalNIS      = _pdfData.pdfTotalBalance || 0;
+    _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
       var _today        = new Date();
@@ -18457,13 +18559,24 @@ function _sfRecalculate() {
       var _yearsPassed  = _reportYear > 0 ? (_currentYear - _reportYear - 1) + (_currentMonth / 12) : 0.5;
       var _ytdInflRate  = (inflation / 100) * _yearsPassed;
       var _inflDeductK   = _pdfBalK * _ytdInflRate;
-      _realYtdProfitK      = Math.max(0, _deltaK - _inflDeductK);
-      var _exemptTotalNIS  = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
-      var _pdfBalNIS       = _pdfData.pdfTotalBalance || 0;
-      var _taxableRatio    = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
-      _ytdTaxDueK          = Math.max(0, _realYtdProfitK * _taxableRatio * 0.25);
+      _realYtdProfitK    = Math.max(0, _deltaK - _inflDeductK);
+      _ytdTaxDueK        = Math.max(0, _realYtdProfitK * _taxableRatio * 0.25);
     }
-    taxDueK = _pdfTierTaxK + _ytdTaxDueK;
+    // ── Future simulation (2-phase yield) ──────────────────────────────────
+    if (years > 0) {
+      var _retirementAge = (window.REAL_TAX_CONFIG && window.REAL_TAX_CONFIG.retirementAge) || 67;
+      var _birthDate     = (typeof FFS_PROFILE !== 'undefined' && FFS_PROFILE && FFS_PROFILE.birthDate) ? new Date(FFS_PROFILE.birthDate) : null;
+      var _memberAge     = _birthDate ? ((new Date() - _birthDate) / (365.25 * 24 * 3600 * 1000)) : null;
+      var _yearsToRetire = _memberAge !== null ? Math.max(0, _retirementAge - _memberAge) : years;
+      var _phase1Years   = Math.max(0, Math.min(years, _yearsToRetire));
+      var _phase2Years   = Math.max(0, years - _phase1Years);
+      var _simPhase1K    = baseK * Math.pow(1 + invReturn / 100, _phase1Years);
+      var _simFutureNomK = _simPhase1K * Math.pow(1 + penReturn / 100, _phase2Years);
+      var _simInflDeductK = baseK * (inflation / 100) * years;
+      _simRealProfitK = _simFutureNomK - baseK - _simInflDeductK;
+      _simTaxDueK     = _simRealProfitK * _taxableRatio * 0.25;
+    }
+    taxDueK = Math.max(0, (_pdfTierTaxK + _ytdTaxDueK + _simTaxDueK) * pctFraction);
     netK    = grossK - taxDueK;
   } else {
     taxDueK = null;
@@ -18524,10 +18637,20 @@ function _sfRecalculate() {
     }
   } else if (_hasExactTiers) {
     // PDF with exact tiers — transparent breakdown receipt
-    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK });
+    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
     if (_pushMsgEl) {
+      var _joinDateStr = '';
+      if (item.joinDate) {
+        var _jd = String(item.joinDate).trim();
+        if (/^\d{8}$/.test(_jd)) _jd = _jd.slice(0,4) + '-' + _jd.slice(4,6) + '-' + _jd.slice(6,8);
+        var _jdP = _jd.split('-');
+        if (_jdP.length === 3) _joinDateStr = ' | תאריך תחילת קרן: ' + _jdP[2] + '/' + _jdP[1] + '/' + _jdP[0];
+        // v182.08: pre-fill manual date input with fund start date
+        var _dateInputEl = document.getElementById('sf-manual-joindate');
+        if (_dateInputEl && !_dateInputEl.value && /^\d{4}-\d{2}-\d{2}/.test(_jd)) _dateInputEl.value = _jd;
+      }
       _pushMsgEl.style.color      = '#16a34a';
-      _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
+      _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי)' + _joinDateStr + '. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
       _pushMsgEl.style.visibility = 'visible';
     }
   } else if (_pdfData && _pushMsgEl) {
@@ -18542,14 +18665,24 @@ function _sfRecalculate() {
     _pushMsgEl.style.visibility = 'visible';
   }
 
-  // ── Calibration form: show when data partial; pre-fill inputs from localStorage ──
-  var _calibFormEl = document.getElementById('sf-calibration-form');
+  // ── Calibration form: show when data partial; hide when PDF verified ──────────
+  var _calibFormEl  = document.getElementById('sf-calibration-form');
+  var _toggleRowEl  = document.getElementById('sf-manual-toggle-row');
   if (_calibFormEl) {
-    var _needsCalib = (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
+    if (_hasExactTiers) {
+      // PDF verified — hide manual form, show advanced toggle link
+      _calibFormEl.style.display = 'none';
+      if (_toggleRowEl) _toggleRowEl.style.display = '';
+    } else {
+      if (_toggleRowEl) _toggleRowEl.style.display = 'none';
+      var _needsCalib = (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
+                         taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
+      _calibFormEl.style.display = _needsCalib ? '' : 'none';
+      var _sourceBoxEl = document.getElementById('sf-xml-dropzone');
+      if (_sourceBoxEl) _sourceBoxEl.style.display = _needsCalib ? '' : 'none';
+    }
+    var _needsCalib = !_hasExactTiers && (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
                        taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
-    _calibFormEl.style.display = _needsCalib ? '' : 'none';
-    var _sourceBoxEl = document.getElementById('sf-xml-dropzone');
-    if (_sourceBoxEl) _sourceBoxEl.style.display = _needsCalib ? '' : 'none';
     if (_needsCalib) {
       var _pEl  = document.getElementById('sf-manual-principal');
       var _dEl  = document.getElementById('sf-manual-joindate');
@@ -18605,7 +18738,11 @@ function _sfRecalculate() {
   if (_sfOrDiv)  _sfOrDiv.style.display  = _showPdf ? 'flex' : 'none';
 
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
-  var ge = document.getElementById('sf-gross-withdrawal'); if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
+  // Store raw values for nominal/real toggle, then apply current view mode
+  _sfLastGrossK = grossK;
+  _sfLastNetK   = netK !== null ? netK : 0;
+  var ge = document.getElementById('sf-gross-withdrawal');
+  if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
   var te = document.getElementById('sf-tax-due');
   if (te) {
     if (taxDueK === null) {
@@ -18621,6 +18758,7 @@ function _sfRecalculate() {
   }
   var ne = document.getElementById('sf-net-bank');
   if (ne) ne.textContent = netK === null ? '---' : _estPrefix + Math.round(netK).toLocaleString('he-IL');
+  _sfApplyViewMode();
   var re = document.getElementById('sf-remaining-balance');
   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
   if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
