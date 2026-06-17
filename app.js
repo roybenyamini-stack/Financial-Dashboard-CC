@@ -1,5 +1,5 @@
 // System check: Claude Code is active.
-// Version: v182.26
+// Version: v182.28
 
 // LOGIN — v97.6
 (function() {
@@ -17338,12 +17338,31 @@ var _sfCurrentItem    = null;
 var _sfPieChart       = null;
 var _sfWithdrawalMode = 'pct'; // 'pct' | 'fixed'
 var _sfLastTaxDetails = null;
+var _sfAIVerifData    = null;
+var _sfIsExempt       = false;
+var _sfIsManual       = false;
+var _sfManualDeposits = 0;   // K — manual override for 2026 salary deposits; loaded from localStorage
 
 function ffsOpenStudyFundModal(itemId) {
+  console.log('[Modal] Attempting to open modal for ID:', itemId);
   if (typeof APP_MODE === 'undefined' || APP_MODE !== 'SIMULATOR') return;
   var item = (FFS_PROFILE.investments || []).find(function(x) { return x.id === itemId; });
-  if (!item) return;
+  console.log('[Modal] Item found by id:', item,
+    '| Study fund ids in investments:',
+    (FFS_PROFILE.investments || [])
+      .filter(function(x) { return x.category === 'קרן השתלמות'; })
+      .map(function(x) { return x.id; })
+  );
+  if (!item) {
+    console.warn('[Modal] Not found by id — trying fallback search by assetNum:', itemId);
+    item = (FFS_PROFILE.investments || []).find(function(x) { return x.assetNum === itemId; });
+    if (item) console.log('[Modal] Found by assetNum fallback:', item.id, item.name);
+  }
+  if (!item) { console.warn('[Modal] Item not found in investments. Aborting modal.'); return; }
   _sfCurrentItem    = item;
+  _sfIsManual       = false;
+  _sfManualDeposits = _sfLoadManualDepositsK(item.assetNum);
+  if (_sfManualDeposits > 0) _sfIsManual = true;
   _sfWithdrawalMode = 'pct';
 
   // Fund name + ID
@@ -17410,13 +17429,17 @@ function ffsOpenStudyFundModal(itemId) {
   _sfApplyWdModeUI();
   _sfRenderTimelineTicks();
   _sfSyncAllSliders();
-  _sfRecalculate();
+  try {
+    _sfRecalculate();
+  } catch (e) {
+    console.error('[Modal] _sfRecalculate threw for item', item && item.id, ':', e);
+  }
 
-  // Tax details always open on modal open
+  // Tax details start closed; user opens via toggle
   var _taxPanel = document.getElementById('sf-tax-segments');
   var _taxChevron = document.getElementById('sf-details-chevron');
-  if (_taxPanel) _taxPanel.style.display = 'block';
-  if (_taxChevron) _taxChevron.innerHTML = '&#9650;';
+  if (_taxPanel) _taxPanel.style.display = 'none';
+  if (_taxChevron) _taxChevron.innerHTML = '&#9660;';
 
   var bd = document.getElementById('sf-analysis-backdrop');
   var md = document.getElementById('sf-analysis-modal');
@@ -17489,6 +17512,32 @@ function _sfLoadManualData(assetNum) {
   try { return JSON.parse(localStorage.getItem('sf_manual_data_' + assetNum) || 'null'); } catch(e) { return null; }
 }
 
+function _sfLoadManualDepositsK(assetNum) {
+  if (!assetNum) return 0;
+  return parseFloat(localStorage.getItem('sf_manual_deposits_k_' + assetNum) || '0') || 0;
+}
+function _sfOpenDepositsModal() {
+  var el  = document.getElementById('sf-deposits-modal');
+  var inp = document.getElementById('sf-deposits-input');
+  if (inp) inp.value = _sfManualDeposits > 0 ? Math.round(_sfManualDeposits * 1000) : '';
+  if (el) el.style.display = '';
+}
+function _sfCloseDepositsModal() {
+  var el = document.getElementById('sf-deposits-modal');
+  if (el) el.style.display = 'none';
+}
+function _sfSaveManualDeposits() {
+  if (!_sfCurrentItem) return;
+  var inp = document.getElementById('sf-deposits-input');
+  var nis = inp ? (parseFloat(inp.value) || 0) : 0;
+  var amountK = Math.max(0, nis / 1000);
+  localStorage.setItem('sf_manual_deposits_k_' + _sfCurrentItem.assetNum, amountK.toString());
+  _sfManualDeposits = amountK;
+  _sfIsManual = true;
+  _sfCloseDepositsModal();
+  _sfRecalculate();
+}
+
 function _sfSaveCalibration() {
   if (!_sfCurrentItem) return;
   var pEl = document.getElementById('sf-manual-principal');
@@ -17503,6 +17552,7 @@ function _sfSaveCalibration() {
     JSON.stringify({ principalAmount: principal, joinDate: joinDate }));
   var clBtn = document.getElementById('sf-calibration-clear-btn');
   if (clBtn) clBtn.style.display = '';
+  _sfIsManual = true;
   _sfRecalculate();
 }
 
@@ -17527,6 +17577,7 @@ function _sfOnManualPrincipalInput() {
 function _sfClearCalibration() {
   if (!_sfCurrentItem) return;
   localStorage.removeItem('sf_manual_data_' + _sfCurrentItem.assetNum);
+  _sfIsManual = false;
   var clBtn = document.getElementById('sf-calibration-clear-btn');
   if (clBtn) clBtn.style.display = 'none';
   var pEl = document.getElementById('sf-manual-principal');
@@ -17580,8 +17631,11 @@ function parseAnnualReportPDF(file, assetNum) {
         return r.json();
       })
       .then(function(data) {
+        console.log('[PDF-cli] תגובה גולמית מהשרת:', data);
+        console.log('[PDF-cli] אובייקט מנורמל isPreReformExempt=' + data.isPreReformExempt + ' taxableProfit15=' + data.taxableProfit15 + ' pdfTotalBalance=' + data.pdfTotalBalance);
         resolve({
-          _promptVersion:   7,
+          _promptVersion:    7,
+          isPreReformExempt: !!data.isPreReformExempt,
           exemptPrincipal:  Number(data.exemptPrincipal)  || 0,
           exemptProfit:     Number(data.exemptProfit)     || 0,
           taxablePrincipal: Number(data.taxablePrincipal) || 0,
@@ -17589,7 +17643,7 @@ function parseAnnualReportPDF(file, assetNum) {
           taxableProfit15:  Number(data.taxableProfit15)  || 0,
           taxableProfit20:  Number(data.taxableProfit20)  || 0,
           taxableProfit25:  Number(data.taxableProfit25)  || 0,
-          pdfTotalBalance:  Number(data.pdfTotalBalance)  || 0,
+          pdfTotalBalance:  isNaN(Number(data.pdfTotalBalance)) ? 0 : Number(data.pdfTotalBalance),
           reportYear:       Number(data.reportYear)       || 0
         });
       })
@@ -17629,17 +17683,54 @@ function _sfResetSimulation() {
   _sfRecalculate();
 }
 
-// v182.07: Toggle manual calibration form visibility when PDF is verified
+// v182.07: Toggle manual calibration form visibility; label driven by data-label attribute
 function _sfToggleManualCalib() {
-  var formEl   = document.getElementById('sf-calibration-form');
-  var toggleEl = document.getElementById('sf-manual-toggle-row');
+  var formEl    = document.getElementById('sf-calibration-form');
+  var toggleEl  = document.getElementById('sf-manual-toggle-row');
+  var pdfSecEl  = document.getElementById('sf-pdf-section');
+  var manColEl  = document.getElementById('sf-manual-input-col');
+  var dividerEl = document.getElementById('sf-or-divider');
   if (!formEl) return;
-  var isHidden = formEl.style.display === 'none';
-  formEl.style.display = isHidden ? '' : 'none';
-  if (toggleEl) {
-    var btn = toggleEl.querySelector('button');
-    if (btn) btn.textContent = isHidden ? '🔧 הסתר חישוב ידני' : '🔧 חישוב מס ידני (למתקדמים)';
+
+  var pdfVisible = pdfSecEl && pdfSecEl.style.display !== 'none';
+  if (pdfVisible && manColEl) {
+    // No-PDF mode: toggle only the manual column; outer form + dropzone stay visible
+    var manHidden = manColEl.style.display === 'none';
+    manColEl.style.display = manHidden ? '' : 'none';
+    if (dividerEl) dividerEl.style.display = manHidden ? 'flex' : 'none';
+    if (toggleEl) {
+      var btn = toggleEl.querySelector('button');
+      if (btn) {
+        var collapsedLabel = btn.getAttribute('data-label') || '✎ עריכת נתונים ידנית';
+        btn.textContent = manHidden ? '✎ הסתר' : collapsedLabel;
+      }
+    }
+  } else {
+    // PDF uploaded: toggle the whole calibration form (existing behavior)
+    var isHidden = formEl.style.display === 'none';
+    formEl.style.display = isHidden ? '' : 'none';
+    if (toggleEl) {
+      var btn = toggleEl.querySelector('button');
+      if (btn) {
+        var collapsedLabel = btn.getAttribute('data-label') || '✎ עריכת נתונים ידנית';
+        btn.textContent = isHidden ? '✎ הסתר' : collapsedLabel;
+      }
+    }
   }
+}
+
+// Module-scope date helpers — also defined locally inside _sfCalculateTax (shadow is harmless)
+function _sfParseDate(val) {
+  if (!val) return null;
+  var s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s);
+  var p = s.split('/');
+  if (p.length === 3) return new Date(p[2] + '-' + p[1] + '-' + p[0]);
+  return null;
+}
+function _sfFmtDate(d) {
+  if (!d || isNaN(d.getTime())) return null;
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
 }
 
 // v182.07: Nominal / Real display toggle state
@@ -17670,6 +17761,10 @@ function _sfApplyViewMode() {
 
 function _sfPdfToSegments(d, currentBalanceK) {
   var base = currentBalanceK || 0;
+  if (d.isPreReformExempt) {
+    console.log('[PDF-cli] פטור לפני 2002 — כל היתרה בתקרה=1', base);
+    return [{ tikrat: '1', deposits: base, accumulation: base }];
+  }
   var hasExactTiers = (d.taxableProfit15 > 0 || d.taxableProfit20 > 0 || d.taxableProfit25 > 0);
 
   if (hasExactTiers) {
@@ -17719,6 +17814,7 @@ function _sfPdfFileChange(e) {
 }
 function _sfHandlePdfFile(file) {
   if (!_sfCurrentItem) return;
+  console.log('[PDF-cli] מתחיל עיבוד PDF לחשבון:', _sfCurrentItem.assetNum, 'שם קובץ:', file && file.name);
   var statusEl = document.getElementById('sf-pdf-status');
   if (statusEl) { statusEl.style.display = ''; statusEl.style.background = '#eff6ff'; statusEl.textContent = '⏳ מחלץ נתונים מהדו"ח...'; }
   parseAnnualReportPDF(file, _sfCurrentItem.assetNum).then(function(data) {
@@ -17881,10 +17977,14 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
     html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626');
   var ytdTaxK  = (ytdData && ytdData.ytdTaxDueK    > 0) ? ytdData.ytdTaxDueK    : 0;
   var ytdProfK = (ytdData && ytdData.realYtdProfitK > 0) ? ytdData.realYtdProfitK : 0;
-  if (ytdProfK > 0) {
+  var ytdDepK  = (ytdData && ytdData.ytdDepositsK   > 0) ? ytdData.ytdDepositsK   : 0;
+  if (ytdProfK > 0 || ytdDepK > 0) {
     html += '<div style="border-top:2px dashed #d97706;margin:8px 0 4px 0;"></div>';
     html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;">— הערכת צמיחה שוטפת (2026) —</div>';
-    html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
+    if (ytdDepK > 0)
+      html += _sfReceiptRow('הפחתת הפקדות שכר (Principal)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
+    if (ytdProfK > 0)
+      html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
   } else {
     html += '<div style="font-size:12px;color:#d97706;margin-top:12px;text-align:center;font-weight:500;">המס חושב לתאריך הדו״ח. קיים מס מתאריך הדו״ח ועד היום, שלא חושב.</div>';
   }
@@ -17926,9 +18026,204 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
   var _finalTaxK = Math.max(0, (totalTaxK + ytdTaxK + simTaxK) * _wRatio);
   var _taxLabel = 'סה"כ מס לתשלום' + (_wRatio < 1 ? ' (' + Math.round(_wRatio * 100) + '%)' : '');
   html += _sfReceiptRow(_taxLabel, '₪' + fmt(_finalTaxK) + 'K', '#dc2626');
-  html += _sfReceiptRow('נטו לכיס', '₪' + fmt(netK) + 'K', '#16a34a');
+  var _pdfBalNIS    = pdfData.pdfTotalBalance || 0;
+  var _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (exemptTotal / _pdfBalNIS)) : 1;
+  _sfAIVerifData = {
+    assetType:   'keren_hishtalmut',
+    genericData: {
+      // PDF layer breakdown — all in K (thousands of NIS)
+      exemptPrincipalK:  (pdfData.exemptPrincipal  || 0) / 1000,
+      exemptProfitK:     (pdfData.exemptProfit      || 0) / 1000,
+      taxablePrincipalK: (pdfData.taxablePrincipal  || 0) / 1000,
+      taxableProfit15K:  (pdfData.taxableProfit15   || 0) / 1000,
+      taxableProfit20K:  (pdfData.taxableProfit20   || 0) / 1000,
+      taxableProfit25K:  (pdfData.taxableProfit25   || 0) / 1000,
+      pdfTotalBalanceK:  _pdfBalNIS / 1000,
+      // Computed tax components — all in K
+      pdfTierTaxK:       totalTaxK,
+      ytdRealProfitK:    ytdProfK,
+      ytdTaxDueK:        ytdTaxK,
+      simRealProfitK:    simProfK,
+      simTaxDueK:        simTaxK,
+      // Ratios (unitless, 0–1)
+      taxableRatio:      _taxableRatio,
+      withdrawalRatio:   _wRatio,
+      // Final figure the UI displays — in K
+      userCalculatedTax: _finalTaxK,
+      reportYear:        (pdfData.reportYear || 0),
+      // v182.48: deposit oversight
+      ytdDepositsK:      (ytdData && ytdData.ytdDepositsK > 0) ? ytdData.ytdDepositsK : 0,
+      dataGapNote:       null  // set post-build in _sfRecalculate when active + no deposits
+    }
+  };
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;">'
+        + '<span style="font-size:11px;font-weight:700;color:#374151;">נטו לכיס</span>'
+        + '<span style="font-size:11px;font-weight:700;color:#16a34a;">₪' + fmt(netK) + 'K</span>'
+        + '</div>';
   html += '</div>';
   return html;
+}
+
+function _sfTriggerAIVerification() {
+  console.log('[AI-cli] Verify clicked. _sfIsExempt:', _sfIsExempt, '_sfAIVerifData:', !!_sfAIVerifData);
+  var payload = _sfAIVerifData;
+  if (!payload) {
+    if (!_sfIsExempt) return;
+    // Exempt fund: minimal payload — LLMs verify 0 tax per israel_tax_rules.md Rule 8
+    payload = {
+      assetType:   'keren_hishtalmut',
+      genericData: {
+        isPreReformExempt:  true,
+        exemptPrincipalK:   0,
+        exemptProfitK:      0,
+        taxablePrincipalK:  0,
+        taxableProfit15K:   0,
+        taxableProfit20K:   0,
+        taxableProfit25K:   0,
+        pdfTotalBalanceK:   _sfLastGrossK,
+        pdfTierTaxK:        0,
+        ytdRealProfitK:     0,
+        ytdTaxDueK:         0,
+        simRealProfitK:     0,
+        simTaxDueK:         0,
+        taxableRatio:       0,
+        withdrawalRatio:    1,
+        userCalculatedTax:  0,
+        reportYear:         0
+      }
+    };
+  }
+  var btn = document.getElementById('sf-ai-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  fetch('http://localhost:3001/api/verification/tax', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) { _sfShowAIModal(data); })
+  .catch(function(err) { _sfShowAIModal({ _error: err.message }); })
+  .finally(function() {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ אימות AI'; }
+  });
+}
+
+function _sfCategoryVerify() {
+  if (!_sfAIVerifData && !_sfIsExempt) {
+    _sfShowAIModal({ _error: 'אנא פתח קרן השתלמות עם דו"ח שנתי מועלה תחילה' });
+    return;
+  }
+  _sfTriggerAIVerification();
+}
+
+function _sfShowAIModal(data) {
+  var existing = document.getElementById('sf-ai-modal-overlay');
+  if (existing) existing.remove();
+
+  function modelCard(name, icon, result) {
+    if (result.error) {
+      return '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:8px;">'
+           + '<div style="font-weight:700;color:#dc2626;font-size:12px;">' + icon + ' ' + name + '</div>'
+           + '<div style="color:#7f1d1d;font-size:11px;margin-top:4px;">שגיאה: ' + result.error + '</div>'
+           + '</div>';
+    }
+    var verdictIcon  = result.verdict === 'correct' ? '✅' : result.verdict === 'incorrect' ? '❌' : '⚠️';
+    var verdictColor = result.verdict === 'correct' ? '#16a34a' : result.verdict === 'incorrect' ? '#dc2626' : '#d97706';
+    return '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:8px;">'
+         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+         + '<span style="font-weight:700;color:#374151;font-size:12px;">' + icon + ' ' + name + '</span>'
+         + '<span style="font-size:18px;">' + verdictIcon + '</span>'
+         + '</div>'
+         + '<div style="display:flex;gap:12px;margin-bottom:6px;">'
+         + '<span style="font-size:10px;color:#6b7280;">ביטחון: <strong style="color:' + verdictColor + ';">' + (result.confidence || 0) + '%</strong></span>'
+         + '<span style="font-size:10px;color:' + verdictColor + ';font-weight:600;">' + (result.verdict || '') + '</span>'
+         + '</div>'
+         + (result.explanation ? '<div style="font-size:11px;color:#374151;direction:rtl;line-height:1.5;">' + result.explanation + '</div>' : '')
+         + ((result.issues && result.issues.length) ? '<ul style="margin:6px 0 0 0;padding-right:16px;font-size:10px;color:#dc2626;">' + result.issues.map(function(i) { return '<li>' + i + '</li>'; }).join('') + '</ul>' : '')
+         + '</div>';
+  }
+
+  var body = data._error
+    ? '<div style="color:#dc2626;font-size:12px;text-align:center;padding:16px;">שגיאת רשת: ' + data._error + '</div>'
+    : modelCard('Claude (Anthropic)', '🤖', data.anthropic || {})
+    + modelCard('GPT-4o (OpenAI)',    '🧠', data.openai    || {})
+    + modelCard('Gemini (Google)',    '✨', data.google    || {});
+
+  var overlay = document.createElement('div');
+  overlay.id = 'sf-ai-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10700;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:20px;width:480px;max-width:92vw;max-height:85vh;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.25);">'
+  + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
+  + '<span style="font-size:14px;font-weight:700;color:#1f2937;">✨ אימות AI — חישוב מס</span>'
+  + '<button onclick="_sfCloseAIModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1;">×</button>'
+  + '</div>'
+  + '<div style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 8px;user-select:none;" onclick="_sfToggleAIResults()">'
+  + '<span style="font-size:12px;font-weight:600;color:#374151;">תוצאות אימות</span>'
+  + '<span id="sf-ai-results-chevron" style="font-size:10px;color:#94a3b8;">&#9650;</span>'
+  + '</div>'
+  + '<div id="sf-ai-results-container" style="max-height:400px;overflow-y:auto;">'
+  + body
+  + '</div>'
+  + '<div style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:10px;">'
+  + '<div id="sf-ai-chat-history" style="max-height:160px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;direction:rtl;"></div>'
+  + '<div style="display:flex;gap:6px;align-items:center;">'
+  + '<input id="sf-ai-chat-input" type="text" placeholder="שאל את ה-AI על החישוב..." '
+  + 'style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:7px 10px;font-size:13px;font-family:Heebo,sans-serif;direction:rtl;outline:none;" '
+  + 'onkeydown="if(event.key===\'Enter\')_sfSendAIChat();">'
+  + '<button id="sf-ai-chat-send" onclick="_sfSendAIChat()" style="padding:7px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">שלח</button>'
+  + '</div>'
+  + '</div>'
+  + '<button onclick="_sfCloseAIModal()" style="width:100%;margin-top:12px;padding:9px;background:#6366f1;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">סגור</button>'
+  + '</div>';
+  document.body.appendChild(overlay);
+}
+
+function _sfCloseAIModal() {
+  var el = document.getElementById('sf-ai-modal-overlay');
+  if (el) el.remove();
+}
+
+function _sfToggleAIResults() {
+  var cont = document.getElementById('sf-ai-results-container');
+  var chev = document.getElementById('sf-ai-results-chevron');
+  if (!cont) return;
+  var isOpen = cont.style.display !== 'none';
+  cont.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.innerHTML = isOpen ? '&#9660;' : '&#9650;';
+}
+
+function _sfSendAIChat() {
+  var inp  = document.getElementById('sf-ai-chat-input');
+  var btn  = document.getElementById('sf-ai-chat-send');
+  var hist = document.getElementById('sf-ai-chat-history');
+  if (!inp || !hist) return;
+  var q = (inp.value || '').trim();
+  if (!q) return;
+
+  hist.innerHTML += '<div style="background:#ede9fe;border-radius:10px;padding:8px 12px;font-size:13px;direction:rtl;color:#374151;">'
+    + '<strong>אתה:</strong> ' + q + '</div>';
+  inp.value = '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  hist.scrollTop = hist.scrollHeight;
+
+  fetch('http://localhost:3001/api/chat/tax', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: q, data: _sfAIVerifData })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    hist.innerHTML += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:13px;direction:rtl;color:#374151;">'
+      + '<strong>AI:</strong> ' + (d.answer || d.error || 'שגיאה') + '</div>';
+    hist.scrollTop = hist.scrollHeight;
+  })
+  .catch(function(e) {
+    hist.innerHTML += '<div style="background:#fef2f2;border-radius:10px;padding:8px 12px;font-size:13px;color:#dc2626;">שגיאת רשת: ' + e.message + '</div>';
+  })
+  .finally(function() {
+    if (btn) { btn.disabled = false; btn.textContent = 'שלח'; }
+  });
 }
 
 // Renders year tick labels and retirement marker; ticks are proportional to current scale
@@ -18489,6 +18784,8 @@ function _sfRecalculate() {
     localStorage.removeItem('sf_pdf_data_' + item.assetNum);
     _pdfDataRaw = null;
   }
+  console.log('[PDF-cli] בדיקת שדות _pdfData:',
+    _pdfDataRaw ? { isPreReformExempt: _pdfDataRaw.isPreReformExempt, exemptPrincipal: _pdfDataRaw.exemptPrincipal, taxableProfit15: _pdfDataRaw.taxableProfit15, pdfTotalBalance: _pdfDataRaw.pdfTotalBalance } : 'null');
   var _pdfData = (_pdfDataRaw && (
     (_pdfDataRaw.exemptPrincipal  || 0) > 0 ||
     (_pdfDataRaw.exemptProfit     || 0) > 0 ||
@@ -18496,7 +18793,8 @@ function _sfRecalculate() {
     (_pdfDataRaw.taxableProfit    || 0) > 0 ||
     (_pdfDataRaw.taxableProfit15  || 0) > 0 ||
     (_pdfDataRaw.taxableProfit20  || 0) > 0 ||
-    (_pdfDataRaw.taxableProfit25  || 0) > 0
+    (_pdfDataRaw.taxableProfit25  || 0) > 0 ||
+    !!_pdfDataRaw.isPreReformExempt
   )) ? _pdfDataRaw : null;
   console.log('Extracted PDF Data:', _pdfData, '(raw:', _pdfDataRaw, ')');
   var _itemSrc = _pdfData
@@ -18552,6 +18850,27 @@ function _sfRecalculate() {
     _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
+      // v182.48: Active funds — manual override takes priority; fallback to XML date-filtered deposits
+      var _ytdDepositsK = 0;
+      if (item.isActive) {
+        if (_sfManualDeposits > 0) {
+          _ytdDepositsK = _sfManualDeposits;
+        } else if (item.rawXml) {
+          var _depDoc     = new DOMParser().parseFromString(item.rawXml, 'text/xml');
+          var _cutoff2026 = new Date('2026-01-01');
+          _salkahXmlEls(_depDoc, 'PerutHafkadotMetchilatShana').forEach(function(section) {
+            var dateEl = _salkahXmlEl(section, 'TAARICH-HAFKADA-SHESHULAM');
+            if (dateEl) {
+              var depDate = _sfParseDate(dateEl.textContent.trim());
+              if (depDate && depDate < _cutoff2026) return;
+            }
+            _salkahXmlEls(section, 'SCHUM-HAFKADA-SHESHULAM').forEach(function(el) {
+              _ytdDepositsK += (parseFloat(el.textContent.trim()) || 0) / 1000;
+            });
+          });
+        }
+        if (_ytdDepositsK > 0) _deltaK = Math.max(0, _deltaK - _ytdDepositsK);
+      }
       var _today        = new Date();
       var _reportYear   = (_pdfData.reportYear && _pdfData.reportYear > 2000) ? _pdfData.reportYear : 0;
       var _currentYear  = _today.getFullYear();
@@ -18583,12 +18902,34 @@ function _sfRecalculate() {
     netK    = null;
   }
 
+  // Pre-2002 exempt: PDF confirmed 100% tax-free — override null set by else branch above
+  if (_pdfData && _pdfData.isPreReformExempt) {
+    taxDueK    = 0;
+    netK       = grossK;
+    taxDetails = Object.assign({}, taxDetails, { exemptionApplied: true, totalTaxDue: 0, netToBank: grossK });
+    _sfLastTaxDetails = taxDetails;
+  }
+
   // ── Manual calibration override ──────────────────────────────────────────
   var _manualData    = _sfLoadManualData(item.assetNum);
   var _manualReceipt = null;
   if (_manualData && _manualData.principalAmount) {
     var _mPrinK = Number(_manualData.principalAmount) / 1000;
-    if (_hasTikratData && grownSegs.length > 0) {
+    // Pre-2003 absolute exemption: join date strictly before 2003-01-01 → 100% tax-free
+    var _manJoinSrc    = (_manualData.joinDate) || (item.joinDate) || null;
+    var _manJoinParsed = _manJoinSrc ? _sfParseDate(_manJoinSrc) : null;
+    if (_manJoinParsed && _manJoinParsed < new Date('2003-01-01')) {
+      taxDueK  = 0;
+      netK     = grossK;
+      taxDetails = Object.assign({}, taxDetails, {
+        totalTaxDue: 0, netToBank: grossK, exemptionApplied: true,
+        explanation: {
+          templateId: 'SF_EXEMPT_PRE2003',
+          rendered: '<div style="color:#16a34a;font-weight:600;">הקרן פטורה ממס - תאריך תחילת חברות לפני ינואר 2003 (פטור היסטורי מלא).</div>'
+        }
+      });
+      _sfLastTaxDetails = taxDetails;
+    } else if (_hasTikratData && grownSegs.length > 0) {
       // Tikrat-proportional: distribute entered principal across segments by accumulation share
       var _totalAccumK = grownSegs.reduce(function(s, g) { return s + (Number(g.accumulation) || 0); }, 0);
       var _segsWithDep = _totalAccumK > 0
@@ -18624,10 +18965,24 @@ function _sfRecalculate() {
     _sfLastTaxDetails = taxDetails;
   }
 
+  // v182.41: Unverified state — no PDF and no active manual entry in this session
+  if (!_pdfData && !_sfIsManual) {
+    taxDueK        = null;
+    netK           = null;
+    _manualReceipt = null;
+  }
+
   // ── Push-UX: 3-state accuracy subtitle (v181.81) ─────────────────────────
   var _pushMsgEl = document.getElementById('sf-tax-inline-msg');
   var _segEl = document.getElementById('sf-tax-segments');
   if (_segEl) _segEl.innerHTML = '';
+  if (_pdfData && _pdfData.isPreReformExempt && _segEl) {
+    _segEl.innerHTML = '<div style="color:#16a34a;font-weight:600;font-size:12px;line-height:1.8;padding:4px 0;">' +
+      'כל ההפקדות לפני 2002. הקרן פטורה ממס.' +
+      '</div>';
+  }
+  var _depStatusElClr = document.getElementById('sf-deposit-status-msg');
+  if (_depStatusElClr) _depStatusElClr.style.display = 'none'; // hidden unless _hasExactTiers sets it
   if (!_pdfData) {
     // No PDF uploaded — waiting state
     if (_pushMsgEl) {
@@ -18637,7 +18992,28 @@ function _sfRecalculate() {
     }
   } else if (_hasExactTiers) {
     // PDF with exact tiers — transparent breakdown receipt
-    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
+    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
+    // v182.48: post-build patch — data gap note + deposit status bar
+    if (item.isActive && _ytdDepositsK === 0 && _sfAIVerifData) {
+      _sfAIVerifData.genericData.dataGapNote = 'החישוב מתבסס על נתוני דו״ח שנתי בלבד. חסרות הפקדות שכר שוטפות.';
+    }
+    var _depStatusEl = document.getElementById('sf-deposit-status-msg');
+    if (_depStatusEl) {
+      if (item.isActive) {
+        _depStatusEl.style.display = '';
+        if (_ytdDepositsK > 0) {
+          var _depNIS = Math.round(_ytdDepositsK * 1000).toLocaleString('he-IL');
+          _depStatusEl.style.color = '#16a34a';
+          _depStatusEl.innerHTML   = '✔ הפקדות שכר 2026 מעודכנות: ₪' + _depNIS;
+        } else {
+          _depStatusEl.style.color = '#d97706';
+          _depStatusEl.innerHTML   = '⚠️ לא זוהו הפקדות שכר ל-2026. נדרשת הזנה ידנית לצורך דיוק במס.'
+                       + ' <button onclick="event.stopPropagation();_sfOpenDepositsModal()" style="margin-right:8px;background:none;border:1px solid #d97706;border-radius:4px;padding:2px 8px;font-size:11px;color:#d97706;cursor:pointer;font-family:Heebo,sans-serif;">ערוך הפקדות ידנית</button>';
+        }
+      } else {
+        _depStatusEl.style.display = 'none';
+      }
+    }
     if (_pushMsgEl) {
       var _joinDateStr = '';
       if (item.joinDate) {
@@ -18653,6 +19029,11 @@ function _sfRecalculate() {
       _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי)' + _joinDateStr + '. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
       _pushMsgEl.style.visibility = 'visible';
     }
+  } else if (_pdfData && _pdfData.isPreReformExempt && _pushMsgEl) {
+    // Pre-2002 exempt: green confirmation instead of amber missing-data warning
+    _pushMsgEl.style.color      = '#16a34a';
+    _pushMsgEl.innerHTML        = 'פטור ממס — קרן פטורה לפני 2002 (פטור היסטורי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
+    _pushMsgEl.style.visibility = 'visible';
   } else if (_pdfData && _pushMsgEl) {
     // PDF uploaded but tier extraction produced all zeros — show amber warning + clear button
     _pushMsgEl.style.color      = '#d97706';
@@ -18669,17 +19050,31 @@ function _sfRecalculate() {
   var _calibFormEl  = document.getElementById('sf-calibration-form');
   var _toggleRowEl  = document.getElementById('sf-manual-toggle-row');
   if (_calibFormEl) {
+    _calibFormEl.style.display = 'none'; // always collapsed by default; toggled by user
     if (_hasExactTiers) {
-      // PDF verified — hide manual form, show advanced toggle link
-      _calibFormEl.style.display = 'none';
-      if (_toggleRowEl) _toggleRowEl.style.display = '';
+      // PDF verified — show advanced toggle link with PDF-specific label
+      if (_toggleRowEl) {
+        _toggleRowEl.style.display = '';
+        var _tBtnPdf = _toggleRowEl.querySelector('button');
+        if (_tBtnPdf) { _tBtnPdf.setAttribute('data-label', '🔧 חישוב מס ידני (למתקדמים)'); _tBtnPdf.textContent = '🔧 חישוב מס ידני (למתקדמים)'; }
+      }
+    } else if (_pdfData && _pdfData.isPreReformExempt) {
+      // Pre-2002 exempt: always show toggle so user can access manual inputs or delete file
+      if (_toggleRowEl) {
+        _toggleRowEl.style.display = '';
+        var _tBtnEx = _toggleRowEl.querySelector('button');
+        if (_tBtnEx) { _tBtnEx.setAttribute('data-label', '✎ עריכת נתונים ידנית'); _tBtnEx.textContent = '✎ עריכת נתונים ידנית'; }
+      }
     } else {
-      if (_toggleRowEl) _toggleRowEl.style.display = 'none';
-      var _needsCalib = (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
-                         taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
-      _calibFormEl.style.display = _needsCalib ? '' : 'none';
-      var _sourceBoxEl = document.getElementById('sf-xml-dropzone');
-      if (_sourceBoxEl) _sourceBoxEl.style.display = _needsCalib ? '' : 'none';
+      var _nc = (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
+                 taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
+      if (_toggleRowEl) {
+        _toggleRowEl.style.display = _nc ? '' : 'none';
+        if (_nc) {
+          var _tBtnNoPdf = _toggleRowEl.querySelector('button');
+          if (_tBtnNoPdf) { _tBtnNoPdf.setAttribute('data-label', '✎ עריכת נתונים ידנית'); _tBtnNoPdf.textContent = '✎ עריכת נתונים ידנית'; }
+        }
+      }
     }
     var _needsCalib = !_hasExactTiers && (taxDetails.explanation.templateId !== 'SF_EXEMPT_SENIORITY' &&
                        taxDetails.explanation.templateId !== 'SF_EXEMPT_AGE');
@@ -18730,12 +19125,25 @@ function _sfRecalculate() {
     }
   }
 
-  // v181.79: 2-col layout — show pdf section and OR divider together when no PDF uploaded
+  // v181.79: 2-col layout — show pdf section when no PDF uploaded
+  _sfIsExempt = !!(_pdfData && _pdfData.isPreReformExempt);
   var _sfPdfSec = document.getElementById('sf-pdf-section');
   var _sfOrDiv  = document.getElementById('sf-or-divider');
   var _showPdf  = !_pdfData;
   if (_sfPdfSec) _sfPdfSec.style.display = _showPdf ? 'flex' : 'none';
-  if (_sfOrDiv)  _sfOrDiv.style.display  = _showPdf ? 'flex' : 'none';
+  if (_sfOrDiv)  _sfOrDiv.style.display  = 'none'; // shown by toggle only when both columns visible
+  if (_showPdf && _calibFormEl) {
+    // Parent must be visible for the dropzone child to render
+    _calibFormEl.style.display = '';
+    var _manColEl = document.getElementById('sf-manual-input-col');
+    if (_manColEl) _manColEl.style.display = 'none'; // manual inputs collapsed by default
+    // Always show toggle regardless of seniority-exempt templateId
+    if (_toggleRowEl) {
+      _toggleRowEl.style.display = '';
+      var _tBtnNoPdf = _toggleRowEl.querySelector('button');
+      if (_tBtnNoPdf) { _tBtnNoPdf.setAttribute('data-label', '✎ עריכת נתונים ידנית'); _tBtnNoPdf.textContent = '✎ עריכת נתונים ידנית'; }
+    }
+  }
 
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
   // Store raw values for nominal/real toggle, then apply current view mode
@@ -18799,6 +19207,7 @@ function _sfRecalculate() {
   }
   var _calibReceiptEl = document.getElementById('sf-calibration-receipt');
   if (_calibReceiptEl) { _calibReceiptEl.innerHTML = ''; _calibReceiptEl.style.display = 'none'; }
+  console.log('[Modal] _sfRecalculate completed successfully for:', _sfCurrentItem && _sfCurrentItem.id);
 }
 
 function _sfUpdatePieChart(grossK, taxDueK, exemptionApplied) {
