@@ -98,9 +98,87 @@ The payload provides `pdfTierTaxK` directly — use this for cross-checking agai
 
 ## Current Dashboard Implementation
 
-- The dashboard uses **25% nominal** on total taxable profit as a simplified calculation pending CPI integration.
-- When an annual report PDF is uploaded, the dashboard extracts the 3-bracket breakdown and uses the precise per-bracket formula above.
-- UI shows a **"Low Confidence"** warning when exact Exempt/Taxable split is unavailable.
+The dashboard implements a **three-phase tax calculation** covering historical data, YTD accrual, and future projection:
+
+### Phase 1 — Historical Tax (PDF Tier Breakdown)
+
+When an annual report PDF is uploaded, the server extracts the 3-bracket profit breakdown and computes `pdfTierTaxK`:
+
+```
+pdfTierTaxK = (taxableProfit15K × 0.15) + (taxableProfit20K × 0.20) + (taxableProfit25K × 0.25)
+```
+
+This is the **base tax component** — it covers all taxable profit accrued up to the PDF report date. The result is in K (thousands of NIS).
+
+---
+
+### Phase 2 — YTD Accrual (מקדם מס אפקטיבי — Effective Tax Coefficient)
+
+For active funds where `currentBalance > pdfReportBalance`, the dashboard calculates a **real-terms tax** on post-report growth.
+
+#### Step 1 — Effective Tax Coefficient
+
+The key insight is that new growth is taxed at the fund's *blended effective rate*, not at a flat 25%. The coefficient is derived directly from PDF data:
+
+```
+effectiveTaxCoeff = pdfTierTaxK / pdfTotalBalanceK
+```
+
+**Why this is correct:** The `pdfTierTaxK` already encodes all exempt layers (pre-2002 grandfathering, within-ceiling deposits, 0%/15%/20% tier weights). Dividing by the total balance gives the tax burden per shekel of fund value — the same ratio that applies to any new growth proportionally distributed across the fund's existing structure.
+
+**Example:**
+| Fund | pdfTierTaxK | pdfTotalBalance | effectiveTaxCoeff | vs. flat 25% |
+|------|-------------|-----------------|-------------------|--------------|
+| 70% exempt fund | ₪35K | ₪500K | 7.0% | 25% → overstated 3.6× |
+| 50% exempt, mixed tiers | ₪60K | ₪400K | 15.0% | 25% → overstated 1.67× |
+
+#### Step 2 — Deposit Deduction
+
+Before computing profit, salary deposits made since January 1 of the report year are subtracted from the balance delta. These are principal returns, not profit:
+
+```
+ytdDelta = currentBalanceK − pdfBalanceK − ytdSalaryDepositsK
+```
+
+`ytdSalaryDepositsK` sources (in priority order):
+1. **Manual override** — user input via the "עדכון הפקדות שכר" modal, stored in `localStorage` key `sf_manual_deposits_k_{assetNum}`
+2. **XML scan** — `PerutHafkadotMetchilatShana` elements with `SCHUM-HAFKADA-SHESHULAM` amounts, filtered to dates ≥ Jan 1 of the report year
+3. **Auto-fill** — if the latest XML deposit date is 1–6 months behind the current month, the last deposit amount is extrapolated forward for the missing months
+
+#### Step 3 — Inflation Adjustment
+
+```
+yearsSinceReport = (currentYear − reportYear − 1) + (currentMonth / 12)
+inflationDeductK = pdfBalanceK × (inflationRate / 100) × yearsSinceReport
+ytdRealProfitK   = max(0, ytdDelta − inflationDeductK)
+```
+
+#### Step 4 — YTD Tax
+
+```
+ytdTaxDueK = ytdRealProfitK × effectiveTaxCoeff
+```
+
+**Fallback (no PDF uploaded):** `effectiveTaxCoeff = taxableRatio × 0.25`, where `taxableRatio = 1 − (exemptPrincipal + exemptProfit) / pdfTotalBalance`.
+
+---
+
+### Phase 3 — Future Simulation (Sliders)
+
+The same `effectiveTaxCoeff` governs the slider projection, ensuring consistency between YTD and future:
+
+```
+simRealProfitK = (projectedFutureBalance − currentBalance − inflationDeductK)
+simTaxDueK     = simRealProfitK × effectiveTaxCoeff
+```
+
+---
+
+### Final Total
+
+```
+userCalculatedTax = max(0, (pdfTierTaxK + ytdTaxDueK + simTaxDueK) × withdrawalRatio)
+```
 
 ---
 
@@ -144,7 +222,22 @@ Rules for the `/api/verification/tax` route when an AI model audits a user's tax
 
 ## Units
 
-All monetary values in `genericData` are in **K (thousands of NIS)**. Do not scale them. Ratios (`taxableRatio`, `withdrawalRatio`) are unitless numbers between 0 and 1.
+All monetary values in `genericData` are in **K (thousands of NIS)**. Do not scale them. Ratios (`taxableRatio`, `withdrawalRatio`, `effectiveTaxCoeff`) are unitless numbers between 0 and 1.
+
+## Key Field: `effectiveTaxCoeff`
+
+`effectiveTaxCoeff` is the **blended effective tax rate** derived from the PDF tier data:
+
+```
+effectiveTaxCoeff = pdfTierTaxK / pdfTotalBalanceK
+```
+
+This is the coefficient applied to both `ytdTaxDueK` and `simTaxDueK`. It is **not** the same as `taxableRatio × 0.25` (which overstates tax when the fund has significant 15%/20% tier profits). When auditing, verify:
+
+```
+ytdTaxDueK = ytdRealProfitK × effectiveTaxCoeff   (± 5% tolerance)
+simTaxDueK = simRealProfitK × effectiveTaxCoeff   (± 5% tolerance)
+```
 
 ## Verdict Definitions
 
