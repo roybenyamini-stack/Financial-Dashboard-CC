@@ -75,6 +75,121 @@ app.get('/api/debug-api', async (req, res) => {
   }
 });
 
+// ── Generic account-number scoping utilities ─────────────────────────────────
+//
+// Problem: management companies format account numbers differently in PDFs.
+// The system provides "912-443286"; the PDF might print "912443286",
+// "0912-443286", "912 443286", or even "00912443286".
+//
+// Solution: strip to digits → build a separator-tolerant regex → find & scope.
+
+// Returns just the digit characters of an account number.
+// "912-443286" → "912443286"
+function _acctDigits(acctNum) {
+  return acctNum.replace(/\D/g, '');
+}
+
+// Returns a RegExp that matches the account number in all formatting variants,
+// including when embedded as a substring within a longer company-prefixed number.
+//
+// Examples for input "917-443195":
+//   • "917-443195"          (exact with hyphen)
+//   • "917443195"           (no separator)
+//   • "917 443195"          (space-separated)
+//   • "0917443195"          (1-5 leading digits, e.g. leading zeros)
+//   • "033-917-443195-000"  (company prefix 033, trailing suffix 000)
+//   • "033917443195000"     (same, no separators)
+function createFlexibleAccountRegex(acctNum) {
+  const digits  = _acctDigits(acctNum);
+  // Each digit may be followed by an optional separator before the next digit
+  const pattern = digits.split('').join('[\\s\\-\\.]*');
+  // Allow up to 6 extra digits (with optional separators) as a prefix —
+  // this handles company routing codes like "033-" prepended before the account digits.
+  // No anchoring at start/end so the sequence is also found mid-string.
+  return new RegExp('(?:\\d[\\s\\-\\.]*){0,6}' + pattern);
+}
+
+// Phrases marking the start of an account's OWN detail section (not a summary row).
+// Used to pick the correct occurrence when the account number appears multiple times.
+const _DETAIL_SECTION_RE  = /(?:מספר\s*חשבון\s*העמית|פרטי\s*החשבון|גיליון\s*חשבון|חשבון\s*מספר\s*\d)/;
+
+// Phrases that signal the start of a DIFFERENT account's section in consolidated PDFs
+// (used as the end-boundary for the current account's block).
+const _SECTION_BOUNDARY_RE = /(?:מספר\s*(?:חשבון|פוליסה|קופה|חבר)|מספ[''']\s*(?:חשבון|פוליסה))/g;
+
+// Scan the full text for account-number-like patterns (≥7 consecutive digits, possibly
+// separated by hyphens/spaces). Used to report which accounts ARE in the PDF when
+// the requested account is not found.
+function detectAccountsInText(fullText) {
+  const seen = new Set();
+  const re   = /\d[\d\-]{5,16}\d/g;
+  let m;
+  while ((m = re.exec(fullText)) !== null) {
+    const digits = m[0].replace(/\D/g, '');
+    if (digits.length >= 7 && digits.length <= 14) seen.add(m[0]);
+  }
+  return [...seen].slice(0, 10);
+}
+
+// Scope full PDF text to the section that belongs to acctNum.
+// Returns { scopedText, found, matchedForm, allMatchCount, stats, detectedAccounts }
+//   found=true  → scoped to the account's block; text sent to AI is smaller & focused
+//   found=false → account not located; full text is returned as a safe fallback
+//
+// v2 improvements over v1:
+//   • Finds ALL occurrences (matchAll) — consolidated PDFs list accounts in summary
+//     tables before the detailed sections; v1 always grabbed the first (wrong) one.
+//   • Prefers the occurrence adjacent to a "detail section" header phrase.
+//   • Falls back to the LAST occurrence (detail sections follow cover/summary pages).
+//   • MIN_BOUNDARY_SKIP=3000 prevents false boundary triggers inside summary tables
+//     where multiple account numbers appear within a few hundred chars of each other.
+//   • Larger BEFORE/AFTER window (300/10000) safely captures all tax-layer tables.
+function scopeTextToAccount(fullText, acctNum) {
+  const BEFORE         = 300;
+  const AFTER          = 10000;
+  const MIN_BOUNDARY_SKIP = 3000; // don't allow boundary detection within 3000 chars of match
+
+  const reGlobal   = new RegExp(createFlexibleAccountRegex(acctNum).source, 'g');
+  const allMatches = [...fullText.matchAll(reGlobal)];
+
+  if (!allMatches.length) {
+    const detectedAccounts = detectAccountsInText(fullText);
+    return { scopedText: fullText, found: false, matchedForm: null,
+             allMatchCount: 0, detectedAccounts,
+             stats: { inputLen: fullText.length, outputLen: fullText.length } };
+  }
+
+  // 1st priority: occurrence adjacent to a detail-section header phrase.
+  // 2nd priority: last occurrence (detail sections come after cover/summary pages).
+  let chosen = allMatches[allMatches.length - 1];
+  for (const m of allMatches) {
+    const vicinity = fullText.slice(Math.max(0, m.index - 50), m.index + 120);
+    if (_DETAIL_SECTION_RE.test(vicinity)) { chosen = m; break; }
+  }
+
+  const matchIdx   = chosen.index;
+  const blockStart = Math.max(0, matchIdx - BEFORE);
+  const hardEnd    = Math.min(fullText.length, matchIdx + AFTER);
+
+  let boundaryEnd = hardEnd;
+  _SECTION_BOUNDARY_RE.lastIndex = matchIdx + chosen[0].length + MIN_BOUNDARY_SKIP;
+  const boundaryMatch = _SECTION_BOUNDARY_RE.exec(fullText);
+  if (boundaryMatch && boundaryMatch.index < hardEnd) {
+    const lineStart = fullText.lastIndexOf('\n', boundaryMatch.index);
+    boundaryEnd = lineStart > blockStart ? lineStart : boundaryMatch.index;
+  }
+
+  const scopedText = fullText.slice(blockStart, boundaryEnd);
+  return {
+    scopedText,
+    found:           true,
+    matchedForm:     chosen[0],
+    allMatchCount:   allMatches.length,
+    detectedAccounts: [],
+    stats: { inputLen: fullText.length, outputLen: scopedText.length }
+  };
+}
+
 // ── /api/parse-pdf — extract Keren Hishtalmut tax layers from annual report PDF ──
 const pdfParse = require('pdf-parse');
 
@@ -97,30 +212,45 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
     return res.status(422).json({ error: 'PDF appears to have no extractable text (scanned image?)' });
   }
 
-  // Step 2: ask Claude to extract the 4 tax-layer values
-  console.log('[parse-pdf] text total length:', text.length);
-  console.log('[parse-pdf] text FIRST 1000:', text.slice(0, 1000));
-  console.log('[parse-pdf] text LAST 500:', text.slice(-500));
+  // Step 2: scope text to the specific account block before sending to AI
+  const scoped = scopeTextToAccount(text, assetNum);
+  console.log('[parse-pdf] account scoping: found=%s matchedForm=%s occurrences=%d inputLen=%d outputLen=%d',
+    scoped.found, scoped.matchedForm, scoped.allMatchCount || 0, scoped.stats.inputLen, scoped.stats.outputLen);
+  if (!scoped.found) {
+    console.warn('[parse-pdf] WARNING: account "%s" not found in PDF — falling back to full text. Accounts detected in PDF: %s',
+      assetNum, JSON.stringify(scoped.detectedAccounts));
+  }
+  const scopedText = scoped.scopedText;
 
   const TIER_PROMPT = `CRITICAL: Output ONLY valid JSON starting with { and ending with }. No text, no markdown, no code blocks.
 
 You are analyzing an Israeli Keren Hishtalmut (savings fund) annual financial report.
 Work ONLY with account ${assetNum}.
 
-Find the Israeli capital gains tax reform table that shows the fund's assets broken down by historical periods and tax rates (0%, 15%, 20%, 25%). The table has 4 monetary columns per row: קרן (principal) | רווחים ריאליים (real profits) | הפרשי הצמדה (linkage differences) | סה"כ (total).
+Find the Israeli capital gains tax reform table (titled "פירוט סכומים בהתאם לרפורמה במיסוי רווחי הון" or similar). This table breaks the fund assets into historical periods with different tax rates (0%, 15%, 20%, 25%).
 
-WARNING: Do NOT use the סה"כ (total) column — it is always the largest number in the row and is the sum of the other 3 columns. You must report the exact value under רווחים ריאליים (real profits) for the realProfit field. The רווחים ריאליים column is the SECOND column and is typically NOT the largest number.
+COLUMN IDENTIFICATION — CRITICAL:
+This is an RTL (right-to-left) Hebrew table. When the PDF text is extracted, columns appear in LEFT-TO-RIGHT order in the text, which is the REVERSE of their visual order on the page. The column order in the EXTRACTED TEXT is:
+  סה"כ (total)  |  רווחים ריאליים (real profits)  |  הפרשי הצמדה (linkage)  |  קרן (principal)
 
-For EACH row in this table, report ALL THREE non-total column values EXACTLY as they appear. Do NOT calculate, do NOT combine columns, do NOT aggregate.
+To identify each value, find the header row containing these Hebrew column names, then read the data numbers in each row in the SAME left-to-right order as the headers:
+  • Number under סה"כ      → SKIP — it is always the largest (the sum of the other three)
+  • Number under רווחים ריאליים → realProfit field
+  • Number under הפרשי הצמדה  → linkage field
+  • Number under קרן          → principal field
+
+Do NOT count columns by position (1st, 2nd, 3rd). Use the Hebrew header names to identify each value semantically.
+
+For EACH row in this table, extract all three non-total values EXACTLY as they appear. Do NOT calculate, combine, or aggregate. Skip rows where ALL monetary values are 0.
 The taxRate field must be the integer tax rate for that row (0, 15, 20, or 25).
 
 Return EXACTLY this JSON:
 {"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
 
-There must be one object per table row.
+One object per non-zero table row.
 
 Report text:
-${text}`;
+${scopedText}`;
 
   const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
 In this Israeli financial report for account ${assetNum}:
@@ -128,7 +258,7 @@ In this Israeli financial report for account ${assetNum}:
 2. Find the report year (the calendar year this annual report covers). Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
 Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
 Report text:
-${text}`;
+${scopedText}`;
 
   try {
     // Step 1 — tier extraction (fatal if it fails)
