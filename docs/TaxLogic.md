@@ -143,6 +143,62 @@ netToBank       = grossWithdrawal - taxDue
 
 > `withdrawalPct` is user-controlled via the withdrawal slider (0–100% of balance, or a fixed ₪ amount converted to a fraction).
 
+---
+
+### 5.1a Study Fund — YTD Accrual (when annual PDF is uploaded)
+
+When the user uploads an annual report PDF, the calculation is upgraded from the segment-based estimate above to a **three-phase precise calculation**. The phases are described in full in `israel_tax_rules.md` § "Current Dashboard Implementation". Summary:
+
+#### Historical Tax Tiers (Phase 1)
+
+The PDF report discloses taxable profit broken down by the period in which it was accrued, reflecting the Israeli reform timeline:
+
+| Period | Rate | Why |
+|--------|------|-----|
+| Before 2002 | **0%** | Pre-reform grandfathering (`isPreReformExempt`). Entire fund exempt. |
+| 2003 – 2005 | **15%** | Transitional bracket post-2003 reform. |
+| 2006 – 2011 | **20%** | Second transitional bracket. |
+| 2012 – present | **25%** | Full capital gains rate (current statutory rate). |
+
+```
+pdfTierTaxK = (taxableProfit15K × 0.15) + (taxableProfit20K × 0.20) + (taxableProfit25K × 0.25)
+```
+
+#### Effective Tax Coefficient — מקדם מס אפקטיבי (Phase 2 & 3 input)
+
+New profit (YTD or simulated) is NOT taxed at a flat 25%. Instead, the fund's blended effective rate is derived from the PDF:
+
+```
+effectiveTaxCoeff = pdfTierTaxK / pdfTotalBalanceK
+```
+
+This encodes all tier weights and exempt layers into a single ratio. New profit is then taxed at this ratio rather than the nominal 25%, preventing systematic overstatement of tax for funds with significant pre-2012 or exempt layers.
+
+#### YTD Real Profit (Phase 2)
+
+```
+ytdDepositsK     = salary deposits Jan-1-reportYear..today (XML or manual override)
+ytdDelta         = currentBalanceK − pdfBalanceK − ytdDepositsK
+inflationDeductK = pdfBalanceK × (inflationRate / 100) × yearsSinceReport
+ytdRealProfitK   = max(0, ytdDelta − inflationDeductK)
+ytdTaxDueK       = ytdRealProfitK × effectiveTaxCoeff
+```
+
+#### Simulation (Phase 3)
+
+```
+simTaxDueK = simRealProfitK × effectiveTaxCoeff
+```
+
+The same coefficient is applied to the future projection so that slider output is consistent with the YTD accrual method.
+
+#### Final Tax
+
+```
+totalTax = max(0, (pdfTierTaxK + ytdTaxDueK + simTaxDueK) × withdrawalPct)
+netToBank = grossWithdrawal − totalTax
+```
+
 ### 5.2 Provident Fund (SUG-MUTZAR = 3)
 
 ```

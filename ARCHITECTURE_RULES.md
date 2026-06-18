@@ -24,11 +24,24 @@ var taxRate = _pdfData.effectiveTaxRate || defaultRate;    // ✅ from PDF data
 
 Every calculation must derive its inputs exclusively from:
 - Real-time data: `item.balance`, `item.joinDate`, `item.rawXml`
-- PDF-extracted data: `_pdfData.pdfTotalBalance`, `_pdfData.taxableProfit15/20/25`, `_pdfData.effectiveTaxRate`, `_pdfData.reportYear`
+- PDF-extracted data: `_pdfData.pdfTotalBalance`, `_pdfData.taxableProfit15/20/25`, `_pdfData.reportYear`
 - User inputs: sliders, manual deposit entries
 - System date: `new Date()` — never a literal year
 
 Tax rates, thresholds, cutoff dates, and balance comparisons must all flow from these dynamic sources. If a value cannot be derived from live data, it does not belong in the calculation engine.
+
+### Rule 2a: The Effective Tax Coefficient Is Computed, Never Stored
+
+The `effectiveTaxCoeff` is derived at runtime inside `_sfRecalculate()`:
+
+```javascript
+// ✅ Correct — always recomputed from live PDF data
+var _effectiveTaxCoeff = _pdfBalK > 0 ? (_pdfTierTaxK / _pdfBalK) : (_taxableRatio * 0.25);
+```
+
+It is **never** a hardcoded constant, a localStorage value, or a field on `_pdfData`. Storing or caching it would violate Rule 1, because the effective rate changes whenever the PDF data changes.
+
+This coefficient is applied identically to YTD accrual and to future simulation, ensuring the tax projection from the slider uses the same blended rate as the current-year calculation. See `docs/TaxLogic.md` § 5.1a and `israel_tax_rules.md` § "Phase 2" for the full formula.
 
 ---
 
