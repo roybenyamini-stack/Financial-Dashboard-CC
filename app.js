@@ -16897,7 +16897,7 @@ function _salkahFallbackToAI(xmlText, fileName, providerHint) {
     statusEl.textContent      = '🤖 AI מנתח קובץ מורכב: ' + fileName + '...';
   }
 
-  return fetch('http://localhost:3001/api/parse-masklaka', {
+  return fetch('http://localhost:3005/api/parse-masklaka', {
     method:  'POST',
     headers: { 'Content-Type': 'text/xml' },
     body:    xmlText
@@ -17620,7 +17620,7 @@ function parseAnnualReportPDF(file, assetNum) {
       }
       var base64 = btoa(binary);
 
-      fetch('http://localhost:3001/api/parse-pdf', {
+      fetch('http://localhost:3005/api/parse-pdf', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ pdf: base64, assetNum: assetNum })
@@ -17977,18 +17977,19 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
     html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + 'K', '← מס: ₪' + fmtK(t20) + 'K', '#dc2626');
   if (p25 > 0)
     html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626');
-  var ytdTaxK  = (ytdData && ytdData.ytdTaxDueK    > 0) ? ytdData.ytdTaxDueK    : 0;
-  var ytdProfK = (ytdData && ytdData.realYtdProfitK > 0) ? ytdData.realYtdProfitK : 0;
-  var ytdDepK  = (ytdData && ytdData.ytdDepositsK   > 0) ? ytdData.ytdDepositsK   : 0;
+  var ytdTaxK       = (ytdData && ytdData.ytdTaxDueK      > 0) ? ytdData.ytdTaxDueK      : 0;
+  var ytdProfK      = (ytdData && ytdData.realYtdProfitK  > 0) ? ytdData.realYtdProfitK  : 0;
+  var ytdDepK       = (ytdData && ytdData.ytdDepositsK    > 0) ? ytdData.ytdDepositsK    : 0;
+  var ytdCoeff      = (ytdData && typeof ytdData.effectiveTaxCoeff === 'number') ? ytdData.effectiveTaxCoeff : null;
   if (ytdProfK > 0 || ytdDepK > 0) {
     html += '<div style="border-top:2px dashed #d97706;margin:8px 0 4px 0;"></div>';
-    html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;">— הערכת צמיחה שוטפת (2026) —</div>';
+    html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;direction:rtl;">— הערכת צמיחה שוטפת (2026) —</div>';
+    if (ytdCoeff !== null)
+      html += _sfReceiptRow('מקדם מס אפקטיבי (מהדו״ח)', Math.round(ytdCoeff * 1000) / 10 + '%', '#6b7280');
     if (ytdDepK > 0)
-      html += _sfReceiptRow('הפחתת הפקדות שכר (Principal)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
+      html += _sfReceiptRow('הפחתת הפקדות שכר (קרן)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
     if (ytdProfK > 0)
-      html += _sfReceiptRow('צמיחה YTD (בניכוי אינפלציה): ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
-  } else {
-    html += '<div style="font-size:12px;color:#d97706;margin-top:12px;text-align:center;font-weight:500;">המס חושב לתאריך הדו״ח. קיים מס מתאריך הדו״ח ועד היום, שלא חושב.</div>';
+      html += _sfReceiptRow('רווח ריאלי YTD: ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
   }
   var _hasSimData = (simData && typeof simData.simRealProfitK !== 'undefined' && simData.simRealProfitK !== 0);
   var simProfK = _hasSimData ? simData.simRealProfitK : 0;
@@ -18097,7 +18098,7 @@ function _sfTriggerAIVerification() {
   }
   var btn = document.getElementById('sf-ai-verify-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
-  fetch('http://localhost:3001/api/verification/tax', {
+  fetch('http://localhost:3005/api/verification/tax', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(payload)
@@ -18209,7 +18210,7 @@ function _sfSendAIChat() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   hist.scrollTop = hist.scrollHeight;
 
-  fetch('http://localhost:3001/api/chat/tax', {
+  fetch('http://localhost:3005/api/chat/tax', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question: q, data: _sfAIVerifData })
@@ -18859,6 +18860,9 @@ function _sfRecalculate() {
     var _exemptTotalNIS = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
     var _pdfBalNIS      = _pdfData.pdfTotalBalance || 0;
     _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
+    // Effective tax coefficient: total historic tax / total balance — blends all tier rates (0%/15%/20%/25%)
+    // into one ratio that reflects the fund's actual tax burden per shekel of growth.
+    var _effectiveTaxCoeff = _pdfBalK > 0 ? (_pdfTierTaxK / _pdfBalK) : (_taxableRatio * 0.25);
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
       // v182.51: Active funds — manual override takes priority; fallback to XML date-filtered deposits + auto-fill
@@ -18925,7 +18929,7 @@ function _sfRecalculate() {
       var _ytdInflRate  = (inflation / 100) * _yearsPassed;
       var _inflDeductK   = _pdfBalK * _ytdInflRate;
       _realYtdProfitK    = Math.max(0, _deltaK - _inflDeductK);
-      _ytdTaxDueK        = Math.max(0, _realYtdProfitK * _taxableRatio * 0.25);
+      _ytdTaxDueK        = Math.max(0, _realYtdProfitK * _effectiveTaxCoeff);
     }
     // ── Future simulation (2-phase yield) ──────────────────────────────────
     if (years > 0) {
@@ -18939,7 +18943,7 @@ function _sfRecalculate() {
       var _simFutureNomK = _simPhase1K * Math.pow(1 + penReturn / 100, _phase2Years);
       var _simInflDeductK = baseK * (inflation / 100) * years;
       _simRealProfitK = _simFutureNomK - baseK - _simInflDeductK;
-      _simTaxDueK     = _simRealProfitK * _taxableRatio * 0.25;
+      _simTaxDueK     = _simRealProfitK * _effectiveTaxCoeff;
     }
     taxDueK = Math.max(0, (_pdfTierTaxK + _ytdTaxDueK + _simTaxDueK) * pctFraction);
     netK    = grossK - taxDueK;
@@ -19051,7 +19055,7 @@ function _sfRecalculate() {
     }
   } else if (_hasExactTiers) {
     // PDF with exact tiers — transparent breakdown receipt
-    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
+    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK, effectiveTaxCoeff: _effectiveTaxCoeff }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
     // v182.48: post-build patch — data gap note + deposit status bar
     if (item.isActive && _sfAIVerifData) {
       if (_autoFillMonths > 0) {
