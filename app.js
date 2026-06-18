@@ -1,5 +1,5 @@
 // System check: Claude Code is active.
-// Version: v182.28
+// Version: v183.02
 
 // LOGIN — v97.6
 (function() {
@@ -17360,6 +17360,7 @@ function ffsOpenStudyFundModal(itemId) {
   }
   if (!item) { console.warn('[Modal] Item not found in investments. Aborting modal.'); return; }
   _sfCurrentItem    = item;
+  _sfAIVerifData    = null;
   _sfIsManual       = false;
   _sfManualDeposits = _sfLoadManualDepositsK(item.assetNum);
   if (_sfManualDeposits > 0) _sfIsManual = true;
@@ -17814,11 +17815,12 @@ function _sfPdfFileChange(e) {
 }
 function _sfHandlePdfFile(file) {
   if (!_sfCurrentItem) return;
-  console.log('[PDF-cli] מתחיל עיבוד PDF לחשבון:', _sfCurrentItem.assetNum, 'שם קובץ:', file && file.name);
+  var _capturedAssetNum = _sfCurrentItem.assetNum;
+  console.log('[PDF-cli] מתחיל עיבוד PDF לחשבון:', _capturedAssetNum, 'שם קובץ:', file && file.name);
   var statusEl = document.getElementById('sf-pdf-status');
   if (statusEl) { statusEl.style.display = ''; statusEl.style.background = '#eff6ff'; statusEl.textContent = '⏳ מחלץ נתונים מהדו"ח...'; }
-  parseAnnualReportPDF(file, _sfCurrentItem.assetNum).then(function(data) {
-    _sfSavePdfData(_sfCurrentItem.assetNum, data);
+  parseAnnualReportPDF(file, _capturedAssetNum).then(function(data) {
+    _sfSavePdfData(_capturedAssetNum, data);
     if (statusEl) { statusEl.style.background = '#f0fdf4'; statusEl.textContent = '✅ נתונים חולצו בהצלחה — מחשב מחדש...'; }
     setTimeout(function() { if (statusEl) statusEl.style.display = 'none'; _sfRecalculate(); }, 1200);
   }).catch(function(err) {
@@ -18796,6 +18798,15 @@ function _sfRecalculate() {
     (_pdfDataRaw.taxableProfit25  || 0) > 0 ||
     !!_pdfDataRaw.isPreReformExempt
   )) ? _pdfDataRaw : null;
+  // v182.60: Financial Physics — funds opened 2003+ cannot have pre-2002 tax exemptions
+  if (_pdfData && item.joinDate) {
+    var _joinYear = parseInt(String(item.joinDate).substring(0, 4), 10);
+    if (_joinYear >= 2003) {
+      _pdfData.exemptPrincipal   = 0;
+      _pdfData.exemptProfit      = 0;
+      _pdfData.isPreReformExempt = false;
+    }
+  }
   console.log('Extracted PDF Data:', _pdfData, '(raw:', _pdfDataRaw, ')');
   var _itemSrc = _pdfData
     ? Object.assign({}, item, { taxSegments: _sfPdfToSegments(_pdfData, baseK), rawXml: item.rawXml || '<Mutzar/>' })
@@ -18850,24 +18861,59 @@ function _sfRecalculate() {
     _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
-      // v182.48: Active funds — manual override takes priority; fallback to XML date-filtered deposits
-      var _ytdDepositsK = 0;
+      // v182.51: Active funds — manual override takes priority; fallback to XML date-filtered deposits + auto-fill
+      var _ytdDepositsK    = 0;
+      var _autoFillMonths  = 0;
+      var _autoFillAmountK = 0;
       if (item.isActive) {
         if (_sfManualDeposits > 0) {
           _ytdDepositsK = _sfManualDeposits;
         } else if (item.rawXml) {
-          var _depDoc     = new DOMParser().parseFromString(item.rawXml, 'text/xml');
-          var _cutoff2026 = new Date('2026-01-01');
+          var _depDoc        = new DOMParser().parseFromString(item.rawXml, 'text/xml');
+          var _cutoff2026    = new Date('2026-01-01');
+          var _latestDepDate = null;
+          var _lastDepAmtNIS = 0;
           _salkahXmlEls(_depDoc, 'PerutHafkadotMetchilatShana').forEach(function(section) {
-            var dateEl = _salkahXmlEl(section, 'TAARICH-HAFKADA-SHESHULAM');
-            if (dateEl) {
-              var depDate = _sfParseDate(dateEl.textContent.trim());
-              if (depDate && depDate < _cutoff2026) return;
+            var dateEl1 = _salkahXmlEl(section, 'TAARICH-HAFKADA-SHESHULAM');
+            var dateEl2 = _salkahXmlEl(section, 'TAARICH-ERECH-HAFKADA');
+            var dateEl3 = _salkahXmlEl(section, 'CHODESH-SACHAR');
+            var rawText = (dateEl1 && dateEl1.textContent && dateEl1.textContent.trim()) ||
+                          (dateEl2 && dateEl2.textContent && dateEl2.textContent.trim()) ||
+                          (dateEl3 && dateEl3.textContent && dateEl3.textContent.trim());
+            var secDate = null;
+            if (rawText) {
+              if (rawText.length === 6 && !rawText.includes('-')) {
+                rawText = rawText.substring(0, 4) + '-' + rawText.substring(4, 6) + '-01';
+              } else if (rawText.length === 8 && !rawText.includes('-')) {
+                rawText = rawText.substring(0, 4) + '-' + rawText.substring(4, 6) + '-' + rawText.substring(6, 8);
+              }
+              secDate = _sfParseDate(rawText);
             }
+            if (secDate && secDate < _cutoff2026) return;
+            var secAmtNIS = 0;
             _salkahXmlEls(section, 'SCHUM-HAFKADA-SHESHULAM').forEach(function(el) {
-              _ytdDepositsK += (parseFloat(el.textContent.trim()) || 0) / 1000;
+              var amt = (parseFloat(el.textContent.trim()) || 0);
+              _ytdDepositsK += amt / 1000;
+              secAmtNIS     += amt;
             });
+            if (secDate && (!_latestDepDate || secDate > _latestDepDate)) {
+              _latestDepDate = secDate;
+              _lastDepAmtNIS = secAmtNIS;
+            }
           });
+          if (_ytdDepositsK > 0 && _latestDepDate && _lastDepAmtNIS > 0) {
+            var _now  = new Date();
+            var _tgMo = _now.getMonth();
+            var _tgYr = _now.getFullYear();
+            if (_tgMo === 0) { _tgMo = 12; _tgYr -= 1; }
+            var _gapMo = (_tgYr - _latestDepDate.getFullYear()) * 12
+                       + (_tgMo - (_latestDepDate.getMonth() + 1));
+            if (_gapMo >= 1 && _gapMo <= 6) {
+              _autoFillMonths  = _gapMo;
+              _autoFillAmountK = (_lastDepAmtNIS / 1000) * _gapMo;
+              _ytdDepositsK   += _autoFillAmountK;
+            }
+          }
         }
         if (_ytdDepositsK > 0) _deltaK = Math.max(0, _deltaK - _ytdDepositsK);
       }
@@ -18983,6 +19029,19 @@ function _sfRecalculate() {
   }
   var _depStatusElClr = document.getElementById('sf-deposit-status-msg');
   if (_depStatusElClr) _depStatusElClr.style.display = 'none'; // hidden unless _hasExactTiers sets it
+  // v182.59: Dynamic auto-baseline for current-year funds (no annual report exists yet)
+  var _currentYear = new Date().getFullYear();
+  var _isNewFund = !!(item.joinDate && String(item.joinDate).substring(0, 4) === String(_currentYear));
+  if (!_pdfData && _isNewFund) {
+    _pdfData = {
+      exemptPrincipal: 0, exemptProfit: 0,
+      taxablePrincipal: 0, taxableProfit: 0,
+      taxableProfit15: 0, taxableProfit20: 0, taxableProfit25: 0,
+      pdfTotalBalance: 0, reportYear: _currentYear - 1,
+      isPreReformExempt: false
+    };
+    _sfSavePdfData(item.assetNum, _pdfData);
+  }
   if (!_pdfData) {
     // No PDF uploaded — waiting state
     if (_pushMsgEl) {
@@ -18994,21 +19053,37 @@ function _sfRecalculate() {
     // PDF with exact tiers — transparent breakdown receipt
     if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
     // v182.48: post-build patch — data gap note + deposit status bar
-    if (item.isActive && _ytdDepositsK === 0 && _sfAIVerifData) {
-      _sfAIVerifData.genericData.dataGapNote = 'החישוב מתבסס על נתוני דו״ח שנתי בלבד. חסרות הפקדות שכר שוטפות.';
+    if (item.isActive && _sfAIVerifData) {
+      if (_autoFillMonths > 0) {
+        _sfAIVerifData.genericData.dataGapNote = 'החישוב כולל השלמה אוטומטית של ' + _autoFillMonths + ' חודשים על בסיס הפקדה אחרונה.';
+      } else if (_ytdDepositsK === 0) {
+        _sfAIVerifData.genericData.dataGapNote = 'החישוב מתבסס על נתוני דו״ח שנתי בלבד. חסרות הפקדות שכר שוטפות.';
+      }
     }
     var _depStatusEl = document.getElementById('sf-deposit-status-msg');
     if (_depStatusEl) {
       if (item.isActive) {
         _depStatusEl.style.display = '';
-        if (_ytdDepositsK > 0) {
+        if (_ytdDepositsK > 0 && _autoFillMonths === 0) {
           var _depNIS = Math.round(_ytdDepositsK * 1000).toLocaleString('he-IL');
           _depStatusEl.style.color = '#16a34a';
-          _depStatusEl.innerHTML   = '✔ הפקדות שכר 2026 מעודכנות: ₪' + _depNIS;
+          _depStatusEl.innerHTML = '✔ הפקדות שכר 2026 מעודכנות: ₪' + _depNIS;
+        } else if (_autoFillMonths > 0) {
+          var _afNIS = Math.round(_autoFillAmountK * 1000).toLocaleString('he-IL');
+          _depStatusEl.style.color = '#6b7280';
+          var msg = 'סך ההפקדות עודכן ב-' + _afNIS + ' ₪ ';
+          msg += '(תוספת אוטומטית עבור ' + _autoFillMonths + ' חודשים) ';
+          var btn = '<button onclick="event.stopPropagation();_sfOpenDepositsModal()" ';
+          btn += 'style="margin-right:8px;background:none;border:1px solid #6b7280;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">';
+          btn += 'ערוך ידנית</button>';
+          _depStatusEl.innerHTML = msg + btn;
         } else {
           _depStatusEl.style.color = '#d97706';
-          _depStatusEl.innerHTML   = '⚠️ לא זוהו הפקדות שכר ל-2026. נדרשת הזנה ידנית לצורך דיוק במס.'
-                       + ' <button onclick="event.stopPropagation();_sfOpenDepositsModal()" style="margin-right:8px;background:none;border:1px solid #d97706;border-radius:4px;padding:2px 8px;font-size:11px;color:#d97706;cursor:pointer;font-family:Heebo,sans-serif;">ערוך הפקדות ידנית</button>';
+          var msg2 = '⚠️ לא זוהו הפקדות שכר ל-2026. נדרשת הזנה ידנית. ';
+          var btn2 = '<button onclick="event.stopPropagation();_sfOpenDepositsModal()" ';
+          btn2 += 'style="margin-right:8px;background:none;border:1px solid #d97706;border-radius:4px;padding:2px 8px;font-size:11px;color:#d97706;cursor:pointer;font-family:Heebo,sans-serif;">';
+          btn2 += 'ערוך ידנית</button>';
+          _depStatusEl.innerHTML = msg2 + btn2;
         }
       } else {
         _depStatusEl.style.display = 'none';
@@ -19028,6 +19103,16 @@ function _sfRecalculate() {
       _pushMsgEl.style.color      = '#16a34a';
       _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי)' + _joinDateStr + '. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
       _pushMsgEl.style.visibility = 'visible';
+    }
+  } else if (_isNewFund) {
+    if (_pushMsgEl) {
+      _pushMsgEl.style.color           = '#334155';
+      _pushMsgEl.style.backgroundColor = '#f1f5f9';
+      _pushMsgEl.style.border          = '1px solid #e2e8f0';
+      var _hdr = '✨ <b>אין חישוב מס אוטומטי (קרן חדשה ' + _currentYear + ')</b>';
+      var _sub = '<br><span style="color:#64748b; font-size:12px;">חישוב המס יבוצע לאחר העלאת הדו״ח השנתי של ' + _currentYear + '.</span>';
+      _pushMsgEl.innerHTML             = _hdr + _sub;
+      _pushMsgEl.style.visibility      = 'visible';
     }
   } else if (_pdfData && _pdfData.isPreReformExempt && _pushMsgEl) {
     // Pre-2002 exempt: green confirmation instead of amber missing-data warning
@@ -19130,6 +19215,9 @@ function _sfRecalculate() {
   var _sfPdfSec = document.getElementById('sf-pdf-section');
   var _sfOrDiv  = document.getElementById('sf-or-divider');
   var _showPdf  = !_pdfData;
+  // v183.02: hide dropzone ONLY for funds that joined in 2026, while we are still in 2026
+  var _fundJoinYear = (item.joinDate ? parseInt(String(item.joinDate).substring(0, 4), 10) : 0);
+  if (_isNewFund && _currentYear === 2026 && _fundJoinYear === 2026) _showPdf = false;
   if (_sfPdfSec) _sfPdfSec.style.display = _showPdf ? 'flex' : 'none';
   if (_sfOrDiv)  _sfOrDiv.style.display  = 'none'; // shown by toggle only when both columns visible
   if (_showPdf && _calibFormEl) {
@@ -19144,6 +19232,8 @@ function _sfRecalculate() {
       if (_tBtnNoPdf) { _tBtnNoPdf.setAttribute('data-label', '✎ עריכת נתונים ידנית'); _tBtnNoPdf.textContent = '✎ עריכת נתונים ידנית'; }
     }
   }
+  // v183.02: Remove manual data-entry toggle link globally (minimalist UI)
+  if (_toggleRowEl) _toggleRowEl.style.display = 'none';
 
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
   // Store raw values for nominal/real toggle, then apply current view mode

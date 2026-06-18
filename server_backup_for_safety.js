@@ -100,73 +100,31 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   // Multi-account PDFs share one document — without scoping the AI picks the first
   // tax table it finds (usually the largest fund) and assigns it to every account.
   function scopeTextToAccount(fullText, accountNum) {
-    const candidates = [accountNum];
-    const digitsOnly = accountNum.replace(/-/g, '');
-    if (digitsOnly !== accountNum) candidates.push(digitsOnly);
-    const noTrailing = accountNum.replace(/-\d+$/, '');
-    if (noTrailing !== accountNum && noTrailing !== digitsOnly) candidates.push(noTrailing);
-
-    let startIdx = -1;
-    let matchedNum = accountNum;
-    for (const c of candidates) {
-      const idx = fullText.indexOf(c);
-      if (idx !== -1) { startIdx = idx; matchedNum = c; break; }
-    }
-
+    const startIdx = fullText.indexOf(accountNum);
     if (startIdx === -1) {
-      console.log('[parse-pdf] WARNING: accountNum %s not found in text (tried: %s) — returning null',
-        accountNum, candidates.join(', '));
-      return null;
+      console.log('[parse-pdf] WARNING: accountNum %s not found in text — using full text', accountNum);
+      return fullText;
     }
-    const afterStart = fullText.slice(startIdx + matchedNum.length);
-    const nextHeaderMatch = afterStart.match(/(?:מספר חשבון|מספר פוליסה|מס' חשבון|מס' פוליסה|חשבון|פוליסה):/);
-    const sectionEnd = nextHeaderMatch ? startIdx + matchedNum.length + nextHeaderMatch.index : fullText.length;
+    const afterStart = fullText.slice(startIdx + accountNum.length);
+    const sectionBoundary = /\n[ \t]*(\d{8,9})[ \t]*(?:\n|[^\d])/g;
+    let match;
+    let sectionEnd = fullText.length;
+    while ((match = sectionBoundary.exec(afterStart)) !== null) {
+      if (match[1] !== accountNum) {
+        sectionEnd = startIdx + accountNum.length + match.index;
+        break;
+      }
+    }
     const scoped = fullText.slice(startIdx, sectionEnd);
     console.log('[parse-pdf] scoped: %d/%d chars for account %s', scoped.length, fullText.length, accountNum);
     return scoped;
   }
 
   const scopedText = scopeTextToAccount(text, assetNum);
-  if (scopedText === null) {
-    console.log('[parse-pdf] Cannot scope to account — returning zero tiers to prevent cross-fund contamination');
-    return res.json({
-      exemptPrincipal: 0, exemptProfit: 0, taxablePrincipal: 0,
-      taxableProfit: 0, taxableProfit15: 0, taxableProfit20: 0, taxableProfit25: 0,
-      pdfTotalBalance: 0, reportYear: 0, isPreReformExempt: false
-    });
-  }
 
   // Seniority router — funds opened before 01/01/2002 are fully exempt
-  function parseSeniorityDate(t, accountNumber, fullText) {
+  function parseSeniorityDate(t) {
     const cleanText = t.replace(/\s+/g, ' ');
-    const textToSearch = fullText ? fullText.replace(/\s+/g, ' ') : cleanText;
-    if (accountNumber) {
-        let position = textToSearch.indexOf(accountNumber);
-        while (position !== -1) {
-            const scopedArea = textToSearch.substring(position, position + 400);
-            const keywordMatch = scopedArea.match(/(?:\u05d5\u05ea\u05e7|\u05d5\u05d5\u05ea\u05e7|\u05e7\u05ea\u05d5|\u05e7\u05ea\u05d5\u05d5)/);
-            if (keywordMatch) {
-                const kwIndex = keywordMatch.index;
-                const dateRegex = /(\d{1,2}[./]\d{1,2}[./]\d{4})/g;
-                let match;
-                let closestDate = null;
-                let minDistance = Infinity;
-                while ((match = dateRegex.exec(scopedArea)) !== null) {
-                    const dist = Math.abs(match.index - kwIndex);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        closestDate = match[1];
-                    }
-                }
-                if (closestDate) {
-                    console.log('[parse-pdf] Found exact nearest date using LOOPED ANCHOR:', closestDate);
-                    const p = closestDate.split(/[./]/);
-                    return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
-                }
-            }
-            position = textToSearch.indexOf(accountNumber, position + 1);
-        }
-    }
     
     // אלו מילות המפתח הנקיות - הלב של המערכת
     const possibleLabels = [
@@ -195,7 +153,7 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
     return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
 }
 // הפעלת המנוע שבדקנו ב-Sandbox
-  const seniorityDate = parseSeniorityDate(scopedText, assetNum, text);
+  const seniorityDate = parseSeniorityDate(scopedText);
   const skipTaxTiers = seniorityDate !== null && seniorityDate < new Date(2002, 0, 1);
   if (skipTaxTiers) {
     console.log('[parse-pdf] Pre-2002 seniority — fund is fully exempt, skipping reform table');
@@ -221,8 +179,6 @@ Return EXACTLY this JSON:
 {"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
 
 There must be one object per table row.
-
-CRITICAL RULE: If the report text does NOT contain an EXPLICIT, CLEARLY LABELED capital gains tax table showing tax rates (0%, 15%, 20%, 25%) and columns for real profits/הפקדות/רווחים, you MUST return an empty array {"rows": []}. DO NOT infer, guess, or map general account balances or total balances to tax tiers. If you are not 100% sure it is a tax table, return empty rows.
 
 Report text:
 ${scopedText}`;
@@ -293,7 +249,6 @@ ${scopedText}`;
 
     console.log('[parse-pdf] aggregated tiers: p15=%d p20=%d p25=%d | pdfTotalBalance:%d | reportYear:%d',
       taxableProfit15, taxableProfit20, taxableProfit25, pdfTotalBalance, reportYear);
-    console.log('[PDF-srv] תגובת שרת:', JSON.stringify({ exemptPrincipal, exemptProfit, taxablePrincipal, taxableProfit15, taxableProfit20, taxableProfit25, pdfTotalBalance, reportYear, isPreReformExempt: skipTaxTiers }));
     res.json({
       exemptPrincipal, exemptProfit, taxablePrincipal,
       taxableProfit:   taxableProfit15 + taxableProfit20 + taxableProfit25,
