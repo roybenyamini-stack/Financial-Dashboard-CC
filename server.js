@@ -193,9 +193,197 @@ function scopeTextToAccount(fullText, acctNum) {
 // ── /api/parse-pdf — extract Keren Hishtalmut tax layers from annual report PDF ──
 const pdfParse = require('pdf-parse');
 
+// Returns 'meitav', 'altshuler', or null based on firm keywords in the full PDF text.
+function detectFirm(text) {
+  if (/מיטב/.test(text)) return 'meitav';
+  if (/אלטשולר/.test(text)) return 'altshuler';
+  return null;
+}
+
+// Aggregates AI-parsed tier rows into the full field set returned to the frontend.
+// Tier count is determined by account seniority (Israeli tax law), not by the firm —
+// both parsers call this with however many rows the document contains.
+function _aggregateTierRows(rows, pdfTotalBalance) {
+  let exemptPrincipal = 0, exemptProfit = 0, taxablePrincipal = 0;
+  let taxableProfit15 = 0, taxableProfit20 = 0, taxableProfit25 = 0;
+  let allTierTotal = 0;
+
+  for (const row of rows) {
+    const tr = Number(row.taxRate);
+    const p  = Number(row.principal)  || 0;
+    const rp = Number(row.realProfit) || 0;
+    const lk = Number(row.linkage)    || 0;
+    allTierTotal += p + rp + lk;
+    if (tr === 0)  { exemptPrincipal += p; exemptProfit += (rp + lk); }
+    else             taxablePrincipal += p;
+    if (tr === 15)   taxableProfit15  += rp;
+    if (tr === 20)   taxableProfit20  += rp;
+    if (tr === 25)   taxableProfit25  += rp;
+  }
+
+  return {
+    exemptPrincipal, exemptProfit, taxablePrincipal,
+    taxableProfit: taxableProfit15 + taxableProfit20 + taxableProfit25,
+    taxableProfit15, taxableProfit20, taxableProfit25,
+    exemptAssets: Math.max(0, pdfTotalBalance - allTierTotal)
+  };
+}
+
+// Meitav ("מיטב קרנות השתלמות") parser.
+// Uses Meitav-specific prompt describing its table format and balance terminology.
+// Meitav tier + balance extraction is fully regex-based (no AI calls).
+// The AI cannot reliably map columns 2/3 in Meitav's inverted layout, so
+// hardcoded positional regex replaces it entirely.
+async function parseMeitav(scopedText) {
+  const lines = scopedText.split('\n');
+
+  // ── Tier extraction ───────────────────────────────────────────────────────
+  // Meitav has two row structures in the tax reform table:
+  //
+  // Structure A — pre-2003 row (3-column: total | realProfit | principal, no linkage):
+  //   "{total}{realProfit}{principal}יתרה בגין הפקדות..."   taxRate always 0
+  //
+  // Structure B — post-2003 rows (4-column: total | realProfit | linkage | principal):
+  //   Line N:   "{total}{realProfit}{linkage}{principal}"    ← numbers only
+  //   Line N+1: "0%" or "15%" or "20%" or "25%"             ← tax rate for this row
+  //
+  // Column order (positions 1–4 left-to-right in extracted text):
+  //   1 = סה"כ (skip)  2 = רווחים ריאליים (→ realProfit)
+  //   3 = הפרשי הצמדה (→ linkage)  4 = קרן (→ principal)
+
+  const NUM  = '([\\d,]+\\.\\d{2})';   // one number: digits+commas then .XX
+  const PRE2003_RE = new RegExp('^' + NUM + NUM + NUM + 'יתרה\\s*בגין\\s*הפקדות');
+  const NUM4_RE    = new RegExp('^' + NUM + NUM + NUM + NUM + '$');
+  const RATE_RE    = /^(0|15|20|25)%$/;
+
+  function parseNum(s) { return parseFloat(s.replace(/,/g, '')); }
+
+  const rows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i].trim();
+
+    // Structure A
+    const pre = PRE2003_RE.exec(ln);
+    if (pre) {
+      const rp = parseNum(pre[2]), p = parseNum(pre[3]);
+      if (rp > 0 || p > 0) rows.push({ taxRate: 0, principal: p, realProfit: rp, linkage: 0 });
+      continue;
+    }
+
+    // Structure B
+    const dm = NUM4_RE.exec(ln);
+    if (dm && i + 1 < lines.length) {
+      const rm = RATE_RE.exec(lines[i + 1].trim());
+      if (rm) {
+        const rp = parseNum(dm[2]), lk = parseNum(dm[3]), p = parseNum(dm[4]);
+        if (rp > 0 || lk > 0 || p > 0)
+          rows.push({ taxRate: parseInt(rm[1], 10), principal: p, realProfit: rp, linkage: lk });
+      }
+    }
+  }
+  console.log('[parseMeitav] regex extracted %d non-zero tier rows:', rows.length, JSON.stringify(rows));
+
+  // ── Balance extraction ────────────────────────────────────────────────────
+  // "סכום למשיכה: 529,997.83" appears in the account summary section.
+  // Fallback: largest number on the "סה"כ" line of the tax table.
+  let pdfTotalBalance = 0;
+  const balM = scopedText.match(/סכום\s*למשיכה[:\s]+([\d,]+\.?\d*)/);
+  if (balM) {
+    pdfTotalBalance = parseFloat(balM[1].replace(/,/g, ''));
+  } else {
+    // Fallback: find the "סה"כ" summary line of the tax table and take its first number
+    const sekM = scopedText.match(/([\d,]+\.\d{2})(?:[\d,]+\.\d{2})*סה"כ/);
+    if (sekM) pdfTotalBalance = parseFloat(sekM[1].replace(/,/g, ''));
+  }
+
+  // ── Report year extraction ────────────────────────────────────────────────
+  // Look for "שנת 2025" or any date like "31.12.2025" or "31/12/2025"
+  let reportYear = 0;
+  const yrM = scopedText.match(/שנת\s+(20\d{2})/) || scopedText.match(/31[./]12[./](20\d{2})/);
+  if (yrM) reportYear = parseInt(yrM[1], 10);
+
+  console.log('[parseMeitav] balance=%d year=%d', pdfTotalBalance, reportYear);
+  const agg = _aggregateTierRows(rows, pdfTotalBalance);
+  console.log('[parseMeitav] aggregated: p15=%d p20=%d p25=%d',
+    agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25);
+  return { ...agg, pdfTotalBalance, reportYear };
+}
+
+// Altshuler ("אלטשולר שחם") parser.
+// Uses Altshuler-specific prompt describing its detailed annual report format and terminology.
+async function parseAltshuler(scopedText, assetNum) {
+  const TIER_PROMPT = `CRITICAL: Output ONLY valid JSON starting with { and ending with }. No text, no markdown, no code blocks.
+
+You are analyzing an Altshuler Shaham Keren Hishtalmut ("אלטשולר שחם") detailed annual report ("דוח שנתי מפורט").
+Work ONLY with account ${assetNum}.
+
+Find the Israeli capital gains tax reform table titled "פירוט סכומים בהתאם לרפורמה במיסוי רווחי הון". This table breaks the fund assets into historical periods with different tax rates (0%, 15%, 20%, 25%).
+
+COLUMN IDENTIFICATION — CRITICAL:
+This is an RTL (right-to-left) Hebrew document. When extracted to text, columns appear LEFT-TO-RIGHT, which is the REVERSE of their visual order on the page. In Altshuler's table the extracted column order is:
+  סה"כ (total)  |  רווחים ריאליים (real profits)  |  הפרשי הצמדה (linkage)  |  קרן (principal)
+
+Identify each value by its Hebrew column header — do NOT use positional counting:
+  • Number under סה"כ            → SKIP — always the largest (sum of the other three)
+  • Number under רווחים ריאליים  → realProfit field
+  • Number under הפרשי הצמדה    → linkage field
+  • Number under קרן             → principal field
+
+Extract ALL present tax-rate rows. There may be 1 to 4 rows (0%, 15%, 20%, 25%) depending on the account's deposit history. Extract every row that appears. Skip rows where ALL monetary values are 0.
+The taxRate field must be the integer tax rate (0, 15, 20, or 25).
+
+Return EXACTLY this JSON:
+{"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
+
+One object per non-zero table row.
+
+Report text:
+${scopedText}`;
+
+  const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
+In this Altshuler Shaham ("אלטשולר שחם") financial report for account ${assetNum}:
+1. Find the total fund balance. Primary source: find the line containing the word "סה\"כ" (grand total) at the bottom of the tax reform table — the first (leftmost/largest) number on that line is the total balance. Secondary: look for "יתרה לתום תקופת הדיווח" followed by a number. Report in NIS as a plain number without commas.
+2. Find the report year. Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
+Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
+Report text:
+${scopedText}`;
+
+  const tierMsg = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001', max_tokens: 1000, temperature: 0,
+    messages: [{ role: 'user', content: TIER_PROMPT }]
+  });
+  const rawTier = stripMd((tierMsg.content[0].text || '').trim());
+  console.log('[parseAltshuler] raw tier response:', rawTier);
+  let parsed;
+  try { parsed = JSON.parse((rawTier.match(/\{[\s\S]*\}/) || [])[0] || '{}'); } catch (e) {
+    throw new Error('Altshuler: AI returned invalid JSON for tiers: ' + rawTier);
+  }
+
+  let pdfTotalBalance = 0, reportYear = 0, rawBal = 'NOT_YET_CALLED';
+  try {
+    const balMsg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+      messages: [{ role: 'user', content: BALANCE_PROMPT }]
+    });
+    rawBal = stripMd((balMsg.content[0].text || '').trim());
+    console.log('[parseAltshuler] raw balance response:', rawBal);
+    const parsedBal = JSON.parse((rawBal.match(/\{[\s\S]*\}/) || [])[0] || '{}');
+    pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
+    reportYear      = Number(parsedBal.reportYear)      || 0;
+  } catch (balErr) {
+    console.error('[parseAltshuler] Balance extraction FAILED. Raw response was:', rawBal, '| Error:', balErr.message);
+  }
+
+  const agg = _aggregateTierRows(parsed.rows || [], pdfTotalBalance);
+  console.log('[parseAltshuler] aggregated: p15=%d p20=%d p25=%d pdfTotal=%d year=%d',
+    agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25, pdfTotalBalance, reportYear);
+  return { ...agg, pdfTotalBalance, reportYear };
+}
+
+// Routes each PDF to the correct firm-specific parser.
 app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => {
   const { pdf, assetNum } = req.body || {};
-  if (!pdf) return res.status(400).json({ error: 'Missing pdf field (base64)' });
+  if (!pdf)      return res.status(400).json({ error: 'Missing pdf field (base64)' });
   if (!assetNum) return res.status(400).json({ error: 'Missing assetNum field' });
 
   // Step 1: extract text from PDF bytes
@@ -207,10 +395,8 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   } catch (e) {
     return res.status(422).json({ error: 'PDF text extraction failed: ' + e.message });
   }
-
-  if (text.length < 30) {
+  if (text.length < 30)
     return res.status(422).json({ error: 'PDF appears to have no extractable text (scanned image?)' });
-  }
 
   // Step 2: scope text to the specific account block before sending to AI
   const scoped = scopeTextToAccount(text, assetNum);
@@ -222,108 +408,20 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   }
   const scopedText = scoped.scopedText;
 
-  const TIER_PROMPT = `CRITICAL: Output ONLY valid JSON starting with { and ending with }. No text, no markdown, no code blocks.
-
-You are analyzing an Israeli Keren Hishtalmut (savings fund) annual financial report.
-Work ONLY with account ${assetNum}.
-
-Find the Israeli capital gains tax reform table (titled "פירוט סכומים בהתאם לרפורמה במיסוי רווחי הון" or similar). This table breaks the fund assets into historical periods with different tax rates (0%, 15%, 20%, 25%).
-
-COLUMN IDENTIFICATION — CRITICAL:
-This is an RTL (right-to-left) Hebrew table. When the PDF text is extracted, columns appear in LEFT-TO-RIGHT order in the text, which is the REVERSE of their visual order on the page. The column order in the EXTRACTED TEXT is:
-  סה"כ (total)  |  רווחים ריאליים (real profits)  |  הפרשי הצמדה (linkage)  |  קרן (principal)
-
-To identify each value, find the header row containing these Hebrew column names, then read the data numbers in each row in the SAME left-to-right order as the headers:
-  • Number under סה"כ      → SKIP — it is always the largest (the sum of the other three)
-  • Number under רווחים ריאליים → realProfit field
-  • Number under הפרשי הצמדה  → linkage field
-  • Number under קרן          → principal field
-
-Do NOT count columns by position (1st, 2nd, 3rd). Use the Hebrew header names to identify each value semantically.
-
-For EACH row in this table, extract all three non-total values EXACTLY as they appear. Do NOT calculate, combine, or aggregate. Skip rows where ALL monetary values are 0.
-The taxRate field must be the integer tax rate for that row (0, 15, 20, or 25).
-
-Return EXACTLY this JSON:
-{"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
-
-One object per non-zero table row.
-
-Report text:
-${scopedText}`;
-
-  const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
-In this Israeli financial report for account ${assetNum}:
-1. Find the total fund balance at end of reporting period ("יתרה לתום תקופת הדיווח" or "יתרה כוללת"). Report in NIS as a plain number without commas.
-2. Find the report year (the calendar year this annual report covers). Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
-Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
-Report text:
-${scopedText}`;
+  // Step 3: detect firm and route to its dedicated parser
+  const firm = detectFirm(text);
+  if (!firm)
+    return res.status(422).json({ error: 'Unrecognized investment firm in PDF — expected מיטב or אלטשולר' });
+  console.log('[parse-pdf] detected firm: %s', firm);
 
   try {
-    // Step 1 — tier extraction (fatal if it fails)
-    const tierMsg = await client.messages.create({
-      model:       'claude-haiku-4-5-20251001',
-      max_tokens:  1000,
-      temperature: 0,
-      messages:    [{ role: 'user', content: TIER_PROMPT }]
-    });
-
-    const rawTier = stripMd((tierMsg.content[0].text || '').trim());
-    console.log('[parse-pdf] raw tier response:', rawTier);
-    const tierStr = (rawTier.match(/\{[\s\S]*\}/) || [])[0] || '{}';
-
-    let parsed;
-    try { parsed = JSON.parse(tierStr); } catch (e) {
-      console.error('[parse-pdf] Failed to parse tier JSON:', rawTier);
-      return res.status(500).json({ error: 'AI returned invalid JSON for tiers', raw: rawTier });
-    }
-
-    // Step 2 — balance + reportYear extraction (non-fatal: falls back to 0 on any failure)
-    let pdfTotalBalance = 0;
-    let reportYear      = 0;
-    let rawBalance      = 'NOT_YET_CALLED';
-    try {
-      const balanceMsg = await client.messages.create({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        messages:   [{ role: 'user', content: BALANCE_PROMPT }]
-      });
-      rawBalance = stripMd((balanceMsg.content[0].text || '').trim());
-      console.log('[parse-pdf] raw balance response:', rawBalance);
-      const balanceStr = (rawBalance.match(/\{[\s\S]*\}/) || [])[0] || '{}';
-      const parsedBal  = JSON.parse(balanceStr);
-      pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
-      reportYear      = Number(parsedBal.reportYear)      || 0;
-    } catch (balErr) {
-      console.error('[parse-pdf] Balance extraction FAILED. Raw response was:', rawBalance, '| Error:', balErr.message);
-    }
-
-    let exemptPrincipal = 0, exemptProfit = 0, taxablePrincipal = 0;
-    let taxableProfit15 = 0, taxableProfit20 = 0, taxableProfit25 = 0;
-    for (const row of (parsed.rows || [])) {
-      const tr = Number(row.taxRate);
-      const p  = Number(row.principal)  || 0;
-      const rp = Number(row.realProfit) || 0;
-      const lk = Number(row.linkage)    || 0;
-      if (tr === 0)  { exemptPrincipal += p; exemptProfit += (rp + lk); }
-      else             taxablePrincipal += p;
-      if (tr === 15)   taxableProfit15  += rp;
-      if (tr === 20)   taxableProfit20  += rp;
-      if (tr === 25)   taxableProfit25  += rp;
-    }
-    console.log('[parse-pdf] aggregated tiers: p15=%d p20=%d p25=%d | pdfTotalBalance:%d | reportYear:%d',
-      taxableProfit15, taxableProfit20, taxableProfit25, pdfTotalBalance, reportYear);
-    res.json({
-      exemptPrincipal, exemptProfit, taxablePrincipal,
-      taxableProfit:   taxableProfit15 + taxableProfit20 + taxableProfit25,
-      taxableProfit15, taxableProfit20, taxableProfit25,
-      pdfTotalBalance, reportYear
-    });
-
+    const result = firm === 'meitav'
+      ? await parseMeitav(scopedText)
+      : await parseAltshuler(scopedText, assetNum);
+    res.json(result);
   } catch (err) {
-    console.error('[parse-pdf] Anthropic error:', err.status, err.message, JSON.stringify(err.error || {}));
-    res.status(500).json({ error: 'Anthropic API error: ' + err.message, httpStatus: err.status, detail: err.error || null });
+    console.error('[parse-pdf] Parser error (%s): %s %s', firm, err.status || '', err.message);
+    res.status(500).json({ error: 'Parse error (' + firm + '): ' + err.message });
   }
 });
 
