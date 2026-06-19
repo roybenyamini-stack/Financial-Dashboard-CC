@@ -17645,7 +17645,8 @@ function parseAnnualReportPDF(file, assetNum) {
           taxableProfit20:  Number(data.taxableProfit20)  || 0,
           taxableProfit25:  Number(data.taxableProfit25)  || 0,
           pdfTotalBalance:  isNaN(Number(data.pdfTotalBalance)) ? 0 : Number(data.pdfTotalBalance),
-          reportYear:       Number(data.reportYear)       || 0
+          reportYear:       Number(data.reportYear)       || 0,
+          marginalTaxRate:  Number(data.marginalTaxRate)  || 0
         });
       })
       .catch(reject);
