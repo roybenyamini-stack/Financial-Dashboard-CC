@@ -303,6 +303,15 @@ async function parseMeitav(scopedText) {
   if (yrM) reportYear = parseInt(yrM[1], 10);
 
   console.log('[parseMeitav] balance=%d year=%d', pdfTotalBalance, reportYear);
+
+  // Strict mode: reject partial data rather than return misleading values to the frontend.
+  if (rows.length === 0)
+    throw new Error('Meitav strict: no tax tier rows found — PDF format may have changed');
+  if (!pdfTotalBalance || !isFinite(pdfTotalBalance))
+    throw new Error('Meitav strict: total balance not found — expected "סכום למשיכה" in account summary');
+  if (!reportYear)
+    throw new Error('Meitav strict: report year not found — expected "שנת YYYY" or "31.12.YYYY"');
+
   const agg = _aggregateTierRows(rows, pdfTotalBalance);
   console.log('[parseMeitav] aggregated: p15=%d p20=%d p25=%d',
     agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25);
@@ -359,22 +368,29 @@ ${scopedText}`;
     throw new Error('Altshuler: AI returned invalid JSON for tiers: ' + rawTier);
   }
 
-  let pdfTotalBalance = 0, reportYear = 0, rawBal = 'NOT_YET_CALLED';
-  try {
-    const balMsg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 200,
-      messages: [{ role: 'user', content: BALANCE_PROMPT }]
-    });
-    rawBal = stripMd((balMsg.content[0].text || '').trim());
-    console.log('[parseAltshuler] raw balance response:', rawBal);
-    const parsedBal = JSON.parse((rawBal.match(/\{[\s\S]*\}/) || [])[0] || '{}');
-    pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
-    reportYear      = Number(parsedBal.reportYear)      || 0;
-  } catch (balErr) {
-    console.error('[parseAltshuler] Balance extraction FAILED. Raw response was:', rawBal, '| Error:', balErr.message);
+  const balMsg = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+    messages: [{ role: 'user', content: BALANCE_PROMPT }]
+  });
+  const rawBal = stripMd((balMsg.content[0].text || '').trim());
+  console.log('[parseAltshuler] raw balance response:', rawBal);
+  let parsedBal;
+  try { parsedBal = JSON.parse((rawBal.match(/\{[\s\S]*\}/) || [])[0] || '{}'); } catch (e) {
+    throw new Error('Altshuler strict: AI returned invalid JSON for balance: ' + rawBal);
   }
+  const pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
+  const reportYear      = Number(parsedBal.reportYear)      || 0;
 
-  const agg = _aggregateTierRows(parsed.rows || [], pdfTotalBalance);
+  // Strict mode: reject partial data rather than return misleading values to the frontend.
+  const tierRows = parsed.rows || [];
+  if (tierRows.length === 0)
+    throw new Error('Altshuler strict: no tax tier rows found — PDF format may have changed');
+  if (!pdfTotalBalance || !isFinite(pdfTotalBalance))
+    throw new Error('Altshuler strict: total balance not found — AI could not locate "סה"כ" row or "יתרה לתום תקופת הדיווח"');
+  if (!reportYear)
+    throw new Error('Altshuler strict: report year not found — expected "שנת YYYY" or "31.12.YYYY"');
+
+  const agg = _aggregateTierRows(tierRows, pdfTotalBalance);
   console.log('[parseAltshuler] aggregated: p15=%d p20=%d p25=%d pdfTotal=%d year=%d',
     agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25, pdfTotalBalance, reportYear);
   return { ...agg, pdfTotalBalance, reportYear };
@@ -420,8 +436,8 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
       : await parseAltshuler(scopedText, assetNum);
     res.json(result);
   } catch (err) {
-    console.error('[parse-pdf] Parser error (%s): %s %s', firm, err.status || '', err.message);
-    res.status(500).json({ error: 'Parse error (' + firm + '): ' + err.message });
+    console.error('[parse-pdf] Parser error (%s): %s', firm, err.message);
+    res.status(422).json({ error: 'Parse error (' + firm + '): ' + err.message });
   }
 });
 
@@ -534,3 +550,5 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => console.log('[Masklaka Server] Listening on port ' + PORT));
+
+module.exports = { detectFirm, parseMeitav, parseAltshuler, _aggregateTierRows };
