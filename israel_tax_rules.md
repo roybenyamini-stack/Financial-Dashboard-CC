@@ -312,3 +312,19 @@ simTaxDueK = simRealProfitK × effectiveTaxCoeff   (± 5% tolerance)
      "explanation": "<Hebrew string>"
    }
    ```
+
+---
+
+### RULE: Marginal Effective Tax Rate Calculation (Keren Hishtalmut)
+
+When calculating the effective tax rate for future profits in a mature Keren Hishtalmut,
+the system MUST use a "Marginal Tax Rate" approach based ONLY on taxable tiers.
+
+**Calculation Formula:**
+1. Filter the extracted rows: include ONLY rows where `taxRate > 0` (e.g., 15%, 20%, 25%).
+2. IGNORE all rows where `taxRate === 0`.
+3. Calculate Total Taxable Profit: sum the `realProfit` of the filtered rows.
+4. Calculate Total Tax Liability: sum `realProfit × (taxRate / 100)` of the filtered rows.
+5. Effective Marginal Rate: `Total Tax Liability ÷ Total Taxable Profit`.
+
+**Fallback:** If there are no taxable rows (account is fully exempt), the rate is 0.

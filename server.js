@@ -229,6 +229,18 @@ function _aggregateTierRows(rows, pdfTotalBalance) {
   };
 }
 
+function calculateMarginalTaxRate(rows) {
+  let totalTaxLiability = 0, totalTaxableProfit = 0;
+  for (const row of rows) {
+    if (Number(row.taxRate) > 0) {
+      const rp = Number(row.realProfit) || 0;
+      totalTaxableProfit += rp;
+      totalTaxLiability  += rp * (Number(row.taxRate) / 100);
+    }
+  }
+  return totalTaxableProfit > 0 ? totalTaxLiability / totalTaxableProfit : 0;
+}
+
 // ── Context-Aware Table Parser — shared utilities (B.8 pipeline) ─────────────
 
 // Pre-flight context extraction. Account number is injected explicitly — the
@@ -384,7 +396,7 @@ async function parseMeitav(scopedText, fullText, assetNum) {
 
   // Stage 5 — terminal audit
   _auditLog(ctx, rows);
-  return { ...agg, pdfTotalBalance, reportYear };
+  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(rows) };
 }
 
 // ── Altshuler parser (AI-based tier extraction, structural integrity gate) ────
@@ -508,7 +520,7 @@ ${scopedText}`;
 
   // Stage 5 — terminal audit
   _auditLog(ctx, tierRows);
-  return { ...agg, pdfTotalBalance, reportYear };
+  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(tierRows) };
 }
 
 // Routes each PDF to the correct firm-specific parser.
