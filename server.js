@@ -421,12 +421,20 @@ Identify each value by its Hebrew column header — do NOT use positional counti
   • Number under הפרשי הצמדה    → linkage field
   • Number under קרן             → principal field
 
-CRITICAL COLUMN MAPPING — HEBREW TABLE IS RTL:
-Hebrew tables are read Right-to-Left on the page, but pdf-parse extracts text Left-to-Right. You MUST map values by matching the Hebrew column HEADER NAME, not by position. The mandatory mapping is:
-  • The value under the column titled 'קרן'            → principal key
-  • The value under the column titled 'רווחים ריאליים' → realProfit key
-  • The value under the column titled 'הפרשי הצמדה'   → linkage key
-Do NOT mix these up. If you are unsure which column a number belongs to, look at the header row above it.
+CRITICAL COLUMN MAPPING (STRICT POSITIONAL):
+Do NOT rely on Hebrew headers to identify columns — they are often squished into a single string (e.g., "סה"כרווחיםקרן") and cannot be used for alignment. Instead, map values STRICTLY by their sequential order in the numeric string extracted from the PDF (left-to-right):
+
+1. Standard 4-value tier row (e.g., "156,841.37 75,639.75 25,389.61 55,812.00 0%"):
+   - 1st value (156,841.37) = Row Total → IGNORE. Never output it.
+   - 2nd value (75,639.75)  = Real Profit → realProfit
+   - 3rd value (25,389.61)  = Linkage    → linkage
+   - 4th value (55,812.00)  = Principal  → principal
+
+2. Pre-2003 exempt row — only 3 values (e.g., "1,089,143.02 812,641.22 276,501.80"):
+   - 1st value (1,089,143.02) = Row Total → IGNORE.
+   - 2nd value (812,641.22)   = Real Profit → realProfit
+   - 3rd value (276,501.80)   = Principal  → principal
+   - linkage → 0
 
 Extract ALL present tax-rate rows. There may be 1 to 4 rows (0%, 15%, 20%, 25%) depending on the account's deposit history. Extract every row that appears. Skip rows where ALL monetary values are 0.
 The taxRate field must be the integer tax rate (0, 15, 20, or 25).
