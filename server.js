@@ -231,19 +231,19 @@ function _aggregateTierRows(rows, pdfTotalBalance) {
 
 // ── Context-Aware Table Parser — shared utilities (B.8 pipeline) ─────────────
 
-// Scans document top for firm/product; scoped block for account number.
+// Pre-flight context extraction. Account number is injected explicitly — the
+// dashboard already knows it. Regex auto-detection was removed because it
+// matched phone numbers and ID numbers in the scoped text.
 // Bidi safety: each Hebrew term is matched in both logical order (primary,
 // as output by pdf-parse) and visual/reversed order (fallback for some renderers).
-function _extractDocContext(fullText, scopedText) {
+function _extractDocContext(fullText, expectedAccountNumber) {
   const top = fullText.slice(0, 3000);
   const firm =
     /מיטב|בטימ/.test(top)       ? 'מיטב' :
     /אלטשולר|רלושטלא/.test(top) ? 'אלטשולר שחם' : null;
   const product =
     /קרן\s*השתלמות|תומלתשה\s*ןרק/.test(fullText) ? 'קרן השתלמות' : null;
-  const acctM = scopedText.match(/\b(\d[\d\-]{6,14}\d)\b/);
-  const account = acctM ? acctM[1] : null;
-  return { firm, product, account };
+  return { firm, product, account: expectedAccountNumber };
 }
 
 // Hard table-window boundaries for section B.8.
@@ -300,9 +300,9 @@ function _auditLog(ctx, rows) {
 }
 
 // ── Meitav parser (regex-based, no AI) ───────────────────────────────────────
-async function parseMeitav(scopedText, fullText) {
+async function parseMeitav(scopedText, fullText, assetNum) {
   // Stage 1 — pre-flight
-  const ctx = _extractDocContext(fullText, scopedText);
+  const ctx = _extractDocContext(fullText, assetNum);
   if (!ctx.product)
     throw new Error('Meitav strict: "קרן השתלמות" not found in PDF — wrong document type');
   console.log('[parseMeitav] ctx: firm=%s product=%s account=%s', ctx.firm, ctx.product, ctx.account);
@@ -390,7 +390,7 @@ async function parseMeitav(scopedText, fullText) {
 // ── Altshuler parser (AI-based tier extraction, structural integrity gate) ────
 async function parseAltshuler(scopedText, assetNum, fullText) {
   // Stage 1 — pre-flight
-  const ctx = _extractDocContext(fullText, scopedText);
+  const ctx = _extractDocContext(fullText, assetNum);
   if (!ctx.product)
     throw new Error('Altshuler strict: "קרן השתלמות" not found in PDF — wrong document type');
   console.log('[parseAltshuler] ctx: firm=%s product=%s account=%s', ctx.firm, ctx.product, ctx.account);
@@ -530,7 +530,7 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
 
   try {
     const result = firm === 'meitav'
-      ? await parseMeitav(scopedText, text)
+      ? await parseMeitav(scopedText, text, assetNum)
       : await parseAltshuler(scopedText, assetNum, text);
     res.json(result);
   } catch (err) {
