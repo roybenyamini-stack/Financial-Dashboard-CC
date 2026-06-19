@@ -18860,9 +18860,12 @@ function _sfRecalculate() {
     var _exemptTotalNIS = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
     var _pdfBalNIS      = _pdfData.pdfTotalBalance || 0;
     _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
-    // Effective tax coefficient: total historic tax / total balance — blends all tier rates (0%/15%/20%/25%)
-    // into one ratio that reflects the fund's actual tax burden per shekel of growth.
-    var _effectiveTaxCoeff = _pdfBalK > 0 ? (_pdfTierTaxK / _pdfBalK) : (_taxableRatio * 0.25);
+    // Effective tax coefficient: read marginalTaxRate from the backend response (taxable-profit-weighted
+    // blend of 15%/20%/25% tiers only — exempt tier excluded). Falls back to taxableRatio×25% for
+    // accounts parsed before this field was added.
+    var _effectiveTaxCoeff = (typeof (_pdfData.marginalTaxRate) === 'number' && _pdfData.marginalTaxRate > 0)
+      ? _pdfData.marginalTaxRate
+      : (_taxableRatio * 0.25);
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
       // v182.51: Active funds — manual override takes priority; fallback to XML date-filtered deposits + auto-fill
