@@ -258,11 +258,27 @@ async function parseMeitav(scopedText) {
 
   function parseNum(s) { return parseFloat(s.replace(/,/g, '')); }
 
-  const rows = [];
+  // Anchor the scan to the tax reform table window.
+  // "רווחים ריאליים" is the column header unique to this table; "סה"כ" closes it.
+  // Scanning outside this window risks matching fee percentages or other tables.
+  let tableStart = -1, tableEnd = lines.length;
   for (let i = 0; i < lines.length; i++) {
+    if (tableStart < 0 && /רווחים\s*ריאליים/.test(lines[i])) {
+      tableStart = i;
+    } else if (tableStart >= 0 && /סה"כ/.test(lines[i])) {
+      tableEnd = i + 1;
+      break;
+    }
+  }
+  if (tableStart < 0)
+    throw new Error('Meitav strict: tax reform table header ("רווחים ריאליים") not found in scoped text');
+  console.log('[parseMeitav] table window: lines %d–%d', tableStart, tableEnd);
+
+  const rows = [];
+  for (let i = tableStart; i < tableEnd; i++) {
     const ln = lines[i].trim();
 
-    // Structure A
+    // Structure A — pre-2003 row, anchored by "יתרה בגין הפקדות" suffix
     const pre = PRE2003_RE.exec(ln);
     if (pre) {
       const rp = parseNum(pre[2]), p = parseNum(pre[3]);
@@ -270,9 +286,10 @@ async function parseMeitav(scopedText) {
       continue;
     }
 
-    // Structure B
+    // Structure B — 4-number data line followed by tax rate on the next line,
+    // only valid inside the table window established above.
     const dm = NUM4_RE.exec(ln);
-    if (dm && i + 1 < lines.length) {
+    if (dm && i + 1 < tableEnd) {
       const rm = RATE_RE.exec(lines[i + 1].trim());
       if (rm) {
         const rp = parseNum(dm[2]), lk = parseNum(dm[3]), p = parseNum(dm[4]);
