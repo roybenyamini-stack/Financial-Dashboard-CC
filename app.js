@@ -17990,7 +17990,7 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
     if (ytdDepK > 0)
       html += _sfReceiptRow('הפחתת הפקדות שכר (קרן)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
     if (ytdProfK > 0)
-      html += _sfReceiptRow('רווח ריאלי YTD: ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
+      html += _sfReceiptRow('רווח נומינלי YTD: ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
   }
   var _hasSimData = (simData && typeof simData.simRealProfitK !== 'undefined' && simData.simRealProfitK !== 0);
   var simProfK = _hasSimData ? simData.simRealProfitK : 0;
@@ -18925,15 +18925,8 @@ function _sfRecalculate() {
         }
         if (_ytdDepositsK > 0) _deltaK = Math.max(0, _deltaK - _ytdDepositsK);
       }
-      var _today        = new Date();
-      var _reportYear   = (_pdfData.reportYear && _pdfData.reportYear > 2000) ? _pdfData.reportYear : 0;
-      var _currentYear  = _today.getFullYear();
-      var _currentMonth = _today.getMonth() + 1;
-      var _yearsPassed  = _reportYear > 0 ? (_currentYear - _reportYear - 1) + (_currentMonth / 12) : 0.5;
-      var _ytdInflRate  = (inflation / 100) * _yearsPassed;
-      var _inflDeductK   = _pdfBalK * _ytdInflRate;
-      _realYtdProfitK    = Math.max(0, _deltaK - _inflDeductK);
-      _ytdTaxDueK        = Math.max(0, _realYtdProfitK * _effectiveTaxCoeff);
+      _realYtdProfitK = Math.max(0, _deltaK);
+      _ytdTaxDueK     = Math.max(0, _realYtdProfitK * _effectiveTaxCoeff);
     }
     // ── Future simulation (2-phase yield) ──────────────────────────────────
     if (years > 0) {
