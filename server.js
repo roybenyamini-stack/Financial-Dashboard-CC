@@ -424,6 +424,8 @@ Identify each value by its Hebrew column header — do NOT use positional counti
 Extract ALL present tax-rate rows. There may be 1 to 4 rows (0%, 15%, 20%, 25%) depending on the account's deposit history. Extract every row that appears. Skip rows where ALL monetary values are 0.
 The taxRate field must be the integer tax rate (0, 15, 20, or 25).
 
+CRITICAL — PRE-2003 EXEMPT ROW: The first row in the table is often described as "יתרה בגין הפקדות שהופקדו עד ליום 31.12.2002" (deposits made before 31 Dec 2002). This row does NOT contain a "%" sign — the tax-rate column may be blank or say "פטור" (exempt). You MUST still extract this row and assign it taxRate: 0. NEVER skip this row even if no percentage sign is visible.
+
 Return EXACTLY this JSON:
 {"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
 
