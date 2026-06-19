@@ -229,56 +229,105 @@ function _aggregateTierRows(rows, pdfTotalBalance) {
   };
 }
 
-// Meitav ("מיטב קרנות השתלמות") parser.
-// Uses Meitav-specific prompt describing its table format and balance terminology.
-// Meitav tier + balance extraction is fully regex-based (no AI calls).
-// The AI cannot reliably map columns 2/3 in Meitav's inverted layout, so
-// hardcoded positional regex replaces it entirely.
-async function parseMeitav(scopedText) {
+// ── Context-Aware Table Parser — shared utilities (B.8 pipeline) ─────────────
+
+// Scans document top for firm/product; scoped block for account number.
+// Bidi safety: each Hebrew term is matched in both logical order (primary,
+// as output by pdf-parse) and visual/reversed order (fallback for some renderers).
+function _extractDocContext(fullText, scopedText) {
+  const top = fullText.slice(0, 3000);
+  const firm =
+    /מיטב|בטימ/.test(top)       ? 'מיטב' :
+    /אלטשולר|רלושטלא/.test(top) ? 'אלטשולר שחם' : null;
+  const product =
+    /קרן\s*השתלמות|תומלתשה\s*ןרק/.test(fullText) ? 'קרן השתלמות' : null;
+  const acctM = scopedText.match(/\b(\d[\d\-]{6,14}\d)\b/);
+  const account = acctM ? acctM[1] : null;
+  return { firm, product, account };
+}
+
+// Hard table-window boundaries for section B.8.
+// Start anchors — logical Hebrew | Bidi-reversed form:
+//   "ב.8." | ".8.ב"  |  table title logical | table title reversed
+//   "רווחים ריאליים" (column header) | reversed — catches Meitav docs without B.8 numbering
+// End anchors — next named section or section marker
+const _TABLE_START_RE =
+  /ב\.8\.|\.8\.ב|פירוט\s*סכומים\s*בהתאם\s*לרפורמה|המרופרל\s*םאתהב\s*םימוכס\s*טוריפ|רווחים\s*ריאליים|םיילאיר\s*םיחוור/;
+const _TABLE_END_RE =
+  /ב\.10\.|\.10\.ב|פרטי\s*הסוכן|ןכוסה\s*יטרפ|טבלת\s*דמי\s*ניהול|לוהינ\s*ימד\s*תלבט|חלק\s*ג['׳]/;
+
+function _findTableWindow(lines) {
+  let startIdx = -1, endIdx = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    if (startIdx < 0 && _TABLE_START_RE.test(lines[i])) { startIdx = i; continue; }
+    if (startIdx >= 0 && _TABLE_END_RE.test(lines[i]))  { endIdx = i; break; }
+  }
+  if (startIdx < 0)
+    throw new Error('Table window not found — expected section B.8 or "פירוט סכומים בהתאם לרפורמה"');
+  return { startIdx, endIdx };
+}
+
+const _INTEGRITY_TOLERANCE = 10; // ILS
+
+function _validateIntegrity(rows, reportedTotal, firm) {
+  const calcTotal = rows.reduce((s, r) =>
+    s + (Number(r.principal) || 0) + (Number(r.realProfit) || 0) + (Number(r.linkage) || 0), 0);
+  const delta = Math.abs(calcTotal - reportedTotal);
+  if (delta > _INTEGRITY_TOLERANCE)
+    throw new Error(
+      firm + ' integrity FAIL: rows sum ' + calcTotal.toFixed(2) +
+      ' vs reported total ' + reportedTotal.toFixed(2) +
+      ' (delta ' + delta.toFixed(2) + ' ILS — exceeds tolerance of ' + _INTEGRITY_TOLERANCE + ')'
+    );
+  console.log('[integrity] PASS delta=' + delta.toFixed(2) + ' ILS');
+}
+
+function _auditLog(ctx, rows) {
+  const sep = '='.repeat(52);
+  console.log('\n' + sep);
+  console.log('  Firm:    ' + (ctx.firm    || 'unknown'));
+  console.log('  Product: ' + (ctx.product || 'unknown'));
+  console.log('  Account: ' + (ctx.account || 'unknown'));
+  console.log(sep);
+  console.table(rows.map(r => ({
+    'Tax %':      r.taxRate,
+    'Principal':  r.principal,
+    'RealProfit': r.realProfit,
+    'Linkage':    r.linkage,
+    'Row Total':  (Number(r.principal) + Number(r.realProfit) + Number(r.linkage)).toFixed(2)
+  })));
+  console.log(sep + '\n');
+}
+
+// ── Meitav parser (regex-based, no AI) ───────────────────────────────────────
+async function parseMeitav(scopedText, fullText) {
+  // Stage 1 — pre-flight
+  const ctx = _extractDocContext(fullText, scopedText);
+  if (!ctx.product)
+    throw new Error('Meitav strict: "קרן השתלמות" not found in PDF — wrong document type');
+  console.log('[parseMeitav] ctx: firm=%s product=%s account=%s', ctx.firm, ctx.product, ctx.account);
+
   const lines = scopedText.split('\n');
 
-  // ── Tier extraction ───────────────────────────────────────────────────────
-  // Meitav has two row structures in the tax reform table:
-  //
-  // Structure A — pre-2003 row (3-column: total | realProfit | principal, no linkage):
-  //   "{total}{realProfit}{principal}יתרה בגין הפקדות..."   taxRate always 0
-  //
-  // Structure B — post-2003 rows (4-column: total | realProfit | linkage | principal):
-  //   Line N:   "{total}{realProfit}{linkage}{principal}"    ← numbers only
-  //   Line N+1: "0%" or "15%" or "20%" or "25%"             ← tax rate for this row
-  //
-  // Column order (positions 1–4 left-to-right in extracted text):
+  // Stage 2 — hard table-window anchoring
+  const { startIdx: tableStart, endIdx: tableEnd } = _findTableWindow(lines);
+  console.log('[parseMeitav] table window: lines %d–%d', tableStart, tableEnd);
+
+  // Stage 3 — row extraction within window
+  // Column order (positions 1–4 left-to-right in extracted RTL text):
   //   1 = סה"כ (skip)  2 = רווחים ריאליים (→ realProfit)
   //   3 = הפרשי הצמדה (→ linkage)  4 = קרן (→ principal)
-
-  const NUM  = '([\\d,]+\\.\\d{2})';   // one number: digits+commas then .XX
+  const NUM        = '([\\d,]+\\.\\d{2})';
   const PRE2003_RE = new RegExp('^' + NUM + NUM + NUM + 'יתרה\\s*בגין\\s*הפקדות');
   const NUM4_RE    = new RegExp('^' + NUM + NUM + NUM + NUM + '$');
   const RATE_RE    = /^(0|15|20|25)%$/;
-
   function parseNum(s) { return parseFloat(s.replace(/,/g, '')); }
-
-  // Anchor the scan to the tax reform table window.
-  // "רווחים ריאליים" is the column header unique to this table; "סה"כ" closes it.
-  // Scanning outside this window risks matching fee percentages or other tables.
-  let tableStart = -1, tableEnd = lines.length;
-  for (let i = 0; i < lines.length; i++) {
-    if (tableStart < 0 && /רווחים\s*ריאליים/.test(lines[i])) {
-      tableStart = i;
-    } else if (tableStart >= 0 && /סה"כ/.test(lines[i])) {
-      tableEnd = i + 1;
-      break;
-    }
-  }
-  if (tableStart < 0)
-    throw new Error('Meitav strict: tax reform table header ("רווחים ריאליים") not found in scoped text');
-  console.log('[parseMeitav] table window: lines %d–%d', tableStart, tableEnd);
 
   const rows = [];
   for (let i = tableStart; i < tableEnd; i++) {
     const ln = lines[i].trim();
 
-    // Structure A — pre-2003 row, anchored by "יתרה בגין הפקדות" suffix
+    // Structure A — pre-2003, anchored by "יתרה בגין הפקדות" suffix → always exempt
     const pre = PRE2003_RE.exec(ln);
     if (pre) {
       const rp = parseNum(pre[2]), p = parseNum(pre[3]);
@@ -286,42 +335,42 @@ async function parseMeitav(scopedText) {
       continue;
     }
 
-    // Structure B — 4-number data line followed by tax rate on the next line,
-    // only valid inside the table window established above.
+    // Structure B — 4-number line followed by rate label on next line
     const dm = NUM4_RE.exec(ln);
     if (dm && i + 1 < tableEnd) {
       const rm = RATE_RE.exec(lines[i + 1].trim());
       if (rm) {
+        // 31.12.2002 override: pre-reform cutoff date → force exempt regardless of label
+        let taxRate = parseInt(rm[1], 10);
+        if (ln.includes('31.12.2002') || lines[i + 1].includes('31.12.2002')) taxRate = 0;
         const rp = parseNum(dm[2]), lk = parseNum(dm[3]), p = parseNum(dm[4]);
         if (rp > 0 || lk > 0 || p > 0)
-          rows.push({ taxRate: parseInt(rm[1], 10), principal: p, realProfit: rp, linkage: lk });
+          rows.push({ taxRate, principal: p, realProfit: rp, linkage: lk });
       }
     }
   }
-  console.log('[parseMeitav] regex extracted %d non-zero tier rows:', rows.length, JSON.stringify(rows));
+  console.log('[parseMeitav] extracted %d tier rows:', rows.length, JSON.stringify(rows));
 
-  // ── Balance extraction ────────────────────────────────────────────────────
-  // "סכום למשיכה: 529,997.83" appears in the account summary section.
-  // Fallback: largest number on the "סה"כ" line of the tax table.
+  // Stage 4 — integrity gate
+  const windowText  = lines.slice(tableStart, tableEnd).join('\n');
+  const totalLineM  = windowText.match(/([\d,]+\.\d{2})(?:[\d,]+\.\d{2})*[^\n]*סה"כ/);
+  const reportedTotal = totalLineM ? parseFloat(totalLineM[1].replace(/,/g, '')) : 0;
+  if (reportedTotal > 0) _validateIntegrity(rows, reportedTotal, 'meitav');
+
+  // Balance: "סכום למשיכה" in account summary; fallback to table total
   let pdfTotalBalance = 0;
   const balM = scopedText.match(/סכום\s*למשיכה[:\s]+([\d,]+\.?\d*)/);
-  if (balM) {
-    pdfTotalBalance = parseFloat(balM[1].replace(/,/g, ''));
-  } else {
-    // Fallback: find the "סה"כ" summary line of the tax table and take its first number
-    const sekM = scopedText.match(/([\d,]+\.\d{2})(?:[\d,]+\.\d{2})*סה"כ/);
-    if (sekM) pdfTotalBalance = parseFloat(sekM[1].replace(/,/g, ''));
-  }
+  if (balM) pdfTotalBalance = parseFloat(balM[1].replace(/,/g, ''));
+  else if (reportedTotal > 0) pdfTotalBalance = reportedTotal;
 
-  // ── Report year extraction ────────────────────────────────────────────────
-  // Look for "שנת 2025" or any date like "31.12.2025" or "31/12/2025"
+  // Year
   let reportYear = 0;
   const yrM = scopedText.match(/שנת\s+(20\d{2})/) || scopedText.match(/31[./]12[./](20\d{2})/);
   if (yrM) reportYear = parseInt(yrM[1], 10);
 
   console.log('[parseMeitav] balance=%d year=%d', pdfTotalBalance, reportYear);
 
-  // Strict mode: reject partial data rather than return misleading values to the frontend.
+  // Strict mode validation
   if (rows.length === 0)
     throw new Error('Meitav strict: no tax tier rows found — PDF format may have changed');
   if (!pdfTotalBalance || !isFinite(pdfTotalBalance))
@@ -332,12 +381,29 @@ async function parseMeitav(scopedText) {
   const agg = _aggregateTierRows(rows, pdfTotalBalance);
   console.log('[parseMeitav] aggregated: p15=%d p20=%d p25=%d',
     agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25);
+
+  // Stage 5 — terminal audit
+  _auditLog(ctx, rows);
   return { ...agg, pdfTotalBalance, reportYear };
 }
 
-// Altshuler ("אלטשולר שחם") parser.
-// Uses Altshuler-specific prompt describing its detailed annual report format and terminology.
-async function parseAltshuler(scopedText, assetNum) {
+// ── Altshuler parser (AI-based tier extraction, structural integrity gate) ────
+async function parseAltshuler(scopedText, assetNum, fullText) {
+  // Stage 1 — pre-flight
+  const ctx = _extractDocContext(fullText, scopedText);
+  if (!ctx.product)
+    throw new Error('Altshuler strict: "קרן השתלמות" not found in PDF — wrong document type');
+  console.log('[parseAltshuler] ctx: firm=%s product=%s account=%s', ctx.firm, ctx.product, ctx.account);
+
+  const lines = scopedText.split('\n');
+
+  // Stage 2 — hard table-window anchoring; AI receives only the window (fewer tokens)
+  const { startIdx: tableStart, endIdx: tableEnd } = _findTableWindow(lines);
+  const windowText = lines.slice(tableStart, tableEnd).join('\n');
+  console.log('[parseAltshuler] table window: lines %d–%d (%d chars)',
+    tableStart, tableEnd, windowText.length);
+
+  // Stage 3 — AI tier extraction scoped to window
   const TIER_PROMPT = `CRITICAL: Output ONLY valid JSON starting with { and ending with }. No text, no markdown, no code blocks.
 
 You are analyzing an Altshuler Shaham Keren Hishtalmut ("אלטשולר שחם") detailed annual report ("דוח שנתי מפורט").
@@ -364,15 +430,7 @@ Return EXACTLY this JSON:
 One object per non-zero table row.
 
 Report text:
-${scopedText}`;
-
-  const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
-In this Altshuler Shaham ("אלטשולר שחם") financial report for account ${assetNum}:
-1. Find the total fund balance. Primary source: find the line containing the word "סה\"כ" (grand total) at the bottom of the tax reform table — the first (leftmost/largest) number on that line is the total balance. Secondary: look for "יתרה לתום תקופת הדיווח" followed by a number. Report in NIS as a plain number without commas.
-2. Find the report year. Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
-Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
-Report text:
-${scopedText}`;
+${windowText}`;
 
   const tierMsg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001', max_tokens: 1000, temperature: 0,
@@ -384,6 +442,22 @@ ${scopedText}`;
   try { parsed = JSON.parse((rawTier.match(/\{[\s\S]*\}/) || [])[0] || '{}'); } catch (e) {
     throw new Error('Altshuler: AI returned invalid JSON for tiers: ' + rawTier);
   }
+
+  // 31.12.2002 override applied in post-processing (deterministic, not left to AI)
+  const tierRows = (parsed.rows || []).map(r =>
+    (windowText.includes('31.12.2002') && r.taxRate !== 0 &&
+     windowText.indexOf('31.12.2002') < windowText.indexOf(String(r.principal)))
+      ? { ...r, taxRate: 0 } : r
+  );
+
+  // Balance and year (AI on full scoped text — balance may be outside window)
+  const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
+In this Altshuler Shaham ("אלטשולר שחם") financial report for account ${assetNum}:
+1. Find the total fund balance. Primary source: find the line containing the word "סה\\"כ" (grand total) at the bottom of the tax reform table — the first (leftmost/largest) number on that line is the total balance. Secondary: look for "יתרה לתום תקופת הדיווח" followed by a number. Report in NIS as a plain number without commas.
+2. Find the report year. Look for "שנת הדיווח", "לשנת", or a date like "31.12.2025". Report as a 4-digit integer.
+Return EXACTLY: {"pdfTotalBalance": 0, "reportYear": 0}
+Report text:
+${scopedText}`;
 
   const balMsg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001', max_tokens: 200,
@@ -398,18 +472,25 @@ ${scopedText}`;
   const pdfTotalBalance = Number(parsedBal.pdfTotalBalance) || 0;
   const reportYear      = Number(parsedBal.reportYear)      || 0;
 
-  // Strict mode: reject partial data rather than return misleading values to the frontend.
-  const tierRows = parsed.rows || [];
+  // Stage 4 — integrity gate (regex extraction of table total, not AI)
+  const totalLineM    = windowText.match(/([\d,]+\.\d{2})(?:[\d,]+\.\d{2})*[^\n]*סה"כ/);
+  const reportedTotal = totalLineM ? parseFloat(totalLineM[1].replace(/,/g, '')) : 0;
+  if (reportedTotal > 0) _validateIntegrity(tierRows, reportedTotal, 'altshuler');
+
+  // Strict mode validation
   if (tierRows.length === 0)
     throw new Error('Altshuler strict: no tax tier rows found — PDF format may have changed');
   if (!pdfTotalBalance || !isFinite(pdfTotalBalance))
-    throw new Error('Altshuler strict: total balance not found — AI could not locate "סה"כ" row or "יתרה לתום תקופת הדיווח"');
+    throw new Error('Altshuler strict: total balance not found — AI could not locate total');
   if (!reportYear)
     throw new Error('Altshuler strict: report year not found — expected "שנת YYYY" or "31.12.YYYY"');
 
   const agg = _aggregateTierRows(tierRows, pdfTotalBalance);
   console.log('[parseAltshuler] aggregated: p15=%d p20=%d p25=%d pdfTotal=%d year=%d',
     agg.taxableProfit15, agg.taxableProfit20, agg.taxableProfit25, pdfTotalBalance, reportYear);
+
+  // Stage 5 — terminal audit
+  _auditLog(ctx, tierRows);
   return { ...agg, pdfTotalBalance, reportYear };
 }
 
@@ -449,8 +530,8 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
 
   try {
     const result = firm === 'meitav'
-      ? await parseMeitav(scopedText)
-      : await parseAltshuler(scopedText, assetNum);
+      ? await parseMeitav(scopedText, text)
+      : await parseAltshuler(scopedText, assetNum, text);
     res.json(result);
   } catch (err) {
     console.error('[parse-pdf] Parser error (%s): %s', firm, err.message);
