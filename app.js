@@ -17999,7 +17999,7 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
     if (ytdDepK > 0)
       html += _sfReceiptRow('הפחתת הפקדות שכר (קרן)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
     if (ytdProfK > 0)
-      html += _sfReceiptRow('רווח נומינלי YTD: ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309');
+      html += _sfReceiptRow('רווח נומינלי YTD: ₪' + fmt(ytdProfK) + 'K', '← מס: ₪' + fmt(ytdTaxK) + 'K', '#b45309', 'קרוב טוב לרווח ריאלי');
   }
   var _hasSimData = (simData && typeof simData.simRealProfitK !== 'undefined' && simData.simRealProfitK !== 0);
   var simProfK = _hasSimData ? simData.simRealProfitK : 0;
