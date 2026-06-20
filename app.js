@@ -17973,16 +17973,15 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
   var html = '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב מס (מדרגות היסטוריות)</div>'
     + '<div style="display:flex;flex-direction:column;gap:3px;">';
   if (exemptTotal > 0) {
-    var _exemptLabel = pdfData.isPreReformExempt ? 'פטור (הפקדות לפני 2002)' : 'פטור ממס (הפקדות עד התקרה)';
-    html += _sfReceiptRow(_exemptLabel, '₪' + fmtK(exemptTotal) + 'K', '#16a34a');
+    var _exemptLabel = pdfData.isPreReformExempt ? 'פטור ממס (הפקדות לפני 2002)' : 'סה״כ רווח פטור ממס';
+    html += _sfReceiptRow(_exemptLabel, '₪' + fmtK(exemptTotal) + 'K', '#16a34a', 'כולל רווחים על הפקדות עד התקרה השנתית המוטבת לאורך כל השנים, וכן רווחים על כלל ההפקדות שבוצעו לפני שנת 2003.');
   }
   if (p15 > 0)
-    html += _sfReceiptRow('רווח 15% (2003-2005): ₪' + fmtK(p15) + 'K', '← מס: ₪' + fmtK(t15) + 'K', '#dc2626');
+    html += _sfReceiptRow('רווח 15%: הפקדות מעל התקרה (2003-2005): ₪' + fmtK(p15) + 'K', '← מס: ₪' + fmtK(t15) + 'K', '#dc2626', 'רווח ריאלי על הפקדות שבוצעו מעל התקרה המוטבת בין השנים 2003-2005. כספים אלו נהנים ממס מופחת של 15%.');
   if (p20 > 0)
-    html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + 'K', '← מס: ₪' + fmtK(t20) + 'K', '#dc2626');
+    html += _sfReceiptRow('רווח 20%: הפקדות מעל התקרה (2006-2011): ₪' + fmtK(p20) + 'K', '← מס: ₪' + fmtK(t20) + 'K', '#dc2626', 'רווח ריאלי על הפקדות שבוצעו מעל התקרה המוטבת בין השנים 2006-2011. כספים אלו נהנים ממס מופחת של 20%.');
   if (p25 > 0)
-    html += _sfReceiptRow('רווח חייב במס (25%): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626',
-      'שיעור מס רווחי הון על הפקדות מעל התקרה, שבוצעו החל משנת 2012');
+    html += _sfReceiptRow('רווח 25%: הפקדות מעל התקרה (2012 ואילך): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626', 'רווח ריאלי על הפקדות שבוצעו מעל התקרה המוטבת החל משנת 2012.');
   var ytdTaxK       = (ytdData && ytdData.ytdTaxDueK      > 0) ? ytdData.ytdTaxDueK      : 0;
   var ytdProfK      = (ytdData && ytdData.realYtdProfitK  > 0) ? ytdData.realYtdProfitK  : 0;
   var ytdDepK       = (ytdData && ytdData.ytdDepositsK    > 0) ? ytdData.ytdDepositsK    : 0;
