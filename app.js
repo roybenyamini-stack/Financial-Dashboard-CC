@@ -17340,6 +17340,7 @@ var _sfWithdrawalMode = 'pct'; // 'pct' | 'fixed'
 var _sfLastTaxDetails = null;
 var _sfAIVerifData    = null;
 var _sfIsExempt       = false;
+var _sfIsNewFund      = false;
 var _sfIsManual       = false;
 var _sfManualDeposits = 0;   // K — manual override for 2026 salary deposits; loaded from localStorage
 
@@ -17916,8 +17917,9 @@ function _loadAgentJSON(jsonString) {
   }
 }
 
-function _sfReceiptRow(label, value, color) {
-  return '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;padding:2px 0;direction:rtl;">'
+function _sfReceiptRow(label, value, color, title) {
+  return '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;padding:2px 0;direction:rtl;"'
+    + (title ? ' title="' + title + '"' : '') + '>'
     + '<span style="color:#6b7280;">' + label + '</span>'
     + '<span style="font-weight:600;color:' + color + ';">' + value + '</span>'
     + '</div>';
@@ -17970,23 +17972,31 @@ function _sfBuildTierReceipt(pdfData, grossK, netK, ytdData, simData, pctFractio
   var exemptTotal = (pdfData.exemptPrincipal || 0) + (pdfData.exemptProfit || 0);
   var html = '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">פירוט חישוב מס (מדרגות היסטוריות)</div>'
     + '<div style="display:flex;flex-direction:column;gap:3px;">';
-  if (exemptTotal > 0)
-    html += _sfReceiptRow('פטור (הפקדות לפני 2002)', '₪' + fmtK(exemptTotal) + 'K', '#16a34a');
+  if (exemptTotal > 0) {
+    var _exemptLabel = pdfData.isPreReformExempt ? 'פטור (הפקדות לפני 2002)' : 'פטור ממס (הפקדות עד התקרה)';
+    html += _sfReceiptRow(_exemptLabel, '₪' + fmtK(exemptTotal) + 'K', '#16a34a');
+  }
   if (p15 > 0)
     html += _sfReceiptRow('רווח 15% (2003-2005): ₪' + fmtK(p15) + 'K', '← מס: ₪' + fmtK(t15) + 'K', '#dc2626');
   if (p20 > 0)
     html += _sfReceiptRow('רווח 20% (2006-2011): ₪' + fmtK(p20) + 'K', '← מס: ₪' + fmtK(t20) + 'K', '#dc2626');
   if (p25 > 0)
-    html += _sfReceiptRow('רווח 25% (2012+): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626');
+    html += _sfReceiptRow('רווח חייב במס (25%): ₪' + fmtK(p25) + 'K', '← מס: ₪' + fmtK(t25) + 'K', '#dc2626',
+      'שיעור מס רווחי הון על הפקדות מעל התקרה, שבוצעו החל משנת 2012');
   var ytdTaxK       = (ytdData && ytdData.ytdTaxDueK      > 0) ? ytdData.ytdTaxDueK      : 0;
   var ytdProfK      = (ytdData && ytdData.realYtdProfitK  > 0) ? ytdData.realYtdProfitK  : 0;
   var ytdDepK       = (ytdData && ytdData.ytdDepositsK    > 0) ? ytdData.ytdDepositsK    : 0;
-  var ytdCoeff      = (ytdData && typeof ytdData.effectiveTaxCoeff === 'number') ? ytdData.effectiveTaxCoeff : null;
+  var ytdCoeff        = (ytdData && typeof ytdData.effectiveTaxCoeff === 'number') ? ytdData.effectiveTaxCoeff : null;
+  var ytdTaxableRatio = (ytdData && typeof ytdData.taxableRatio    === 'number') ? ytdData.taxableRatio    : null;
   if (ytdProfK > 0 || ytdDepK > 0) {
     html += '<div style="border-top:2px dashed #d97706;margin:8px 0 4px 0;"></div>';
     html += '<div style="font-size:10px;color:#92400e;text-align:center;margin-bottom:4px;font-weight:600;direction:rtl;">— הערכת צמיחה שוטפת (2026) —</div>';
+    if (ytdTaxableRatio !== null)
+      html += _sfReceiptRow('אחוז הצבירה החייב במס', Math.round(ytdTaxableRatio * 1000) / 10 + '%', '#6b7280',
+        'סך הסכום מהפקדות מעל התקרה חלקי סך הסכום בקרן');
     if (ytdCoeff !== null)
-      html += _sfReceiptRow('מקדם מס אפקטיבי (מהדו״ח)', Math.round(ytdCoeff * 1000) / 10 + '%', '#6b7280');
+      html += _sfReceiptRow('מקדם מס משוקלל YTD', Math.round(ytdCoeff * 1000) / 10 + '%', '#6b7280',
+        'מקדם המס לפי שנות הפקדה כפול אחוז הצבירה החייב במס');
     if (ytdDepK > 0)
       html += _sfReceiptRow('הפחתת הפקדות שכר (קרן)', '− ' + fmt(ytdDepK) + ' K ₪', '#6b7280');
     if (ytdProfK > 0)
@@ -18072,30 +18082,35 @@ function _sfTriggerAIVerification() {
   console.log('[AI-cli] Verify clicked. _sfIsExempt:', _sfIsExempt, '_sfAIVerifData:', !!_sfAIVerifData);
   var payload = _sfAIVerifData;
   if (!payload) {
-    if (!_sfIsExempt) return;
-    // Exempt fund: minimal payload — LLMs verify 0 tax per israel_tax_rules.md Rule 8
-    payload = {
-      assetType:   'keren_hishtalmut',
-      genericData: {
-        isPreReformExempt:  true,
-        exemptPrincipalK:   0,
-        exemptProfitK:      0,
-        taxablePrincipalK:  0,
-        taxableProfit15K:   0,
-        taxableProfit20K:   0,
-        taxableProfit25K:   0,
-        pdfTotalBalanceK:   _sfLastGrossK,
-        pdfTierTaxK:        0,
-        ytdRealProfitK:     0,
-        ytdTaxDueK:         0,
-        simRealProfitK:     0,
-        simTaxDueK:         0,
-        taxableRatio:       0,
-        withdrawalRatio:    1,
-        userCalculatedTax:  0,
-        reportYear:         0
-      }
-    };
+    if (_sfIsNewFund) {
+      payload = { assetType: 'keren_hishtalmut', genericData: { isNewFund: true } };
+    } else if (_sfIsExempt) {
+      // Exempt fund: minimal payload — LLMs verify 0 tax per israel_tax_rules.md Rule 8
+      payload = {
+        assetType:   'keren_hishtalmut',
+        genericData: {
+          isPreReformExempt:  true,
+          exemptPrincipalK:   0,
+          exemptProfitK:      0,
+          taxablePrincipalK:  0,
+          taxableProfit15K:   0,
+          taxableProfit20K:   0,
+          taxableProfit25K:   0,
+          pdfTotalBalanceK:   _sfLastGrossK,
+          pdfTierTaxK:        0,
+          ytdRealProfitK:     0,
+          ytdTaxDueK:         0,
+          simRealProfitK:     0,
+          simTaxDueK:         0,
+          taxableRatio:       0,
+          withdrawalRatio:    1,
+          userCalculatedTax:  0,
+          reportYear:         0
+        }
+      };
+    } else {
+      return;
+    }
   }
   var btn = document.getElementById('sf-ai-verify-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
@@ -18113,7 +18128,7 @@ function _sfTriggerAIVerification() {
 }
 
 function _sfCategoryVerify() {
-  if (!_sfAIVerifData && !_sfIsExempt) {
+  if (!_sfAIVerifData && !_sfIsExempt && !_sfIsNewFund) {
     _sfShowAIModal({ _error: 'אנא פתח קרן השתלמות עם דו"ח שנתי מועלה תחילה' });
     return;
   }
@@ -18800,12 +18815,9 @@ function _sfRecalculate() {
     (_pdfDataRaw.taxableProfit25  || 0) > 0 ||
     !!_pdfDataRaw.isPreReformExempt
   )) ? _pdfDataRaw : null;
-  // v182.60: Financial Physics — funds opened 2003+ cannot have pre-2002 tax exemptions
   if (_pdfData && item.joinDate) {
     var _joinYear = parseInt(String(item.joinDate).substring(0, 4), 10);
     if (_joinYear >= 2003) {
-      _pdfData.exemptPrincipal   = 0;
-      _pdfData.exemptProfit      = 0;
       _pdfData.isPreReformExempt = false;
     }
   }
@@ -18861,11 +18873,11 @@ function _sfRecalculate() {
     var _exemptTotalNIS = (_pdfData.exemptPrincipal || 0) + (_pdfData.exemptProfit || 0);
     var _pdfBalNIS      = _pdfData.pdfTotalBalance || 0;
     _taxableRatio = _pdfBalNIS > 0 ? Math.max(0, 1 - (_exemptTotalNIS / _pdfBalNIS)) : 1;
-    // Effective tax coefficient: read marginalTaxRate from the backend response (taxable-profit-weighted
-    // blend of 15%/20%/25% tiers only — exempt tier excluded). Falls back to taxableRatio×25% for
-    // accounts parsed before this field was added.
+    // Effective tax coefficient: marginalTaxRate (blended rate on taxable tiers only) × _taxableRatio
+    // (fraction of the total balance that is taxable). Multiplying both gives the correct effective
+    // rate on the full YTD delta. Falls back to taxableRatio×25% for pre-marginalTaxRate uploads.
     var _effectiveTaxCoeff = (typeof (_pdfData.marginalTaxRate) === 'number' && _pdfData.marginalTaxRate > 0)
-      ? _pdfData.marginalTaxRate
+      ? (_pdfData.marginalTaxRate * _taxableRatio)
       : (_taxableRatio * 0.25);
     if (_pdfBalK > 0 && baseK > _pdfBalK) {
       var _deltaK        = baseK - _pdfBalK;
@@ -19052,7 +19064,7 @@ function _sfRecalculate() {
     }
   } else if (_hasExactTiers) {
     // PDF with exact tiers — transparent breakdown receipt
-    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK, effectiveTaxCoeff: _effectiveTaxCoeff }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
+    if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK, effectiveTaxCoeff: _effectiveTaxCoeff, taxableRatio: _taxableRatio }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
     // v182.48: post-build patch — data gap note + deposit status bar
     if (item.isActive && _sfAIVerifData) {
       if (_autoFillMonths > 0) {
@@ -19212,7 +19224,8 @@ function _sfRecalculate() {
   }
 
   // v181.79: 2-col layout — show pdf section when no PDF uploaded
-  _sfIsExempt = !!(_pdfData && _pdfData.isPreReformExempt);
+  _sfIsExempt  = !!(_pdfData && _pdfData.isPreReformExempt);
+  _sfIsNewFund = _isNewFund;
   var _sfPdfSec = document.getElementById('sf-pdf-section');
   var _sfOrDiv  = document.getElementById('sf-or-divider');
   var _showPdf  = !_pdfData;
@@ -19239,7 +19252,7 @@ function _sfRecalculate() {
   var _estPrefix = (!_hasTikratData && taxDueK !== null) ? '~ ' : ''; // v181.76: ~ when estimated
   // Store raw values for nominal/real toggle, then apply current view mode
   _sfLastGrossK = grossK;
-  _sfLastNetK   = netK !== null ? netK : 0;
+  _sfLastNetK   = netK;
   var ge = document.getElementById('sf-gross-withdrawal');
   if (ge) ge.textContent = Math.round(grossK).toLocaleString('he-IL');
   var te = document.getElementById('sf-tax-due');
@@ -19260,7 +19273,7 @@ function _sfRecalculate() {
   _sfApplyViewMode();
   var re = document.getElementById('sf-remaining-balance');
   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
-  if (re) re.textContent = 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
+  if (re) re.textContent = taxDueK === null ? '' : 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
 
   var wdThumb    = document.getElementById('sf-wd-thumb-tip');
   var wdFixThumb = document.getElementById('sf-wd-fix-thumb-tip');

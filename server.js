@@ -335,6 +335,7 @@ async function parseMeitav(scopedText, fullText, assetNum) {
   const RATE_RE    = /^(0|15|20|25)%$/;
   function parseNum(s) { return parseFloat(s.replace(/,/g, '')); }
 
+  let _hasPreReformRow = false;
   const rows = [];
   for (let i = tableStart; i < tableEnd; i++) {
     const ln = lines[i].trim();
@@ -342,6 +343,7 @@ async function parseMeitav(scopedText, fullText, assetNum) {
     // Structure A — pre-2003, anchored by "יתרה בגין הפקדות" suffix → always exempt
     const pre = PRE2003_RE.exec(ln);
     if (pre) {
+      _hasPreReformRow = true;
       const rp = parseNum(pre[2]), p = parseNum(pre[3]);
       if (rp > 0 || p > 0) rows.push({ taxRate: 0, principal: p, realProfit: rp, linkage: 0 });
       continue;
@@ -396,7 +398,7 @@ async function parseMeitav(scopedText, fullText, assetNum) {
 
   // Stage 5 — terminal audit
   _auditLog(ctx, rows);
-  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(rows) };
+  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(rows), isPreReformExempt: _hasPreReformRow };
 }
 
 // ── Altshuler parser (AI-based tier extraction, structural integrity gate) ────
@@ -454,7 +456,11 @@ The taxRate field must be the integer tax rate (0, 15, 20, or 25).
 CRITICAL — PRE-2003 EXEMPT ROW: The first row in the table is often described as "יתרה בגין הפקדות שהופקדו עד ליום 31.12.2002" (deposits made before 31 Dec 2002). This row does NOT contain a "%" sign — the tax-rate column may be blank or say "פטור" (exempt). You MUST still extract this row and assign it taxRate: 0. NEVER skip this row even if no percentage sign is visible.
 
 Return EXACTLY this JSON:
-{"rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
+{"isPreReformExempt": false, "rows": [{"taxRate": 0, "principal": 0, "realProfit": 0, "linkage": 0}]}
+Set isPreReformExempt to true if ANY of these conditions apply:
+(a) The table contains a row labeled "יתרה בגין הפקדות שהופקדו עד ליום 31.12.2002" or any text referencing deposits made before 31 Dec 2002.
+(b) The table contains ONLY taxRate=0 rows (no rows with taxRate 15, 20, or 25) AND the report contains a reference to "31.12.2002".
+If taxRate 15%, 20%, or 25% rows exist anywhere in the table, set isPreReformExempt to false.
 
 One object per non-zero table row.
 
@@ -478,6 +484,14 @@ ${windowText}`;
      windowText.indexOf('31.12.2002') < windowText.indexOf(String(r.principal)))
       ? { ...r, taxRate: 0 } : r
   );
+
+  // Deterministic fallback: if AI missed isPreReformExempt but all evidence points to a
+  // fully pre-2003 exempt fund (single row, taxRate=0, linkage=0, PDF has 31.12.2002 date).
+  const _aiPreReform    = !!(parsed.isPreReformExempt);
+  const _allExemptTiers = tierRows.length > 0 && tierRows.every(r => Number(r.taxRate) === 0);
+  const _hasPre2003Ref  = /31[\.\-\/]12[\.\-\/]2002/.test(windowText);
+  const _singleNoLink   = tierRows.length === 1 && Number(tierRows[0].linkage) === 0;
+  const isPreReformExempt = _aiPreReform || (_allExemptTiers && _hasPre2003Ref && _singleNoLink);
 
   // Balance and year (AI on full scoped text — balance may be outside window)
   const BALANCE_PROMPT = `CRITICAL: Output ONLY valid JSON. No text, no markdown.
@@ -520,7 +534,7 @@ ${scopedText}`;
 
   // Stage 5 — terminal audit
   _auditLog(ctx, tierRows);
-  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(tierRows) };
+  return { ...agg, pdfTotalBalance, reportYear, marginalTaxRate: calculateMarginalTaxRate(tierRows), isPreReformExempt };
 }
 
 // Routes each PDF to the correct firm-specific parser.
@@ -604,6 +618,18 @@ function parseModelJson(raw) {
 
 app.post('/api/verification/tax', express.json({ limit: '2mb' }), async (req, res) => {
   const { assetType, genericData } = req.body || {};
+
+  if (genericData && genericData.isNewFund === true) {
+    console.log('[verification/tax] isNewFund=true — returning pending, no LLM calls');
+    const r = {
+      verdict:     'pending',
+      confidence:  100,
+      issues:      [],
+      explanation: 'קרן חדשה — אין חישוב מס אוטומטי עד להפקת הדו״ח השנתי הראשון. אין לדווח על שגיאה.'
+    };
+    return res.json({ anthropic: r, openai: r, google: r });
+  }
+
   if (!assetType)    return res.status(400).json({ error: 'Missing assetType' });
   if (!genericData)  return res.status(400).json({ error: 'Missing genericData' });
   if (!SUPPORTED_ASSET_TYPES.includes(assetType))
@@ -618,6 +644,7 @@ app.post('/api/verification/tax', express.json({ limit: '2mb' }), async (req, re
 
   const anthropicCall = client.messages.create({
     model: 'claude-sonnet-4-6', max_tokens: 500,
+    system: 'You are an Israeli tax verification expert. Respond ONLY with a valid JSON object — no text, no markdown, no explanation before or after the JSON.',
     messages: [{ role: 'user', content: prompt }],
   }).then(msg => parseModelJson(msg.content[0].text));
 
