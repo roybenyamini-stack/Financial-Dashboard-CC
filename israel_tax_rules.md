@@ -75,7 +75,12 @@ Funds whose **first deposit date was before January 1, 2002** (i.e., opened befo
 
 ### How `isPreReformExempt` is detected
 
-The server-side PDF parser sets `isPreReformExempt = true` when it determines the fund's opening date predates 2002. The client stores this flag in localStorage alongside the parsed PDF data. All downstream UI and tax calculation logic must treat this flag as taking **absolute precedence** over any other calculation path.
+The flag is set **exclusively by the server-side PDF parsers** based on the B.8 table content — it is never derived from the DB's `joinDate` field:
+
+- **`parseMeitav`**: sets `isPreReformExempt: true` when a row matching the `PRE2003_RE` pattern (`"יתרה בגין הפקדות"` suffix) is found. Ceiling-exempt rows matched by `NUM4_RE + 0%` do **not** trigger this flag.
+- **`parseAltshuler`**: the AI tier-extraction prompt instructs the model to set `isPreReformExempt: true` only when a row is explicitly labeled as pre-31.12.2002 deposits in the PDF text.
+
+The client stores this flag in `localStorage` alongside the parsed PDF data. All downstream UI and tax calculation logic must treat this flag as taking **absolute precedence** over any other calculation path.
 
 ---
 
@@ -118,19 +123,27 @@ For active funds where `currentBalance > pdfReportBalance`, the dashboard calcul
 
 #### Step 1 — Effective Tax Coefficient
 
-The key insight is that new growth is taxed at the fund's *blended effective rate*, not at a flat 25%. The coefficient is derived directly from PDF data:
+The key insight is that new growth is taxed at the fund's *blended effective rate*, not at a flat 25%.
+The coefficient is computed from two PDF-derived quantities:
 
 ```
-effectiveTaxCoeff = pdfTierTaxK / pdfTotalBalanceK
+marginalTaxRate   = pdfTierTaxK / totalTaxableProfitK
+                    (weighted average CGT rate on taxable-tier profits only)
+
+taxableRatio      = 1 − (exemptPrincipalK + exemptProfitK) / pdfTotalBalanceK
+                    (proportion of total balance held in taxable tiers)
+
+effectiveTaxCoeff = marginalTaxRate × taxableRatio
 ```
 
-**Why this is correct:** The `pdfTierTaxK` already encodes all exempt layers (pre-2002 grandfathering, within-ceiling deposits, 0%/15%/20% tier weights). Dividing by the total balance gives the tax burden per shekel of fund value — the same ratio that applies to any new growth proportionally distributed across the fund's existing structure.
+**Why this is correct:** New growth is distributed proportionally across all tiers. The taxable
+fraction (`taxableRatio`) determines how much of the growth lands in taxable tiers; `marginalTaxRate`
+is the weighted rate that applies to that taxable fraction. Using a flat `taxableRatio × 0.25`
+overstates tax because 0.25 ignores the historical 15%/20% bracket profits already in the fund.
 
-**Example:**
-| Fund | pdfTierTaxK | pdfTotalBalance | effectiveTaxCoeff | vs. flat 25% |
-|------|-------------|-----------------|-------------------|--------------|
-| 70% exempt fund | ₪35K | ₪500K | 7.0% | 25% → overstated 3.6× |
-| 50% exempt, mixed tiers | ₪60K | ₪400K | 15.0% | 25% → overstated 1.67× |
+**Fallback (no `marginalTaxRate` available from PDF):** `effectiveTaxCoeff = taxableRatio × 0.25`.
+This applies only when the PDF parser could not compute `marginalTaxRate` — i.e., never when an
+annual report has been successfully uploaded.
 
 #### Step 2 — Deposit Deduction
 
@@ -226,13 +239,15 @@ All monetary values in `genericData` are in **K (thousands of NIS)**. Do not sca
 
 ## Key Field: `effectiveTaxCoeff`
 
-`effectiveTaxCoeff` is the **blended effective tax rate** derived from the PDF tier data:
+`effectiveTaxCoeff` is the **blended effective tax rate** applied to new growth, computed as:
 
 ```
-effectiveTaxCoeff = pdfTierTaxK / pdfTotalBalanceK
+effectiveTaxCoeff = marginalTaxRate × taxableRatio
 ```
 
-This is the coefficient applied to both `ytdTaxDueK` and `simTaxDueK`. It is **not** the same as `taxableRatio × 0.25` (which overstates tax when the fund has significant 15%/20% tier profits). When auditing, verify:
+where `marginalTaxRate = pdfTierTaxK / totalTaxableProfitK` (weighted average CGT rate on taxable-tier profits only) and `taxableRatio = 1 − (exemptPrincipal + exemptProfit) / pdfTotalBalance`.
+
+This coefficient is applied to both `ytdTaxDueK` and `simTaxDueK`. It is **not** `taxableRatio × 0.25` (which ignores historical 15%/20% bracket profits) and it is **not** `pdfTierTaxK / pdfTotalBalanceK` (which dilutes the rate across all principal rather than just profit). The `effectiveTaxCoeff` value in `genericData` is pre-computed by the dashboard — do not attempt to re-derive it. Verify only that the arithmetic holds:
 
 ```
 ytdTaxDueK = ytdRealProfitK × effectiveTaxCoeff   (± 5% tolerance)
