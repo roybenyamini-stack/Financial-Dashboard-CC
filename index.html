@@ -52,7 +52,7 @@
   <!-- Title group — v149.0: clean title only, sim controls extracted to dedicated wrapper -->
   <div id="hdr-title-group" style="flex:0 0 auto;">
     <div class="header-title">
-      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v181.82</span></h1>
+      <h1><span id="hdr-tab-title">השקעות</span> <span style="font-size:9px;font-weight:700;color:#ef4444;margin-right:14px;font-family:monospace;white-space:nowrap;opacity:0.8;">v183.02</span></h1>
       <p id="hdr-subtitle" style="color:white; font-weight:700; font-size:13px;"></p>
     </div>
   </div>
@@ -548,7 +548,7 @@
       <div class="cat-pct pos" id="sec-pct-hishtalmut">+16.9%</div>
       <div class="cat-pct" id="sec-ytd-hishtalmut" style="font-size:10px;opacity:0.8;"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;"><button class="cm-zoom-btn" onclick="event.stopPropagation();openCatModal('hishtalmut')" title="פתח בחלון">⛶</button><div class="chevron" id="chev-hishtalmut">▼</div></div>
+    <div style="display:flex;align-items:center;gap:6px;"><button class="cm-zoom-btn" onclick="event.stopPropagation();openCatModal('hishtalmut')" title="פתח בחלון">⛶</button><button onclick="event.stopPropagation();_sfCategoryVerify()" title="אימות מס AI" style="font-size:11px;padding:2px 8px;border:1px solid #6366f1;border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;font-weight:600;white-space:nowrap;">✨ אימות מס</button><div class="chevron" id="chev-hishtalmut">▼</div></div>
   </div>
   <div class="category-body" id="body-hishtalmut">
     <table>
@@ -2656,7 +2656,7 @@
 
 <!-- v177.7: Smart Investment Dropzone — Modal (Universal: investments + pension) -->
 <div id="ffs-inv-backdrop" onclick="ffsCloseInvModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10200;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
-<div id="ffs-inv-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:480px;background:#fff;border-radius:18px;z-index:10201;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);">
+<div id="ffs-inv-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:480px;max-height:90vh;overflow-y:auto;background:#fff;border-radius:18px;z-index:10201;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);">
   <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
     <div id="ffs-inv-modal-title" style="font-size:16px;font-weight:900;color:#1e293b;">📈 הוספת נכס השקעה</div>
@@ -2676,7 +2676,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <!-- סכום -->
       <div>
-        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סכום (באלפי ש"ח) *</div>
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">צבירה (K ש״ח) *</div>
         <input id="ffs-inv-f-balance" type="number" min="0" placeholder="0" autocomplete="off" oninput="this.classList.remove('ffs-inv-field-required');this.style.backgroundColor='';this.style.border='';" onkeydown="if(event.key==='-'||event.key==='e')event.preventDefault();" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
         <div id="ffs-inv-h-balance" class="ffs-inv-hint" style="display:none;">נדרשת השלמה ידנית</div>
       </div>
@@ -2697,7 +2697,7 @@
       <!-- סוג נכס / קטגוריה — options set dynamically by JS -->
       <div>
         <div id="ffs-inv-label-category" style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">סוג נכס / קטגוריה</div>
-        <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); ffsClearFieldError('ffs-inv-f-category','ffs-inv-h-category'); var co=document.getElementById('ffs-inv-f-category-other'); if(co) co.style.display=(this.value==='אחר')?'block':'none';" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
+        <select id="ffs-inv-f-category" onchange="ffsCheckLiquidityWarning(); ffsClearFieldError('ffs-inv-f-category','ffs-inv-h-category'); var co=document.getElementById('ffs-inv-f-category-other'); if(co) co.style.display=(this.value==='אחר')?'block':'none'; _ffsPopulateT190Section(null);" style="width:100%;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;background:#fff;box-sizing:border-box;outline:none;">
           <option value="" disabled selected></option>
         </select>
         <input type="text" id="ffs-inv-f-category-other" placeholder="פרט..." autocomplete="off" style="display:none;width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;">
@@ -2765,11 +2765,50 @@
       <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">הערות</div>
       <textarea id="ffs-inv-f-notes" placeholder="הערות, היסטוריה, סוכן. כל הערה שהיא" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;box-sizing:border-box;outline:none;resize:vertical;direction:rtl;"></textarea>
     </div>
+    <!-- T190: Amendment 190 bucket section — shown only for קופת גמל -->
+    <div id="ffs-inv-t190-section" style="display:none;margin-bottom:14px;border-top:1px solid #f1f5f9;padding-top:14px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:10px;">פירוט תיקון 190</div>
+      <div id="ffs-inv-t190-tax-warn" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#dc2626;font-weight:700;">
+        ⚠️ צבירה בקצבה מזכה עם ייעוד הוני — משיכה הונית חייבת ב-35% מס
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#6b7280;margin-bottom:3px;">קצבה מזכה (K ₪)</div>
+          <input id="ffs-inv-t190-qualifying" type="number" min="0" step="0.1" placeholder="0" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;background:#f8fafc;color:#1e293b;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#6b7280;margin-bottom:3px;">כסף מוכר (K ₪)</div>
+          <input id="ffs-inv-t190-recognized" type="number" min="0" step="0.1" placeholder="0" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;background:#f8fafc;color:#1e293b;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#6b7280;margin-bottom:3px;">הוני פטור (K ₪)</div>
+          <input id="ffs-inv-t190-exempt" type="number" min="0" step="0.1" placeholder="0" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-family:Heebo,sans-serif;font-size:12px;text-align:center;box-sizing:border-box;outline:none;background:#f8fafc;color:#1e293b;">
+        </div>
+      </div>
+      <div id="ffs-inv-t190-sum-warn" style="display:none;font-size:10px;color:#dc2626;text-align:center;margin-top:-4px;margin-bottom:8px;">⚠️ סכום הדליים אינו שווה לעוגן 31/12</div>
+      <div id="ffs-inv-t190-principal-wrap" style="display:none;margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">קרן מוכרת מדוח שנתי (K ₪)</div>
+        <input id="ffs-inv-f-recognized-principal" type="number" min="0" step="0.1"
+               placeholder="מדוח מס שנתי..."
+               style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;">יש להזין את הקרן המוכרת מהדוח השנתי של רשות המסים</div>
+      </div>
+      <div id="ffs-inv-t190-override-badge" style="display:none;font-size:10px;color:#b45309;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;margin-bottom:8px;">
+        🔒 עודכן ידנית ב: <span id="ffs-inv-t190-override-date"></span>
+      </div>
+      <div style="margin-bottom:2px;">
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">יתרת הקופה בדוח השנתי (31/12) (K ₪)</div>
+        <input id="ffs-inv-f-dec31-anchor" type="number" min="0" step="0.1"
+               placeholder="הזן פעם בשנה מדוח שנתי..."
+               style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;">נדרש לחישוב YTD — אם ריק לא יוצג אחוז רווח שנתי</div>
+      </div>
+    </div>
     <!-- Buttons -->
     <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button onclick="ffsCloseInvModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
-      <button id="ffs-inv-skip-btn" onclick="ffsSkipWizardAsset()" style="display:none;padding:9px 18px;border:1.5px solid #fb923c;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#ea580c;background:#fff7ed;cursor:pointer;">דלג ←</button>
-      <button id="ffs-inv-save-btn" onclick="ffsSaveInvFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">💾 שמור</button>
+      <button id="ffs-inv-cancel-btn" type="button" onclick="ffsCloseInvModal()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
+      <button type="button" id="ffs-inv-skip-btn" onclick="ffsSkipWizardAsset()" style="display:none;padding:9px 18px;border:1.5px solid #fb923c;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#ea580c;background:#fff7ed;cursor:pointer;">דלג ←</button>
+      <button type="button" id="ffs-inv-save-btn" onclick="ffsSaveInvFromModal()" style="padding:9px 24px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:800;color:#fff;background:#2563eb;cursor:pointer;">💾 שמור</button>
     </div>
   </div>
 </div>
@@ -3015,11 +3054,28 @@
     </div>
   </div>
 
-  <!-- Notice board -->
-  <div id="sf-tax-inline-msg"
-       style="padding:4px 24px;font-size:12px;color:#6b7280;font-weight:600;
-              line-height:1.4;text-align:center;direction:rtl;
-              width:100%;box-sizing:border-box;visibility:hidden;margin-bottom:8px;"></div>
+  <!-- Notice board + nominal/real toggle (v182.07) -->
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              padding:4px 24px;margin-bottom:8px;box-sizing:border-box;direction:rtl;">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;">
+      <div id="sf-tax-inline-msg"
+           style="font-size:12px;color:#6b7280;font-weight:600;line-height:1.4;
+                  direction:rtl;visibility:hidden;"></div>
+    </div>
+    <div style="display:flex;flex-direction:row;align-items:center;gap:5px;flex:0 0 auto;">
+      <button onclick="_sfResetSimulation()"
+              style="background:none;border:1px solid #d1d5db;border-radius:20px;padding:2px 10px;
+                     font-size:9px;font-weight:700;color:#6b7280;cursor:pointer;
+                     font-family:Heebo,sans-serif;margin-left:8px;">↺ איפוס</button>
+      <button id="sf-viewmode-nominal" class="sim-viewmode-btn sim-viewmode-nominal-active"
+              onclick="_sfSetViewMode('nominal')">נומינלי</button>
+      <button id="sf-viewmode-real"    class="sim-viewmode-btn"
+              onclick="_sfSetViewMode('real')">ריאלי</button>
+    </div>
+  </div>
+
+  <!-- Deposit status bar — v183.02 -->
+  <div id="sf-deposit-status-msg" style="display:none;padding:3px 24px 6px;font-size:11px;font-weight:600;direction:rtl;line-height:1.6;"></div>
 
   <!-- Calibration form bar — v181.79: 2-column flex layout -->
   <div style="padding:10px 24px;border-bottom:1px solid #e5e7eb;">
@@ -3027,7 +3083,7 @@
       <div style="display:flex;direction:rtl;align-items:stretch;">
 
         <!-- RIGHT column (first in RTL): manual inputs + source note + buttons -->
-        <div style="flex:6;display:flex;flex-direction:column;gap:5px;justify-content:center;">
+        <div id="sf-manual-input-col" style="flex:6;display:flex;flex-direction:column;gap:5px;justify-content:center;">
           <div>
             <span id="sf-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;">לחישוב מס מדויק הזן סך הפקדות:</span>
           </div>
@@ -3091,6 +3147,14 @@
 
       </div>
     </div>
+    <!-- Manual override toggle — shown only when PDF is verified (v182.07) -->
+    <div id="sf-manual-toggle-row" style="display:none;direction:rtl;padding-top:6px;">
+      <button onclick="_sfToggleManualCalib()"
+              style="background:none;border:none;font-size:11px;color:#9ca3af;cursor:pointer;
+                     font-family:Heebo,sans-serif;padding:0;text-decoration:underline;">
+        🔧 חישוב מס ידני (למתקדמים)
+      </button>
+    </div>
   </div>
 
   <!-- Main data area: RTL 2-column — pie always visible -->
@@ -3130,13 +3194,36 @@
                     align-items:center;padding:4px 0;user-select:none;
                     border-top:1px solid #f1f5f9;direction:rtl;">
           <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
-          <span id="sf-details-chevron" style="font-size:10px;color:#94a3b8;">&#9650;</span>
+          <span id="sf-details-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
+          <button id="sf-ai-verify-btn" onclick="event.stopPropagation();_sfTriggerAIVerification()"
+                  style="font-size:10px;padding:2px 7px;border:1px solid #6366f1;
+                         border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;
+                         font-weight:600;white-space:nowrap;line-height:1.4;">✨ אימות AI</button>
         </div>
-        <div id="sf-tax-segments" style="display:block;margin-top:6px;
+        <div id="sf-tax-segments" style="display:none;margin-top:6px;
              font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;padding-left:24px;padding-right:24px;">
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Manual deposits override modal — v183.02 -->
+  <div id="sf-deposits-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+       background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:24px 28px;min-width:300px;
+       z-index:11000;box-shadow:0 8px 32px rgba(0,0,0,0.18);direction:rtl;">
+    <div style="font-weight:700;font-size:14px;color:#111827;margin-bottom:8px;">הזנת הפקדות שכר 2026</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">סך הפקדות (עובד + מעסיק) מינואר 2026 עד היום (בשקלים)</div>
+    <input id="sf-deposits-input" type="number" min="0" step="100" placeholder="0"
+           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;
+                  direction:rtl;box-sizing:border-box;margin-bottom:16px;font-family:Heebo,sans-serif;" />
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="_sfCloseDepositsModal()"
+              style="padding:6px 16px;border:1px solid #d1d5db;border-radius:6px;background:none;
+                     cursor:pointer;font-family:Heebo,sans-serif;font-size:13px;color:#6b7280;">ביטול</button>
+      <button onclick="_sfSaveManualDeposits()"
+              style="padding:6px 16px;border:none;border-radius:6px;background:#2563eb;color:#fff;
+                     cursor:pointer;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;">שמור</button>
     </div>
   </div>
 
@@ -3222,6 +3309,309 @@
         <input id="sf-withdrawal-fixed-input" type="number" min="0" step="1" value="0" oninput="_sfOnInput('withdrawal-fixed')"
                style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
       </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- T190 Simulation Modal — full clone of sf-analysis-modal with T190 additions -->
+<div id="t190-sim-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10208;backdrop-filter:blur(3px);" onclick="ffsCloseT190SimulationModal()"></div>
+<div id="t190-sim-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10209;width:min(860px,96vw);max-height:92vh;overflow-y:auto;background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.28);direction:rtl;font-family:Heebo,sans-serif;">
+
+
+  <!-- Header bar -->
+  <div style="background:#1a1a2e;color:white;padding:14px 22px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;direction:rtl;">
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">צבירה (K &#x20AA;)</div>
+      <div id="t190-sim-total-balance" style="font-size:16px;font-weight:800;color:#ffffff;"></div>
+    </div>
+    <div style="flex:1;text-align:center;">
+      <div id="t190-sim-fund-name" style="font-size:16px;font-weight:800;"></div>
+      <div id="t190-sim-fund-id" style="font-size:11px;color:#94a3b8;margin-top:2px;"></div>
+    </div>
+    <button onclick="ffsCloseT190SimulationModal()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0;">&#x2715;</button>
+  </div>
+
+  <!-- Agent JSON import panel — hidden by default -->
+  <div id="t190-sim-agent-json-panel" style="display:none;background:#f8fafc;border-bottom:1px solid #e2e8f0;
+       padding:10px 24px;direction:rtl;">
+    <div style="font-size:11px;color:#475569;margin-bottom:6px;font-weight:600;">הדבק JSON מסוכן Codex:</div>
+    <textarea id="t190-sim-agent-json-input" rows="4"
+      style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;
+             font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box;"
+      placeholder='[{"fundNumber":"39905556","originalJoinDate":"20151222","totalBalance":582379,"accumExempt_tikrat1":280000}]'></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button onclick="_t190SimImportJSON()"
+        style="background:#2563eb;border:none;border-radius:6px;padding:5px 14px;
+               font-size:12px;color:#fff;cursor:pointer;font-family:Heebo,sans-serif;font-weight:600;">
+        יבא נתונים</button>
+      <span id="t190-sim-agent-json-status" style="font-size:11px;color:#6b7280;"></span>
+    </div>
+  </div>
+
+  <!-- Notice board + nominal/real toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              padding:4px 24px;margin-bottom:8px;box-sizing:border-box;direction:rtl;">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;">
+      <div id="t190-sim-tax-inline-msg"
+           style="font-size:12px;color:#6b7280;font-weight:600;line-height:1.4;
+                  direction:rtl;visibility:hidden;"></div>
+    </div>
+    <div style="display:flex;flex-direction:row;align-items:center;gap:5px;flex:0 0 auto;">
+      <button onclick="_t190SimReset()"
+              style="background:none;border:1px solid #d1d5db;border-radius:20px;padding:2px 10px;
+                     font-size:9px;font-weight:700;color:#6b7280;cursor:pointer;
+                     font-family:Heebo,sans-serif;margin-left:8px;">↺ איפוס</button>
+      <button id="t190-sim-viewmode-nominal" class="sim-viewmode-btn sim-viewmode-nominal-active"
+              onclick="_t190SimSetViewMode('nominal')">נומינלי</button>
+      <button id="t190-sim-viewmode-real"    class="sim-viewmode-btn"
+              onclick="_t190SimSetViewMode('real')">ריאלי</button>
+    </div>
+  </div>
+
+  <!-- Deposit status bar -->
+  <div id="t190-sim-deposit-status-msg" style="display:none;padding:3px 24px 6px;font-size:11px;font-weight:600;direction:rtl;line-height:1.6;"></div>
+  <div id="t190-sim-accuracy-bar" style="color:#16a34a;background:#f0fdf4;padding:8px 24px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0;direction:rtl;">רמת דיוק: ממתין לנתונים | תאריך תחילת קופה: 01/01/2000</div>
+
+  <!-- Calibration form bar -->
+  <div>
+    <div id="t190-sim-calibration-form" style="display:none;direction:rtl;padding:10px 24px 0;">
+      <div style="display:flex;direction:rtl;align-items:stretch;">
+
+        <!-- RIGHT column: manual inputs + source note + buttons -->
+        <div id="t190-sim-manual-input-col" style="flex:6;display:flex;flex-direction:column;gap:5px;justify-content:center;">
+          <div>
+            <span id="t190-sim-manual-input-label" style="font-size:11px;color:#6b7280;white-space:nowrap;">לחישוב מס מדויק הזן סך הפקדות:</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+            <input id="t190-sim-manual-principal" type="number" min="0" step="1"
+                   style="max-width:90px;border:1px solid #d1d5db;border-radius:6px;
+                          padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;text-align:right;"
+                   placeholder="0" oninput="_t190SimOnManualInput()">
+            <span style="font-size:11px;color:#6b7280;flex-shrink:0;">K &#x20AA;</span>
+            <input id="t190-sim-manual-joindate" type="date"
+                   style="max-width:130px;border:1px solid #d1d5db;border-radius:6px;
+                          padding:4px 8px;font-size:12px;font-family:Heebo,sans-serif;">
+            <button onclick="_t190SimSaveCalibration()"
+                    style="background:#2563eb;border:none;border-radius:6px;padding:4px 12px;
+                           font-size:12px;color:#fff;cursor:pointer;font-family:Heebo,sans-serif;
+                           font-weight:600;white-space:nowrap;">שמור וחשב</button>
+            <button id="t190-sim-calibration-clear-btn" onclick="_t190SimClearCalibration()"
+                    style="display:none;background:#fff;border:1px solid #d1d5db;border-radius:6px;
+                           padding:4px 10px;font-size:11px;color:#6b7280;cursor:pointer;
+                           font-family:Heebo,sans-serif;white-space:nowrap;">מחק</button>
+          </div>
+          <div id="t190-sim-xml-dropzone" style="display:flex;align-items:center;gap:6px;">
+            <span id="t190-sim-source-label" style="font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0;">מקור נתונים (אופציונלי):</span>
+            <input id="t190-sim-source-note" type="text"
+                   oninput="_t190SimSaveSourceNote()"
+                   style="flex:1;min-width:0;border:none;border-bottom:1px solid #e5e7eb;background:none;
+                          font-size:11px;color:#374151;outline:none;direction:rtl;
+                          font-family:Heebo,sans-serif;padding-bottom:2px;">
+          </div>
+          <div id="t190-sim-calibration-hint"
+               style="display:none;font-size:10px;color:#6b7280;direction:rtl;text-align:right;
+                      font-family:Heebo,sans-serif;line-height:1.5;"></div>
+          <div id="t190-sim-calibration-receipt"
+               style="display:none;font-size:11px;direction:rtl;text-align:right;
+                      font-family:Heebo,sans-serif;color:#374151;"></div>
+        </div>
+
+        <!-- Vertical divider with OR badge -->
+        <div id="t190-sim-or-divider" style="display:none;flex-direction:column;align-items:center;padding:0 12px;flex-shrink:0;">
+          <div style="flex:1;width:1px;background:#e5e7eb;min-height:10px;"></div>
+          <span style="font-size:10px;font-weight:700;color:#9ca3af;padding:4px 2px;font-family:Heebo,sans-serif;">או</span>
+          <div style="flex:1;width:1px;background:#e5e7eb;min-height:10px;"></div>
+        </div>
+
+        <!-- LEFT column: PDF dropzone -->
+        <div id="t190-sim-pdf-section" style="display:none;flex:4;flex-direction:column;justify-content:center;">
+          <div id="t190-sim-pdf-dropzone" class="salkah-dropzone"
+               style="padding:10px 14px;border-radius:12px;"
+               onclick="document.getElementById('t190-sim-pdf-input').click()"
+               ondragover="_t190SimPdfDragOver(event)"
+               ondragleave="_t190SimPdfDragLeave(event)"
+               ondrop="_t190SimPdfDrop(event)">
+            <div style="font-size:20px;margin-bottom:3px;">📄</div>
+            <div style="font-size:11px;font-weight:700;color:#374151;">העלה דו״ח שנתי (PDF)</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:1px;">גרור לכאן או לחץ לבחירת קובץ</div>
+          </div>
+          <input type="file" id="t190-sim-pdf-input" accept=".pdf" style="display:none;"
+                 onchange="_t190SimPdfFileChange(event)">
+          <div id="t190-sim-pdf-status" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;font-size:12px;direction:rtl;"></div>
+        </div>
+
+      </div>
+    </div>
+    <!-- Manual override toggle -->
+    <div id="t190-sim-manual-toggle-row" style="display:none;direction:rtl;padding:6px 24px 10px;border-bottom:1px solid #e5e7eb;">
+      <button onclick="_t190SimToggleManualCalib()"
+              style="background:none;border:none;font-size:11px;color:#9ca3af;cursor:pointer;
+                     font-family:Heebo,sans-serif;padding:0;text-decoration:underline;">
+        🔧 חישוב מס ידני (למתקדמים)
+      </button>
+    </div>
+  </div>
+
+
+  <!-- Manual deposits override modal -->
+  <div id="t190-sim-deposits-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+       background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:24px 28px;min-width:300px;
+       z-index:11000;box-shadow:0 8px 32px rgba(0,0,0,0.18);direction:rtl;">
+    <div style="font-weight:700;font-size:14px;color:#111827;margin-bottom:8px;">הזנת הפקדות שכר 2026</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">סך הפקדות (עובד + מעסיק) מינואר 2026 עד היום (בשקלים)</div>
+    <input id="t190-sim-deposits-input" type="number" min="0" step="100" placeholder="0"
+           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;
+                  direction:rtl;box-sizing:border-box;margin-bottom:16px;font-family:Heebo,sans-serif;" />
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="_t190SimCloseDepositsModal()"
+              style="padding:6px 16px;border:1px solid #d1d5db;border-radius:6px;background:none;
+                     cursor:pointer;font-family:Heebo,sans-serif;font-size:13px;color:#6b7280;">ביטול</button>
+      <button onclick="_t190SimSaveManualDeposits()"
+              style="padding:6px 16px;border:none;border-radius:6px;background:#2563eb;color:#fff;
+                     cursor:pointer;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;">שמור</button>
+    </div>
+  </div>
+
+  <!-- Bucket flow — persistent 3-bucket breakdown -->
+  <div id="t190-sim-bucket-flow" style="padding:8px 24px;border-bottom:1px solid #e5e7eb;"></div>
+
+  <!-- Results Section: Action radios + KPIs + Pie + Accordion -->
+  <div style="padding:14px 24px 10px;border-top:1px solid #e5e7eb;direction:rtl;">
+
+    <!-- Action radio toggles -->
+    <div style="display:flex;gap:20px;align-items:center;padding-bottom:10px;border-bottom:1px solid #f1f5f9;direction:rtl;margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#16a34a;">
+        <input type="radio" id="t190-action-annuity" name="t190-action" value="annuity" checked style="accent-color:#16a34a;">
+        ייעוד לקצבה (פטור)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;">
+        <input type="radio" id="t190-action-capital" name="t190-action" value="capital" style="accent-color:#dc2626;">
+        משיכה כהון (35% קנס)
+      </label>
+      <label id="t190-sim-exempt-toggle-wrapper" style="display:none;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#4b5563;margin-right:15px;"><input type="checkbox" id="t190-sim-annuitize-exempt" onchange="_t190SimCalculate()"> הוסף הון פטור לקצבה</label>
+      <button id="t190-sim-ai-verify-btn" onclick="_t190SimTriggerAIVerification()"
+              style="font-size:10px;padding:2px 7px;border:1px solid #6366f1;
+                     border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;
+                     font-weight:600;white-space:nowrap;line-height:1.4;">✨ אימות AI</button>
+    </div>
+
+    <!-- Pie + [KPIs + Accordion] side by side -->
+    <div style="display:flex;direction:rtl;align-items:flex-start;gap:24px;">
+      <!-- RIGHT: Pie chart -->
+      <div id="t190-sim-tax-pie" style="flex-shrink:0;">
+        <canvas id="t190-sim-pie-chart" width="160" height="160" style="display:block;border-radius:50%;background:#e5e7eb;"></canvas>
+      </div>
+      <!-- LEFT: KPI grid + Tax accordion in a column -->
+      <div style="display:flex;flex-direction:column;flex:1;gap:12px;direction:rtl;">
+        <div id="t190-sim-kpi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;min-height:44px;"></div>
+        <!-- Tax breakdown accordion -->
+        <div>
+          <div onclick="_t190SimToggleDetails()"
+               style="cursor:pointer;display:flex;justify-content:flex-start;gap:8px;
+                      align-items:center;padding:4px 0;user-select:none;
+                      border-top:1px solid #f1f5f9;direction:rtl;">
+            <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
+            <span id="t190-sim-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
+          </div>
+          <div id="t190-sim-tax-segments" style="display:none;margin-top:6px;
+               font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- Sliders — simulation controls -->
+  <div style="padding:14px 24px 10px;border-top:1px solid #e5e7eb;">
+    <!-- Timeline slider -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:nowrap;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">טווח זמן</span>
+      <span id="t190-sim-timeline-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:100px;flex-shrink:0;white-space:nowrap;display:inline-block;transform:translateY(-6px);">0 שנים</span>
+      <div style="flex:1;position:relative;">
+        <input id="t190-sim-timeline-slider" type="range" min="0" max="120" step="1" value="0"
+               class="pns-slider" dir="rtl" style="width:100%;" oninput="_t190SimOnSlider('timeline')">
+        <div id="t190-sim-retirement-marker" style="display:none;position:absolute;top:-18px;left:0;
+             transform:translateX(-50%);pointer-events:none;">
+          <div id="t190-sim-snap-btn" onclick="_t190SimSnapToRetirement()"
+               style="background:#ffffff;color:#4f46e5;border:1px solid #4f46e5;font-size:8px;font-weight:800;
+               padding:1px 5px;border-radius:3px;white-space:nowrap;text-align:center;
+               margin-bottom:2px;box-shadow:0 1px 3px rgba(79,70,229,0.15);cursor:pointer;pointer-events:auto;">לגיל פרישה</div>
+          <div style="width:2px;height:14px;background:#ef4444;border-radius:1px;margin:0 auto;"></div>
+        </div>
+        <div id="t190-sim-timeline-ticks-row" style="position:relative;height:18px;margin-top:2px;"></div>
+      </div>
+      <input id="t190-sim-timeline-input" type="number" min="5" max="50" step="1" value="10"
+             title="סקאלה מקסימלית" oninput="_t190SimOnInput('timeline')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      <span style="font-size:11px;color:#94a3b8;flex-shrink:0;">שנים</span>
+    </div>
+
+    <!-- Investment Yield -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואה עד גיל פרישה (%)</span>
+      <span id="t190-sim-inv-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;">4%</span>
+      <input id="t190-sim-inv-return-slider" type="range" min="0" max="15" step="0.5" value="4" class="pns-slider" style="flex:1;" oninput="_t190SimOnSlider('inv-return')">
+      <input id="t190-sim-inv-return-input" type="number" min="0" max="15" step="0.5" value="4" oninput="_t190SimOnInput('inv-return')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Pension Yield -->
+    <div id="t190-sim-pen-return-row" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואה מגיל פרישה (%)</span>
+      <span id="t190-sim-pen-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;">3%</span>
+      <input id="t190-sim-pen-return-slider" type="range" min="0" max="15" step="0.5" value="3" class="pns-slider" style="flex:1;" oninput="_t190SimOnSlider('pen-return')">
+      <input id="t190-sim-pen-return-input" type="number" min="0" max="15" step="0.5" value="3" oninput="_t190SimOnInput('pen-return')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Inflation -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">אינפלציה (%)</span>
+      <span id="t190-sim-inflation-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;">2.5%</span>
+      <input id="t190-sim-inflation-slider" type="range" min="0" max="15" step="0.5" value="2.5" class="pns-slider" style="flex:1;" oninput="_t190SimOnSlider('inflation')">
+      <input id="t190-sim-inflation-input" type="number" min="0" max="15" step="0.5" value="2.5" oninput="_t190SimOnInput('inflation')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+    </div>
+
+    <!-- Withdrawal — dual mode toggle -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
+        משיכה
+        <span style="display:inline-flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+          <button id="t190-sim-wd-pct-btn" onclick="_t190SimSetWdMode('pct')"
+                  style="padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#2563eb;color:white;font-weight:700;">%</button>
+          <button id="t190-sim-wd-fixed-btn" onclick="_t190SimSetWdMode('fixed')"
+                  style="padding:1px 7px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;border:none;background:#f1f5f9;color:#64748b;font-weight:600;">K &#x20AA;</button>
+        </span>
+      </span>
+      <span id="t190-sim-withdrawal-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;">100%</span>
+      <div id="t190-sim-wd-pct-row" style="flex:1;display:flex;align-items:center;gap:8px;">
+        <div style="position:relative;flex:1;">
+          <div id="t190-sim-wd-thumb-tip" style="display:none;position:absolute;top:-24px;background:#2563eb;color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;transform:translateX(-50%);z-index:10;"></div>
+          <input id="t190-sim-withdrawal-slider" type="range" min="0" max="100" step="1" value="100" class="pns-slider" dir="rtl" style="width:100%;" oninput="_t190SimOnSlider('withdrawal')">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:1px;user-select:none;"><span>0%</span><span id="t190-sim-wd-pct-max-label">100%</span></div>
+        </div>
+        <input id="t190-sim-withdrawal-input" type="number" min="0" max="100" step="1" value="100" oninput="_t190SimOnInput('withdrawal')"
+               style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      </div>
+      <div id="t190-sim-wd-fixed-row" style="flex:1;display:none;align-items:center;gap:8px;">
+        <div style="position:relative;flex:1;">
+          <div id="t190-sim-wd-fix-thumb-tip" style="display:none;position:absolute;top:-24px;background:#2563eb;color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;transform:translateX(-50%);z-index:10;"></div>
+          <input id="t190-sim-withdrawal-fixed-slider" type="range" min="0" max="1000" step="1" value="0" class="pns-slider" dir="rtl" style="width:100%;" oninput="_t190SimOnSlider('withdrawal-fixed')">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:1px;user-select:none;"><span>0</span><span id="t190-sim-wd-fix-max-label">— K ₪</span></div>
+        </div>
+        <input id="t190-sim-withdrawal-fixed-input" type="number" min="0" step="1" value="0" oninput="_t190SimOnInput('withdrawal-fixed')"
+               style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
+      </div>
+    </div>
+
+    <!-- T190-specific: Conversion coefficient slider -->
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;margin-bottom:4px;">
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">מקדם המרה משוער</span>
+      <input id="t190-sim-coeff-slider" type="range" min="100" max="300" step="1" value="200" class="pns-slider" style="flex:1;" oninput="_t190SimOnSlider('coeff')">
+      <input id="t190-sim-coeff-input" type="number" min="100" max="300" step="1" value="200" oninput="_t190SimOnInput('coeff')"
+             style="width:56px;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px;font-weight:700;color:#1e293b;font-family:Heebo,sans-serif;text-align:center;background:#f8fafc;">
     </div>
 
   </div>
