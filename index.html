@@ -3374,8 +3374,8 @@
   <div id="t190-sim-accuracy-bar" style="color:#16a34a;background:#f0fdf4;padding:8px 24px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0;direction:rtl;">רמת דיוק: ממתין לנתונים | תאריך תחילת קופה: 01/01/2000</div>
 
   <!-- Calibration form bar -->
-  <div style="padding:10px 24px;border-bottom:1px solid #e5e7eb;">
-    <div id="t190-sim-calibration-form" style="display:none;direction:rtl;">
+  <div>
+    <div id="t190-sim-calibration-form" style="display:none;direction:rtl;padding:10px 24px 0;">
       <div style="display:flex;direction:rtl;align-items:stretch;">
 
         <!-- RIGHT column: manual inputs + source note + buttons -->
@@ -3444,7 +3444,7 @@
       </div>
     </div>
     <!-- Manual override toggle -->
-    <div id="t190-sim-manual-toggle-row" style="display:none;direction:rtl;padding-top:6px;">
+    <div id="t190-sim-manual-toggle-row" style="display:none;direction:rtl;padding:6px 24px 10px;border-bottom:1px solid #e5e7eb;">
       <button onclick="_t190SimToggleManualCalib()"
               style="background:none;border:none;font-size:11px;color:#9ca3af;cursor:pointer;
                      font-family:Heebo,sans-serif;padding:0;text-decoration:underline;">
@@ -3453,73 +3453,6 @@
     </div>
   </div>
 
-  <!-- Main data area: RTL 2-column — pie always visible -->
-  <div style="display:flex;direction:rtl;align-items:flex-start;justify-content:space-between;gap:24px;padding:14px 24px;border-bottom:1px solid #e5e7eb;">
-
-    <!-- RIGHT column (first child in RTL): Pie chart -->
-    <div id="t190-sim-tax-pie" style="flex-shrink:0;">
-      <canvas id="t190-sim-pie-chart" width="160" height="160" style="display:block;border-radius:50%;background:#e5e7eb;"></canvas>
-    </div>
-
-    <!-- LEFT column: Summary + action toggles + segments -->
-    <div style="display:flex;flex-direction:column;flex:1;max-width:55%;gap:12px;direction:rtl;padding-right:24px;padding-left:24px;">
-
-      <!-- 4 summary boxes — CSS Grid (4 columns: gross / tax / net / monthly pension) -->
-      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:16px;">
-        <div style="display:flex;flex-direction:column;">
-          <div id="t190-sim-gross-label" style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">סה״כ למשיכה (K &#x20AA;)</div>
-          <div id="t190-sim-gross-withdrawal" style="font-size:17px;font-weight:800;color:#2563eb;">–</div>
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">חבות מס (K &#x20AA;)</div>
-          <div id="t190-sim-tax-due" style="font-size:17px;font-weight:800;color:#dc2626;">–</div>
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">נטו לכיס (K &#x20AA;)</div>
-          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:nowrap;">
-            <div id="t190-sim-net-bank" style="font-size:17px;font-weight:800;color:#16a34a;">–</div>
-            <div id="t190-sim-remaining-balance" style="font-size:10px;color:#94a3b8;font-weight:500;white-space:nowrap;"></div>
-          </div>
-        </div>
-        <!-- T190-specific: Monthly pension estimate -->
-        <div style="display:flex;flex-direction:column;">
-          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">קצבה חודשית משוערת (₪)</div>
-          <div id="t190-sim-monthly-pension" style="font-size:17px;font-weight:800;color:#7c3aed;">–</div>
-        </div>
-      </div>
-
-      <!-- T190-specific: Action radio toggles (above accordion) -->
-      <div style="display:flex;gap:20px;align-items:center;padding:6px 0;border-top:1px solid #f1f5f9;direction:rtl;margin-top:8px;">
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#16a34a;">
-          <input type="radio" id="t190-action-annuity" name="t190-action" value="annuity" checked style="accent-color:#16a34a;">
-          ייעוד לקצבה (פטור)
-        </label>
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;">
-          <input type="radio" id="t190-action-capital" name="t190-action" value="capital" style="accent-color:#dc2626;">
-          משיכה כהון (35% קנס)
-        </label>
-      </div>
-
-      <!-- Toggle + collapsible detail segments -->
-      <div>
-        <div onclick="_t190SimToggleDetails()"
-             style="cursor:pointer;display:flex;justify-content:flex-start;gap:8px;
-                    align-items:center;padding:4px 0;user-select:none;
-                    border-top:1px solid #f1f5f9;direction:rtl;">
-          <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
-          <span id="t190-sim-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
-          <button id="t190-sim-ai-verify-btn" onclick="event.stopPropagation();_t190SimTriggerAIVerification()"
-                  style="font-size:10px;padding:2px 7px;border:1px solid #6366f1;
-                         border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;
-                         font-weight:600;white-space:nowrap;line-height:1.4;">✨ אימות AI</button>
-        </div>
-        <div id="t190-sim-tax-segments" style="display:none;margin-top:6px;
-             font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;padding-left:24px;padding-right:24px;">
-        </div>
-      </div>
-
-    </div>
-  </div>
 
   <!-- Manual deposits override modal -->
   <div id="t190-sim-deposits-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -3540,8 +3473,57 @@
     </div>
   </div>
 
+  <!-- Bucket flow — persistent 3-bucket breakdown -->
+  <div id="t190-sim-bucket-flow" style="padding:8px 24px;border-bottom:1px solid #e5e7eb;"></div>
+
+  <!-- Results Section: Action radios + KPIs + Pie + Accordion -->
+  <div style="padding:14px 24px 10px;border-top:1px solid #e5e7eb;direction:rtl;">
+
+    <!-- Action radio toggles -->
+    <div style="display:flex;gap:20px;align-items:center;padding-bottom:10px;border-bottom:1px solid #f1f5f9;direction:rtl;margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#16a34a;">
+        <input type="radio" id="t190-action-annuity" name="t190-action" value="annuity" checked style="accent-color:#16a34a;">
+        ייעוד לקצבה (פטור)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;">
+        <input type="radio" id="t190-action-capital" name="t190-action" value="capital" style="accent-color:#dc2626;">
+        משיכה כהון (35% קנס)
+      </label>
+      <label id="t190-sim-exempt-toggle-wrapper" style="display:none;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#4b5563;margin-right:15px;"><input type="checkbox" id="t190-sim-annuitize-exempt" onchange="_t190SimCalculate()"> הוסף הון פטור לקצבה</label>
+      <button id="t190-sim-ai-verify-btn" onclick="_t190SimTriggerAIVerification()"
+              style="font-size:10px;padding:2px 7px;border:1px solid #6366f1;
+                     border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;
+                     font-weight:600;white-space:nowrap;line-height:1.4;">✨ אימות AI</button>
+    </div>
+
+    <!-- Pie + [KPIs + Accordion] side by side -->
+    <div style="display:flex;direction:rtl;align-items:flex-start;gap:24px;">
+      <!-- RIGHT: Pie chart -->
+      <div id="t190-sim-tax-pie" style="flex-shrink:0;">
+        <canvas id="t190-sim-pie-chart" width="160" height="160" style="display:block;border-radius:50%;background:#e5e7eb;"></canvas>
+      </div>
+      <!-- LEFT: KPI grid + Tax accordion in a column -->
+      <div style="display:flex;flex-direction:column;flex:1;gap:12px;direction:rtl;">
+        <div id="t190-sim-kpi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;min-height:44px;"></div>
+        <!-- Tax breakdown accordion -->
+        <div>
+          <div onclick="_t190SimToggleDetails()"
+               style="cursor:pointer;display:flex;justify-content:flex-start;gap:8px;
+                      align-items:center;padding:4px 0;user-select:none;
+                      border-top:1px solid #f1f5f9;direction:rtl;">
+            <span style="font-size:12px;font-weight:600;color:#374151;">פירוט חישוב מס</span>
+            <span id="t190-sim-chevron" style="font-size:10px;color:#94a3b8;">&#9660;</span>
+          </div>
+          <div id="t190-sim-tax-segments" style="display:none;margin-top:6px;
+               font-size:11px;direction:rtl;color:#374151;font-family:Heebo,sans-serif;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
   <!-- Sliders — simulation controls -->
-  <div style="padding:14px 24px 10px;border-bottom:1px solid #e5e7eb;">
+  <div style="padding:14px 24px 10px;border-top:1px solid #e5e7eb;">
     <!-- Timeline slider -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:nowrap;">
       <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">טווח זמן</span>
@@ -3575,7 +3557,7 @@
     </div>
 
     <!-- Pension Yield -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <div id="t190-sim-pen-return-row" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
       <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;">תשואה מגיל פרישה (%)</span>
       <span id="t190-sim-pen-return-val" style="font-size:12px;font-weight:800;color:#2563eb;min-width:44px;flex-shrink:0;">3%</span>
       <input id="t190-sim-pen-return-slider" type="range" min="0" max="15" step="0.5" value="3" class="pns-slider" style="flex:1;" oninput="_t190SimOnSlider('pen-return')">
