@@ -18322,12 +18322,55 @@ function _t190SimUpdateKPIs(action, recProjK, qualProjK, exProjK, recTaxK, coeff
   if (penRow) penRow.style.display = (action === 'capital-withdrawal') ? 'flex' : 'none';
 }
 
+function _parseT190BucketsFromXML(rawXml) {
+  if (!rawXml) return null;
+  try {
+    var doc   = new DOMParser().parseFromString(rawXml, 'text/xml');
+    var nodes = _salkahXmlEls(doc, 'PerutYitraLeTkufa');
+    if (!nodes || !nodes.length) return null;
+
+    var exK = 0, qualK = 0, recK = 0, recPrinK = 0;
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node        = nodes[i];
+      var layerCode   = parseInt((_salkahXmlEl(node, 'KOD-TECHULAT-SHICHVA')          || {textContent: ''}).textContent,  10);
+      var balanceType = parseInt((_salkahXmlEl(node, 'SUG-ITRA-LETKUFA')               || {textContent: ''}).textContent,  10);
+      var amount      = parseFloat((_salkahXmlEl(node, 'SACH-ITRA-LESHICHVA-BESHACH') || {textContent: '0'}).textContent) || 0;
+
+      if (layerCode >= 1 && layerCode <= 4)  exK   += amount;
+      if (layerCode >= 5 && layerCode <= 8)  qualK += amount;
+      if (layerCode >= 9 && layerCode <= 10) {
+        recK += amount;
+        if (balanceType === 1) recPrinK += amount;
+      }
+    }
+
+    if (exK === 0 && qualK === 0 && recK === 0) return null;
+
+    return {
+      qualifying_annuity: { balance_k: qualK / 1000 },
+      recognized_annuity: { balance_k: recK  / 1000, principal_manual_k: recPrinK > 0 ? recPrinK / 1000 : null },
+      capital_exempt:     { balance_k: exK   / 1000 }
+    };
+  } catch(e) { return null; }
+}
+
 function _t190SimGetBuckets(item) {
   var balK = parseFloat(item.balance) || 0;
-  var b    = item.t190Buckets;
+
+  // Tier 1: Auto-parse from rawXml when no manual override
+  if (item.manual_override !== true && item.rawXml) {
+    var parsed = _parseT190BucketsFromXML(item.rawXml);
+    if (parsed) return { buckets: parsed, isMock: false };
+  }
+
+  // Tier 2: Existing t190Buckets (from Salkah import or manual edit)
+  var b = item.t190Buckets;
   if (b && (b.recognized_annuity.balance_k > 0 || b.qualifying_annuity.balance_k > 0 || b.capital_exempt.balance_k > 0)) {
     return { buckets: b, isMock: false };
   }
+
+  // Tier 3: Proportional mock
   var recK  = Math.round(balK * 0.539 * 10) / 10;
   var qualK = Math.round(balK * 0.282 * 10) / 10;
   var exK   = Math.max(0, Math.round((balK - recK - qualK) * 10) / 10);
