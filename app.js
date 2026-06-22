@@ -17765,6 +17765,7 @@ function ffsCloseStudyFundModal() {
 var _t190SimCurrentItem    = null;
 var _t190SimWithdrawalMode = 'pct';
 var _t190SimPieChart       = null;
+var _t190SimRetireMonths   = 0;
 var _t190SimLastResult     = null;
 
 function ffsCloseT190SimulationModal() {
@@ -17905,6 +17906,10 @@ function _t190SimSyncAllSliders() {
 
 function _t190SimOnSlider(field) {
   _t190SimSyncPair(field, 'slider');
+  if (field === 'timeline' && _t190SimRetireMonths > 0) {
+    var _tlSl = document.getElementById('t190-sim-timeline-slider');
+    if (_tlSl && parseFloat(_tlSl.value) > _t190SimRetireMonths) _tlSl.value = _t190SimRetireMonths;
+  }
   _t190SimSyncAllSliders();
   _t190SimCalculate();
 }
@@ -17951,20 +17956,26 @@ function _t190SimRenderTimelineTicks() {
 
   if (marker) {
     if (birthDate) {
+      var retAge     = FFS_PROFILE.retirementAge > 0 ? FFS_PROFILE.retirementAge : 67;
       var retireDate = new Date(birthDate);
-      retireDate.setFullYear(retireDate.getFullYear() + 67);
+      retireDate.setFullYear(retireDate.getFullYear() + retAge);
       var monthsToRetire = (retireDate.getFullYear() - today.getFullYear()) * 12
         + (retireDate.getMonth() - today.getMonth());
+      _t190SimRetireMonths = Math.max(0, monthsToRetire);
+      if (tlSl && _t190SimRetireMonths > 0 && parseFloat(tlSl.value) > _t190SimRetireMonths) {
+        tlSl.value = _t190SimRetireMonths;
+      }
       if (monthsToRetire > 0 && monthsToRetire <= scaleMonths) {
         marker.style.left    = (100 - monthsToRetire / scaleMonths * 100).toFixed(1) + '%';
         marker.style.display = 'block';
         marker.setAttribute('data-retire-months', monthsToRetire);
-        marker.title = 'גיל פרישה (67): שנת ' + retireDate.getFullYear();
+        marker.title = 'גיל פרישה (' + retAge + '): שנת ' + retireDate.getFullYear();
       } else {
         marker.style.display = 'none';
       }
     } else {
       marker.style.display = 'none';
+      _t190SimRetireMonths = 0;
     }
   }
 }
@@ -18233,17 +18244,17 @@ function _t190SimBuildReceipt(action, grossK, withdrawnK, taxK, netK, monthlyK,
   rows += _t190SimReceiptRow('משיכה מהון פטור',     fmt(exProjK)  + ' K ₪', '#374151');
   rows += _t190SimReceiptRow('משיכה מקצבה מוכרת', fmt(recProjK) + ' K ₪', '#374151');
 
-  if (hasPrin) {
-    rows += _t190SimReceiptRow('ניכוי יחסי מקרן קצבה מוכרת', '− ' + fmt(recPrinWd) + ' K ₪', '#6b7280')
-      + _t190SimReceiptRow('רווח חייב במס', fmt(recGainWd) + ' K ₪', '#374151')
-      + _t190SimReceiptRow('מס לתשלום (' + (isNominal ? '15% נומינלי' : '25% ריאלי') + ')', '− ' + fmt(recTaxK) + ' K ₪', '#dc2626')
-      + '<div style="border-top:1px dashed #cbd5e1;margin:4px 0;"></div>'
-      + _t190SimReceiptRow('סה״כ הון נטו לכיס', fmt(netK) + ' K ₪', '#16a34a');
-  } else {
-    rows += '<div style="color:#b45309;font-weight:600;font-size:11px;padding:4px 0;">⚠️ הזן קרן קצבה מוכרת לחישוב מס מדויק.</div>'
-      + '<div style="border-top:1px dashed #cbd5e1;margin:4px 0;"></div>'
-      + _t190SimReceiptRow('נטו לכיס (משוער)', fmt(netK) + ' K ₪', '#16a34a');
+  if (recProjK > 0) {
+    if (hasPrin) {
+      rows += _t190SimReceiptRow('ניכוי יחסי מקרן קצבה מוכרת', '− ' + fmt(recPrinWd) + ' K ₪', '#6b7280')
+        + _t190SimReceiptRow('רווח חייב במס', fmt(recGainWd) + ' K ₪', '#374151')
+        + _t190SimReceiptRow('מס לתשלום (' + (isNominal ? '15% נומינלי' : '25% ריאלי') + ')', '− ' + fmt(recTaxK) + ' K ₪', '#dc2626');
+    } else {
+      rows += '<div style="color:#b45309;font-weight:600;font-size:11px;padding:4px 0;">⚠️ הזן קרן קצבה מוכרת לחישוב מס מדויק.</div>';
+    }
   }
+  rows += '<div style="border-top:1px dashed #cbd5e1;margin:4px 0;"></div>'
+    + _t190SimReceiptRow((recProjK > 0 && !hasPrin) ? 'נטו לכיס (משוער)' : 'סה״כ הון נטו לכיס', fmt(netK) + ' K ₪', '#16a34a');
 
   // Dynamic storytelling — reflects waterfall source of funds
   var story;
@@ -18279,23 +18290,23 @@ function _t190SimUpdateKPIs(action, recProjK, qualProjK, exProjK, recTaxK, coeff
   // Fixed 4-slot grid — same slots in all 3 scenarios (no layout shift)
   var qualMonthly = coeff > 0 ? Math.round(qualProjK * 1000 / coeff) : 0;
 
-  // Slot 1 (rightmost): recognized/remainder annuity monthly — turquoise
-  var col1;
+  // Slot 1 (rightmost): qualifying annuity monthly — orange
+  var col1 = _kpi('קצבה מזכה (₪/חודש)', qualMonthly > 0 ? qualMonthly.toLocaleString('he-IL') : '–', '#f59e0b',
+    '<span title="נוסף לקצבה ברוטו בטאב הפרישה" style="cursor:help;border-bottom:1px dotted #9ca3af;display:inline-block;line-height:1.2;">חייבת במס שולי</span>');
+
+  // Slot 2: recognized/remainder annuity monthly — turquoise
+  var col2;
   if (action === 'balances-as-is') {
     var recMonthly = coeff > 0 ? Math.round(recProjK * 1000 / coeff) : 0;
-    col1 = _kpi('קצבה מוכרת (₪/חודש)', recMonthly > 0 ? recMonthly.toLocaleString('he-IL') : '–', '#14b8a6',
+    col2 = _kpi('קצבה מוכרת (₪/חודש)', recMonthly > 0 ? recMonthly.toLocaleString('he-IL') : '–', '#14b8a6',
       '<span title="נוסף לקצבה נטו בטאב הפרישה" style="cursor:help;border-bottom:1px dotted #9ca3af;display:inline-block;line-height:1.2;">פטורה ממס</span>');
   } else if (action === 'annuitize-exempt') {
     var combinedMonthly = coeff > 0 ? Math.round(recProjK * 1000 / coeff) : 0;
-    col1 = _kpi('קצבה מוכרת (₪/חודש)', combinedMonthly > 0 ? combinedMonthly.toLocaleString('he-IL') : '–', '#14b8a6', 'כולל הון שהומר');
+    col2 = _kpi('קצבה מוכרת (₪/חודש)', combinedMonthly > 0 ? combinedMonthly.toLocaleString('he-IL') : '–', '#14b8a6', 'כולל הון שהומר');
   } else {
-    col1 = _kpi('קצבה מוכרת (₪/חודש)',
+    col2 = _kpi('קצבה מוכרת (₪/חודש)',
       remainderMonthlyK > 0 ? remainderMonthlyK.toLocaleString('he-IL') : '–', '#14b8a6', 'פטורה (יתרה שלא נמשכה)');
   }
-
-  // Slot 2: qualifying annuity monthly — orange (always monthly, never lump sum)
-  var col2 = _kpi('קצבה מזכה (₪/חודש)', qualMonthly > 0 ? qualMonthly.toLocaleString('he-IL') : '–', '#f59e0b',
-    '<span title="נוסף לקצבה ברוטו בטאב הפרישה" style="cursor:help;border-bottom:1px dotted #9ca3af;display:inline-block;line-height:1.2;">חייבת במס שולי</span>');
 
   // Slot 3: available capital — green
   var col3;
@@ -18394,11 +18405,12 @@ function _t190SimRenderBucketFlow(flow, isMock, action) {
   var recPct   = totalCur > 0 ? parseFloat((flow.recognized.currentK  / totalCur * 100).toFixed(1)) : 33.3;
   var exPct    = totalCur > 0 ? parseFloat((flow.exempt.currentK      / totalCur * 100).toFixed(1)) : 33.4;
 
-  var _card = function(titleHe, titleTooltip, color, cur, proj, destLabel, destK, warn, pct) {
+  var _card = function(titleHe, titleTooltip, color, cur, proj, destLabel, destK, warn, pct, warnBtn) {
     var barFill   = Math.round(pct || 0);
     var destColor = (destLabel === 'מס') ? '#dc2626' : color;
     var warnHtml  = warn
-      ? '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:2px 6px;font-size:10px;color:#92400e;margin-top:4px;">⚠️ ' + warn + '</div>'
+      ? '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:2px 6px;font-size:10px;color:#92400e;margin-top:4px;">⚠️ '
+        + warn + (warnBtn ? ' ' + warnBtn : '') + '</div>'
       : '';
     return '<div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;display:flex;direction:rtl;min-width:0;">'
       + '<div style="flex:2;padding:8px 10px;">'
@@ -18415,14 +18427,19 @@ function _t190SimRenderBucketFlow(flow, isMock, action) {
       + '</div>';
   };
 
-  var recWarn  = (flow.recognized.principalK === null || flow.recognized.principalK === undefined)
+  var recWarn   = ((flow.recognized.principalK === null || flow.recognized.principalK === undefined)
+                  && flow.recognized.currentK > 0)
     ? 'הזן קרן קצבה מוכרת לחישוב מדויק' : null;
+  var recEditBtn = recWarn
+    ? '<button onclick="ffsOpenInvModal(_t190SimCurrentItem,\'investments\')" '
+      + 'style="border:none;background:none;color:#92400e;cursor:pointer;font-size:10px;font-weight:700;padding:0 0 0 4px;text-decoration:underline;">✏️ ערוך</button>'
+    : null;
   var recDest  = isAnnuity ? 'נטו' : (recWarn ? '?' : 'נטו');
   var recDestK = isAnnuity ? flow.recognized.projectedK : flow.recognized.netK;
 
   el.innerHTML = '<div style="display:flex;gap:8px;direction:rtl;">'
     + _card('קצבה מזכה',  'הפקדות שקיבלו הטבת מס. חייבות במס שולי במשיכה, בכפוף לקיבוע זכויות.',           '#f59e0b', flow.qualifying.currentK, flow.qualifying.projectedK, 'נטו',   flow.qualifying.netK, null,    qualPct)
-    + _card('קצבה מוכרת', 'הפקדות פטורות ממס רווחי הון בקצבה, וחייבות ב-15%/25% רווחי הון במשיכה כהון.', '#10b981', flow.recognized.currentK, flow.recognized.projectedK, recDest, recDestK,             recWarn, recPct)
+    + _card('קצבה מוכרת', 'הפקדות פטורות ממס רווחי הון בקצבה, וחייבות ב-15%/25% רווחי הון במשיכה כהון.', '#10b981', flow.recognized.currentK, flow.recognized.projectedK, recDest, recDestK,             recWarn, recPct, recEditBtn)
     + _card('הון פטור',   'כספים היסטוריים הפטורים לחלוטין מכל מס.',                                        '#14b8a6', flow.exempt.currentK,      flow.exempt.projectedK,     'נטו',   flow.exempt.netK,     null,    exPct)
     + '</div>';
 }
