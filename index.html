@@ -3479,17 +3479,20 @@
   <!-- Results Section: Action radios + KPIs + Pie + Accordion -->
   <div style="padding:14px 24px 10px;border-top:1px solid #e5e7eb;direction:rtl;">
 
-    <!-- Action radio toggles -->
-    <div style="display:flex;gap:20px;align-items:center;padding-bottom:10px;border-bottom:1px solid #f1f5f9;direction:rtl;margin-bottom:12px;">
+    <!-- Action radio toggles — 3 scenarios -->
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid #f1f5f9;direction:rtl;margin-bottom:12px;">
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#16a34a;">
-        <input type="radio" id="t190-action-annuity" name="t190-action" value="annuity" checked style="accent-color:#16a34a;">
-        ייעוד לקצבה (פטור)
+        <input type="radio" id="t190-action-balances" name="t190-action" value="balances-as-is" checked style="accent-color:#16a34a;">
+        בחירה לפי היתרות
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#14b8a6;">
+        <input type="radio" id="t190-action-annuitize" name="t190-action" value="annuitize-exempt" style="accent-color:#14b8a6;">
+        המרת הון פטור לקצבה פטורה
       </label>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;">
-        <input type="radio" id="t190-action-capital" name="t190-action" value="capital" style="accent-color:#dc2626;">
-        משיכה כהון (35% קנס)
+        <input type="radio" id="t190-action-capital-wd" name="t190-action" value="capital-withdrawal" style="accent-color:#dc2626;">
+        משיכה הונית
       </label>
-      <label id="t190-sim-exempt-toggle-wrapper" style="display:none;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#4b5563;margin-right:15px;"><input type="checkbox" id="t190-sim-annuitize-exempt" onchange="_t190SimCalculate()"> הוסף הון פטור לקצבה</label>
       <button id="t190-sim-ai-verify-btn" onclick="_t190SimTriggerAIVerification()"
               style="font-size:10px;padding:2px 7px;border:1px solid #6366f1;
                      border-radius:10px;background:transparent;color:#6366f1;cursor:pointer;
@@ -3504,7 +3507,7 @@
       </div>
       <!-- LEFT: KPI grid + Tax accordion in a column -->
       <div style="display:flex;flex-direction:column;flex:1;gap:12px;direction:rtl;">
-        <div id="t190-sim-kpi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;min-height:44px;"></div>
+        <div id="t190-sim-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;min-height:44px;"></div>
         <!-- Tax breakdown accordion -->
         <div>
           <div onclick="_t190SimToggleDetails()"
@@ -3575,7 +3578,7 @@
     </div>
 
     <!-- Withdrawal — dual mode toggle -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <div id="t190-sim-withdrawal-row" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
       <span style="font-size:12px;font-weight:600;color:#374151;min-width:148px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
         משיכה
         <span style="display:inline-flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
