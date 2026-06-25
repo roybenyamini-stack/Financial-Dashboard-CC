@@ -16339,6 +16339,9 @@ function _ffsPopulateT190Section(item) {
   var recogK = b.recognized_annuity ? (b.recognized_annuity.balance_k  || 0) : 0;
   var exmK   = b.capital_exempt     ? (b.capital_exempt.balance_k       || 0) : 0;
   var prinK  = b.recognized_annuity ? b.recognized_annuity.principal_manual_k : null;
+  qualK  = Math.round(qualK  * 10) / 10;
+  recogK = Math.round(recogK * 10) / 10;
+  exmK   = Math.round(exmK   * 10) / 10;
   var qualEl  = document.getElementById('ffs-inv-t190-qualifying');
   var exemEl  = document.getElementById('ffs-inv-t190-exempt');
   var recogEl = document.getElementById('ffs-inv-t190-recognized');
@@ -16349,14 +16352,13 @@ function _ffsPopulateT190Section(item) {
     el.style.color      = v > 0 ? '#1e293b' : '#92400e';
   }
   function _t190CheckBucketSum() {
-    var anchorEl  = document.getElementById('ffs-inv-f-dec31-anchor');
     var sumWarnEl = document.getElementById('ffs-inv-t190-sum-warn');
-    if (!qualEl || !exemEl || !recogEl || !anchorEl || !sumWarnEl) return;
-    var anchorK = parseFloat(anchorEl.value) || 0;
+    if (!qualEl || !exemEl || !recogEl || !sumWarnEl) return;
+    var currentBal = parseFloat((document.getElementById('ffs-inv-f-balance') || {}).value) || 0;
     var qv = parseFloat(qualEl.value)  || 0;
     var rv = parseFloat(recogEl.value) || 0;
     var ev = parseFloat(exemEl.value)  || 0;
-    sumWarnEl.style.display = (anchorK > 0 && Math.abs((qv + rv + ev) - anchorK) > 0.01) ? '' : 'none';
+    sumWarnEl.style.display = (currentBal > 0 && Math.abs((qv + rv + ev) - currentBal) > 1.0) ? '' : 'none';
   }
   function _t190AutoComplete() {
     var _ancEl = document.getElementById('ffs-inv-f-dec31-anchor');
@@ -16980,6 +16982,16 @@ function _salkahParseOneXML(xmlString) {
         }
       }
 
+      var _xmlDec31K = null;
+      var _ysContEl = _salkahXmlEl(node, 'PerutYitrotLesofShanaKodemet');
+      if (_ysContEl) {
+        var _ysEl = _salkahXmlEl(_ysContEl, 'YITRAT-SOF-SHANA');
+        if (_ysEl) {
+          var _ysRaw = parseFloat(_ysEl.textContent.trim());
+          _xmlDec31K = isNaN(_ysRaw) ? null : Math.round(_ysRaw / 1000);
+        }
+      }
+
       products.push({
         'מספר פוליסה': polisa, 'שם מוצר': productName, 'סוג מוצר': type,
         'צבירה (₪)': rawBalance, 'תגית צבירה': balanceTag || 'לא נמצא',
@@ -16988,7 +17000,8 @@ function _salkahParseOneXML(xmlString) {
         isActive: isActive, kodStatus: kodStatus,
         rawXml: rawXml,
         xmlDataDate: _xmlDataDate || null,
-        t190Buckets: _t190Buckets || null
+        t190Buckets: _t190Buckets || null,
+        xmlDec31K: _xmlDec31K
       });
     });
   });
@@ -17089,6 +17102,9 @@ function processMultipleSalkahFiles(files, statusEl) {
               _ex.buckets = p.t190Buckets;
               if (_priorPrincipal != null) _ex.buckets.recognized_annuity.principal_manual_k = _priorPrincipal;
             }
+            if (p.xmlDec31K != null && (_isProvidentCategory(_ex.category) || _ex.dec_31_anchor_k !== undefined)) {
+              _ex.dec_31_anchor_k = p.xmlDec31K;
+            }
           }
         }
         arr[existIdx].isActive    = !!p.isActive;
@@ -17132,7 +17148,7 @@ function processMultipleSalkahFiles(files, statusEl) {
             _newInvObj.buckets               = p.t190Buckets || _t190InitBuckets();
             _newInvObj.manual_override       = false;
             _newInvObj.last_manual_update_date = null;
-            _newInvObj.dec_31_anchor_k       = null;
+            _newInvObj.dec_31_anchor_k       = p.xmlDec31K != null ? p.xmlDec31K : null;
           }
           arr.push(_newInvObj);
         }
@@ -17141,9 +17157,10 @@ function processMultipleSalkahFiles(files, statusEl) {
       }
     });
     ffsSaveProfile();
-    if (typeof ffsRenderAll        === 'function') ffsRenderAll();
-    if (typeof ffsApplyToSimulator === 'function') ffsApplyToSimulator();
-    if (typeof simFullRefresh      === 'function') simFullRefresh();
+    if (typeof ffsUpdateLiveSidebar === 'function') ffsUpdateLiveSidebar();
+    if (typeof ffsRenderAll         === 'function') ffsRenderAll();
+    if (typeof ffsApplyToSimulator  === 'function') ffsApplyToSimulator();
+    if (typeof simFullRefresh       === 'function') simFullRefresh();
     var _esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var _buildChips = function(arr, bg, color, border) {
       return arr.map(function(n) {
