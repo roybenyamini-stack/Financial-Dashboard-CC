@@ -707,11 +707,42 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
 app.post('/api/extract', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
-    const data    = await pdfParse(req.file.buffer);
-    const pdfText = data.text.slice(0, 12000);
+    const data          = await pdfParse(req.file.buffer);
+    const rawText       = data.text;
+    const accountNumber = (req.body && req.body.accountNumber) ? req.body.accountNumber.trim() : '';
+    const identifiers   = accountNumber
+      ? accountNumber.split(',').map(function(s) { return s.trim(); }).filter(Boolean)
+      : [];
+
+    let pdfText;
+    if (identifiers.length > 0) {
+      let lastMatchIndex = -1;
+      identifiers.forEach(function(id) {
+        let pos = 0;
+        while (true) {
+          const idx = rawText.indexOf(id, pos);
+          if (idx === -1) break;
+          if (idx > lastMatchIndex) lastMatchIndex = idx;
+          pos = idx + 1;
+        }
+      });
+      if (lastMatchIndex === -1) {
+        console.warn('[extract] Target account not found in document. Aborting LLM call to prevent hallucinations.');
+        return res.json({ qualifying_annuity: null, recognized_annuity: null, exempt_capital: null, recognized_principal: null, dec_31_anchor: null });
+      }
+      pdfText = rawText.substring(Math.max(0, lastMatchIndex - 4000), lastMatchIndex + 8000);
+      console.log('[extract] Window mode: last match at', lastMatchIndex, 'window size', pdfText.length);
+    } else {
+      pdfText = rawText.slice(0, 15000);
+      console.log('[extract] No identifiers — fallback 15000 chars');
+    }
     console.log('[extract] PDF text (first 200 chars):', pdfText.slice(0, 200));
 
-    const systemPrompt = `You are a financial data extractor specializing in Israeli Pension/Provident Fund reports.
+    const accountFilter = accountNumber
+      ? `Extract data for account identifiers: [${accountNumber}]. The text provided is a specific excerpt from the detailed breakdown section for this account. Extract the specific balances listed below.\n\n`
+      : '';
+
+    const systemPrompt = `${accountFilter}You are a financial data extractor specializing in Israeli Pension/Provident Fund reports.
 Extract the following specific layer balances from the text. Return ONLY valid JSON, no markdown, no conversational text.
 
 Keys to extract (values in thousands of NIS — K₪):
