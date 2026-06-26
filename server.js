@@ -7,6 +7,8 @@ const { OpenAI }             = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs                     = require('fs');
 const path                   = require('path');
+const multer                 = require('multer');
+const upload                 = multer({ storage: multer.memoryStorage() });
 
 const app          = express();
 const client       = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -698,6 +700,65 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
     });
     res.json({ answer: (msg.content[0].text || '').trim() });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/extract', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const data    = await pdfParse(req.file.buffer);
+    const pdfText = data.text.slice(0, 12000);
+    console.log('[extract] PDF text (first 200 chars):', pdfText.slice(0, 200));
+
+    const systemPrompt = `You are a financial data extractor specializing in Israeli Pension/Provident Fund reports.
+Extract the following specific layer balances from the text. Return ONLY valid JSON, no markdown, no conversational text.
+
+Keys to extract (values in thousands of NIS — K₪):
+- "qualifying_annuity":   balance labeled "קצבה מזכה"
+- "recognized_annuity":   balance labeled "קצבה מוכרת"
+- "exempt_capital":       balance labeled "הון פטור" / "כספים הוניים" / "הפקדות עד 2007"
+- "recognized_principal": balance labeled "קרן קצבה מוכרת"
+- "dec_31_anchor":        balance labeled "עוגן 31/12" / "צבירה לפני 2008" / "יתרת 31/12"
+
+Crucial Constraint: If a specific bucket/field cannot be explicitly found or confidently inferred from the document, its value MUST be null. Do not guess or perform complex calculations. Accuracy is paramount.
+
+Return exactly this shape:
+{"qualifying_annuity": <number|null>, "recognized_annuity": <number|null>, "exempt_capital": <number|null>, "recognized_principal": <number|null>, "dec_31_anchor": <number|null>}`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model:       'gpt-4o-mini',
+      temperature: 0,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: pdfText }
+      ]
+    });
+
+    const raw = completion.choices[0].message.content.trim();
+    console.log('[extract] LLM raw response:', raw);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (parseErr) {
+      console.error('[extract] JSON parse failed:', raw);
+      return res.status(500).json({ error: 'LLM returned invalid JSON', raw });
+    }
+
+    const EXPECTED_KEYS = ['qualifying_annuity', 'recognized_annuity', 'exempt_capital', 'recognized_principal', 'dec_31_anchor'];
+    const result = {};
+    EXPECTED_KEYS.forEach(function(k) {
+      var _raw = parsed[k];
+      if (_raw == null) { result[k] = null; return; }
+      var _n = Number(String(_raw).replace(/[^0-9.-]+/g, ''));
+      result[k] = !isNaN(_n) ? Math.round(_n / 1000) : null;
+    });
+
+    console.log('[extract] Final result:', result);
+    res.json(result);
+  } catch (err) {
+    console.error('[extract] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

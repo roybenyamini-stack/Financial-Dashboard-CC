@@ -16558,6 +16558,7 @@ function ffsCloseInvModal() {
 }
 
 function ffsSaveInvFromModal() {
+  console.log('==== SAVE BUTTON CLICKED ====', { currentId: ffsCurrentInvId, context: ffsWizardContext, balanceEl: (document.getElementById('ffs-inv-f-balance') || {}).value, assetNumEl: (document.getElementById('ffs-inv-f-assetNum') || {}).value });
   var required = ['balance', 'assetNum'];
   var valid = true;
   required.forEach(function(k) {
@@ -16571,7 +16572,11 @@ function ffsSaveInvFromModal() {
       valid = false;
     }
   });
-  if (!valid) return;
+  if (!valid) {
+    var _failing1 = required.filter(function(k) { var el = document.getElementById('ffs-inv-f-' + k); return !el || !el.value.trim() || (k === 'balance' && isNaN(parseFloat(el.value))); });
+    console.warn('[FFS Save] Stage-1 blocked — missing/invalid fields:', _failing1);
+    return;
+  }
 
   // ── v177.12: block save when dropdown fields are still on placeholder ──
   var dropRequired = ['category', 'type'];
@@ -16586,7 +16591,17 @@ function ffsSaveInvFromModal() {
       valid = false;
     }
   });
-  if (!valid) return;
+  if (!valid) {
+    console.warn('[FFS Save] blocked — missing required fields');
+    var _sb = document.getElementById('ffs-inv-save-btn');
+    if (_sb) {
+      var _ot = _sb.textContent;
+      _sb.style.background = '#dc2626';
+      _sb.textContent = '⚠️ יש למלא שדות חובה';
+      setTimeout(function() { _sb.style.background = ''; _sb.textContent = _ot; }, 2000);
+    }
+    return;
+  }
 
   var id      = 'ffs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   var isActiveVal = !!(document.getElementById('ffs-inv-f-active') || {}).checked;
@@ -16679,6 +16694,7 @@ function ffsSaveInvFromModal() {
         if (_isProvidentCategory(catVal)) {
           var _editedInv = FFS_PROFILE.investments[_editIdx];
           if (!_editedInv.buckets) _editedInv.buckets = _t190InitBuckets();
+          if (!_editedInv.buckets.capital_exempt) _editedInv.buckets.capital_exempt = { balance_k: 0 };
           // Snapshot existing T190 values before any write
           var _oldQual   = (_editedInv.buckets.qualifying_annuity && _editedInv.buckets.qualifying_annuity.balance_k) || 0;
           var _oldRecog  = (_editedInv.buckets.recognized_annuity && _editedInv.buckets.recognized_annuity.balance_k) || 0;
@@ -17015,6 +17031,18 @@ function _salkahParseOneXML(xmlString) {
             recognized_annuity: { balance_k: _residualK, principal_manual_k: null },
             capital_exempt:     { balance_k: _t1K }
           };
+        }
+        // Pre-2008 provident fund (SUG-MUTZAR=3): entire balance is capital_exempt (הון פטור)
+        if (type === '3') {
+          var _firstJoinEl = _salkahXmlEl(node, 'TAARICH-HITZTARFUT-RISHON');
+          var _firstJoin   = _firstJoinEl ? _firstJoinEl.textContent.trim().replace(/-/g, '') : '';
+          if (_firstJoin && _firstJoin < '20080101') {
+            _t190Buckets = {
+              qualifying_annuity: { balance_k: 0 },
+              recognized_annuity: { balance_k: 0, principal_manual_k: null },
+              capital_exempt:     { balance_k: (rawBalance || 0) / 1000 }
+            };
+          }
         }
       }
 
@@ -18510,6 +18538,28 @@ function _t190SimGetBuckets(item) {
     }
   }
 
+  // Branch B': Stored bucket data — fallback when XML re-parsing fails or returns
+  // single-bucket result (e.g. pre-2008 fund with all money in capital_exempt).
+  // Proportionally scales item.buckets values to current balance.
+  if (b) {
+    var _bE = (b.capital_exempt     && b.capital_exempt.balance_k)     || 0;
+    var _bR = (b.recognized_annuity && b.recognized_annuity.balance_k) || 0;
+    var _bQ = (b.qualifying_annuity && b.qualifying_annuity.balance_k) || 0;
+    if (_bE > 0 || _bR > 0 || _bQ > 0) {
+      var _bSum   = _bE + _bR + _bQ;
+      var _bScale = (_bSum > 0 && balK > 0) ? (balK / _bSum) : 1;
+      var _bPrinK = (b.recognized_annuity && b.recognized_annuity.principal_manual_k) || null;
+      return {
+        buckets: {
+          recognized_annuity: { balance_k: Math.round(_bR * _bScale * 10) / 10, principal_manual_k: _bPrinK },
+          qualifying_annuity: { balance_k: Math.round(_bQ * _bScale * 10) / 10 },
+          capital_exempt:     { balance_k: Math.round(_bE * _bScale * 10) / 10 }
+        },
+        isMock: false, isEmpty: false, branch: "B'"
+      };
+    }
+  }
+
   // Branch C: No valid distribution data — fail-safe empty state
   return { buckets: null, isMock: false, isEmpty: true, branch: 'C' };
 }
@@ -18618,6 +18668,91 @@ function _t190SimUpdatePieChart(action, recProjK, qualProjK, exProjK, recTaxK, r
     }
   });
 
+}
+
+function _t190OpenAIExtractionModal() {
+  document.getElementById('ffs-ai-modal-content').innerHTML =
+    '<div id="ffs-ai-dropzone" style="border:2px dashed #cbd5e1;border-radius:8px;padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;color:#64748b;font-size:14px;">' +
+      '📄 גרור את דוח ה-PDF לכאן או לחץ לבחירת קובץ' +
+      '<input type="file" id="ffs-ai-file-input" accept="application/pdf" style="display:none;">' +
+    '</div>' +
+    '<div id="ffs-ai-status" style="display:none;margin-top:20px;font-weight:bold;color:#0f172a;"></div>';
+
+  document.getElementById('ffs-ai-modal').style.display = 'flex';
+
+  var dz = document.getElementById('ffs-ai-dropzone');
+  var fi = document.getElementById('ffs-ai-file-input');
+  var st = document.getElementById('ffs-ai-status');
+
+  function _handleFile(file) {
+    dz.style.display = 'none';
+    st.style.display = 'block';
+    st.innerHTML = '⏳ מכין את הקובץ <b>' + file.name + '</b> לניתוח בשרת המאובטח...';
+
+    var fd = new FormData();
+    fd.append('file', file);
+
+    fetch('http://localhost:3005/api/extract', {
+      method: 'POST',
+      body: fd
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'שגיאת שרת ' + r.status); });
+      return r.json();
+    })
+    .then(function(data) {
+      var fields = {
+        'ffs-inv-t190-qualifying':        data.qualifying_annuity,
+        'ffs-inv-t190-recognized':        data.recognized_annuity,
+        'ffs-inv-t190-exempt':            data.exempt_capital,
+        'ffs-inv-f-recognized-principal': data.recognized_principal,
+        'ffs-inv-f-dec31-anchor':         data.dec_31_anchor
+      };
+      Object.keys(fields).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && fields[id] != null) el.value = fields[id];
+      });
+      if (typeof _t190CheckBucketSum === 'function') _t190CheckBucketSum();
+
+      var parts = [];
+      if (data.qualifying_annuity   != null) parts.push('קצבה מזכה: '  + data.qualifying_annuity   + 'K');
+      if (data.recognized_annuity   != null) parts.push('קצבה מוכרת: ' + data.recognized_annuity   + 'K');
+      if (data.exempt_capital       != null) parts.push('הון פטור: '    + data.exempt_capital       + 'K');
+      if (data.recognized_principal != null) parts.push('קרן מוכרת: '  + data.recognized_principal + 'K');
+      st.innerHTML = '✅ נתונים חולצו בהצלחה!<br><small style="font-weight:400;color:#475569;">' + parts.join(' | ') + '</small>';
+    })
+    .catch(function(err) {
+      st.innerHTML = '❌ שגיאה: ' + err.message;
+    });
+  }
+
+  dz.addEventListener('click', function() { fi.click(); });
+
+  dz.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dz.style.background = '#f8fafc';
+    dz.style.borderColor = '#6366f1';
+  });
+
+  dz.addEventListener('dragleave', function() {
+    dz.style.background = '';
+    dz.style.borderColor = '#cbd5e1';
+  });
+
+  dz.addEventListener('drop', function(e) {
+    e.preventDefault();
+    var file = e.dataTransfer.files[0];
+    if (file) _handleFile(file);
+  });
+
+  fi.addEventListener('change', function() {
+    if (fi.files[0]) _handleFile(fi.files[0]);
+  });
+}
+
+function _t190SimTriggerAIVerification() {
+  document.getElementById('ffs-ai-modal-content').innerHTML = '<h3>AI Advisor Mode Placeholder</h3><p>כאן ימוקם ממשק הייעוץ האסטרטגי לחלוקת השכבות</p>';
+  document.getElementById('ffs-ai-modal').style.display = 'flex';
 }
 
 function _sfToggleTaxMsg() {
@@ -19250,8 +19385,6 @@ function _sfTriggerAIVerification() {
       return;
     }
   }
-  var btn = document.getElementById('sf-ai-verify-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   fetch('http://localhost:3005/api/verification/tax', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -19260,9 +19393,7 @@ function _sfTriggerAIVerification() {
   .then(function(r) { return r.json(); })
   .then(function(data) { _sfShowAIModal(data); })
   .catch(function(err) { _sfShowAIModal({ _error: err.message }); })
-  .finally(function() {
-    if (btn) { btn.disabled = false; btn.textContent = '✨ אימות AI'; }
-  });
+  .finally(function() {});
 }
 
 function _sfCategoryVerify() {
