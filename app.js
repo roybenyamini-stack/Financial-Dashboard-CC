@@ -16354,11 +16354,16 @@ function _ffsPopulateT190Section(item) {
   function _t190CheckBucketSum() {
     var sumWarnEl = document.getElementById('ffs-inv-t190-sum-warn');
     if (!qualEl || !exemEl || !recogEl || !sumWarnEl) return;
-    var currentBal = parseFloat((document.getElementById('ffs-inv-f-balance') || {}).value) || 0;
+    var anchorEl = document.getElementById('ffs-inv-f-dec31-anchor');
+    if (!anchorEl || (anchorEl.parentElement && anchorEl.parentElement.style.display === 'none')) {
+      sumWarnEl.style.display = 'none';
+      return;
+    }
+    var anchorK = parseFloat(anchorEl.value) || 0;
     var qv = parseFloat(qualEl.value)  || 0;
     var rv = parseFloat(recogEl.value) || 0;
     var ev = parseFloat(exemEl.value)  || 0;
-    sumWarnEl.style.display = (currentBal > 0 && Math.abs((qv + rv + ev) - currentBal) > 1.0) ? '' : 'none';
+    sumWarnEl.style.display = (anchorK > 0 && Math.abs((qv + rv + ev) - anchorK) > 1.0) ? '' : 'none';
   }
   function _t190AutoComplete() {
     var _ancEl = document.getElementById('ffs-inv-f-dec31-anchor');
@@ -16395,7 +16400,7 @@ function _ffsPopulateT190Section(item) {
   }
 
   var prinWrap = document.getElementById('ffs-inv-t190-principal-wrap');
-  if (prinWrap) prinWrap.style.display = 'none';
+  if (prinWrap) prinWrap.style.display = '';
   var prinEl = document.getElementById('ffs-inv-f-recognized-principal');
   if (prinEl) prinEl.value = prinK != null ? prinK : '';
 
@@ -16408,11 +16413,23 @@ function _ffsPopulateT190Section(item) {
   var badgeDateEl = document.getElementById('ffs-inv-t190-override-date');
   if (badgeEl) badgeEl.style.display = (item && item.manual_override) ? '' : 'none';
   if (badgeDateEl && item && item.last_manual_update_date) badgeDateEl.textContent = item.last_manual_update_date;
+  if (badgeEl) {
+    badgeEl.onclick = function() {
+      if (!confirm('האם לבטל את הנעילה הידנית ולשחזר סנכרון למסלקה?')) return;
+      var _inv = (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; });
+      if (!_inv) return;
+      _inv.manual_override         = false;
+      _inv.last_manual_update_date = null;
+      ffsSaveProfile();
+      _ffsPopulateT190Section(_inv);
+    };
+  }
 
   var anchorEl = document.getElementById('ffs-inv-f-dec31-anchor');
   if (anchorEl) {
     anchorEl.value = (item && item.dec_31_anchor_k != null) ? item.dec_31_anchor_k : '';
     anchorEl.oninput = function() { _t190AutoComplete(); _t190CheckBucketSum(); };
+    if (anchorEl.parentElement) anchorEl.parentElement.style.display = (item && item.manual_override) ? '' : 'none';
   }
   _t190CheckBucketSum();
 }
@@ -16662,24 +16679,43 @@ function ffsSaveInvFromModal() {
         if (_isProvidentCategory(catVal)) {
           var _editedInv = FFS_PROFILE.investments[_editIdx];
           if (!_editedInv.buckets) _editedInv.buckets = _t190InitBuckets();
-          _editedInv.manual_override         = true;
-          _editedInv.last_manual_update_date = new Date().toISOString().slice(0, 10);
-          // Manual bucket overrides — user-typed values win over proportional result
+          // Snapshot existing T190 values before any write
+          var _oldQual   = (_editedInv.buckets.qualifying_annuity && _editedInv.buckets.qualifying_annuity.balance_k) || 0;
+          var _oldRecog  = (_editedInv.buckets.recognized_annuity && _editedInv.buckets.recognized_annuity.balance_k) || 0;
+          var _oldExem   = (_editedInv.buckets.capital_exempt     && _editedInv.buckets.capital_exempt.balance_k)     || 0;
+          var _oldAnchor = (_editedInv.dec_31_anchor_k != null)   ? _editedInv.dec_31_anchor_k                        : null;
+          // Read UI input values
           var _qualBEl  = document.getElementById('ffs-inv-t190-qualifying');
           var _recogBEl = document.getElementById('ffs-inv-t190-recognized');
           var _exemBEl  = document.getElementById('ffs-inv-t190-exempt');
-          if (_qualBEl)  { var _qv = parseFloat(_qualBEl.value);  if (_qv > 0) _editedInv.buckets.qualifying_annuity.balance_k = _qv; }
-          if (_recogBEl) { var _rv = parseFloat(_recogBEl.value); if (_rv > 0) _editedInv.buckets.recognized_annuity.balance_k  = _rv; }
-          if (_exemBEl)  { var _ev = parseFloat(_exemBEl.value);  if (_ev > 0) _editedInv.buckets.capital_exempt.balance_k      = _ev; }
+          var _anchorEl = document.getElementById('ffs-inv-f-dec31-anchor');
+          var _qv = parseFloat((_qualBEl  || {}).value) || 0;
+          var _rv = parseFloat((_recogBEl || {}).value) || 0;
+          var _ev = parseFloat((_exemBEl  || {}).value) || 0;
+          var _aRaw = parseFloat((_anchorEl || {}).value);
+          var _av = (_anchorEl && (_anchorEl.value || '').trim() !== '' && !isNaN(_aRaw)) ? _aRaw : null;
+          // Buckets use tolerance (0.05) — stored values may be raw XML floats while
+          // UI values are rounded to 1 decimal, so strict !== would false-trigger.
+          // Anchor is always a whole integer so strict !== is safe.
+          var _qChanged = Math.abs(_qv - _oldQual)  > 0.05;
+          var _rChanged = Math.abs(_rv - _oldRecog) > 0.05;
+          var _eChanged = Math.abs(_ev - _oldExem)  > 0.05;
+          var _aChanged = _av !== _oldAnchor;
+          if (_qChanged || _rChanged || _eChanged || _aChanged) {
+            _editedInv.manual_override         = true;
+            _editedInv.last_manual_update_date = new Date().toISOString().slice(0, 10);
+          }
+          // Manual bucket overrides — user-typed values win over proportional result
+          _editedInv.buckets.qualifying_annuity.balance_k = _qv;
+          _editedInv.buckets.recognized_annuity.balance_k  = _rv;
+          _editedInv.buckets.capital_exempt.balance_k      = _ev;
           var _pEl = document.getElementById('ffs-inv-f-recognized-principal');
           if (_pEl && _pEl.value.trim() !== '') {
             var _pVal = parseFloat(_pEl.value);
             if (!isNaN(_pVal)) _editedInv.buckets.recognized_annuity.principal_manual_k = _pVal;
           }
-          var _anchorEl = document.getElementById('ffs-inv-f-dec31-anchor');
           if (_anchorEl) {
-            var _aVal = parseFloat(_anchorEl.value);
-            _editedInv.dec_31_anchor_k = (!isNaN(_aVal) && _anchorEl.value.trim() !== '') ? _aVal : null;
+            _editedInv.dec_31_anchor_k = _av;
           }
         }
         var _penCats = ['ביטוח מנהלים', 'קרן פנסיה'];
@@ -18080,8 +18116,48 @@ function _t190SimReset() {
   _t190SimSetViewMode('nominal');
 }
 
+function _t190SimRenderEmptyState() {
+  if (_t190SimPieChart) { _t190SimPieChart.destroy(); _t190SimPieChart = null; }
+  var canvas = document.getElementById('t190-sim-pie-chart');
+  if (canvas) {
+    _t190SimPieChart = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { datasets: [{ data: [1], backgroundColor: ['#d1d5db'], borderWidth: 0 }] },
+      options: {
+        animation: { duration: 0 }, responsive: false, cutout: '60%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      }
+    });
+  }
+  var kpiEl = document.getElementById('t190-sim-kpi-grid');
+  if (kpiEl) {
+    var _dk = function(label, color) {
+      return '<div style="display:flex;flex-direction:column;">'
+        + '<div style="font-size:10px;color:#6b7280;margin-bottom:2px;white-space:nowrap;">' + label + '</div>'
+        + '<div style="font-size:17px;font-weight:800;color:' + color + ';">–</div></div>';
+    };
+    kpiEl.innerHTML = _dk('קצבה מזכה (₪/חודש)', '#f59e0b')
+      + _dk('קצבה מוכרת (₪/חודש)', '#14b8a6')
+      + _dk('הון זמין (K ₪)', '#10b981')
+      + _dk('מס לתשלום (K ₪)', '#dc2626');
+  }
+  var flowEl = document.getElementById('t190-sim-bucket-flow');
+  if (flowEl) flowEl.innerHTML = '';
+  var segEl = document.getElementById('t190-sim-tax-segments');
+  if (segEl) segEl.innerHTML = '';
+  var bannerEl = document.getElementById('t190-sim-accuracy-bar');
+  if (bannerEl) {
+    bannerEl.style.color        = '#92400e';
+    bannerEl.style.background   = '#fef3c7';
+    bannerEl.style.borderBottom = '1px solid #fcd34d';
+    bannerEl.textContent = '⚠️ חסרים נתוני חלוקת שכבות. יש להזין נתונים במסך עריכת הנכס.';
+  }
+}
+
 function _t190SimCalculate() {
   if (!_t190SimCurrentItem) return;
+  var _earlyCheck = _t190SimGetBuckets(_t190SimCurrentItem);
+  if (_earlyCheck.isEmpty) { _t190SimRenderEmptyState(); return; }
   var balK     = parseFloat(_t190SimCurrentItem.balance) || 0;
 
   // Read action early — needed to conditionally suppress post-retirement yield
@@ -18231,6 +18307,16 @@ function _t190SimCalculate() {
     var _capWd = (action === 'capital-withdrawal');
     _wdRow.style.opacity       = _capWd ? '' : '0.4';
     _wdRow.style.pointerEvents = _capWd ? '' : 'none';
+  }
+
+  var _bannerEl = document.getElementById('t190-sim-accuracy-bar');
+  if (_bannerEl) {
+    _bannerEl.style.color        = '#16a34a';
+    _bannerEl.style.background   = '#f0fdf4';
+    _bannerEl.style.borderBottom = '1px solid #e2e8f0';
+    _bannerEl.textContent = _bResult.branch === 'A'
+      ? '✅ נתוני חלוקה: עריכה ידנית — יחסים מחושבים מעוגן 31/12'
+      : '✅ נתוני חלוקה: מסלקה — שכבות XML';
   }
 }
 
@@ -18385,31 +18471,47 @@ function _parseT190BucketsFromXML(rawXml) {
 
 function _t190SimGetBuckets(item) {
   var balK = parseFloat(item.balance) || 0;
+  var b    = item.buckets;
 
-  // Tier 1: Auto-parse from rawXml when no manual override
+  // Branch A: Manual override with valid anchor — scale saved ratios to current balance
+  if (item.manual_override === true && item.dec_31_anchor_k > 0 && b) {
+    var anchorK = item.dec_31_anchor_k;
+    var rA = ((b.recognized_annuity && b.recognized_annuity.balance_k) || 0) / anchorK;
+    var qA = ((b.qualifying_annuity && b.qualifying_annuity.balance_k) || 0) / anchorK;
+    var eA = ((b.capital_exempt     && b.capital_exempt.balance_k)     || 0) / anchorK;
+    var _prinK = (b.recognized_annuity && b.recognized_annuity.principal_manual_k) || null;
+    if ((_prinK == null || _prinK === 0) && item.rawXml) {
+      var _xmlParsed = _parseT190BucketsFromXML(item.rawXml);
+      if (_xmlParsed && _xmlParsed.recognized_annuity && _xmlParsed.recognized_annuity.principal_manual_k) {
+        _prinK = Math.round(balK * (_xmlParsed.recognized_annuity.principal_manual_k / anchorK) * 10) / 10;
+      }
+    }
+    return {
+      buckets: {
+        recognized_annuity: { balance_k: Math.round(balK * rA * 10) / 10,
+                              principal_manual_k: _prinK },
+        qualifying_annuity: { balance_k: Math.round(balK * qA * 10) / 10 },
+        capital_exempt:     { balance_k: Math.round(balK * eA * 10) / 10 }
+      },
+      isMock: false, isEmpty: false, branch: 'A'
+    };
+  }
+
+  // Branch B: Valid Masleka XML — only if 2+ non-zero buckets (reject single-bucket blind dump)
   if (item.manual_override !== true && item.rawXml) {
     var parsed = _parseT190BucketsFromXML(item.rawXml);
-    if (parsed) return { buckets: parsed, isMock: false };
+    if (parsed) {
+      var nonZero = [
+        (parsed.recognized_annuity && parsed.recognized_annuity.balance_k) || 0,
+        (parsed.qualifying_annuity && parsed.qualifying_annuity.balance_k) || 0,
+        (parsed.capital_exempt     && parsed.capital_exempt.balance_k)     || 0
+      ].filter(function(v) { return v > 0; }).length;
+      if (nonZero > 1) return { buckets: parsed, isMock: false, isEmpty: false, branch: 'B' };
+    }
   }
 
-  // Tier 2: Existing t190Buckets (from Salkah import or manual edit)
-  var b = item.t190Buckets;
-  if (b && (b.recognized_annuity.balance_k > 0 || b.qualifying_annuity.balance_k > 0 || b.capital_exempt.balance_k > 0)) {
-    return { buckets: b, isMock: false };
-  }
-
-  // Tier 3: Proportional mock
-  var recK  = Math.round(balK * 0.539 * 10) / 10;
-  var qualK = Math.round(balK * 0.282 * 10) / 10;
-  var exK   = Math.max(0, Math.round((balK - recK - qualK) * 10) / 10);
-  return {
-    buckets: {
-      recognized_annuity: { balance_k: recK,  principal_manual_k: Math.round(recK * 0.833 * 10) / 10 },
-      qualifying_annuity: { balance_k: qualK },
-      capital_exempt:     { balance_k: exK }
-    },
-    isMock: true
-  };
+  // Branch C: No valid distribution data — fail-safe empty state
+  return { buckets: null, isMock: false, isEmpty: true, branch: 'C' };
 }
 
 function _t190SimRenderBucketFlow(flow, isMock, action) {
@@ -18434,7 +18536,7 @@ function _t190SimRenderBucketFlow(flow, isMock, action) {
       + '<div style="font-size:11px;font-weight:700;color:' + color + ';margin-bottom:6px;white-space:nowrap;" title="' + titleTooltip + '">' + titleHe + '</div>'
       + '<div style="font-size:10px;color:#6b7280;line-height:1.8;">'
       + '<span title="היתרה הנוכחית בקופה">היום: <strong>' + Math.round(cur).toLocaleString('he-IL') + '</strong> K ₪</span><br>'
-      + '<span title="הסכום הצפוי במועד המשיכה לאחר התשואה">מוקרן: <strong>' + Math.round(proj).toLocaleString('he-IL') + '</strong> K ₪</span><br>'
+      + '<span title="הסכום הצפוי במועד המשיכה לאחר התשואה">בסימולציה: <strong>' + Math.round(proj).toLocaleString('he-IL') + '</strong> K ₪</span><br>'
       + '<span title="הסכום נטו לכיס לאחר ניכוי מס" style="color:' + destColor + ';font-weight:700;">' + destLabel + ': ' + Math.round(destK).toLocaleString('he-IL') + ' K ₪</span>'
       + '</div>' + warnHtml + '</div>'
       + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;border-right:1px solid #f1f5f9;">'
