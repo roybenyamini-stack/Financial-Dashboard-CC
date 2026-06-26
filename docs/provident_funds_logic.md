@@ -194,3 +194,82 @@ The anchor is displayed as a badge in the investment card: `YTD: +5.2% (מול 3
 | `_ffsPopulateT190Section(item)` | Populates T190 section in the edit modal; pass `null` to read category from DOM |
 | `_t190SimGetBuckets(item)` | Returns bucket distribution for the analysis modal — branches A → B → B' → C (see Analysis Modal section) |
 | `_parseT190BucketsFromXML(rawXml)` | Re-parses raw XML string using `KOD-TECHULAT-SHICHVA` field; returns `null` if that field is absent |
+
+---
+
+## AI Extraction & Sniper Mode Logic
+
+The AI extraction pipeline (`POST /api/extract` in `server.js`) extracts T190 bucket balances from PDF pension reports when clearinghouse XML is unavailable or insufficient.
+
+### Account Tokenization (Frontend — `app.js`, `_t190OpenAIExtractionModal`)
+
+Before uploading, the frontend derives multiple numeric identifiers from the asset's `assetNum` field and appends them as a `FormData` field named `accountNumber`.
+
+```javascript
+// Example: "000-111-222333 (5556666)"
+// → individual chunks ≥4 digits: ["084678", "5556666"]
+// → fully joined:                 ["000111222333"]
+// → sent as:                      "084678, 5556666, 000111222333"
+```
+
+Tokenization rule: extract all `/\d+/g` sequences, keep those ≥4 digits, add the fully-concatenated string if distinct. This handles inconsistent formatting across Phoenix, More, and Menorah PDF layouts (some show only the internal policy ID; others show the full hyphenated account string).
+
+### Laser Scanner — Text Windowing (Backend — `server.js`)
+
+The backend does NOT send the full PDF text to the LLM. Instead it performs a programmatic search before the API call:
+
+1. Split `accountNumber` (comma-separated) into `identifiers[]`.
+2. Scan `rawText` for every occurrence of every identifier.
+3. Take the **last match index** — in Israeli consolidated reports, the per-account detail appendix always appears after the front-page summary table.
+4. Slice a surgical window: `rawText.substring(lastMatchIndex - 4000, lastMatchIndex + 8000)` (~12K chars, ≈1 page before + 2 pages after the identifier).
+
+This window is what the LLM receives as its user message, preventing the "lost in the middle" problem where `gpt-4o-mini` anchors on the first summary table and ignores the appendix.
+
+### Hard Stop (Backend — `server.js`)
+
+If `identifiers` are provided but **none** match anywhere in the document, the route **short-circuits** before the OpenAI call:
+
+```javascript
+console.warn('[extract] Target account not found in document. Aborting LLM call to prevent hallucinations.');
+return res.json({ qualifying_annuity: null, recognized_annuity: null, exempt_capital: null, recognized_principal: null, dec_31_anchor: null });
+```
+
+This prevents data corruption when a user uploads a mismatched PDF (e.g., a 2025 annual report for an account that didn't exist yet). The frontend receives a clean all-null response and does not overwrite any existing valid bucket data.
+
+### Execution Flow Summary
+
+```
+Upload PDF + accountNumber
+        │
+        ▼
+  Parse identifiers[]
+        │
+        ├─ identifiers empty ──→ fallback slice (15K chars) → LLM call
+        │
+        ├─ identifiers present, NO match → Hard Stop → return all null
+        │
+        └─ identifiers present, match found
+                │
+                ▼
+        Window slice around last match (~12K chars)
+                │
+                ▼
+        LLM call (gpt-4o-mini, temp=0)
+                │
+                ▼
+        JSON parse + K₪ normalization (÷1000, strip commas)
+                │
+                ▼
+        Return { qualifying_annuity, recognized_annuity, exempt_capital,
+                 recognized_principal, dec_31_anchor }
+```
+
+### Server-Side Helper Reference (`server.js`)
+
+| Variable / Block | Purpose |
+|---|---|
+| `identifiers[]` | Comma-split tokens from `req.body.accountNumber` |
+| `lastMatchIndex` | Last char index of any identifier in `rawText` |
+| `pdfText` | The windowed substring sent to the LLM |
+| `accountFilter` | System-prompt prefix identifying the target account |
+| `EXPECTED_KEYS` | Whitelist for LLM output keys; strips extras, converts strings to numbers |

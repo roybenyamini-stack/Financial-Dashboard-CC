@@ -18689,8 +18689,23 @@ function _t190OpenAIExtractionModal() {
     st.style.display = 'block';
     st.innerHTML = '⏳ מכין את הקובץ <b>' + file.name + '</b> לניתוח בשרת המאובטח...';
 
+    var _curItem    = ffsCurrentInvId
+      ? (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; }) || null
+      : null;
+    var _accountRaw = (_curItem && (_curItem.assetNum || '').trim()) || '';
+    var _accountNum = '';
+    if (_accountRaw) {
+      var _parts  = _accountRaw.match(/\d+/g) || [];
+      var _joined = _parts.join('');
+      var _tokens = [];
+      _parts.forEach(function(p) { if (p.length >= 4) _tokens.push(p); });
+      if (_joined.length >= 4 && _tokens.indexOf(_joined) === -1) _tokens.push(_joined);
+      _accountNum = _tokens.filter(function(v, i, a) { return a.indexOf(v) === i; }).join(', ');
+    }
+
     var fd = new FormData();
     fd.append('file', file);
+    if (_accountNum) fd.append('accountNumber', _accountNum);
 
     fetch('http://localhost:3005/api/extract', {
       method: 'POST',
