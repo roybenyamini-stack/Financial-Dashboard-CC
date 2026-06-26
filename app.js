@@ -17928,6 +17928,32 @@ function _t190SimToggleDetails() {
   if (chevron) chevron.innerHTML = isOpen ? '&#9660;' : '&#9650;';
 }
 
+function _t190SimToggleAdvanced() {
+  var panel = document.getElementById('t190-sim-advanced-panel');
+  var btn   = document.getElementById('t190-sim-advanced-btn');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if (btn) {
+    btn.style.background  = isOpen ? ''        : '#eff6ff';
+    btn.style.borderColor = isOpen ? '#d1d5db' : '#2563eb';
+    btn.style.color       = isOpen ? '#6b7280' : '#2563eb';
+  }
+}
+
+function _sfToggleAdvanced() {
+  var panel = document.getElementById('sf-sim-advanced-panel');
+  var btn   = document.getElementById('sf-sim-advanced-btn');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if (btn) {
+    btn.style.background  = isOpen ? ''        : '#eff6ff';
+    btn.style.borderColor = isOpen ? '#d1d5db' : '#2563eb';
+    btn.style.color       = isOpen ? '#6b7280' : '#2563eb';
+  }
+}
+
 function _t190SimSyncPair(key, source) {
   var sl  = document.getElementById('t190-sim-' + key + '-slider');
   var inp = document.getElementById('t190-sim-' + key + '-input');
