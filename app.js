@@ -20930,6 +20930,35 @@ function _sfRecalculate() {
   var remainK = Math.max(0, Math.round(projBalK) - Math.round(grossK));
   if (re) re.textContent = taxDueK === null ? '' : 'יתרה לאחר משיכה: ' + remainK.toLocaleString('he-IL') + ' K ₪';
 
+  // ── Liquidity status indicator ─────────────────────────────────
+  var _liqEl = document.getElementById('sf-liquidity-status');
+  if (_liqEl) {
+    var _jdRaw = item && item.joinDate ? String(item.joinDate).trim() : '';
+    if (_jdRaw.length >= 8) {
+      var _jdNorm = _jdRaw.replace(/-/g, '');
+      var _jdDate = new Date(
+        parseInt(_jdNorm.slice(0, 4), 10),
+        parseInt(_jdNorm.slice(4, 6), 10) - 1,
+        parseInt(_jdNorm.slice(6, 8), 10)
+      );
+      var _liqDate = new Date(_jdDate);
+      _liqDate.setFullYear(_liqDate.getFullYear() + 6);
+      var _today = new Date();
+      _today.setHours(0, 0, 0, 0);
+      if (_today >= _liqDate) {
+        _liqEl.style.cssText = 'display:block;position:absolute;top:0;right:-40px;font-family:Heebo,sans-serif;font-size:11px;font-weight:600;line-height:1.4;white-space:nowrap;text-align:right;color:#16a34a;';
+        _liqEl.textContent = '🟢 נזילה';
+      } else {
+        var _liqMo = String(_liqDate.getMonth() + 1).padStart(2, '0');
+        var _liqYr = _liqDate.getFullYear();
+        _liqEl.style.cssText = 'display:block;position:absolute;top:0;right:-40px;font-family:Heebo,sans-serif;font-size:11px;font-weight:600;line-height:1.4;white-space:nowrap;text-align:right;color:#6b7280;';
+        _liqEl.textContent = '🔒 נזילה ב-' + _liqMo + '/' + _liqYr;
+      }
+    } else {
+      _liqEl.style.cssText = 'display:none;position:absolute;';
+    }
+  }
+
   var wdThumb    = document.getElementById('sf-wd-thumb-tip');
   var wdFixThumb = document.getElementById('sf-wd-fix-thumb-tip');
   if (_sfWithdrawalMode === 'pct') {
