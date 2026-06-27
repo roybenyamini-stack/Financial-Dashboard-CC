@@ -16413,15 +16413,26 @@ function _ffsPopulateT190Section(item) {
   var badgeDateEl = document.getElementById('ffs-inv-t190-override-date');
   if (badgeEl) badgeEl.style.display = (item && item.manual_override) ? '' : 'none';
   if (badgeDateEl && item && item.last_manual_update_date) badgeDateEl.textContent = item.last_manual_update_date;
+  var badgePrefixEl = document.getElementById('ffs-inv-t190-override-prefix');
+  if (badgePrefixEl) badgePrefixEl.textContent = (item && item.override_source === 'ai') ? '✨ חולץ ע״י AI ב:' : '🔒 עודכן ידנית ב:';
   if (badgeEl) {
     badgeEl.onclick = function() {
-      if (!confirm('האם לבטל את הנעילה הידנית ולשחזר סנכרון למסלקה?')) return;
-      var _inv = (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; });
-      if (!_inv) return;
-      _inv.manual_override         = false;
-      _inv.last_manual_update_date = null;
-      ffsSaveProfile();
-      _ffsPopulateT190Section(_inv);
+      var _ulModal  = document.getElementById('ffs-t190-unlock-modal');
+      var _ulOkBtn  = document.getElementById('ffs-t190-unlock-ok-btn');
+      var _ulCanBtn = document.getElementById('ffs-t190-unlock-cancel-btn');
+      if (!_ulModal) return;
+      _ulModal.style.display = 'flex';
+      _ulOkBtn.onclick = function() {
+        _ulModal.style.display = 'none';
+        var _inv = (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; });
+        if (!_inv) return;
+        _inv.manual_override         = false;
+        _inv.last_manual_update_date = null;
+        _inv.override_source         = null;
+        ffsSaveProfile();
+        _ffsPopulateT190Section(_inv);
+      };
+      _ulCanBtn.onclick = function() { _ulModal.style.display = 'none'; };
     };
   }
 
@@ -16720,6 +16731,8 @@ function ffsSaveInvFromModal() {
           if (_qChanged || _rChanged || _eChanged || _aChanged) {
             _editedInv.manual_override         = true;
             _editedInv.last_manual_update_date = new Date().toISOString().slice(0, 10);
+            _editedInv.override_source         = (window._t190AiSourceId === _editedInv.id) ? 'ai' : 'manual';
+            window._t190AiSourceId             = null;
           }
           // Manual bucket overrides — user-typed values win over proportional result
           _editedInv.buckets.qualifying_annuity.balance_k = _qv;
@@ -16772,6 +16785,7 @@ function ffsSaveInvFromModal() {
         _newInv.buckets                  = _t190InitBuckets();
         _newInv.manual_override          = true;
         _newInv.last_manual_update_date  = new Date().toISOString().slice(0, 10);
+        _newInv.override_source          = 'manual';
         _newInv.dec_31_anchor_k          = null;
       }
       FFS_PROFILE.investments.push(_newInv);
@@ -18744,25 +18758,69 @@ function _t190OpenAIExtractionModal() {
       return r.json();
     })
     .then(function(data) {
-      var fields = {
-        'ffs-inv-t190-qualifying':        data.qualifying_annuity,
-        'ffs-inv-t190-recognized':        data.recognized_annuity,
-        'ffs-inv-t190-exempt':            data.exempt_capital,
-        'ffs-inv-f-recognized-principal': data.recognized_principal,
-        'ffs-inv-f-dec31-anchor':         data.dec_31_anchor
-      };
-      Object.keys(fields).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el && fields[id] != null) el.value = fields[id];
-      });
-      if (typeof _t190CheckBucketSum === 'function') _t190CheckBucketSum();
+      var hasData = [data.qualifying_annuity, data.recognized_annuity, data.exempt_capital, data.recognized_principal, data.dec_31_anchor]
+        .some(function(v) { return v != null; });
 
-      var parts = [];
-      if (data.qualifying_annuity   != null) parts.push('קצבה מזכה: '  + data.qualifying_annuity   + 'K');
-      if (data.recognized_annuity   != null) parts.push('קצבה מוכרת: ' + data.recognized_annuity   + 'K');
-      if (data.exempt_capital       != null) parts.push('הון פטור: '    + data.exempt_capital       + 'K');
-      if (data.recognized_principal != null) parts.push('קרן מוכרת: '  + data.recognized_principal + 'K');
-      st.innerHTML = '✅ נתונים חולצו בהצלחה!<br><small style="font-weight:400;color:#475569;">' + parts.join(' | ') + '</small>';
+      if (!hasData) {
+        st.innerHTML = '⚠️ לא נמצאו נתונים תואמים בדוח.';
+        return;
+      }
+
+      function _applyData() {
+        if (_curItem) {
+          _curItem.manual_override         = false;
+          _curItem.last_manual_update_date = null;
+          _curItem.override_source         = null;
+          window._t190AiSourceId           = _curItem.id;
+          var badgeEl = document.getElementById('ffs-inv-t190-override-badge');
+          if (badgeEl) badgeEl.style.display = 'none';
+        }
+        var fields = {
+          'ffs-inv-t190-qualifying':        data.qualifying_annuity,
+          'ffs-inv-t190-recognized':        data.recognized_annuity,
+          'ffs-inv-t190-exempt':            data.exempt_capital,
+          'ffs-inv-f-recognized-principal': data.recognized_principal,
+          'ffs-inv-f-dec31-anchor':         data.dec_31_anchor
+        };
+        Object.keys(fields).forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = (fields[id] != null) ? fields[id] : '';
+        });
+        if (typeof _t190CheckBucketSum === 'function') _t190CheckBucketSum();
+        var parts = [];
+        if (data.qualifying_annuity   != null) parts.push('קצבה מזכה: '  + data.qualifying_annuity   + 'K');
+        if (data.recognized_annuity   != null) parts.push('קצבה מוכרת: ' + data.recognized_annuity   + 'K');
+        if (data.exempt_capital       != null) parts.push('הון פטור: '    + data.exempt_capital       + 'K');
+        if (data.recognized_principal != null) parts.push('קרן מוכרת: '  + data.recognized_principal + 'K');
+        st.innerHTML = '✅ נתונים חולצו בהצלחה!<br><small style="font-weight:400;color:#475569;">' + parts.join(' | ') + '</small>';
+      }
+
+      if (_curItem && _curItem.manual_override) {
+        var aiModal = document.getElementById('ffs-ai-modal');
+        var modal   = document.getElementById('ffs-ai-override-modal');
+        var okBtn   = document.getElementById('ffs-ai-override-ok-btn');
+        var canBtn  = document.getElementById('ffs-ai-override-cancel-btn');
+        st.innerHTML = '';
+        aiModal.style.display = 'none';
+        modal.style.display = 'flex';
+        okBtn.onclick = function() {
+          modal.style.display = 'none';
+          _applyData();
+          var parts = [];
+          if (data.qualifying_annuity != null) parts.push('קצבה מזכה: ' + data.qualifying_annuity + 'K');
+          if (data.exempt_capital     != null) parts.push('הון פטור: '   + data.exempt_capital     + 'K');
+          if (typeof showToast === 'function')
+            showToast('✅ נתונים חולצו בהצלחה!' + (parts.length ? ' — ' + parts.join(' | ') : ''), '#10b981', 4000);
+        };
+        canBtn.onclick = function() {
+          modal.style.display = 'none';
+          aiModal.style.display = 'flex';
+          st.innerHTML = '⚠️ החילוץ בוטל — הנתונים הידניים נשמרו.';
+        };
+        return;
+      }
+
+      _applyData();
     })
     .catch(function(err) {
       st.innerHTML = '❌ שגיאה: ' + err.message;
@@ -19631,32 +19689,9 @@ function _sfTriggerAdvisorModal() {
   };
   window._sfAdvAnalysisLoaded = false;
 
-  // ── Data reliability banner ──────────────────────────────────────
-  var _hasMasleka = !!(_sfCurrentItem && _sfCurrentItem.rawXml);
-  var _hasPdf     = !!(_gd.pdfTotalBalanceK > 0 || _gd.taxableProfit15K > 0 || _gd.taxableProfit20K > 0 || _gd.taxableProfit25K > 0);
-  var _ytdOk      = _gd.ytdDepositsK > 0 && !_gd.dataGapNote;
-  var _sfBannerState;
-  if      (_sfIsNewFund)                      _sfBannerState = 4;
-  else if (_sfIsManual)                       _sfBannerState = 2;
-  else if (_hasMasleka && _hasPdf && _ytdOk) _sfBannerState = 1;
-  else if (_hasPdf && !_ytdOk)               _sfBannerState = 5;
-  else                                        _sfBannerState = 3;
-
-  var _bannerCfg = {
-    1: { bg:'#f0fdf4', color:'#166534', border:'#bbf7d0', text:'✨ רמת דיוק: גבוהה. הצבירה הכוללת מעודכנת מנתוני מסלקה. נתוני חישובי המס ושכבות ההפקדה חולצו מדו״ח שנתי על ידי AI.' },
-    2: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✍️ רמת דיוק: עריכה ידנית. שכבות המס נערכו על ידך ואינן מאומתות מול דו״ח רשמי. ייתכנו פערים בחישובי המס הסופיים מול רשויות המס.' },
-    3: { bg:'#f9fafb', color:'#1f2937', border:'#e5e7eb', text:'⚠️ רמת דיוק: בסיסית. הנתונים מבוססים על מסלקה בלבד ללא פירוט של שכבות המס ההיסטוריות. לחישוב מס מדויק מומלץ להעלות דו״ח שנתי.' },
-    4: { bg:'#eff6ff', color:'#1e40af', border:'#bfdbfe', text:'✨ רמת דיוק: בסיסית. מדובר בקרן חדשה משנת המס הנוכחית ולכן טרם הופק עבורה דו״ח שנתי. חישוב מס אוטומטי יבוצע בשנה הבאה.' },
-    5: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✨ רמת דיוק: משולבת. נתוני העבר חולצו מדו״ח רשמי. הפקדות שנת המס הנוכחית טרם אומתו ולכן חישוב המס השוטף הינו הערכה בלבד.' }
-  };
-  var _bc = _bannerCfg[_sfBannerState];
-  var _bannerHtml = '<div style="display:block;width:100%;padding:10px 20px;font-family:Heebo,sans-serif;font-size:12px;font-weight:500;direction:rtl;text-align:right;box-sizing:border-box;margin-bottom:0;background:' + _bc.bg + ';color:' + _bc.color + ';border-bottom:1px solid ' + _bc.border + ';">' + _bc.text + '</div>';
-
   // ── Inject HTML — accordion CLOSED, chat-history always in DOM ───
   contentEl.innerHTML =
-    '<div style="display:flex;flex-direction:column;font-family:Heebo,sans-serif;direction:rtl;">' +
-
-    _bannerHtml +
+    '<div style="display:flex;flex-direction:column;flex:1;min-height:0;font-family:Heebo,sans-serif;direction:rtl;">' +
 
     '<div style="overflow-y:auto;max-height:60vh;padding:20px 24px 0;">' +
 
@@ -19677,9 +19712,9 @@ function _sfTriggerAdvisorModal() {
 
     '</div>' +
 
-    '<div id="sfadv-chat-history" style="display:flex;flex-direction:column;gap:6px;padding:0 24px 8px;"></div>' +
+    '<div id="sfadv-chat-history" style="display:flex;flex-direction:column;gap:6px;padding:0 24px 24px;overflow-y:auto;flex:1 1 auto;min-height:0;"></div>' +
 
-    '<div style="border-top:1px solid #e2e8f0;padding:12px 16px;background:#fff;flex-shrink:0;">' +
+    '<div style="border-top:1px solid #e2e8f0;padding:12px 16px;background:#fff;flex-shrink:0;position:relative;">' +
       '<div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:6px 8px 6px 12px;">' +
         '<input id="sfadv-chat-input" type="text" placeholder="שאל/י את יועץ ה-AI..." style="flex:1;border:none;background:transparent;font-family:Heebo,sans-serif;font-size:13px;direction:rtl;outline:none;color:#1e293b;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();_sfAdvSendChat();}">' +
         '<button onclick="_sfAdvSendChat()" style="background:#6366f1;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="שלח">' +
@@ -19689,6 +19724,8 @@ function _sfTriggerAdvisorModal() {
     '</div>' +
 
     '</div>';
+
+  contentEl.style.cssText = 'flex:1;min-height:0;overflow:hidden;padding:0;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;';
 
   // ── Lazy-load toggle handler ─────────────────────────────────────
   window._sfAdvToggleAnalysis = function(btn) {
