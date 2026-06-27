@@ -9248,12 +9248,16 @@ function ffsSavePensionFromModal() {
 function ffsHandleEditPension(el) {
   var id   = el.getAttribute('data-id');
   var item = (FFS_PROFILE.pension || []).find(function(x) { return x.id === id; });
-  if (item) ffsOpenPensionModal(item);
+  if (!item) return;
+  mgridCloseDetailPanel();
+  ffsOpenPensionModal(item);
 }
 function ffsHandleEditInv(el) {
   var id   = el.getAttribute('data-id');
   var item = (FFS_PROFILE.investments || []).find(function(x) { return x.id === id; });
-  if (item) ffsOpenInvModal(item, 'investments');
+  if (!item) return;
+  mgridCloseDetailPanel();
+  ffsOpenInvModal(item, 'investments');
 }
 function ffsShowNotes(el) {
   var _noteHeader = 'הערות:\n';
@@ -16817,6 +16821,8 @@ function ffsSaveInvFromModal() {
       var _mg = document.getElementById('mgrid-modal');
       if (_mg && _mg.style.display !== 'none') renderMasterGrid();
     }
+
+    if (typeof ffsUpdateLiveSidebar === 'function') ffsUpdateLiveSidebar();
 
     // Flash save confirmation on the Save button
     var _saveBtn = document.getElementById('ffs-inv-save-btn');
