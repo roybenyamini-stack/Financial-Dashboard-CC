@@ -19592,6 +19592,177 @@ function _sfTriggerAIVerification() {
   .finally(function() {});
 }
 
+function _sfTriggerAdvisorModal() {
+  var contentEl = document.getElementById('ffs-ai-modal-content');
+  if (!contentEl) return;
+
+  contentEl.style.cssText = 'padding:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:right;color:#334155;';
+
+  if (!_sfAIVerifData) {
+    contentEl.innerHTML =
+      '<div style="padding:28px 24px;font-family:Heebo,sans-serif;direction:rtl;font-size:13px;color:#92400e;background:#fef8e6;text-align:right;">' +
+        '⚠️ יש להעלות דו״ח שנתי PDF תחילה כדי לאפשר ניתוח AI.' +
+      '</div>';
+    document.getElementById('ffs-ai-modal').style.display = 'flex';
+    return;
+  }
+
+  // ── Build payload ────────────────────────────────────────────────
+  var _gd = _sfAIVerifData.genericData || {};
+  window._sfAdvPayload = {
+    assetType:         'keren_hishtalmut',
+    fundName:          (_sfCurrentItem && _sfCurrentItem.name) || '–',
+    totalBalanceK:     _gd.pdfTotalBalanceK     || 0,
+    exemptProfitK:     _gd.exemptProfitK        || 0,
+    taxableProfit15K:  _gd.taxableProfit15K     || 0,
+    taxableProfit20K:  _gd.taxableProfit20K     || 0,
+    taxableProfit25K:  _gd.taxableProfit25K     || 0,
+    pdfTierTaxK:       _gd.pdfTierTaxK          || 0,
+    ytdRealProfitK:    _gd.ytdRealProfitK       || 0,
+    ytdTaxDueK:        _gd.ytdTaxDueK           || 0,
+    ytdDepositsK:      _gd.ytdDepositsK         || 0,
+    simRealProfitK:    _gd.simRealProfitK       || 0,
+    simTaxDueK:        _gd.simTaxDueK           || 0,
+    taxableRatio:      _gd.taxableRatio         || 0,
+    withdrawalRatio:   _gd.withdrawalRatio      || 1,
+    userCalculatedTax: _gd.userCalculatedTax    || 0,
+    reportYear:        _gd.reportYear           || 0,
+    dataGapNote:       _gd.dataGapNote          || null
+  };
+  window._sfAdvAnalysisLoaded = false;
+
+  // ── Inject HTML — accordion CLOSED, chat-history always in DOM ───
+  contentEl.innerHTML =
+    '<div style="display:flex;flex-direction:column;font-family:Heebo,sans-serif;direction:rtl;">' +
+
+    '<div style="overflow-y:auto;max-height:60vh;padding:20px 24px 0;">' +
+
+      '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:14px;letter-spacing:0.02em;">סיכום ניתוח AI</div>' +
+
+      '<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;">' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>צבירה:</b> אומתה יתרה כוללת מול נתוני הדו״ח השנתי.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>שכבות מס:</b> זוהו רווחים חייבים לפי שנות הצטברות (15% / 20% / 25%).</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>YTD:</b> חושב רווח שוטף ומס מוערך — חישוב נומינלי ללא ניכוי אינפלציה.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>תחזית:</b> סימולציית מס עתידי על בסיס תשואה ואינפלציה.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>נזילות:</b> נבדק סטטוס הנזילות והפטור ממס של הקרן.</span></li>' +
+      '</ul>' +
+
+      '<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">' +
+        '<button id="sfadv-toggle-btn" onclick="_sfAdvToggleAnalysis(this)" style="background:transparent;border:1px solid #6366f1;color:#6366f1;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;">הצג ניתוח מפורט ▾</button>' +
+        '<div id="sfadv-detail" style="display:none;margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;direction:rtl;"></div>' +
+      '</div>' +
+
+      '<div id="sfadv-chat-history" style="display:flex;flex-direction:column;gap:6px;padding-bottom:8px;"></div>' +
+
+    '</div>' +
+
+    '<div style="border-top:1px solid #e2e8f0;padding:12px 16px;background:#fff;flex-shrink:0;">' +
+      '<div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:6px 8px 6px 12px;">' +
+        '<input id="sfadv-chat-input" type="text" placeholder="שאל/י את יועץ ה-AI..." style="flex:1;border:none;background:transparent;font-family:Heebo,sans-serif;font-size:13px;direction:rtl;outline:none;color:#1e293b;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();_sfAdvSendChat();}">' +
+        '<button onclick="_sfAdvSendChat()" style="background:#6366f1;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="שלח">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '</div>';
+
+  // ── Lazy-load toggle handler ─────────────────────────────────────
+  window._sfAdvToggleAnalysis = function(btn) {
+    var detailEl = document.getElementById('sfadv-detail');
+    if (!detailEl) return;
+    var isOpen = detailEl.style.display !== 'none';
+    if (isOpen) {
+      detailEl.style.display = 'none';
+      btn.textContent = 'הצג ניתוח מפורט ▾';
+      return;
+    }
+    detailEl.style.display = 'block';
+    btn.textContent = 'הסתר ניתוח ▴';
+    if (window._sfAdvAnalysisLoaded) return;
+    window._sfAdvAnalysisLoaded = true;
+    detailEl.innerHTML =
+      '<div id="sfadv-analysis" style="font-size:12px;color:#374151;line-height:1.7;text-align:right;white-space:pre-wrap;">' +
+        '<span style="color:#6366f1;">⏳ מנתח נתוני הקרן...</span>' +
+      '</div>';
+    fetch('http://localhost:3005/api/chat/tax', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'ספק ניתוח תמציתי של קרן ההשתלמות: צבירה כוללת, שכבות מס היסטוריות (15% עבור 2003-2005, 20% עבור 2006-2011, 25% עבור 2012 ואילך), חישוב YTD נומינלי ללא ניכוי אינפלציה, תחזית מס עתידי, וסטטוס נזילות. CRITICAL: Do NOT include technical variable names (like simRealProfitK). Explain the future simulation in plain Hebrew. Keep your response concise and structured (under 250 words) to prevent truncation.',
+        data: window._sfAdvPayload
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('sfadv-analysis');
+      if (el) el.textContent = d.answer || '';
+    })
+    .catch(function() {
+      var el = document.getElementById('sfadv-analysis');
+      if (el) { el.style.color = '#dc2626'; el.textContent = 'שגיאה בחיבור לשרת ה-AI. אנא נסה שוב.'; }
+    });
+  };
+
+  // ── Chat — fully decoupled from accordion ────────────────────────
+  window._sfAdvSendChat = function() {
+    var inp = document.getElementById('sfadv-chat-input');
+    if (!inp || !inp.value.trim()) return;
+    var q = inp.value.trim();
+    inp.value = '';
+
+    var histEl = document.getElementById('sfadv-chat-history');
+    if (!histEl) return;
+
+    if (!histEl.children.length) {
+      histEl.style.marginTop  = '12px';
+      histEl.style.borderTop  = '1px solid #e2e8f0';
+      histEl.style.paddingTop = '8px';
+    }
+
+    var uDiv = document.createElement('div');
+    uDiv.style.cssText = 'font-size:12px;text-align:right;';
+    var uLabel = document.createElement('b');
+    uLabel.style.color   = '#6366f1';
+    uLabel.textContent   = 'שאלה: ';
+    uDiv.appendChild(uLabel);
+    uDiv.appendChild(document.createTextNode(q));
+    histEl.appendChild(uDiv);
+
+    var lDiv = document.createElement('div');
+    lDiv.id            = 'sfadv-follow-loading';
+    lDiv.style.cssText = 'font-size:12px;color:#6366f1;';
+    lDiv.textContent   = '⏳ מכין תשובה...';
+    histEl.appendChild(lDiv);
+
+    console.log('SF chat:', q);
+
+    fetch('http://localhost:3005/api/chat/tax', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, data: window._sfAdvPayload })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var loadEl = document.getElementById('sfadv-follow-loading');
+      if (loadEl) loadEl.remove();
+      var histEl2 = document.getElementById('sfadv-chat-history');
+      if (histEl2) {
+        var aDiv = document.createElement('div');
+        aDiv.style.cssText = 'font-size:12px;color:#374151;line-height:1.6;text-align:right;margin-bottom:6px;';
+        aDiv.textContent   = d.answer || '';
+        histEl2.appendChild(aDiv);
+      }
+    })
+    .catch(function() {
+      var loadEl = document.getElementById('sfadv-follow-loading');
+      if (loadEl) { loadEl.style.color = '#dc2626'; loadEl.textContent = 'שגיאה.'; }
+    });
+  };
+
+  document.getElementById('ffs-ai-modal').style.display = 'flex';
+}
+
 function _sfCategoryVerify() {
   if (!_sfAIVerifData && !_sfIsExempt && !_sfIsNewFund) {
     _sfShowAIModal({ _error: 'אנא פתח קרן השתלמות עם דו"ח שנתי מועלה תחילה' });
