@@ -18201,10 +18201,10 @@ function _t190SimRenderEmptyState() {
   if (segEl) segEl.innerHTML = '';
   var bannerEl = document.getElementById('t190-sim-accuracy-bar');
   if (bannerEl) {
-    bannerEl.style.color        = '#92400e';
-    bannerEl.style.background   = '#fef3c7';
-    bannerEl.style.borderBottom = '1px solid #fcd34d';
-    bannerEl.textContent = '⚠️ חסרים נתוני חלוקת שכבות. יש להזין נתונים במסך עריכת הנכס.';
+    bannerEl.style.color        = '#78350f';
+    bannerEl.style.background   = '#fef8e6';
+    bannerEl.style.borderBottom = '1px solid #fde68a';
+    bannerEl.textContent = '⚠️ צבירה כוללת מנתוני מסלקה או מעדכון ידני. לצורך חלוקה לדליים ולטובת ניתוח מס, יש להעלות את הדו״ח השנתי ב-PDF.';
   }
 }
 
@@ -18365,12 +18365,14 @@ function _t190SimCalculate() {
 
   var _bannerEl = document.getElementById('t190-sim-accuracy-bar');
   if (_bannerEl) {
-    _bannerEl.style.color        = '#16a34a';
-    _bannerEl.style.background   = '#f0fdf4';
-    _bannerEl.style.borderBottom = '1px solid #e2e8f0';
-    _bannerEl.textContent = _bResult.branch === 'A'
-      ? '✅ נתוני חלוקה: עריכה ידנית — יחסים מחושבים מעוגן 31/12'
-      : '✅ נתוני חלוקה: מסלקה — שכבות XML';
+    var _joinRaw    = String(_t190SimCurrentItem.joinDate || '').trim().replace(/-/g, '');
+    var _isPreV2008 = _joinRaw.length === 8 && _joinRaw < '20080101';
+    _bannerEl.style.color        = '#374151';
+    _bannerEl.style.background   = '#ecfdf5';
+    _bannerEl.style.borderBottom = '1px solid #d1fae5';
+    _bannerEl.textContent = _isPreV2008
+      ? 'חלוקה אוטומטית לדליים: הון פטור מלא. ותק הקופה לפני 2008.'
+      : '✨ צבירה כוללת מנתוני מסלקה או מעדכון ידני. נתוני החלוקה לדליים חולצו מדו״ח שנתי ע״י AI או נערכו ידנית.';
   }
 }
 
