@@ -2654,6 +2654,30 @@
 </div>
 
 
+<!-- v1.0.66: AI Override Confirm Modal -->
+<div id="ffs-ai-override-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:999999;align-items:center;justify-content:center;direction:rtl;">
+  <div style="background:white;border-radius:12px;padding:24px 28px;text-align:center;max-width:340px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:8px;">🔒 דריסת נתונים ידניים</div>
+    <div style="font-size:13px;color:#475569;margin-bottom:20px;line-height:1.6;">קיימים נתונים שהוזנו ידנית. האם לדרוס אותם עם הנתונים החדשים מהדוח?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="ffs-ai-override-cancel-btn" style="padding:9px 22px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
+      <button id="ffs-ai-override-ok-btn" style="padding:9px 22px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:white;background:#6366f1;cursor:pointer;">דרוס ועדכן</button>
+    </div>
+  </div>
+</div>
+
+<!-- v1.0.77: T190 Unlock Confirm Modal -->
+<div id="ffs-t190-unlock-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:999999;align-items:center;justify-content:center;direction:rtl;">
+  <div style="background:white;border-radius:12px;padding:24px 28px;text-align:center;max-width:340px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:8px;">ביטול נעילה</div>
+    <div style="font-size:13px;color:#475569;margin-bottom:20px;line-height:1.6;">האם לבטל את הנעילה ולשחזר סנכרון למסלקה?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="ffs-t190-unlock-cancel-btn" style="padding:9px 22px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:#64748b;background:#f8fafc;cursor:pointer;">ביטול</button>
+      <button id="ffs-t190-unlock-ok-btn" style="padding:9px 22px;border:none;border-radius:9px;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;color:white;background:#ef4444;cursor:pointer;">בטל נעילה</button>
+    </div>
+  </div>
+</div>
+
 <!-- v177.7: Smart Investment Dropzone — Modal (Universal: investments + pension) -->
 <div id="ffs-inv-backdrop" onclick="ffsCloseInvModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10250;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);"></div>
 <div id="ffs-inv-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92vw;max-width:480px;max-height:90vh;overflow-y:auto;background:#fff;border-radius:18px;z-index:10251;padding:28px 28px 22px;direction:rtl;font-family:Heebo,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.28);">
@@ -2809,7 +2833,7 @@
         <div style="font-size:10px;color:#6b7280;margin-top:3px;">נתון זה נדרש לחישוב מס מדויק על הרווח הריאלי. במידה והנתון לא מופיע בדוח השנתי, יש להפיק 'אישור יתרות לתיקון 190' מהאזור האישי באתר חברת הביטוח, או להזין זמנית סכום משוער (קטן או שווה לסך הקצבה המוכרת). הזנת הנתונים היא חד-פעמית עבור הקופה.</div>
       </div>
       <div id="ffs-inv-t190-override-badge" title="לחץ לביטול הנעילה" style="display:none;cursor:pointer;font-size:10px;color:#b45309;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;margin-bottom:8px;">
-        🔒 עודכן ידנית ב: <span id="ffs-inv-t190-override-date"></span>
+        <span id="ffs-inv-t190-override-prefix">🔒 עודכן ידנית ב:</span> <span id="ffs-inv-t190-override-date"></span>
       </div>
       <div style="margin-bottom:2px;">
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">יתרת הקופה בדוח השנתי (31/12) (K ₪)</div>
@@ -3711,7 +3735,7 @@
 
 <!-- AI MODAL -->
 <div id="ffs-ai-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; align-items: center; justify-content: center; direction: rtl;">
-    <div style="background: #ffffff; width: 500px; max-width: 90%; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; display: flex; flex-direction: column;">
+    <div style="background: #ffffff; width: 500px; max-width: 90%; max-height: 82vh; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; display: flex; flex-direction: column;">
         <div style="background: #1e293b; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div style="font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">✨ עוזר AI של D-Board</div>
             <div onclick="document.getElementById('ffs-ai-modal').style.display='none';" style="cursor: pointer; font-size: 16px; color: #94a3b8; font-weight: bold;">✕</div>

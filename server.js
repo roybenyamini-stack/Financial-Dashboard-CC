@@ -679,6 +679,11 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
   try { ruleContent = fs.readFileSync(MASTER_TAX_RULES_FILE, 'utf8'); }
   catch (e) { return res.status(500).json({ error: 'Tax rules file not found' }); }
 
+  const _sfAdvisorSystem = [
+    'CRITICAL FORMATTING RULE: NEVER expose internal JSON keys, variable names, or code (e.g., simTaxDueK, inflationDeductK) to the user. Always translate the logic into plain, natural Hebrew.',
+    'CRITICAL FINANCIAL LOGIC: The YTD (Year-to-Date) tax calculation in this system is strictly NOMINAL (חישוב נומינלי). If the user asks about YTD tax, inflation, or how it is calculated, you MUST explicitly explain in natural Hebrew: \'למרות שחישוב המס על רווחי השנה הנוכחית (YTD) אמור להיות ריאלי (בניכוי אינפלציה), המערכת מחשבת אותו כרגע באופן נומינלי. ההבדל הוא זניח, והנתון יתעדכן במדויק לאחר קבלת הדוח השנתי המפורט בסוף השנה הנוכחית.\' Do not expose internal variables while explaining this.',
+  ].join('\n');
+
   const prompt = [
     'אתה יועץ מס ישראלי מומחה בקרנות השתלמות וחישובי מס.',
     'ענה על שאלת המשתמש בעברית, בצורה ברורה וקצרה (עד 4 משפטים).',
@@ -696,6 +701,7 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
   try {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 600,
+      system: _sfAdvisorSystem,
       messages: [{ role: 'user', content: prompt }],
     });
     res.json({ answer: (msg.content[0].text || '').trim() });
@@ -746,16 +752,36 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
 Extract the following specific layer balances from the text. Return ONLY valid JSON, no markdown, no conversational text.
 
 Keys to extract (values in thousands of NIS — K₪):
-- "qualifying_annuity":   balance labeled "קצבה מזכה"
-- "recognized_annuity":   balance labeled "קצבה מוכרת"
-- "exempt_capital":       balance labeled "הון פטור" / "כספים הוניים" / "הפקדות עד 2007"
+- "qualifying_annuity":   balance labeled "קצבה מזכה". If the report does not split pension by type, use the row where the column "ייעוד הכספים" contains "קצבה" for this field.
+- "recognized_annuity":   balance labeled "קצבה מוכרת". If no such split exists in the report, output 0 (not null).
+- "exempt_capital":       balance labeled "הון פטור" / "כספים הוניים" / "הפקדות עד 2007", OR the row where the column "ייעוד הכספים" contains "הון".
 - "recognized_principal": balance labeled "קרן קצבה מוכרת"
 - "dec_31_anchor":        balance labeled "עוגן 31/12" / "צבירה לפני 2008" / "יתרת 31/12"
 
-Crucial Constraint: If a specific bucket/field cannot be explicitly found or confidently inferred from the document, its value MUST be null. Do not guess or perform complex calculations. Accuracy is paramount.
+FIELD MAPPING RULES — apply in this order:
+1. TOTAL BALANCE: Use rows labeled "יתרת הכספים בקופה בסוף השנה" or "סה״כ" in the balance tables. NEVER use rows titled "כספים שהעברת לחשבון", "הפקדת כספים", or any row describing contributions or transfers — those are NOT balances.
+2. EXEMPT CAPITAL: Find the row where the column "ייעוד הכספים" contains "הון" — that row's balance is exempt_capital.
+3. PENSION SPLIT: Find the row where "ייעוד הכספים" contains "קצבה" — that row's balance is the total pension. If the report explicitly shows separate "קצבה מוכרת" and "קצבה מזכה" sub-rows, use them. If NO split is shown, assign the ENTIRE pension amount to qualifying_annuity and set recognized_annuity to 0.
+4. Crucial Constraint: If a field cannot be found, its value MUST be null (except recognized_annuity when a pension row exists but has no split — use 0 in that case).
+5. PHOENIX REPORTS: Find the section or table titled "א.3" or "יתרת החיסכון המצטבר". Within that section:
+   - Exempt Capital (exempt_capital): locate any line or cell containing the word "הון". The numeric value on that line is the exempt capital. Numbers may appear with comma-separators (e.g., 306,311.27) — this means 306,311 NIS = 306.311 K₪.
+   - Qualifying Annuity (qualifying_annuity): locate any line or cell containing the word "קצבה". The numeric value on that line is the qualifying annuity.
+   - Do NOT require an exact text format. Ignore surrounding punctuation, quotes, or column separators — use semantic proximity (the word "הון" or "קצבה" appearing near a number).
+   - If the text contains no mention of "קרן קצבה מוכרת", return recognized_principal as exactly 0.
+   - NEVER echo back or invent values that do not appear in the current document text.
+
+CRITICAL NEGATIVE CONSTRAINT: You MUST COMPLETELY IGNORE table "ב.4. תנועות ויתרות כספים". DO NOT extract any values from it under any circumstances (e.g., do not use the value 414,010 or any number from that table). The ONLY source for the fund breakdown is table "א.3. יתרת החיסכון המצטבר". In that table, find the row labeled "הון" and read its "סה"כ" column — that is exempt_capital. Find the row labeled "קצבה" and read its "סה"כ" column — that is qualifying_annuity. Additionally, if the document text contains machine-readable XML-style field names (e.g., TOTAL-HAFKADA-ACHRONA, YITRAT-KASPEY-TAGMULIM, or similar ALL-CAPS-hyphen identifiers), IGNORE them completely — they belong to a separate data pipeline and must NOT be used as extraction sources.
+
+OUTPUT FORMAT — CRITICAL: Return ONLY raw valid JSON. No markdown. No backticks. No \`\`\`json fences. No explanation text before or after. The response must start with { and end with }.
 
 Return exactly this shape:
-{"qualifying_annuity": <number|null>, "recognized_annuity": <number|null>, "exempt_capital": <number|null>, "recognized_principal": <number|null>, "dec_31_anchor": <number|null>}`;
+{"qualifying_annuity": <number|null>, "recognized_annuity": <number|null>, "exempt_capital": <number|null>, "recognized_principal": <number|null>, "dec_31_anchor": <number|null>}
+
+CRITICAL MATH VALIDATION — Before finalizing your JSON, run these checks:
+IMPORTANT: Numbers in Israeli financial PDFs often use comma-separators for thousands (e.g., "306,311.27"). Before doing any arithmetic, treat these as full numbers: "306,311.27" = 306311.27 NIS = 306.311 K₪. Failing to strip commas is the most common cause of false math mismatches that lead to returning incorrect 0s.
+1. The sum of qualifying_annuity + recognized_annuity + exempt_capital should approximately equal the total fund balance shown in the report (יתרת קופה / יתרה כוללת), within a rounding tolerance of ±1K. For example, 306.311 + 113.166 = 419.477 is acceptable when the reported total is 419.477. If the difference exceeds 1K, you have read the wrong rows — re-read and correct your mapping.
+2. recognized_principal MUST be ≤ the total fund balance. A recognized_principal larger than the total balance is mathematically impossible and means you mapped the wrong field.
+If the math does not align within ±1K, try re-reading once. If still misaligned, RETURN THE VALUES YOU FOUND ANYWAY — do NOT zero out or null fields just because the sum check fails. It is more useful to return the actual extracted numbers than to return 0s.`;
 
     const completion = await openaiClient.chat.completions.create({
       model:       'gpt-4o-mini',
@@ -771,7 +797,10 @@ Return exactly this shape:
 
     let parsed;
     try {
-      parsed = JSON.parse(raw);
+      const jsonStart = raw.indexOf('{');
+      const jsonEnd   = raw.lastIndexOf('}');
+      const jsonStr   = (jsonStart !== -1 && jsonEnd !== -1) ? raw.slice(jsonStart, jsonEnd + 1) : raw;
+      parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
       console.error('[extract] JSON parse failed:', raw);
       return res.status(500).json({ error: 'LLM returned invalid JSON', raw });
@@ -783,7 +812,7 @@ Return exactly this shape:
       var _raw = parsed[k];
       if (_raw == null) { result[k] = null; return; }
       var _n = Number(String(_raw).replace(/[^0-9.-]+/g, ''));
-      result[k] = !isNaN(_n) ? Math.round(_n / 1000) : null;
+      result[k] = !isNaN(_n) ? Math.round(_n * 1000) / 1000 : null;
     });
 
     console.log('[extract] Final result:', result);
