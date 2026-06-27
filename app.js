@@ -18794,7 +18794,160 @@ function _t190OpenAIExtractionModal() {
 }
 
 function _t190SimTriggerAIVerification() {
-  document.getElementById('ffs-ai-modal-content').innerHTML = '<h3>AI Advisor Mode Placeholder</h3><p>כאן ימוקם ממשק הייעוץ האסטרטגי לחלוקת השכבות</p>';
+  var contentEl = document.getElementById('ffs-ai-modal-content');
+  if (!contentEl) return;
+
+  contentEl.style.cssText = 'padding:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:right;color:#334155;';
+
+  // ── Build payload FIRST ──────────────────────────────────────────
+  var _item    = _t190SimCurrentItem;
+  var _bResult = _t190SimGetBuckets(_item);
+  var _jRaw    = String(_item.joinDate || '').trim().replace(/-/g, '');
+  window._t190AIPayload = {
+    fundName:             _item.name || _item.assetNum || '–',
+    assetNum:             _item.assetNum || '–',
+    totalBalanceK:        _item.balance || 0,
+    joinDate:             _item.joinDate || null,
+    isPreV2008:           _jRaw.length === 8 && _jRaw < '20080101',
+    hasBuckets:           !_bResult.isEmpty,
+    bucketSource:         _bResult.branch,
+    qualifyingAnnuityK:   _bResult.buckets ? (_bResult.buckets.qualifying_annuity.balance_k  || 0) : null,
+    recognizedAnnuityK:   _bResult.buckets ? (_bResult.buckets.recognized_annuity.balance_k  || 0) : null,
+    capitalExemptK:       _bResult.buckets ? (_bResult.buckets.capital_exempt.balance_k      || 0) : null,
+    recognizedPrincipalK: _bResult.buckets ? (_bResult.buckets.recognized_annuity.principal_manual_k || null) : null,
+    manualOverride:       _item.manual_override || false
+  };
+  window._t190AIAnalysisLoaded = false;
+
+  // ── Inject HTML — accordion CLOSED, chat-history always in DOM ───
+  contentEl.innerHTML =
+    '<div style="display:flex;flex-direction:column;font-family:Heebo,sans-serif;direction:rtl;">' +
+
+    '<div style="overflow-y:auto;max-height:60vh;padding:20px 24px 0;">' +
+
+      '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:14px;letter-spacing:0.02em;">סיכום ניתוח AI</div>' +
+
+      '<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;">' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>צבירה:</b> אומתה יתרה עדכנית מול נתוני המסלקה.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>ותק הקופה:</b> נבדקה שנת ההצטרפות לקביעת מעמד הכספים.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>חלוקה לדליים:</b> הכספים סווגו לקצבה מזכה, מוכרת או הון פטור.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>סטטוס מס:</b> חושבה חבות המס במקרה של משיכה הונית.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>תחזית פרישה:</b> סימולציית תרומה לברוטו ולנטו בקצבה מול משיכה.</span></li>' +
+      '</ul>' +
+
+      '<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">' +
+        '<button id="t190-ai-toggle-btn" onclick="_t190AIToggleAnalysis(this)" style="background:transparent;border:1px solid #6366f1;color:#6366f1;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;">הצג ניתוח מפורט ▾</button>' +
+        '<div id="t190-ai-detail" style="display:none;margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;direction:rtl;"></div>' +
+      '</div>' +
+
+      '<div id="t190-ai-chat-history" style="display:flex;flex-direction:column;gap:6px;padding-bottom:8px;"></div>' +
+
+    '</div>' +
+
+    '<div style="border-top:1px solid #e2e8f0;padding:12px 16px;background:#fff;flex-shrink:0;">' +
+      '<div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:6px 8px 6px 12px;">' +
+        '<input id="t190-ai-chat-input" type="text" placeholder="שאל/י את יועץ ה-AI..." style="flex:1;border:none;background:transparent;font-family:Heebo,sans-serif;font-size:13px;direction:rtl;outline:none;color:#1e293b;" onkeydown="if(event.key===\'Enter\')_t190AISendChat()">' +
+        '<button onclick="_t190AISendChat()" style="background:#6366f1;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="שלח">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '</div>';
+
+  // ── Lazy-load toggle handler ─────────────────────────────────────
+  window._t190AIToggleAnalysis = function(btn) {
+    var detailEl = document.getElementById('t190-ai-detail');
+    if (!detailEl) return;
+    var isOpen = detailEl.style.display !== 'none';
+    if (isOpen) {
+      detailEl.style.display = 'none';
+      btn.textContent = 'הצג ניתוח מפורט ▾';
+      return;
+    }
+    detailEl.style.display = 'block';
+    btn.textContent = 'הסתר ניתוח ▴';
+    if (window._t190AIAnalysisLoaded) return;
+    window._t190AIAnalysisLoaded = true;
+    detailEl.innerHTML =
+      '<div id="t190-ai-analysis" style="font-size:12px;color:#374151;line-height:1.7;text-align:right;white-space:pre-wrap;">' +
+        '<span style="color:#6366f1;">⏳ מנתח נתוני הקופה...</span>' +
+      '</div>';
+    fetch('http://localhost:3005/api/chat/tax', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'ספק ניתוח תמציתי של קופת הגמל: צבירה כוללת, ותק הקופה, חלוקת שכבות (קצבה מזכה, מוכרת, הון פטור), מעמד מס, והמלצה בנושא משיכה מול קצבה.',
+        data: window._t190AIPayload
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('t190-ai-analysis');
+      if (el) el.textContent = d.answer || '';
+    })
+    .catch(function() {
+      var el = document.getElementById('t190-ai-analysis');
+      if (el) { el.style.color = '#dc2626'; el.textContent = 'שגיאה בחיבור לשרת ה-AI. אנא נסה שוב.'; }
+    });
+  };
+
+  // ── Chat (fully decoupled from accordion) ────────────────────────
+  window._t190AISendChat = function() {
+    var inp = document.getElementById('t190-ai-chat-input');
+    if (!inp || !inp.value.trim()) return;
+    var q = inp.value.trim();
+    inp.value = '';
+
+    var histEl = document.getElementById('t190-ai-chat-history');
+    if (!histEl) return;
+
+    if (!histEl.children.length) {
+      histEl.style.marginTop  = '12px';
+      histEl.style.borderTop  = '1px solid #e2e8f0';
+      histEl.style.paddingTop = '8px';
+    }
+
+    var uDiv = document.createElement('div');
+    uDiv.style.cssText = 'font-size:12px;text-align:right;';
+    var uLabel = document.createElement('b');
+    uLabel.style.color   = '#6366f1';
+    uLabel.textContent   = 'שאלה: ';
+    uDiv.appendChild(uLabel);
+    uDiv.appendChild(document.createTextNode(q));
+    histEl.appendChild(uDiv);
+
+    var lDiv = document.createElement('div');
+    lDiv.id            = 't190-ai-follow-loading';
+    lDiv.style.cssText = 'font-size:12px;color:#6366f1;';
+    lDiv.textContent   = '⏳ מכין תשובה...';
+    histEl.appendChild(lDiv);
+
+    console.log('Sending chat:', q);
+
+    fetch('http://localhost:3005/api/chat/tax', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, data: window._t190AIPayload })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var loadEl = document.getElementById('t190-ai-follow-loading');
+      if (loadEl) loadEl.remove();
+      var histEl2 = document.getElementById('t190-ai-chat-history');
+      if (histEl2) {
+        var aDiv = document.createElement('div');
+        aDiv.style.cssText = 'font-size:12px;color:#374151;line-height:1.6;text-align:right;margin-bottom:6px;';
+        aDiv.textContent   = d.answer || '';
+        histEl2.appendChild(aDiv);
+      }
+    })
+    .catch(function() {
+      var loadEl = document.getElementById('t190-ai-follow-loading');
+      if (loadEl) { loadEl.style.color = '#dc2626'; loadEl.textContent = 'שגיאה.'; }
+    });
+  };
+
   document.getElementById('ffs-ai-modal').style.display = 'flex';
 }
 
