@@ -19612,7 +19612,7 @@ function _sfTriggerAdvisorModal() {
   window._sfAdvPayload = {
     assetType:         'keren_hishtalmut',
     fundName:          (_sfCurrentItem && _sfCurrentItem.name) || '–',
-    totalBalanceK:     _gd.pdfTotalBalanceK     || 0,
+    totalBalanceK:     (_sfCurrentItem && Number(_sfCurrentItem.balance)) || _gd.pdfTotalBalanceK || 0,
     exemptProfitK:     _gd.exemptProfitK        || 0,
     taxableProfit15K:  _gd.taxableProfit15K     || 0,
     taxableProfit20K:  _gd.taxableProfit20K     || 0,
@@ -19631,9 +19631,32 @@ function _sfTriggerAdvisorModal() {
   };
   window._sfAdvAnalysisLoaded = false;
 
+  // ── Data reliability banner ──────────────────────────────────────
+  var _hasMasleka = !!(_sfCurrentItem && _sfCurrentItem.rawXml);
+  var _hasPdf     = !!(_gd.pdfTotalBalanceK > 0 || _gd.taxableProfit15K > 0 || _gd.taxableProfit20K > 0 || _gd.taxableProfit25K > 0);
+  var _ytdOk      = _gd.ytdDepositsK > 0 && !_gd.dataGapNote;
+  var _sfBannerState;
+  if      (_sfIsNewFund)                      _sfBannerState = 4;
+  else if (_sfIsManual)                       _sfBannerState = 2;
+  else if (_hasMasleka && _hasPdf && _ytdOk) _sfBannerState = 1;
+  else if (_hasPdf && !_ytdOk)               _sfBannerState = 5;
+  else                                        _sfBannerState = 3;
+
+  var _bannerCfg = {
+    1: { bg:'#f0fdf4', color:'#166534', border:'#bbf7d0', text:'✨ רמת דיוק: גבוהה. הצבירה הכוללת מעודכנת מנתוני מסלקה. נתוני חישובי המס ושכבות ההפקדה חולצו מדו״ח שנתי על ידי AI.' },
+    2: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✍️ רמת דיוק: עריכה ידנית. שכבות המס נערכו על ידך ואינן מאומתות מול דו״ח רשמי. ייתכנו פערים בחישובי המס הסופיים מול רשויות המס.' },
+    3: { bg:'#f9fafb', color:'#1f2937', border:'#e5e7eb', text:'⚠️ רמת דיוק: בסיסית. הנתונים מבוססים על מסלקה בלבד ללא פירוט של שכבות המס ההיסטוריות. לחישוב מס מדויק מומלץ להעלות דו״ח שנתי.' },
+    4: { bg:'#eff6ff', color:'#1e40af', border:'#bfdbfe', text:'✨ רמת דיוק: בסיסית. מדובר בקרן חדשה משנת המס הנוכחית ולכן טרם הופק עבורה דו״ח שנתי. חישוב מס אוטומטי יבוצע בשנה הבאה.' },
+    5: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✨ רמת דיוק: משולבת. נתוני העבר חולצו מדו״ח רשמי. הפקדות שנת המס הנוכחית טרם אומתו ולכן חישוב המס השוטף הינו הערכה בלבד.' }
+  };
+  var _bc = _bannerCfg[_sfBannerState];
+  var _bannerHtml = '<div style="display:block;width:100%;padding:10px 20px;font-family:Heebo,sans-serif;font-size:12px;font-weight:500;direction:rtl;text-align:right;box-sizing:border-box;margin-bottom:0;background:' + _bc.bg + ';color:' + _bc.color + ';border-bottom:1px solid ' + _bc.border + ';">' + _bc.text + '</div>';
+
   // ── Inject HTML — accordion CLOSED, chat-history always in DOM ───
   contentEl.innerHTML =
     '<div style="display:flex;flex-direction:column;font-family:Heebo,sans-serif;direction:rtl;">' +
+
+    _bannerHtml +
 
     '<div style="overflow-y:auto;max-height:60vh;padding:20px 24px 0;">' +
 
@@ -19652,9 +19675,9 @@ function _sfTriggerAdvisorModal() {
         '<div id="sfadv-detail" style="display:none;margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;direction:rtl;"></div>' +
       '</div>' +
 
-      '<div id="sfadv-chat-history" style="display:flex;flex-direction:column;gap:6px;padding-bottom:8px;"></div>' +
-
     '</div>' +
+
+    '<div id="sfadv-chat-history" style="display:flex;flex-direction:column;gap:6px;padding:0 24px 8px;"></div>' +
 
     '<div style="border-top:1px solid #e2e8f0;padding:12px 16px;background:#fff;flex-shrink:0;">' +
       '<div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:6px 8px 6px 12px;">' +
@@ -20545,7 +20568,7 @@ function _sfRecalculate() {
               }
               secDate = _sfParseDate(rawText);
             }
-            if (secDate && secDate < _cutoff2026) return;
+            if (!secDate || secDate < _cutoff2026) return;
             var secAmtNIS = 0;
             _salkahXmlEls(section, 'SCHUM-HAFKADA-SHESHULAM').forEach(function(el) {
               var amt = (parseFloat(el.textContent.trim()) || 0);
@@ -20691,14 +20714,7 @@ function _sfRecalculate() {
     };
     _sfSavePdfData(item.assetNum, _pdfData);
   }
-  if (!_pdfData) {
-    // No PDF uploaded — waiting state
-    if (_pushMsgEl) {
-      _pushMsgEl.style.color      = '#6b7280';
-      _pushMsgEl.innerHTML        = 'ממתין להעלאת דו״ח שנתי לחישוב מס מדויק';
-      _pushMsgEl.style.visibility = 'visible';
-    }
-  } else if (_hasExactTiers) {
+  if (_hasExactTiers) {
     // PDF with exact tiers — transparent breakdown receipt
     if (_segEl) _segEl.innerHTML = _sfBuildTierReceipt(_pdfData, grossK, netK, { realYtdProfitK: _realYtdProfitK, ytdTaxDueK: _ytdTaxDueK, ytdDepositsK: _ytdDepositsK, effectiveTaxCoeff: _effectiveTaxCoeff, taxableRatio: _taxableRatio }, { simRealProfitK: _simRealProfitK, simTaxDueK: _simTaxDueK }, pctFraction);
     // v182.48: post-build patch — data gap note + deposit status bar
@@ -20738,46 +20754,49 @@ function _sfRecalculate() {
         _depStatusEl.style.display = 'none';
       }
     }
-    if (_pushMsgEl) {
-      var _joinDateStr = '';
-      if (item.joinDate) {
-        var _jd = String(item.joinDate).trim();
-        if (/^\d{8}$/.test(_jd)) _jd = _jd.slice(0,4) + '-' + _jd.slice(4,6) + '-' + _jd.slice(6,8);
-        var _jdP = _jd.split('-');
-        if (_jdP.length === 3) _joinDateStr = ' | תאריך תחילת קרן: ' + _jdP[2] + '/' + _jdP[1] + '/' + _jdP[0];
-        // v182.08: pre-fill manual date input with fund start date
-        var _dateInputEl = document.getElementById('sf-manual-joindate');
-        if (_dateInputEl && !_dateInputEl.value && /^\d{4}-\d{2}-\d{2}/.test(_jd)) _dateInputEl.value = _jd;
-      }
-      _pushMsgEl.style.color      = '#16a34a';
-      _pushMsgEl.innerHTML        = 'רמת דיוק: גבוהה (אומת מול דו״ח רשמי)' + _joinDateStr + '. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
-      _pushMsgEl.style.visibility = 'visible';
+    // v182.08: pre-fill manual date input with fund start date
+    if (item.joinDate) {
+      var _jd = String(item.joinDate).trim();
+      if (/^\d{8}$/.test(_jd)) _jd = _jd.slice(0,4) + '-' + _jd.slice(4,6) + '-' + _jd.slice(6,8);
+      var _dateInputEl = document.getElementById('sf-manual-joindate');
+      if (_dateInputEl && !_dateInputEl.value && /^\d{4}-\d{2}-\d{2}/.test(_jd)) _dateInputEl.value = _jd;
     }
-  } else if (_isNewFund) {
-    if (_pushMsgEl) {
-      _pushMsgEl.style.color           = '#334155';
-      _pushMsgEl.style.backgroundColor = '#f1f5f9';
-      _pushMsgEl.style.border          = '1px solid #e2e8f0';
-      var _hdr = '✨ <b>אין חישוב מס אוטומטי (קרן חדשה ' + _currentYear + ')</b>';
-      var _sub = '<br><span style="color:#64748b; font-size:12px;">חישוב המס יבוצע לאחר העלאת הדו״ח השנתי של ' + _currentYear + '.</span>';
-      _pushMsgEl.innerHTML             = _hdr + _sub;
-      _pushMsgEl.style.visibility      = 'visible';
+  }
+
+  // ── Data reliability banner — 5 states (full-width row below controls) ──
+  var _reliabilityBannerEl = document.getElementById('sf-reliability-banner');
+  if (_reliabilityBannerEl) {
+    var _hasMaslekaMain = !!(item && item.rawXml);
+    var _hasPdfMain     = !!(_hasExactTiers || (_pdfData && _pdfData.isPreReformExempt));
+    var _ytdOkMain      = !item.isActive || ((_ytdDepositsK || 0) > 0);
+    var _mainBannerState;
+    if      (_isNewFund)                                      _mainBannerState = 4;
+    else if (_sfIsManual)                                     _mainBannerState = 2;
+    else if (_hasMaslekaMain && _hasPdfMain && _ytdOkMain)    _mainBannerState = 1;
+    else if (_hasPdfMain && !_ytdOkMain)                      _mainBannerState = 5;
+    else                                                      _mainBannerState = 3;
+    var _mbcMap = {
+      1: { bg:'#f0fdf4', color:'#166534', border:'#bbf7d0', text:'✨ רמת דיוק: גבוהה. הצבירה הכוללת מעודכנת מנתוני מסלקה. נתוני חישובי המס ושכבות ההפקדה חולצו מדו״ח שנתי על ידי AI.' },
+      2: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✍️ רמת דיוק: עריכה ידנית. שכבות המס נערכו על ידך ואינן מאומתות מול דו״ח רשמי. ייתכנו פערים בחישובי המס הסופיים מול רשויות המס.' },
+      3: { bg:'#f9fafb', color:'#1f2937', border:'#e5e7eb', text:'⚠️ רמת דיוק: בסיסית. הנתונים מבוססים על מסלקה בלבד ללא פירוט של שכבות המס ההיסטוריות. לחישוב מס מדויק מומלץ להעלות דו״ח שנתי.' },
+      4: { bg:'#eff6ff', color:'#1e40af', border:'#bfdbfe', text:'✨ רמת דיוק: בסיסית. מדובר בקרן חדשה משנת המס הנוכחית ולכן טרם הופק עבורה דו״ח שנתי. חישוב מס אוטומטי יבוצע בשנה הבאה.' },
+      5: { bg:'#fefce8', color:'#854d0e', border:'#fde68a', text:'✨ רמת דיוק: משולבת. נתוני העבר חולצו מדו״ח רשמי. הפקדות שנת המס הנוכחית טרם אומתו ולכן חישוב המס השוטף הינו הערכה בלבד.' }
+    };
+    var _mbc = _mbcMap[_mainBannerState];
+    _reliabilityBannerEl.style.cssText = 'display:block;width:100%;padding:8px 24px;font-family:Heebo,sans-serif;font-size:12px;font-weight:500;direction:rtl;text-align:right;box-sizing:border-box;background:' + _mbc.bg + ';color:' + _mbc.color + ';border-bottom:1px solid ' + _mbc.border + ';';
+    _reliabilityBannerEl.textContent = _mbc.text;
+  }
+
+  // ── Delete PDF button — lives in controls row (#sf-tax-inline-msg) ──
+  if (_pushMsgEl) {
+    var _hasPdfForBtn = !!(_hasExactTiers || (_pdfData && _pdfData.isPreReformExempt));
+    if (_hasPdfForBtn) {
+      _pushMsgEl.style.cssText = 'font-size:12px;visibility:visible;';
+      _pushMsgEl.innerHTML = '<button onclick="_sfClearPdfData()" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
+    } else {
+      _pushMsgEl.style.visibility = 'hidden';
+      _pushMsgEl.innerHTML = '';
     }
-  } else if (_pdfData && _pdfData.isPreReformExempt && _pushMsgEl) {
-    // Pre-2002 exempt: green confirmation instead of amber missing-data warning
-    _pushMsgEl.style.color      = '#16a34a';
-    _pushMsgEl.innerHTML        = 'פטור ממס — קרן פטורה לפני 2002 (פטור היסטורי). <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק קובץ</button>';
-    _pushMsgEl.style.visibility = 'visible';
-  } else if (_pdfData && _pushMsgEl) {
-    // PDF uploaded but tier extraction produced all zeros — show amber warning + clear button
-    _pushMsgEl.style.color      = '#d97706';
-    _pushMsgEl.innerHTML        = '⚠️ נתוני המס חסרים בדו״ח - לא ניתן לחשב במדויק. <button onclick="_sfClearPdfData()" style="margin-right:8px;background:none;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer;font-family:Heebo,sans-serif;">מחק ונסה שוב</button>';
-    _pushMsgEl.style.visibility = 'visible';
-  } else if (_pushMsgEl) {
-    // No PDF — waiting state
-    _pushMsgEl.style.color      = '#6b7280';
-    _pushMsgEl.innerHTML        = 'ממתין להעלאת דו״ח שנתי לחישוב מס מדויק';
-    _pushMsgEl.style.visibility = 'visible';
   }
 
   // ── Calibration form: show when data partial; hide when PDF verified ──────────
