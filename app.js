@@ -16338,7 +16338,24 @@ function _ffsPopulateT190Section(item) {
   sec.style.display = isP ? '' : 'none';
   if (!isP) return;
 
-  var b      = (item && item.buckets) ? item.buckets : _t190InitBuckets();
+  console.log('[T190] Edit Modal Init - Asset Data:', {
+    id: item && item.id,
+    category: item && item.category,
+    balance: item && item.balance,
+    buckets: item && item.buckets,
+    hasRawXml: !!(item && item.rawXml),
+    manual_override: item && item.manual_override
+  });
+  var b = (item && item.buckets) ? item.buckets : _t190InitBuckets();
+  if (item && item.rawXml) {
+    var _bSum = ((b.qualifying_annuity ? b.qualifying_annuity.balance_k : 0) || 0) +
+                ((b.recognized_annuity ? b.recognized_annuity.balance_k : 0) || 0) +
+                ((b.capital_exempt     ? b.capital_exempt.balance_k     : 0) || 0);
+    if (_bSum === 0) {
+      var _xmlB = _parseT190BucketsFromXML(item.rawXml);
+      if (_xmlB) b = _xmlB;
+    }
+  }
   var qualK  = b.qualifying_annuity ? (b.qualifying_annuity.balance_k  || 0) : 0;
   var recogK = b.recognized_annuity ? (b.recognized_annuity.balance_k  || 0) : 0;
   var exmK   = b.capital_exempt     ? (b.capital_exempt.balance_k       || 0) : 0;
@@ -16413,39 +16430,68 @@ function _ffsPopulateT190Section(item) {
   var warnEl   = document.getElementById('ffs-inv-t190-tax-warn');
   if (warnEl) warnEl.style.display = (qualK > 0 && desVal === 'capital') ? '' : 'none';
 
-  var badgeEl     = document.getElementById('ffs-inv-t190-override-badge');
-  var badgeDateEl = document.getElementById('ffs-inv-t190-override-date');
-  if (badgeEl) badgeEl.style.display = (item && item.manual_override) ? '' : 'none';
-  if (badgeDateEl && item && item.last_manual_update_date) badgeDateEl.textContent = item.last_manual_update_date;
+  var badgeEl       = document.getElementById('ffs-inv-t190-override-badge');
+  var badgeDateEl   = document.getElementById('ffs-inv-t190-override-date');
   var badgePrefixEl = document.getElementById('ffs-inv-t190-override-prefix');
-  if (badgePrefixEl) badgePrefixEl.textContent = (item && item.override_source === 'ai') ? '✨ חולץ ע״י AI ב:' : '🔒 עודכן ידנית ב:';
-  if (badgeEl) {
-    badgeEl.onclick = function() {
-      var _ulModal  = document.getElementById('ffs-t190-unlock-modal');
-      var _ulOkBtn  = document.getElementById('ffs-t190-unlock-ok-btn');
-      var _ulCanBtn = document.getElementById('ffs-t190-unlock-cancel-btn');
-      if (!_ulModal) return;
-      _ulModal.style.display = 'flex';
-      _ulOkBtn.onclick = function() {
-        _ulModal.style.display = 'none';
-        var _inv = (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; });
-        if (!_inv) return;
-        _inv.manual_override         = false;
-        _inv.last_manual_update_date = null;
-        _inv.override_source         = null;
-        ffsSaveProfile();
-        _ffsPopulateT190Section(_inv);
+  var badgeNotesEl  = document.getElementById('ffs-inv-t190-badge-notes-icon');
+  var _hasBuckets   = (qualK + recogK + exmK) > 0;
+
+  if (badgeEl) badgeEl.classList.remove('t190-badge', 't190-badge-success', 't190-badge-warning');
+
+  if (item && item.manual_override) {
+    if (badgeEl) {
+      badgeEl.classList.add('t190-badge', 't190-badge-warning');
+      badgeEl.style.display = '';
+      badgeEl.title = 'לחץ לביטול הנעילה';
+      badgeEl.onclick = function() {
+        var _ulModal  = document.getElementById('ffs-t190-unlock-modal');
+        var _ulOkBtn  = document.getElementById('ffs-t190-unlock-ok-btn');
+        var _ulCanBtn = document.getElementById('ffs-t190-unlock-cancel-btn');
+        if (!_ulModal) return;
+        _ulModal.style.display = 'flex';
+        _ulOkBtn.onclick = function() {
+          _ulModal.style.display = 'none';
+          var _inv = (FFS_PROFILE.investments || []).find(function(x) { return x.id === ffsCurrentInvId; });
+          if (!_inv) return;
+          _inv.manual_override         = false;
+          _inv.last_manual_update_date = null;
+          _inv.override_source         = null;
+          ffsSaveProfile();
+          _ffsPopulateT190Section(_inv);
+        };
+        _ulCanBtn.onclick = function() { _ulModal.style.display = 'none'; };
       };
-      _ulCanBtn.onclick = function() { _ulModal.style.display = 'none'; };
-    };
+    }
+    if (badgePrefixEl) badgePrefixEl.textContent = 'עודכן ידנית / חלקי';
+    if (badgeDateEl) badgeDateEl.textContent = item.last_manual_update_date ? ' (' + item.last_manual_update_date + ')' : '';
+    if (badgeNotesEl) {
+      var _notes = (item.t190_audit_notes || '').trim();
+      badgeNotesEl.style.display = _notes ? '' : 'none';
+      badgeNotesEl.title = _notes;
+    }
+  } else if (_hasBuckets) {
+    if (badgeEl) {
+      badgeEl.classList.add('t190-badge', 't190-badge-success');
+      badgeEl.style.display = '';
+      badgeEl.title = '';
+      badgeEl.onclick = null;
+    }
+    if (badgePrefixEl) badgePrefixEl.textContent = (item && item.override_source === 'ai') ? '✨ הושלם בהצלחה מתוך קובץ AI' : '✅ נתונים מ-XML';
+    if (badgeDateEl) badgeDateEl.textContent = '';
+    if (badgeNotesEl) badgeNotesEl.style.display = 'none';
+  } else {
+    if (badgeEl) { badgeEl.style.display = 'none'; badgeEl.onclick = null; }
+    if (badgeNotesEl) badgeNotesEl.style.display = 'none';
   }
 
   var anchorEl = document.getElementById('ffs-inv-f-dec31-anchor');
   if (anchorEl) {
     anchorEl.value = (item && item.dec_31_anchor_k != null) ? item.dec_31_anchor_k : '';
     anchorEl.oninput = function() { _t190AutoComplete(); _t190CheckBucketSum(); };
-    if (anchorEl.parentElement) anchorEl.parentElement.style.display = (item && item.manual_override) ? '' : 'none';
+    if (anchorEl.parentElement) anchorEl.parentElement.style.display = (item && (item.manual_override || item.dec_31_anchor_k != null)) ? '' : 'none';
   }
+  var _auditNotesEl = document.getElementById('ffs-inv-f-t190-audit-notes');
+  if (_auditNotesEl) _auditNotesEl.value = (item && item.t190_audit_notes) ? item.t190_audit_notes : '';
   _t190CheckBucketSum();
 }
 function ffsCheckLiquidityWarning() {
@@ -16476,7 +16522,7 @@ function _ffsInvModalSetReadOnly(ro) {
    'ffs-inv-f-type-other','ffs-inv-f-liquidity','ffs-inv-f-active',
    'ffs-inv-f-designation','ffs-inv-f-coefficient',
    'ffs-inv-bucket-inv','ffs-inv-bucket-pen','ffs-inv-f-notes',
-   'ffs-inv-f-recognized-principal','ffs-inv-f-dec31-anchor',
+   'ffs-inv-f-recognized-principal','ffs-inv-f-dec31-anchor','ffs-inv-f-t190-audit-notes',
    'ffs-inv-t190-qualifying','ffs-inv-t190-recognized','ffs-inv-t190-exempt'
   ].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = ro; });
   var saveBtn = document.getElementById('ffs-inv-save-btn');
@@ -16594,7 +16640,8 @@ function ffsSaveInvFromModal() {
   }
 
   // ── v177.12: block save when dropdown fields are still on placeholder ──
-  var dropRequired = ['category', 'type'];
+  // 'type' (מסלול) is optional — XML imports have no track data, must not block save
+  var dropRequired = ['category'];
   if (ffsWizardContext !== 'pension') dropRequired.push('liquidity');
   dropRequired.forEach(function(k) {
     var el   = document.getElementById('ffs-inv-f-' + k);
@@ -16607,13 +16654,16 @@ function ffsSaveInvFromModal() {
     }
   });
   if (!valid) {
-    console.warn('[FFS Save] blocked — missing required fields');
+    var _dropLabels = { category: 'קטגוריה', liquidity: 'נזילות' };
+    var _failing2 = dropRequired.filter(function(k) { var el = document.getElementById('ffs-inv-f-' + k); return !el || !el.value; });
+    var _failMsg   = _failing2.map(function(k) { return _dropLabels[k] || k; }).join(', ');
+    console.warn('[FFS Save] blocked — missing required fields:', _failing2);
     var _sb = document.getElementById('ffs-inv-save-btn');
     if (_sb) {
       var _ot = _sb.textContent;
       _sb.style.background = '#dc2626';
-      _sb.textContent = '⚠️ יש למלא שדות חובה';
-      setTimeout(function() { _sb.style.background = ''; _sb.textContent = _ot; }, 2000);
+      _sb.textContent = '⚠️ חובה: ' + _failMsg;
+      setTimeout(function() { _sb.style.background = ''; _sb.textContent = _ot; }, 2500);
     }
     return;
   }
@@ -16750,6 +16800,8 @@ function ffsSaveInvFromModal() {
           if (_anchorEl) {
             _editedInv.dec_31_anchor_k = _av;
           }
+          var _auditNotesEl = document.getElementById('ffs-inv-f-t190-audit-notes');
+          if (_auditNotesEl !== null) _editedInv.t190_audit_notes = _auditNotesEl.value.trim() || null;
         }
         var _penCats = ['ביטוח מנהלים', 'קרן פנסיה'];
         if (_penCats.indexOf(catVal) !== -1) {
@@ -17063,6 +17115,9 @@ function _salkahParseOneXML(xmlString) {
               capital_exempt:     { balance_k: (rawBalance || 0) / 1000 }
             };
           }
+        }
+        if (!_t190Buckets && rawXml) {
+          _t190Buckets = _parseT190BucketsFromXML(rawXml);
         }
       }
 
@@ -18221,10 +18276,11 @@ function _t190SimRenderEmptyState() {
   if (segEl) segEl.innerHTML = '';
   var bannerEl = document.getElementById('t190-sim-accuracy-bar');
   if (bannerEl) {
-    bannerEl.style.color        = '#78350f';
-    bannerEl.style.background   = '#fef8e6';
-    bannerEl.style.borderBottom = '1px solid #fde68a';
-    bannerEl.textContent = '⚠️ צבירה כוללת מנתוני מסלקה או מעדכון ידני. לצורך חלוקה לדליים ולטובת ניתוח מס, יש להעלות את הדו״ח השנתי ב-PDF.';
+    bannerEl.classList.remove('t190-banner-success', 't190-banner-warning');
+    bannerEl.classList.add('t190-banner-warning');
+    bannerEl.style.cursor = '';
+    bannerEl.onclick      = null;
+    bannerEl.textContent  = '⚠️ צבירה כוללת מנתוני מסלקה או מעדכון ידני. לצורך חלוקה לדליים ולטובת ניתוח מס, יש להעלות את הדו״ח השנתי ב-PDF.';
   }
 }
 
@@ -18385,14 +18441,37 @@ function _t190SimCalculate() {
 
   var _bannerEl = document.getElementById('t190-sim-accuracy-bar');
   if (_bannerEl) {
-    var _joinRaw    = String(_t190SimCurrentItem.joinDate || '').trim().replace(/-/g, '');
+    var _isManual   = !!(_t190SimCurrentItem && _t190SimCurrentItem.manual_override);
+    var _joinResolved = _t190SimCurrentItem.joinDate
+      || ((_t190SimCurrentItem.rawXml || '').match(/<TAARICH-HITZTARFUT-RISHON>([^<]+)<\/TAARICH-HITZTARFUT-RISHON>/) || [])[1]
+      || null;
+    var _joinRaw    = String(_joinResolved || '').trim().replace(/-/g, '');
     var _isPreV2008 = _joinRaw.length === 8 && _joinRaw < '20080101';
-    _bannerEl.style.color        = '#374151';
-    _bannerEl.style.background   = '#ecfdf5';
-    _bannerEl.style.borderBottom = '1px solid #d1fae5';
-    _bannerEl.textContent = _isPreV2008
-      ? 'חלוקה אוטומטית לדליים: הון פטור מלא. ותק הקופה לפני 2008.'
-      : '✨ צבירה כוללת מנתוני מסלקה או מעדכון ידני. נתוני החלוקה לדליים חולצו מדו״ח שנתי ע״י AI או נערכו ידנית.';
+    _bannerEl.classList.remove('t190-banner-success', 't190-banner-warning');
+    if (_isManual) {
+      _bannerEl.classList.add('t190-banner-warning');
+      var _nt = (_t190SimCurrentItem.t190_audit_notes || '').trim();
+      var _infoIcon = _nt
+        ? ' <span class="t190-banner-tip" onclick="event.stopPropagation()" style="cursor:help;position:relative;display:inline-block;">ⓘ<span class="t190-banner-tip-body">' + _nt.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></span>'
+        : '';
+      _bannerEl.innerHTML    = 'נתוני החלוקה לדליים עודכנו ידנית' + _infoIcon;
+      _bannerEl.style.cursor = 'pointer';
+      _bannerEl.title        = 'לחץ לביטול הנעילה';
+      _bannerEl.onclick      = function() {
+        var _ul = document.getElementById('ffs-t190-unlock-modal');
+        if (_ul) _ul.style.display = 'flex';
+      };
+    } else if (_isPreV2008) {
+      _bannerEl.classList.add('t190-banner-success');
+      _bannerEl.textContent  = 'חלוקה אוטומטית לדליים: הון פטור מלא. ותק הקופה לפני 2008.';
+      _bannerEl.style.cursor = '';
+      _bannerEl.onclick      = null;
+    } else {
+      _bannerEl.classList.add('t190-banner-success');
+      _bannerEl.textContent  = '✨ צבירה כוללת מנתוני מסלקה או מעדכון ידני. נתוני החלוקה לדליים חולצו מדו״ח שנתי ע״י AI או נערכו ידנית.';
+      _bannerEl.style.cursor = '';
+      _bannerEl.onclick      = null;
+    }
   }
 }
 
@@ -18433,16 +18512,16 @@ function _t190SimBuildReceipt(action, grossK, withdrawnK, taxK, netK, monthlyK,
     }
   }
   rows += '<div style="border-top:1px dashed #cbd5e1;margin:4px 0;"></div>'
-    + _t190SimReceiptRow((recProjK > 0 && !hasPrin) ? 'נטו לכיס (משוער)' : 'סה״כ הון נטו לכיס', fmt(netK) + ' K ₪', '#16a34a');
+    + _t190SimReceiptRow('סה״כ הון ברוטו (לפני מס)', fmt(netK) + ' K ₪', '#16a34a');
 
   // Dynamic storytelling — reflects waterfall source of funds
   var story;
   if (withdrawnK === 0) {
     story = 'לא בוצעה משיכה הונית. כל ההון הגמיש נשאר בקופה.';
   } else if (recProjK === 0) {
-    story = 'משכת ' + fmt(exProjK) + ' K ₪ מההון הפטור (פטור ממס).';
+    story = 'הסכום המוצג הוא ברוטו. הרווחים כפופים לניכוי מס רווחי הון במקור (נדרש אישור פקיד שומה).';
   } else {
-    story = 'משכת ' + fmt(exProjK) + ' K ₪ מההון הפטור (פטור ממס) ו-' + fmt(recProjK) + ' K ₪ מהקצבה המוכרת (חויבו ב-' + (isNominal ? '15%' : '25%') + ' מס על הרווח).';
+    story = 'משכת ' + fmt(exProjK) + ' K ₪ מההון הפטור (ברוטו, הרווחים כפופים למס רווחי הון) ו-' + fmt(recProjK) + ' K ₪ מהקצבה המוכרת (חויבו ב-' + (isNominal ? '15%' : '25%') + ' מס על הרווח).';
   }
   if (remainderLiquidK > 0) {
     story += ' היתרה שלא נמשכה בסך ' + fmt(remainderLiquidK) + ' K ₪ הומרה לקצבה חודשית פטורה ממס של ' + (remainderMonthlyK || 0).toLocaleString('he-IL') + ' ₪/חודש.';
@@ -18498,12 +18577,12 @@ function _t190SimUpdateKPIs(action, recProjK, qualProjK, exProjK, recTaxK, coeff
     col3 = _kpi('הון זמין / לכיס (K ₪)', netCapitalK > 0 ? fmt(netCapitalK) : '–', '#10b981', 'נטו לכיס');
   }
 
-  // Slot 4 (leftmost): tax — red
+  // Slot 4 (leftmost): tax — gray for non-annuity (requires tax officer), gray for annuity (exempt)
   var col4;
-  if (action === 'capital-withdrawal') {
-    col4 = _kpi('מס לתשלום (K ₪)', recTaxK > 0 ? fmt(recTaxK) : '–', '#dc2626', '15% מס על הרווח הנמשך');
+  if (action === 'capital-withdrawal' || action === 'balances-as-is') {
+    col4 = _kpi('מס לתשלום (K ₪)', '–', '#64748b', 'לא חושב מס (נדרש פקיד שומה)');
   } else {
-    col4 = _kpi('מס לתשלום (K ₪)', '–', '#dc2626', 'אין חבות מס');
+    col4 = _kpi('מס לתשלום (K ₪)', '–', '#64748b', 'פטור ממס במסלול קצבה');
   }
 
   el.innerHTML = col1 + col2 + col3 + col4;
@@ -18866,12 +18945,15 @@ function _t190SimTriggerAIVerification() {
   // ── Build payload FIRST ──────────────────────────────────────────
   var _item    = _t190SimCurrentItem;
   var _bResult = _t190SimGetBuckets(_item);
-  var _jRaw    = String(_item.joinDate || '').trim().replace(/-/g, '');
+  var _joinDateResolved = _item.joinDate
+    || ((_item.rawXml || '').match(/<TAARICH-HITZTARFUT-RISHON>([^<]+)<\/TAARICH-HITZTARFUT-RISHON>/) || [])[1]
+    || null;
+  var _jRaw    = String(_joinDateResolved || '').trim().replace(/-/g, '');
   window._t190AIPayload = {
     fundName:             _item.name || _item.assetNum || '–',
     assetNum:             _item.assetNum || '–',
     totalBalanceK:        _item.balance || 0,
-    joinDate:             _item.joinDate || null,
+    joinDate:             _joinDateResolved,
     isPreV2008:           _jRaw.length === 8 && _jRaw < '20080101',
     hasBuckets:           !_bResult.isEmpty,
     bucketSource:         _bResult.branch,
@@ -18883,20 +18965,24 @@ function _t190SimTriggerAIVerification() {
   };
   window._t190AIAnalysisLoaded = false;
 
+  var _isManualCtx = !!(window._t190AIPayload && window._t190AIPayload.manualOverride);
+  var _modalIcon   = _isManualCtx ? '📝' : '✅';
+  var _modalTitle  = _isManualCtx ? 'עקרונות מנחים (עודכן ידנית)' : 'עקרונות מנחים לניתוח AI';
+
   // ── Inject HTML — accordion CLOSED, chat-history always in DOM ───
   contentEl.innerHTML =
     '<div style="display:flex;flex-direction:column;font-family:Heebo,sans-serif;direction:rtl;">' +
 
     '<div style="overflow-y:auto;max-height:60vh;padding:20px 24px 0;">' +
 
-      '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:14px;letter-spacing:0.02em;">סיכום ניתוח AI</div>' +
+      '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:14px;letter-spacing:0.02em;">' + _modalTitle + '</div>' +
 
       '<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;">' +
-        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>צבירה:</b> אומתה יתרה עדכנית מול נתוני המסלקה.</span></li>' +
-        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>ותק הקופה:</b> נבדקה שנת ההצטרפות לקביעת מעמד הכספים.</span></li>' +
-        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>חלוקה לדליים:</b> הכספים סווגו לקצבה מזכה, מוכרת או הון פטור.</span></li>' +
-        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>סטטוס מס:</b> חושבה חבות המס במקרה של משיכה הונית.</span></li>' +
-        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">✅</span><span><b>תחזית פרישה:</b> סימולציית תרומה לברוטו ולנטו בקצבה מול משיכה.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">' + _modalIcon + '</span><span><b>צבירה:</b> יתרת הקופה המעודכנת מהווה את בסיס החישוב בסימולציה.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">' + _modalIcon + '</span><span><b>ותק הקופה:</b> שנת ההצטרפות קובעת את מעמד הכספים והחלוקה לדליים.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">' + _modalIcon + '</span><span><b>חלוקה לדליים:</b> סיווג הכספים מתבצע לשלוש שכבות: קצבה מזכה, קצבה מוכרת או הון פטור.</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">ℹ️</span><span><b>סטטוס מס:</b> כפוף לפקיד שומה במשיכה הונית (פטור במסלול קצבה).</span></li>' +
+        '<li style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;"><span style="flex-shrink:0;">' + _modalIcon + '</span><span><b>תחזית פרישה:</b> קצבה מזכה מתווספת להכנסה ברוטו. קצבה מוכרת מתווספת לנטו (אם נבחרה). הון פטור במשיכה הונית כפוף למס רווחי הון (15% נומינלי) על הרווחים.</span></li>' +
       '</ul>' +
 
       '<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">' +
@@ -18948,7 +19034,8 @@ function _t190SimTriggerAIVerification() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       var el = document.getElementById('t190-ai-analysis');
-      if (el) el.textContent = d.answer || '';
+      var _disclaimer = '\n\n⚠️ הבהרת מערכת קריטית: למרות האמור בניתוח, משיכה הונית של \'הון פטור\' או \'קצבה מוכרת\' אינה פטורה לחלוטין ממס. בעוד שהקרן פטורה, הרווחים כפופים לניכוי מס רווחי הון של 15% נומינלי במקור ומחייבים אישור פקיד שומה. רק משיכה כקצבה חודשית פטורה ממס.';
+      if (el) el.textContent = (d.answer || '') + _disclaimer;
     })
     .catch(function() {
       var el = document.getElementById('t190-ai-analysis');
