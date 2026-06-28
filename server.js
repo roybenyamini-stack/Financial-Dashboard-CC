@@ -682,7 +682,15 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
   const _sfAdvisorSystem = [
     'CRITICAL FORMATTING RULE: NEVER expose internal JSON keys, variable names, or code (e.g., simTaxDueK, inflationDeductK) to the user. Always translate the logic into plain, natural Hebrew.',
     'CRITICAL FINANCIAL LOGIC: The YTD (Year-to-Date) tax calculation in this system is strictly NOMINAL (חישוב נומינלי). If the user asks about YTD tax, inflation, or how it is calculated, you MUST explicitly explain in natural Hebrew: \'למרות שחישוב המס על רווחי השנה הנוכחית (YTD) אמור להיות ריאלי (בניכוי אינפלציה), המערכת מחשבת אותו כרגע באופן נומינלי. ההבדל הוא זניח, והנתון יתעדכן במדויק לאחר קבלת הדוח השנתי המפורט בסוף השנה הנוכחית.\' Do not expose internal variables while explaining this.',
+    'חוק ברזל: חל איסור מוחלט לקבוע שמשיכה הונית פטורה ממס. חובה להדגיש תמיד שמשיכה הונית של הון פטור או קצבה מוכרת חייבת בניכוי מס רווחי הון במקור (15% נומינלי) ומחייבת אישור פקיד שומה. רק משיכה כקצבה חודשית פטורה ממס.',
+    'חוק ברזל: כאשר אתה מתאר את מעמד המס של \'הון פטור\' או \'קצבה מוכרת\' במשיכה הונית (חד-פעמית), חובה עליך להשתמש *אך ורק* בניסוח המדויק הבא, ללא כל סטייה: \'את הקרן ניתן למשוך כסכום חד-פעמי פטור ממס, אולם הרווחים הנומינליים שנצברו עליה חייבים במס רווחי הון של 15% במעמד המשיכה, בכפוף לאישור פקיד שומה.\' חל איסור מוחלט לכתוב שכל הסכום פטור ממס.',
+    'STRICT MARKDOWN TEMPLATE DIRECTIVE: When your answer includes a tax status section or a recommendation section, you MUST use EXACTLY the following template — copy the Hebrew text verbatim and fill in only the [סכום] placeholders with the actual amounts from the data. Do NOT invent your own phrasing for these sections.\n\n## מעמד מס\n- **הון פטור ([סכום])**: הקרן פטורה ממס במשיכה הונית, אך הרווחים הנומינליים כפופים ל-15% מס במקור (מותנה באישור פקיד שומה).\n- **קצבה מזכה ([סכום])**: מיועדת לקצבה חודשית (פטור חלקי בכפוף לתיקון 161). פדיון הוני שלא כדין יגרור קנס מס של 35% (או מס שולי, הגבוה מביניהם).\n\n## המלצה: משיכה מול קצבה\n- **הון פטור ([סכום])**: ניתן לשקול משיכה הונית של הקרן, בכפוף להסדרת ניכוי המס על הרווחים מול פקיד השומה.\n- **קצבה מזכה ([סכום])**: מומלץ לייעד לקצבה חודשית בלבד כדי להימנע מקנס המשיכה.',
   ].join('\n');
+
+  const _d = data || {};
+  const _joinDateLabel = _d.joinDate
+    ? `${_d.joinDate}${_d.isPreV2008 ? ' (לפני 2008 — הון פטור מלא)' : ' (לאחר 2008)'}`
+    : 'לא ידוע';
 
   const prompt = [
     'אתה יועץ מס ישראלי מומחה בקרנות השתלמות וחישובי מס.',
@@ -691,8 +699,18 @@ app.post('/api/chat/tax', express.json({ limit: '1mb' }), async (req, res) => {
     '[חוקי המס — מקור אמת]',
     ruleContent,
     '',
-    '[נתוני הקרן של המשתמש]',
-    JSON.stringify(data || {}, null, 2),
+    '[נתוני הקרן — סיכום מפורש]',
+    `שם קופה: ${_d.fundName || '–'}`,
+    `מספר חשבון: ${_d.assetNum || '–'}`,
+    `תאריך הצטרפות: ${_joinDateLabel}`,
+    `צבירה כוללת: ${_d.totalBalanceK || 0} K ₪`,
+    `הון פטור: ${_d.capitalExemptK != null ? _d.capitalExemptK + ' K ₪' : 'לא ידוע'}`,
+    `קצבה מזכה: ${_d.qualifyingAnnuityK != null ? _d.qualifyingAnnuityK + ' K ₪' : 'לא ידוע'}`,
+    `קצבה מוכרת: ${_d.recognizedAnnuityK != null ? _d.recognizedAnnuityK + ' K ₪' : 'לא ידוע'}`,
+    `עודכן ידנית: ${_d.manualOverride ? 'כן' : 'לא'}`,
+    '',
+    '[נתוני הקרן — JSON מלא]',
+    JSON.stringify(_d, null, 2),
     '',
     '[שאלת המשתמש]',
     question,

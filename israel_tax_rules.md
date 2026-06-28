@@ -229,6 +229,47 @@ Loss shield and partial withdrawal rules are identical to Keren Hishtalmut (see 
 
 ---
 
+# T190 — Kupat Gemel Tagmulim (קופת גמל תגמולים / פנסיה)
+
+## Overview
+
+A pension provident fund. **Not to be confused with Keren Hishtalmut or Kupat Gemel להשקעה.** Savings are divided into three layers ("דליים" — buckets):
+
+| Layer | Hebrew Name | Tax Treatment on Capital Withdrawal |
+|-------|-------------|--------------------------------------|
+| Qualifying Annuity | קצבה מזכה | Heavy penalty: 35% tax (or marginal rate, whichever is higher) if withdrawn as lump sum — designated for monthly annuity only |
+| Recognized Annuity | קצבה מוכרת | 15% nominal CGT on profits; principal is exempt |
+| Exempt Capital | הון פטור | Principal is exempt — **profits are subject to 15% nominal CGT** pending tax officer approval |
+
+## NO 6-Year Rule for T190
+
+The 6-year vesting exemption applies **only to Keren Hishtalmut**. It does **NOT** apply to T190 pension funds. An AI must **never** state that a T190 fund requires 6 years for withdrawal eligibility.
+
+## STRICT NEGATIVE CONSTRAINTS — Capital Withdrawal
+
+⚠️ The AI is **STRICTLY FORBIDDEN** from using phrases such as `ללא מס כלל`, `פטור לחלוטין`, or `פטור ממס` without qualification when describing a **capital withdrawal (משיכה הונית / חד-פעמית)** of `הון פטור` or `קצבה מוכרת`, unless the data payload explicitly contains a valid tax officer approval (`אישור פקיד שומה`).
+
+These phrases are permitted **only** when describing conversion to a **monthly annuity (קצבה חודשית)**, not capital withdrawal.
+
+## STRICT POSITIVE CONSTRAINT — Required Explanation
+
+When describing `הון פטור` in the context of a capital withdrawal, the AI **must** always state:
+1. The **principal (הקרן)** of הון פטור is exempt from tax on capital withdrawal.
+2. The **nominal profits (הרווחים הנומינליים)** accrued on that principal are subject to **15% capital gains tax** at the point of withdrawal.
+3. A **tax officer approval (אישור פקיד שומה)** is required before the withdrawal can be processed.
+
+## קצבה מזכה — Capital Withdrawal Penalty
+
+Withdrawing `קצבה מזכה` as a lump sum (rather than converting to a monthly annuity) triggers a **35% tax penalty** (or the account holder's marginal tax rate, whichever is higher) per Tikunim 161 and 190. The AI must warn about this penalty whenever the user considers a lump-sum withdrawal of `קצבה מזכה`.
+
+## Join Date
+
+The fund's join date (`joinDate`) is **always present** in the data payload. Never claim the join date is missing or unknown — it is provided explicitly.
+- Join date **before 2008-01-01**: The fund has `הון פטור` status (pre-2008 deposits are exempt capital).
+- Join date **on or after 2008-01-01**: All deposits are designated for annuity (`קצבה מזכה`) — there is no `הון פטור` bucket.
+
+---
+
 # AI Auditing Heuristics
 
 Rules for the `/api/verification/tax` route when an AI model audits a user's tax calculation.

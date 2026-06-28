@@ -2832,8 +2832,9 @@
                style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
         <div style="font-size:10px;color:#6b7280;margin-top:3px;">נתון זה נדרש לחישוב מס מדויק על הרווח הריאלי. במידה והנתון לא מופיע בדוח השנתי, יש להפיק 'אישור יתרות לתיקון 190' מהאזור האישי באתר חברת הביטוח, או להזין זמנית סכום משוער (קטן או שווה לסך הקצבה המוכרת). הזנת הנתונים היא חד-פעמית עבור הקופה.</div>
       </div>
-      <div id="ffs-inv-t190-override-badge" title="לחץ לביטול הנעילה" style="display:none;cursor:pointer;font-size:10px;color:#b45309;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;margin-bottom:8px;">
-        <span id="ffs-inv-t190-override-prefix">🔒 עודכן ידנית ב:</span> <span id="ffs-inv-t190-override-date"></span>
+      <div id="ffs-inv-t190-override-badge" style="display:none;">
+        <span id="ffs-inv-t190-override-prefix"></span><span id="ffs-inv-t190-override-date"></span>
+        <span id="ffs-inv-t190-badge-notes-icon" style="display:none;cursor:help;" onclick="event.stopPropagation()">ⓘ</span>
       </div>
       <div style="margin-bottom:2px;">
         <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">יתרת הקופה בדוח השנתי (31/12) (K ₪)</div>
@@ -2841,6 +2842,12 @@
                placeholder="הזן פעם בשנה מדוח שנתי..."
                style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box;outline:none;">
         <div style="font-size:10px;color:#6b7280;margin-top:3px;">עוגן הצבירה משמש כבסיס לקביעת יחסי הדליים מתוך הדוח השנתי.</div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">מקור הנתונים / הערות (T190)</div>
+        <textarea id="ffs-inv-f-t190-audit-notes" rows="2"
+                  placeholder="לדוגמה: נתוני דוח שנתי 2024, אושר מול מסלקה..."
+                  style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Heebo,sans-serif;font-size:12px;direction:rtl;box-sizing:border-box;resize:vertical;outline:none;"></textarea>
       </div>
     </div>
     <!-- Buttons -->
@@ -3449,7 +3456,7 @@
 
   <!-- Deposit status bar -->
   <div id="t190-sim-deposit-status-msg" style="display:none;padding:3px 24px 6px;font-size:11px;font-weight:600;direction:rtl;line-height:1.6;"></div>
-  <div id="t190-sim-accuracy-bar" style="color:#374151;background:#ecfdf5;padding:5px 24px;font-size:12px;font-weight:400;border-bottom:1px solid #d1fae5;direction:rtl;">רמת דיוק: ממתין לנתונים | תאריך תחילת קופה: 01/01/2000</div>
+  <div id="t190-sim-accuracy-bar" style="padding:5px 24px;font-size:12px;font-weight:400;border-bottom:1px solid transparent;direction:rtl;">רמת דיוק: ממתין לנתונים | תאריך תחילת קופה: 01/01/2000</div>
 
   <!-- Calibration form bar -->
   <div>
