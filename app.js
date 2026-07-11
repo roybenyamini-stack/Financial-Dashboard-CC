@@ -19523,6 +19523,9 @@ function _sfHandlePdfFile(file) {
   if (statusEl) { statusEl.style.display = ''; statusEl.style.background = '#eff6ff'; statusEl.textContent = '⏳ מחלץ נתונים מהדו"ח...'; }
   parseAnnualReportPDF(file, _capturedAssetNum).then(function(data) {
     _sfSavePdfData(_capturedAssetNum, data);
+    // Card-level Input Status is an evidence-presence display — refresh it as soon as the
+    // accepted evidence is persisted, not on the modal's 1200ms calculation-refresh timer.
+    ffsRenderSection('investments');
     if (statusEl) { statusEl.style.background = '#f0fdf4'; statusEl.textContent = '✅ נתונים חולצו בהצלחה — מחשב מחדש...'; }
     setTimeout(function() { if (statusEl) statusEl.style.display = 'none'; _sfRecalculate(); }, 1200);
   }).catch(function(err) {
