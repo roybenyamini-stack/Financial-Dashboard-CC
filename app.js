@@ -9718,6 +9718,10 @@ function ffsRenderSection(section) {
                   + '</div>';
           }
         }
+        // Goose Finance — Asset Completion, Phase 3: Study Fund Input Status (evidence
+        // presence only, never tax/calculation correctness). ffsRenderSection only — not
+        // added to renderMasterGrid. No-op for non-Study-Fund items (checked inside the helper).
+        html += _sfRenderInputStatusHtml(item);
         html += '<div style="display:flex;justify-content:flex-end;gap:6px;">';
         if (item.needsReview) {
           html += '<button data-section="investments" data-id="' + eid + '" onclick="ffsApproveAsset(this.dataset.section,this.dataset.id)" style="flex-shrink:0;background:#f59e0b;border:none;color:white;font-size:11px;font-weight:700;cursor:pointer;padding:3px 9px;border-radius:6px;font-family:Heebo,sans-serif;white-space:nowrap;">אישור נתונים ✔️</button>';
@@ -19292,12 +19296,15 @@ function _sfClearPdfData() {
 // Goose Finance — Asset Completion, Phase 1: pure Input Status derivation.
 // Reads only already-persisted signals (item.rawXml, sf_pdf_data_<assetNum>,
 // sf_manual_data_<assetNum>) — no calculation, no storage write, no UI.
-// base states: xml_missing | xml_identified_pdf_missing | pdf_verified_active | legacy_pdf_present_unverified
+// base states: xml_missing | xml_identified_pdf_missing | pdf_verified_present | legacy_pdf_present_unverified
 // manualActive is an independent overlay (calibration principal entered), not mutually exclusive with base.
-// A pdfData object is treated as verified-active only when accountMatchConfirmed===true (set by Phase 2's
+// A pdfData object is treated as verified-present only when accountMatchConfirmed===true (set by Phase 2's
 // server-side guard); any pdfData saved before that guard exists — or otherwise missing the field — is
 // legacy_pdf_present_unverified by design (see plan v1.1 §D / v1.2 §E — defensive default, never silently
 // upgraded to verified).
+// Phase 3 rename: pdf_verified_active -> pdf_verified_present. This state describes that verified evidence
+// IS PRESENT, not which source is currently driving the calculation — manual calibration may be the active
+// calculation source even while a verified PDF is present (see manualActive below, an independent overlay).
 function _sfGetInputStatus(item) {
   if (!item) return null;
   var hasXml     = !!item.rawXml;
@@ -19311,12 +19318,53 @@ function _sfGetInputStatus(item) {
   } else if (!pdfData) {
     base = 'xml_identified_pdf_missing';
   } else if (pdfData.accountMatchConfirmed === true) {
-    base = 'pdf_verified_active';
+    base = 'pdf_verified_present';
   } else {
     base = 'legacy_pdf_present_unverified';
   }
 
   return { base: base, manualActive: manualActive };
+}
+
+// Goose Finance — Asset Completion, Phase 3: renders the Input Status as a small, additive
+// block inside the full Study Fund card (ffsRenderSection only — never renderMasterGrid).
+// Describes evidence presence only — never tax/calculation/parser correctness. Internal enum
+// names (_sfGetInputStatus's base values) are never shown to the user; only the mapped wording
+// below is. Returns '' for any non-Study-Fund item or when no status can be derived.
+function _sfRenderInputStatusHtml(item) {
+  if (!item || item.category !== 'קרן השתלמות') return '';
+  var status = _sfGetInputStatus(item);
+  if (!status) return '';
+
+  var text = '', next = '', color = '#64748b';
+  if (status.base === 'xml_missing') {
+    text  = 'הנכס הוזן ללא קובץ מסלקה';
+    next  = 'יבוא קובץ מסלקה ישלים את זיהוי הקרן והנתונים המוסדיים';
+    color = '#64748b';
+  } else if (status.base === 'xml_identified_pdf_missing') {
+    text  = 'הקרן זוהתה מהמסלקה. דוח שנתי טרם הועלה';
+    next  = 'העלאת דוח שנתי תאפשר ניתוח מס מבוסס דוח מוסדי';
+    color = '#b45309';
+  } else if (status.base === 'pdf_verified_present') {
+    text  = 'דוח שנתי תואם לחשבון הועלה';
+    color = '#16a34a';
+  } else if (status.base === 'legacy_pdf_present_unverified') {
+    text  = 'קיים דוח שנתי קודם. סטטוס התאמת החשבון אינו מתועד';
+    next  = 'ניתן להשאירו ולהמשיך להשתמש בנתונים הקיימים, או למחוק ולהעלות מחדש לצורך אימות';
+    color = '#64748b';
+  }
+
+  var html = '';
+  if (text) {
+    html += '<div style="font-size:10px;color:' + color + ';margin-bottom:2px;line-height:1.4;">' + text + '</div>';
+  }
+  if (next) {
+    html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;line-height:1.3;">' + next + '</div>';
+  }
+  if (status.manualActive) {
+    html += '<div style="font-size:10px;color:#b45309;font-weight:600;margin-bottom:4px;">⚠ החישוב כולל נתונים שהוזנו ידנית</div>';
+  }
+  return html;
 }
 
 // v182.08: Reset all simulation sliders to defaults
