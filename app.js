@@ -19288,6 +19288,36 @@ function _sfClearPdfData() {
   _sfRecalculate();
 }
 
+// Goose Finance — Asset Completion, Phase 1: pure Input Status derivation.
+// Reads only already-persisted signals (item.rawXml, sf_pdf_data_<assetNum>,
+// sf_manual_data_<assetNum>) — no calculation, no storage write, no UI.
+// base states: xml_missing | xml_identified_pdf_missing | pdf_verified_active | legacy_pdf_present_unverified
+// manualActive is an independent overlay (calibration principal entered), not mutually exclusive with base.
+// A pdfData object is treated as verified-active only when accountMatchConfirmed===true (set by Phase 2's
+// server-side guard); any pdfData saved before that guard exists — or otherwise missing the field — is
+// legacy_pdf_present_unverified by design (see plan v1.1 §D / v1.2 §E — defensive default, never silently
+// upgraded to verified).
+function _sfGetInputStatus(item) {
+  if (!item) return null;
+  var hasXml     = !!item.rawXml;
+  var pdfData    = _sfLoadPdfData(item.assetNum);
+  var manualData = _sfLoadManualData(item.assetNum);
+  var manualActive = !!(manualData && manualData.principalAmount > 0);
+
+  var base;
+  if (!hasXml) {
+    base = 'xml_missing';
+  } else if (!pdfData) {
+    base = 'xml_identified_pdf_missing';
+  } else if (pdfData.accountMatchConfirmed === true) {
+    base = 'pdf_verified_active';
+  } else {
+    base = 'legacy_pdf_present_unverified';
+  }
+
+  return { base: base, manualActive: manualActive };
+}
+
 // v182.08: Reset all simulation sliders to defaults
 function _sfResetSimulation() {
   var _setSlider = function(id, val) {
