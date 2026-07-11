@@ -561,9 +561,22 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
   const scoped = scopeTextToAccount(text, assetNum);
   console.log('[parse-pdf] account scoping: found=%s matchedForm=%s occurrences=%d inputLen=%d outputLen=%d',
     scoped.found, scoped.matchedForm, scoped.allMatchCount || 0, scoped.stats.inputLen, scoped.stats.outputLen);
+
+  // Trust boundary (Goose Finance — Asset Completion, Phase 2): an asset-specific upload whose
+  // account number cannot be located in the document must never become active evidence. Reject
+  // before parsing instead of silently falling back to full-document parsing. detectedAccounts
+  // is returned for diagnostics only — the user-facing message stays count-only, no raw account
+  // numbers, since a consolidated document may list numbers belonging to someone else.
   if (!scoped.found) {
-    console.warn('[parse-pdf] WARNING: account "%s" not found in PDF — falling back to full text. Accounts detected in PDF: %s',
+    console.warn('[parse-pdf] REJECTED: account "%s" not found in PDF. Accounts detected in PDF: %s',
       assetNum, JSON.stringify(scoped.detectedAccounts));
+    return res.status(422).json({
+      error: 'מספר החשבון (' + assetNum + ') לא אותר במסמך שהועלה — ' +
+        ((scoped.detectedAccounts && scoped.detectedAccounts.length)
+          ? 'זוהו ' + scoped.detectedAccounts.length + ' חשבונות אחרים במסמך.'
+          : 'לא זוהו מספרי חשבון אחרים במסמך.'),
+      detectedAccounts: scoped.detectedAccounts || []
+    });
   }
   const scopedText = scoped.scopedText;
 
@@ -577,6 +590,8 @@ app.post('/api/parse-pdf', express.json({ limit: '25mb' }), async (req, res) => 
     const result = firm === 'meitav'
       ? await parseMeitav(scopedText, text, assetNum)
       : await parseAltshuler(scopedText, assetNum, text);
+    // Account match was confirmed above (scoped.found===true) before parsing began.
+    result.accountMatchConfirmed = true;
     res.json(result);
   } catch (err) {
     console.error('[parse-pdf] Parser error (%s): %s', firm, err.message);
