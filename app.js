@@ -19259,6 +19259,7 @@ function parseAnnualReportPDF(file, assetNum) {
         resolve({
           _promptVersion:    7,
           isPreReformExempt: !!data.isPreReformExempt,
+          accountMatchConfirmed: !!data.accountMatchConfirmed,
           exemptPrincipal:  Number(data.exemptPrincipal)  || 0,
           exemptProfit:     Number(data.exemptProfit)     || 0,
           taxablePrincipal: Number(data.taxablePrincipal) || 0,
