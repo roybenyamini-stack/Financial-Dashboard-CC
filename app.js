@@ -19290,6 +19290,10 @@ function _sfSavePdfData(assetNum, data) {
 function _sfClearPdfData() {
   if (!_sfCurrentItem) return;
   localStorage.removeItem('sf_pdf_data_' + _sfCurrentItem.assetNum);
+  // Card-level Input Status is an evidence-presence display — refresh it immediately, same as
+  // the accepted-upload path. _sfClearPdfData has exactly one caller (the user-facing "מחק קובץ"
+  // button), so this is always an explicit user deletion, never internal cleanup.
+  ffsRenderSection('investments');
   _sfRecalculate();
 }
 
