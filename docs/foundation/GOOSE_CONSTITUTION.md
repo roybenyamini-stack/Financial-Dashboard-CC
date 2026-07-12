@@ -135,3 +135,5 @@ If a proposed direction fails the Decision Rule, it requires explicit justificat
 *This document is the canonical statement of what Goose is and why it exists. It is not a technical specification. It does not describe how Goose is built. It describes what Goose must remain true to — regardless of how it is built, rebuilt, or extended.*
 
 *Human-facing product materials, tutorials, and explanations may be translated into Hebrew (עברית) and other languages. This Constitution remains in English as the single source of truth.*
+
+*For how Goose documentation — including this Constitution — is structured, owned, and reviewed, see* GOOSE_DOCUMENTATION_GOVERNANCE.md*, which also records a known open item: this Constitution's current framing predates the approved Goose General → Goose Financial → Roy Reality Lab layering and is pending a future revision.*

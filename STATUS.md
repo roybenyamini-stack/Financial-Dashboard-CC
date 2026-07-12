@@ -3,6 +3,37 @@
 ## שלב נוכחי
 גרסה v177.68 — Persistence, ניתוב חזרה להשקעות, דיוק AI (14/05/2026).
 
+## שינויים אחרונים (12/07/2026 — Goose Documentation Governance)
+
+### Goose Documentation Foundation — Governance Milestone
+
+**מסמך:** `docs/foundation/GOOSE_DOCUMENTATION_GOVERNANCE.md` (חדש)
+**גרסה:** 1.0
+**סטטוס:** טיוטה — ממתין לאשרור Chief Architect
+
+- פרסום ה-SSOT הראשון לניהול תיעוד Goose: היררכיית התיעוד בשלוש שכבות — Goose General ← Goose Financial ← Roy Reality Lab — כולל מיפוי כל מסמכי `docs/` הקיימים לשכבה המתאימה, כללי SSOT, מחזור חיי מסמך, ההבחנה בין תיעוד Builder לתיעוד Human, תהליכי סקירה ואישור, וכלל השלמת תיעוד.
+- `GOOSE_EXPEDITION_1_ASSESSMENT.md` סווג מחדש כ-artifact של Roy Reality Lab (ולא Goose Financial) — הוא מתעד אמת מאגר (repository truth), לא מדיניות מוצר.
+- נרשם באופן מפורש חוב תיעודי קיים: הניסוח הפיננסי-מובהק של `GOOSE_CONSTITUTION.md` אינו תואם עוד לזהות המאושרת (Goose General לא יכול להיות מוגדר כמוצר פיננסי) וממתין לרוויזיה עתידית — לא טופל בהיקף אבן דרך זו.
+- עדכונים ממוקדים (ללא רדיזיין) ב-`GOOSE_CORE_BOUNDARY.md`: הבהרת היחס בין Goose Core ל-Goose General/Financial, ו-"Track 2" הוסב לשם הרשמי Roy Reality Lab.
+- הפניה חדשה מ-`GOOSE_CONSTITUTION.md` ומ-`CLAUDE.md` אל מסמך הממשל, ללא שכפול תוכן.
+- זהו תיעוד בלבד — אין שינוי בקוד האפליקציה ואין bump גרסה של `app.js`/`index.html` (נשארת v177.68), באותו אופן כמו אבן הדרך של Goose Expedition 1.
+
+**קבצים שהשתנו:** `docs/foundation/GOOSE_DOCUMENTATION_GOVERNANCE.md` (חדש), `docs/foundation/GOOSE_CORE_BOUNDARY.md`, `docs/foundation/GOOSE_CONSTITUTION.md`, `CLAUDE.md`, `STATUS.md`
+
+## שינויים אחרונים (10/07/2026 — Goose Expedition 1)
+
+### Goose Expedition 1 — פרסום מסמך הערכה ארכיטקטונית
+
+**מסמך:** `docs/foundation/GOOSE_EXPEDITION_1_ASSESSMENT.md` (חדש)
+**גרסה:** E1-1.1
+**סטטוס:** אושר (Roy + ChatGPT כ-Chief Architect)
+
+- פרסום הערכה ארכיטקטונית מבוססת-ראיות של מבנה הנתונים הפיננסי (`FFS_PROFILE.investments`/`.pension`) ושל 5 צינורות הכתיבה הקיימים אליו.
+- היקף: הבנת המאגר וסקירה ארכיטקטונית בלבד ("Repository Understanding Only"). **לא בוצעה עבודת יישום, לא שונה קוד אפליקציה, ולא אושרה סכימה קנונית.**
+- אין שינוי בגרסת האפליקציה (נשארת v177.68) — זהו מסמך תיעוד ארכיטקטוני נפרד ממחזור הפיתוח השוטף, ואינו bump גרסה של `app.js`/`index.html`.
+
+**קבצים שהשתנו:** `docs/foundation/GOOSE_EXPEDITION_1_ASSESSMENT.md` (חדש), `STATUS.md`
+
 ## שינויים אחרונים (14/05/2026 — v177.68)
 
 ### v177.68 – Data Persistence, Cross-Migration & AI Accuracy

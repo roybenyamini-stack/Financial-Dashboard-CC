@@ -8,7 +8,9 @@
 
 ## Purpose
 
-Goose is a Financial Understanding Platform. Its Retirement module is the first built on it — not the definition of it. Future modules will address pension products, cash flow planning, tax strategy, insurance understanding, estate planning, and domains that do not yet have names. Each will bring its own logic, its own rules, and its own way of making a person's situation visible.
+Goose Core, as defined in this document, is the architectural mechanism operating within Goose General — the domain-independent platform layer. "Financial Understanding Platform" describes Goose Financial, the first domain instantiation of Goose General, not Goose General itself. (See `GOOSE_DOCUMENTATION_GOVERNANCE.md` for the full three-layer model: Goose General → Goose Financial → Roy Reality Lab.)
+
+Within Goose Financial, the Retirement module is the first built — not the definition of the domain. Future modules will address pension products, cash flow planning, tax strategy, insurance understanding, estate planning, and domains that do not yet have names. Each will bring its own logic, its own rules, and its own way of making a person's situation visible. Future Goose domains beyond Financial (e.g. Goose Medical, Goose Legal) would instantiate Goose General the same way Goose Financial does.
 
 For Goose to grow coherently across all of them, something must remain constant. That constant is Goose Core.
 
@@ -142,11 +144,11 @@ Goose is developed in two parallel tracks, and neither is complete without the o
 
 **Track 1 — Foundation** produces the permanent principles, the Core boundary, the module contracts, and the extension rules. It answers the question: what must always be true about Goose, regardless of what is built on it?
 
-**Track 2 — Reality Validation** tests every principle against an actual person's actual situation. It answers the question: does this principle hold when it meets the world?
+**Track 2 — Roy Reality Lab** tests every principle against an actual person's actual situation, and is Roy's real working, research, experimentation, and validation environment for Goose Financial — using real data (Mislaka XML, annual PDFs, manually created assets, the Excel "Real Data" workflow) for real-world QA, UX experiments, proof-of-concept work, and discovery, not only validation. It answers the question: does this principle hold when it meets the world? Roy Reality Lab may surface facts and generate proposals, but it does not redefine Goose General or Goose Financial without an approved decision (see `GOOSE_DOCUMENTATION_GOVERNANCE.md`).
 
 The first validation case is **Reality Case 001 — Roy's Retirement Journey.** It is a complete picture of one person's financial life: pension funds, investment accounts, a study fund, life events, tax obligations, and retirement projections — built using Goose Core as the foundation. If the Core concepts cannot accurately model this real case, the concepts are wrong. Not the case.
 
-Reality Validation is not a test phase. It is a permanent parallel discipline. Every new Core concept will be validated against a real case before it is ratified. Every module will be validated against a real scenario before it is considered complete.
+Roy Reality Lab is not a test phase. It is a permanent parallel discipline. Every new Core concept will be validated against a real case before it is ratified. Every module will be validated against a real scenario before it is considered complete.
 
 Foundation without validation is philosophy. Validation without foundation is just software. Goose requires both.
 
@@ -162,4 +164,4 @@ Goose exists to provide that unified picture. The Core is the mechanism by which
 
 *This document defines the architectural boundary of Goose Core. It is not a technical specification. It does not describe how the Core is implemented. It describes what the Core is responsible for, what belongs inside it, and what must remain outside it — permanently, across every version of Goose that will ever be built.*
 
-*This document should be read alongside* GOOSE_CONSTITUTION.md *and reviewed whenever a new module, a new integration, or a new architectural direction is proposed.*
+*This document should be read alongside* GOOSE_CONSTITUTION.md *and reviewed whenever a new module, a new integration, or a new architectural direction is proposed. For how Goose documentation itself — including this document — is structured, owned, and reviewed, see* GOOSE_DOCUMENTATION_GOVERNANCE.md*.*
