@@ -154,6 +154,26 @@ Foundation without validation is philosophy. Validation without foundation is ju
 
 ---
 
+## Boot Protocol
+
+Every AI session working in this repository begins with Boot — not with a task, and not with a session's own memory of prior conversations. `GOOSE_BOOT.md` is the entry point: a short, navigation-only document naming which documents to read, in what order, and what "ready" means before any change is made.
+
+Boot exists because no session — Claude, ChatGPT, Codex, Gemini, or any future agent — can be trusted to remember what was true in a prior conversation. Conversation history and model memory are not authoritative. The repository is. Boot is the mechanism that forces every session to re-derive its understanding of current state from the repository itself, every time, rather than from what it recalls having done.
+
+Boot is not a Core concept, and it is not the Constitution. It does not describe what Goose is (`GOOSE_CONSTITUTION.md`), what belongs in Goose Core (this document), or how documentation is owned and reviewed (`GOOSE_DOCUMENTATION_GOVERNANCE.md`). It sits alongside those as a fourth Foundation artifact whose sole responsibility is session initialization — pointing a session at the documents above, in the right order, before it touches anything.
+
+Boot's authority is derivative, not independent: it does not create new principles, it enforces reading the ones that already exist, in the order the authority chain establishes:
+
+```
+Reality → Foundation → Constitution → Architecture → RFC → Milestone → Current Session
+```
+
+A session's job during Boot is to walk this chain — read the documents embodying each link, confirm the current milestone and application state against the live repository, and report readiness — before accepting a task. This is the repository-first philosophy stated plainly: the repository is truth; a session's prior turns are not.
+
+See `GOOSE_BOOT.md` for the actual initialization workflow and required-reading list, and `templates/GOOSE_BOOT_TEMPLATE.md` for how Boot itself is updated when a milestone changes what a session needs to read.
+
+---
+
 ## Closing Statement
 
 The Core is what makes Goose coherent across all of its modules, all of its domains, and all of its future directions. Without a protected Core, each new module brings its own definition of reality — its own understanding of what entities exist, what facts matter, and what counts as truth. That fragmentation is not a future risk. It is the current state of the financial industry. Every institution, every platform, every application has its own model of reality. No two agree. The person in the middle has no unified picture.
@@ -164,4 +184,4 @@ Goose exists to provide that unified picture. The Core is the mechanism by which
 
 *This document defines the architectural boundary of Goose Core. It is not a technical specification. It does not describe how the Core is implemented. It describes what the Core is responsible for, what belongs inside it, and what must remain outside it — permanently, across every version of Goose that will ever be built.*
 
-*This document should be read alongside* GOOSE_CONSTITUTION.md *and reviewed whenever a new module, a new integration, or a new architectural direction is proposed. For how Goose documentation itself — including this document — is structured, owned, and reviewed, see* GOOSE_DOCUMENTATION_GOVERNANCE.md*.*
+*This document should be read alongside* GOOSE_CONSTITUTION.md *and reviewed whenever a new module, a new integration, or a new architectural direction is proposed. For how Goose documentation itself — including this document — is structured, owned, and reviewed, see* GOOSE_DOCUMENTATION_GOVERNANCE.md*. For how any AI session should initialize itself before acting in this repository, see the Boot Protocol section above and* GOOSE_BOOT.md*.*
