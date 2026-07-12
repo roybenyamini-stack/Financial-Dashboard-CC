@@ -9,6 +9,8 @@
 
 For specific module logic, semantic colors, and constraints, you MUST read the respective markdown files in the `docs/` directory BEFORE modifying code (e.g., read `docs/events_module.md` when working on Event Management, `docs/sliders_module.md` when working on Sliders & Macro-Variables, `docs/pension_logic.md` when working on calculations, asset rendering, or graph logic).
 
+For how Goose documentation itself is organized, owned, and reviewed across layers (Goose General / Goose Financial / Roy Reality Lab), see `docs/foundation/GOOSE_DOCUMENTATION_GOVERNANCE.md`. This CLAUDE.md remains the builder entry point; it does not duplicate that governance model.
+
 ## Master Grid UI - CSS & Layout Rules
 
 - **Fixed Layout:** Use `table-layout: fixed; width: 100%;` for the master grid. Never let the browser calculate column widths. All `<th>` elements must have explicit percentage widths summing to exactly 100%.
