@@ -42,10 +42,11 @@ Read in this order before making any change:
 
 1. `GOOSE_CONSTITUTION.md` — what Goose is, why it exists, its non-negotiable principles.
 2. `GOOSE_CORE_BOUNDARY.md` — what belongs in Goose Core, what belongs in a module, and the Boot Protocol section.
-3. `GOOSE_DOCUMENTATION_GOVERNANCE.md` — how Goose documentation itself is owned, reviewed, and kept coherent.
-4. `CLAUDE.md` (or the equivalent builder entry point for the acting agent) — project-specific coding rules and module-doc pointers.
-5. `STATUS.md` — current application version and most recent changes.
-6. Any module doc named in `CLAUDE.md` relevant to the task at hand (e.g. `docs/pension_logic.md`, `docs/sliders_module.md`).
+3. `GOOSE_KNOWLEDGE_ARCHITECTURE.md` — what Canonical Knowledge, Knowledge Objects, and Knowledge Models are, and why documentation is treated as a generated view rather than a source.
+4. `GOOSE_DOCUMENTATION_GOVERNANCE.md` — how Goose documentation itself is owned, reviewed, and kept coherent.
+5. `CLAUDE.md` (or the equivalent builder entry point for the acting agent) — project-specific coding rules and module-doc pointers.
+6. `STATUS.md` — current application version and most recent changes.
+7. Any module doc named in `CLAUDE.md` relevant to the task at hand (e.g. `docs/pension_logic.md`, `docs/sliders_module.md`).
 
 ---
 
