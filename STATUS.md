@@ -3,6 +3,22 @@
 ## שלב נוכחי
 גרסה v177.68 — Persistence, ניתוב חזרה להשקעות, דיוק AI (14/05/2026).
 
+## שינויים אחרונים (14/07/2026 — Study Fund Tax Knowledge)
+
+### Study Fund Tax Knowledge Milestone — Canonical Knowledge Objects
+
+**מסמך:** `docs/knowledge/study_fund/SF_TAX_MODEL.md` ומודל שמונה אובייקטי ידע אטומיים (חדשים)
+**גרסה:** 1.0
+**סטטוס:** טיוטה — ממתין לאישור Product Owner ו-Chief Architect
+
+- פרסום שימוש ראשון בארכיטקטורת הידע של Goose (Knowledge Architecture Foundation): תיעוד מודל המס של קרן השתלמות כידע קנוני (Canonical Knowledge) — מודל מורכב אחד (`SF-TAX-MODEL`) ושמונה אובייקטים אטומיים (`SF-B8-TAX-RIGHTS`, `SF-REPORT-DATE-TAX`, `SF-TAX-SENSITIVITY-COEFFICIENT`, `SF-YTD-UPDATE`, `SF-FUTURE-PROJECTION`, `SF-PARTIAL-WITHDRAWAL`, `SF-LINKAGE-TREATMENT`, `SF-LIQUIDITY-TAX-SEPARATION`).
+- הקונפליקט המקורי בין ארבעה מקורות סותרים לגבי כלל הפטור לפי ותק (`docs/TaxLogic.md`, `israel_tax_rules.md`, קוד ה-XML-only, קוד ה-PDF-verified) **מוסגר מחדש ולא נפתר**: `SF-LIQUIDITY-TAX-SEPARATION` מפריד בין נזילות/זכאות למשיכה (החלטת מוצר) לבין חבות מס על שכבות חייבות (שאלה משפטית שנותרת "לא ידוע" במפורש).
+- ממצא חדש שהתגלה בסשן זה: אי-סימטריה בטיפול ב"הפרשי הצמדה" — נכלל ברווח הפטור בדליים בשיעור 0%, אך מוחרג מהרווח החייב בדליים חייבים (`server.js:213-224`), מתועד ב-`SF-LINKAGE-TREATMENT`.
+- ראיות אמיתיות (דוחות שנתיים אמיתיים, חיצוניים למאגר) נבדקו ואומתו באופן עצמאי — הצגת עמודות אומתה לפי קואורדינטות הטקסט הגולמיות של ה-PDF, לא לפי חילוץ טקסט לינארי בלבד — ותועדו במאגר בצורה פרטית-מוגנת בלבד (`docs/knowledge/study_fund/EVIDENCE_INDEX.md`, כינויים בלבד, ללא פרטים מזהים).
+- אין שינוי בקוד האפליקציה, בחישובי המס, או בממשק המשתמש — זהו תיעוד בלבד (Canonical Knowledge), ללא Derived Views (טולטיפים/FAQ/AI) שנוצרו עדיין.
+
+**קבצים שהשתנו:** תשעה קבצי Knowledge חדשים תחת `docs/knowledge/study_fund/` (כולל `SF_TAX_MODEL.md`), `docs/knowledge/study_fund/EVIDENCE_INDEX.md` (חדש), `docs/knowledge/study_fund/README.md`, `docs/modules/study_fund/STUDY_FUND_CAPABILITY.md`, `docs/modules/study_fund/STUDY_FUND_CAPABILITY_REVIEW.md`, `docs/foundation/GOOSE_DOCUMENTATION_GOVERNANCE.md`, `STATUS.md`
+
 ## שינויים אחרונים (12/07/2026 — Goose Documentation Governance)
 
 ### Goose Documentation Foundation — Governance Milestone
