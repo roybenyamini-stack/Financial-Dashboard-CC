@@ -54,9 +54,10 @@ Roy Reality Lab
 
 | Layer | Documents |
 |---|---|
-| Goose General | `GOOSE_CONSTITUTION.md`, `GOOSE_CORE_BOUNDARY.md`, `GOOSE_DOCUMENTATION_GOVERNANCE.md` (this document), `GOOSE_BOOT.md` |
-| Goose Financial | `CLAUDE.md`, and all module/logic documents under `docs/`: `events_module.md`, `pension_logic.md`, `provident_funds_logic.md`, `sliders_module.md`, `system_architecture.md`, `T190_Tax_Rules.md`, `TaxLogic.md`, `study_fund_input_status_contract.md`, `study_fund_input_guide_human.md` |
+| Goose General | `GOOSE_CONSTITUTION.md`, `GOOSE_CORE_BOUNDARY.md`, `GOOSE_DOCUMENTATION_GOVERNANCE.md` (this document), `GOOSE_BOOT.md`, `GOOSE_KNOWLEDGE_ARCHITECTURE.md` (Artifact 005 — see §12); `docs/foundation/templates/**` — the companion-template family for these Foundation and Knowledge Architecture artifacts, mapped once here rather than naming some individually and leaving others implicit: `GOOSE_BOOT_TEMPLATE.md`, `CAPABILITY_TEMPLATE.md`, `KNOWLEDGE_MODEL_TEMPLATE.md`, `KNOWLEDGE_OBJECT_TEMPLATE.md`, `REVIEW_TEMPLATE.md`, `DERIVED_VIEWS.md` |
+| Goose Financial | `CLAUDE.md`, and all module/logic documents under `docs/`: `events_module.md`, `pension_logic.md`, `provident_funds_logic.md`, `sliders_module.md`, `system_architecture.md`, `T190_Tax_Rules.md`, `TaxLogic.md`, `study_fund_input_status_contract.md`, `study_fund_input_guide_human.md`; `docs/modules/**` (module-level Capability/Review documents, e.g. `docs/modules/study_fund/STUDY_FUND_CAPABILITY.md` and its companion Review — previously written but unmapped here, closed as of §12); `docs/knowledge/**` — Canonical Knowledge, both tiers: atomic Knowledge Objects and composed Knowledge Models (introduced by §12; see `GOOSE_KNOWLEDGE_ARCHITECTURE.md` §3–4 for the distinction); `israel_tax_rules.md` — Generated View, runtime-loaded by `server.js`'s AI verification/advisor routes; its root location (outside `docs/`) is a code-path coupling, not a governance choice, and is left as-is rather than relocated in this milestone; `ARCHITECTURE_RULES.md` — engineering-standard document (e.g. the no-hardcoding rule), explicitly *not* a Knowledge Object, since it governs code style rather than a business/regulatory rule |
 | Roy Reality Lab | `GOOSE_EXPEDITION_1_ASSESSMENT.md` — an evidence-graded audit of this repository's real code and data. It is classified here, not as Goose Financial, because it records repository *truth* discovered through investigation, not product policy or domain rules. No other Roy Reality Lab documents exist yet; this is a known gap, left for a future milestone rather than filled in speculatively here. |
+| Classification pending | `Mislaka_Rules.md`, `tech_doc.md`, `guidelines.md`, `specialist_prompts.md`, `audit_report.md` — root-level documents identified as unmapped during the Knowledge Architecture Foundation milestone but not read in that session. Logged here rather than guessed at; see §13. |
 
 ### Current Direction and Documentation Governance are complementary
 
@@ -67,6 +68,7 @@ Documentation Governance describes *how* documents are structured, owned, and re
 ## 4. SSOT Rules
 
 - Every topic has exactly one owning document. If a second document needs to touch the same topic, it references the owning document — it does not restate the rule in its own words.
+- A business rule with a legal, regulatory, or mathematical basis has exactly one canonical Knowledge Object under `docs/knowledge/` (see §12). Any other document, prompt string, or UI string stating the same rule must be a reference or a Generated View carrying a `Derived from:` provenance line — independent restatement is a violation regardless of whether the restatement happens to be correct. This applies within a layer as much as across layers: two Goose Financial documents stating the same rule independently (e.g. `docs/TaxLogic.md` and `israel_tax_rules.md` both stating the Study Fund vesting-exemption rule, in disagreeing forms — see §13) is exactly the failure this rule exists to prevent, not a lesser violation because both documents share a layer.
 - Lower layers reference upper layers, never the reverse in substance. `GOOSE_CORE_BOUNDARY.md` may reference this document; this document does not redefine what Goose Core is.
 - When an applied, lower-layer rule appears to conflict with an upper-layer principle, the conflict is escalated for review — it is never silently resolved by picking one side. §11 is a live example: a known conflict, logged rather than quietly patched over.
 - A cross-reference must name the actual file it points to. A reference to a document that does not yet exist must say so explicitly (as this document does for `CURRENT_DIRECTION.md` and `DECISIONS.md` in §10).
@@ -95,6 +97,8 @@ Goose documentation splits into two audiences, and every document should be clea
 
 The existing pair `study_fund_input_status_contract.md` (Builder — explicitly labeled "System / Builder documentation. Not user-facing documentation.") and `study_fund_input_guide_human.md` (Human) is the reference example for this split. Any future feature that warrants both a technical contract and a user-facing explanation should follow this same pairing pattern rather than inventing a new one.
 
+This split extends to Knowledge Objects (§12), with one ratified exception: because a Knowledge Object is atomic (one rule), it holds its Builder statement and its Human (Hebrew) statement in the same file rather than splitting into twin documents — splitting a single paragraph of substance across two files is overhead this granularity does not need. This exception applies to Knowledge Objects only; it does not loosen the twin-doc requirement for Capability/Review pairs or any other document type. A Human Guide derived from a Knowledge Object (per `docs/foundation/templates/DERIVED_VIEWS.md`) may only copy its Reality (Human statement) and Explainability sections — never its Mathematical Model verbatim.
+
 ---
 
 ## 7. Review Workflow
@@ -114,6 +118,7 @@ This three-line header is the standard for any document operating at the Goose G
 - **Goose General** documents require both Product Owner (Roy) approval and Chief Architect approval before moving from Reviewed to Approved/Ratified — changes at this layer affect every future domain, not just Goose Financial.
 - **Goose Financial** documents require Product Owner approval; Chief Architect approval is additionally required when the change is architectural (affects data model, module boundaries, or cross-cutting contracts) rather than purely domain content.
 - **Roy Reality Lab** artifacts require no formal approval to produce — they are research, experimentation, and discovery by nature. However, any proposal derived from a Reality Lab artifact that would change a Goose General or Goose Financial document must go through that target layer's approval workflow before it takes effect. A Reality Lab finding does not become policy by itself.
+- **Knowledge Objects** (§12) are Goose Financial documents, with one clarification: ordinary edits to a Knowledge Object's rule content (Reality, Evidence, Model Assumptions, Mathematical Model, Confidence, etc.) require Product Owner approval only, following the general Goose Financial rule above. Chief Architect approval is additionally required only when the Knowledge Object *template's own structure* (`docs/foundation/templates/KNOWLEDGE_OBJECT_TEMPLATE.md`) is being changed — not when an ordinary tax-law or business-rule update is made within the existing structure. This keeps routine domain-content edits from false-triggering the higher architectural approval bar.
 
 ---
 
@@ -122,7 +127,7 @@ This three-line header is the standard for any document operating at the Goose G
 A documentation task is complete only when all of the following hold:
 
 1. The document lives at the correct hierarchy layer (§3).
-2. It contains no content duplicated from a document at another layer — only references.
+2. It contains no content duplicated from another document — whether that document sits at another layer or the same layer — only references or, for a Knowledge Object's Derived Views, copies made under the provenance convention in `docs/foundation/templates/DERIVED_VIEWS.md`. Same-layer duplication is not a lesser violation than cross-layer duplication (see §4's Study Fund vesting-exemption example).
 3. It carries the header metadata required for its layer (version, status, and — for Goose General — the reviewer byline from §7).
 4. Every cross-reference in it resolves to a real, existing file.
 5. It has been explicitly acknowledged per the Approval Workflow (§8) appropriate to its layer.
@@ -146,6 +151,24 @@ The following are approved future milestones of the Goose Documentation System, 
 `GOOSE_CONSTITUTION.md` currently defines Goose in inherently financial terms throughout — its "Why Goose Exists" section and its examples are all drawn from Israeli pension and tax reality. This was accurate when Goose had no layered architecture. It is no longer accurate: under the approved identity (Goose General → Goose Financial → Roy Reality Lab), Goose General must never be defined as a financial product — that framing now belongs to Goose Financial.
 
 This is recorded here explicitly, on the record, rather than left for a reader to notice on their own (per §2's philosophy that staleness must be stated, not silently preserved). Reconciling `GOOSE_CONSTITUTION.md`'s framing with this identity is a known future revision. It is out of scope for this milestone, which is documentation governance only.
+
+---
+
+## 12. Knowledge Architecture
+
+See `docs/foundation/GOOSE_KNOWLEDGE_ARCHITECTURE.md` (Artifact 005) for what Canonical Knowledge, Knowledge Objects, Knowledge Models, Documentation Views, and Knowledge Consumers are, why documentation is treated as a generated view rather than a source, and the Model-Assumptions-vs-Simulation-Assumptions distinction. This section states only the governance consequences of that philosophy, which are already codified elsewhere in this document rather than restated here: the layer mapping for `docs/knowledge/**` and `docs/modules/**` (§3), the same-layer SSOT duplication rule (§4), the Builder/Human combined-file exception for Knowledge Objects (§6), the approval-workflow clarification for ordinary rule-content edits versus template-structure changes (§8), and the Documentation Completion Rule's same-layer-duplication check (§9).
+
+Two templates — `docs/foundation/templates/CAPABILITY_TEMPLATE.md` and `docs/foundation/templates/REVIEW_TEMPLATE.md` — formalize the module-level orchestration/review pattern already proven by `docs/modules/study_fund/STUDY_FUND_CAPABILITY.md` and its companion Review document; neither changes those documents' content, only their registration in §3. `docs/foundation/templates/KNOWLEDGE_OBJECT_TEMPLATE.md` and `docs/foundation/templates/KNOWLEDGE_MODEL_TEMPLATE.md` are the two Canonical Knowledge templates (atomic rule and composed model, respectively — see `GOOSE_KNOWLEDGE_ARCHITECTURE.md` §3–4 for the distinction); `docs/foundation/templates/DERIVED_VIEWS.md` defines the Documentation View types, the Knowledge Consumer taxonomy, and the provenance-comment convention that ties a view back to its canonical source.
+
+---
+
+## 13. Known Documentation Debt (Knowledge Architecture)
+
+Two items are logged here on the record, per §2's philosophy of stating staleness/gaps explicitly rather than leaving them for a reader to discover, both surfaced by the Knowledge Architecture Foundation milestone and explicitly deferred rather than resolved by it:
+
+**The Study Fund vesting-exemption conflict.** The Study Fund vesting-exemption tax rule is currently stated independently in at least four places that disagree with each other: `docs/TaxLogic.md` §3.1/§5.1 (a binary full-exemption rule, plus a stale `effectiveTaxCoeff` formula), `israel_tax_rules.md` (the same binary rule, but a formula that matches live code instead), the live behavior of `_sfCalculateTax`/`_sfRecalculate` in `app.js` (a partial `SF_MIXED` exemption, and a third variant in the PDF-verified path with no vesting check at all), and the AI advisor's hardcoded system-prompt phrasing in `server.js`. This is documented in full, with citations, in `docs/modules/study_fund/STUDY_FUND_CAPABILITY_REVIEW.md` §1.9, Risk 1, and Question 1. This milestone's §12 (and `GOOSE_KNOWLEDGE_ARCHITECTURE.md`) makes the structural violation this represents explicit (an SSOT rule broken across same-layer documents, per §4's amendment) and gives it a home to be fixed in (`docs/knowledge/study_fund/`, see the placeholder at `docs/knowledge/study_fund/README.md`) — it does not resolve the conflict. That resolution is deferred to a future Study Fund Tax Model migration milestone, which must produce: the `SF-VESTING-EXEMPTION` Knowledge Object (and its sibling atomic rules — segment/tikrat classification, the tax rate, the `effectiveTaxCoeff` blending formula, pre-2002/pre-2003 special cases); and the composing `SF-TAX-MODEL` Knowledge Model, whose Interaction & Edge Cases section must explicitly resolve whether the seniority/age vesting exemption still applies once a PDF-verified tier calculation supersedes the XML-only fallback — the specific unresolved asymmetry documented in the Review's Risk 2. The other three independent statements are then retired into references or Generated Views.
+
+**Unclassified root-level documents.** `Mislaka_Rules.md`, `tech_doc.md`, `guidelines.md`, `specialist_prompts.md`, and `audit_report.md` were identified as unmapped in §3's layer table during this milestone, but were not read in the session that produced it — so they are logged here as "classification pending" rather than assigned a guessed layer. Resolving their classification is deferred to a future milestone.
 
 ---
 

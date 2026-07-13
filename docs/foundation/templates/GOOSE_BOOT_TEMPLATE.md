@@ -60,7 +60,7 @@ Before publishing an updated `GOOSE_BOOT.md`, confirm:
 - [ ] Every required document listed still exists at the stated path.
 - [ ] The Current Milestone section matches the actual, current state of the repository — not a planned or in-progress state.
 - [ ] The Current Project Status section's application version matches `STATUS.md`.
-- [ ] No content has been duplicated from `GOOSE_CONSTITUTION.md`, `GOOSE_CORE_BOUNDARY.md`, or `GOOSE_DOCUMENTATION_GOVERNANCE.md` — only references.
+- [ ] No content has been duplicated from `GOOSE_CONSTITUTION.md`, `GOOSE_CORE_BOUNDARY.md`, `GOOSE_KNOWLEDGE_ARCHITECTURE.md`, or `GOOSE_DOCUMENTATION_GOVERNANCE.md` — only references.
 - [ ] The document is still short enough to be read in full before any other required document.
 
 ---
