@@ -1,3 +1,29 @@
 node_modules/
 .env
 backend/.env
+
+# Real personal financial exports (Mislaka/clearinghouse XML) — see
+# docs/foundation/GIT_PRIVACY_REMEDIATION_INCIDENT.md
+*.xml
+XML Files/
+57775074_*/
+
+# Real AI-extraction outputs / raw PDF text dumps (may contain real personal data)
+*-test-output.json
+test_output.txt
+
+# One-off personal-data debug/audit scripts removed from history — do not recreate
+# under these exact names without first ensuring any hardcoded paths, PDFs, or
+# account numbers are synthetic (see incident doc above).
+debug-raw-data.js
+audit-meitav-two-accounts.js
+inspect-meitav-text.js
+test-parsers.js
+test-altshuler-parser.js
+test-meitav-parser.js
+
+# Server code backups — redundant, drift risk, never needed in version control
+server_backup*.js
+
+# Local personal PDF evidence — never belongs in this repository
+*.pdf
