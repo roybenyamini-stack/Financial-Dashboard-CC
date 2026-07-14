@@ -65,15 +65,16 @@ app.post('/api/parse-masklaka', async (req, res) => {
 // ── /api/debug-api — live Anthropic connectivity check ───────────────────────
 app.get('/api/debug-api', async (req, res) => {
   const model = 'claude-haiku-4-5-20251001';
+  const anthropicConfigured = !!process.env.ANTHROPIC_API_KEY;
   try {
     const msg = await client.messages.create({
       model,
       max_tokens: 10,
       messages: [{ role: 'user', content: 'Reply with the single word: ok' }]
     });
-    res.json({ status: 'ok', model: msg.model, reply: msg.content[0].text, apiKeyPrefix: (process.env.ANTHROPIC_API_KEY || '').slice(0, 8) + '...' });
+    res.json({ status: 'ok', model: msg.model, reply: msg.content[0].text, anthropicConfigured });
   } catch (err) {
-    res.json({ status: 'error', httpStatus: err.status, message: err.message, errorBody: err.error || null, apiKeyPrefix: (process.env.ANTHROPIC_API_KEY || '(not set)').slice(0, 8) + '...' });
+    res.json({ status: 'error', httpStatus: err.status, message: err.message, errorBody: err.error || null, anthropicConfigured });
   }
 });
 
