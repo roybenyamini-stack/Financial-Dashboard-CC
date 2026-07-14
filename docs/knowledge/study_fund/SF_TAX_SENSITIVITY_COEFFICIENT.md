@@ -76,6 +76,12 @@ effectiveTaxCoeff  = marginalTaxRate × taxableRatio
 
 Since Goose only has a fresh per-bucket breakdown as of the fund's last annual report, any gain or loss after that date is translated into estimated tax using one blended rate rather than a fresh per-bucket calculation. The currently implemented rate blends the tax rate actually paid on the taxable portion with what fraction of the whole fund is taxable at all. Longitudinal analysis of one fund's real data across three years suggests that new gains are actually distributed across a fund's buckets roughly in proportion to how large each bucket already is, rather than in proportion to how much profit each bucket has separately accumulated — supporting one candidate refinement of the current approach, though this is a single-fund finding, not yet shown to generalize.
 
+## 9a. Architectural Interpretation
+
+*Drafted by Claude from approved discussions; pending explicit Product Owner validation. Document status remains Draft — see header. This subsection is an architectural interpretation only — it does not modify the mathematical model (§5), Confidence (§10), Evidence (§3), or Implementation (§6) sections above.*
+
+Reconstruction (Annual Report → Today) is the primary source of uncertainty for this coefficient, not Projection (Today → Retirement). Projection is a forward simulation that, given the current modeled state, is internally consistent with the current tax-bucket allocation model. Future deposits, withdrawals, transfers, or other account events may legitimately change the bucket weights and therefore the effective coefficient going forward — this does not invalidate Projection; it simply means Projection is always run against the current state at the time it is run. The remaining uncertainty described in §10–§11 therefore belongs primarily to YTD reconstruction rather than to the forward projection itself.
+
 ## 10. Confidence
 
 *Drafted by Claude from approved discussions and evidence; pending explicit Product Owner validation. Document status remains Draft — see header.*
