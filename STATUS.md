@@ -3,6 +3,25 @@
 ## שלב נוכחי
 גרסה v177.68 — Persistence, ניתוב חזרה להשקעות, דיוק AI (14/05/2026).
 
+## שינויים אחרונים (15/07/2026 — Git Privacy Remediation Incident)
+
+### תקרית פרטיות ב-Git — טופלה מקומית, ממתינה לאישור Push
+
+**מסמך:** `docs/foundation/GIT_PRIVACY_REMEDIATION_INCIDENT.md` (חדש)
+**סטטוס:** תיקון מקומי הושלם ואומת; force-push ל-GitHub טרם בוצע — ממתין לאישור מפורש של רועי לאחר סקירה ארכיטקטונית
+
+- התגלה שהמאגר הציבורי ב-GitHub הכיל בהיסטוריה שלו נתונים פיננסיים אישיים אמיתיים (קבצי XML של מסלקה, פלטי חילוץ AI אמיתיים, נתיבי PDF אישיים) ומפתח Anthropic API אמיתי שהודלף בהיסטוריה.
+- מפתח ה-API הישן בוטל ידנית ע"י רועי; מפתח חדש נוצר ואומת (ניתוח PDF של אלטשולר + בקשת AI הצליחו לאחר הפעלה מחדש של השרת).
+- 15 נתיבים מאושרים הוסרו מההיסטוריה הישגה בכל ה-refs (לא רק main) באמצעות `git filter-repo --sensitive-data-removal`.
+- דוגמאות עבודה רגישות ("מזהה B/C") הוחלפו בדוגמה סינתטית עקבית אחת, גם בבלובים היסטוריים וגם בהודעות commit.
+- "מזהה A" (מספר חשבון קרן השתלמות אמיתי המשמש כמפתח פונקציונלי חי ב-`app.js`/`index.html`, שמור ב-localStorage) **נותר במכוון** בבלובים — הוסר רק משתי הודעות commit שהשתמשו בו כתווית. זהו סיכון שיורי מאושר, לא השמטה בטעות — ראה המסמך המלא לפרטים, כולל ממצא נוסף שהיקף הבעיה כנראה רחב יותר ממזהה אחד.
+- `ai_prompts.js` שוחזר עם דוגמאות סינתטיות בלבד; `.gitignore` הורחב למניעת הישנות.
+- ענפים מיושנים וממוזגים במלואם (`feature/tax-waterfall`, `rescue-branch`) הוסרו מה-mirror המתוקן.
+- המאגר הציבורי בפועל ב-GitHub **טרם עודכן** — כל העבודה בוצעה על mirror מקומי ומאומת (`~/GooseRemediation/`). ה-force-push הסופי דורש אישור מפורש נפרד.
+- **שער אבטחה:** אין להזמין משתמשים חיצוניים לאחסן נתונים אמיתיים עד להשלמת "Canonical Runtime Identifier Migration" וסקירת "Security, Privacy & Deployment Architecture" — ראה סעיפים 5–6 במסמך התקרית.
+
+**קבצים שהשתנו (ב-mirror המתוקן, טרם נדחפו):** `.gitignore`, `ai_prompts.js` (שוחזר), `docs/foundation/GIT_PRIVACY_REMEDIATION_INCIDENT.md` (חדש), `STATUS.md`
+
 ## שינויים אחרונים (14/07/2026 — Study Fund Tax Knowledge)
 
 ### Study Fund Tax Knowledge Milestone — Canonical Knowledge Objects
