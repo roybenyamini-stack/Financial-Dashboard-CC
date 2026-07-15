@@ -27,3 +27,13 @@ server_backup*.js
 
 # Local personal PDF evidence — never belongs in this repository
 *.pdf
+
+# Archive/export bundles — may contain real personal data (ZIP-PASS remediation)
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.xls
+*.xlsx
