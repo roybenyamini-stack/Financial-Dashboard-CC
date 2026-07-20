@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-This document states, as a permanent Goose Financial architectural principle, the separation between **Financial Reality**, **Canonical Facts**, **Legal Interpretation**, **Financial Concepts**, and **User Views**. It exists so that this separation — reached through direct evidence from this repository's own investigations, not asserted from theory — does not have to be rediscovered by a future session reading `app.js`'s bucket fields and assuming they are the ontology.
+This document proposes a candidate Goose Financial architectural model — not yet ratified (see the version header) — for the separation between **Financial Reality**, **Canonical Facts**, **Legal Interpretation**, **Financial Concepts**, and **User Views**. Once reviewed and ratified per `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8, it is intended to stand as a permanent Goose Financial architectural principle; until then it is a proposal open to correction, not settled doctrine. It exists so that this separation — reached through direct evidence from this repository's own investigations, not asserted from theory — does not have to be rediscovered by a future session reading `app.js`'s bucket fields and assuming they are the ontology.
 
 It governs how Goose Financial *names and structures* financial concepts. It does not itself state any tax rule, formula, or eligibility condition — that remains the job of individual Knowledge Objects under `docs/knowledge/**`, per `GOOSE_KNOWLEDGE_ARCHITECTURE.md`. This document is the architectural layer those objects will eventually sit inside.
 
@@ -42,13 +42,17 @@ Legal Interpretation
 Financial Concepts
   ↓  (named, human-meaningful ideas — "Qualifying Pension," "Recognized Pension," "Capital Exempt" —
       produced by combining Canonical Facts, Legal Interpretation, Person State, and a requested
-      Scenario; never stored as-is, always producible again from its inputs)
+      Scenario; reproducible from those inputs — a specific computed result may be cached or
+      persisted for audit and history, but that persisted copy never becomes a canonical
+      source of truth in its own right)
 User Views
    (the same Financial Concept, rendered at the consumption level the person chose — Simple answer,
     Financial explanation, Concept explanation, or Deep knowledge exploration — see §7)
 ```
 
 Each arrow is a derivation, not a copy. A layer never stores a shortcut past the layer above it — a Financial Concept is not permitted to exist as a stored field with no traceable Canonical-Facts-plus-Legal-Interpretation origin, per the Constitution's Reality First and Every Number Has Provenance principles (`GOOSE_CONSTITUTION.md`, Core Principles 1 and 3).
+
+This does not forbid storing a Financial Concept's result. A derived interpretation or scenario result may be cached, materialized, snapshotted, or stored for audit and history, provided the stored record retains its provenance: the canonical inputs it was computed from, the evidence references behind those inputs, the applicable rule/version, the person state, the scenario, the calculation date, and its confidence/status. What §3's "no shortcut" rule forbids is narrower and specific: a persisted derived output silently becoming the canonical source of truth — read back later as though it were itself a Canonical Fact, detached from the inputs and rule version that produced it.
 
 ---
 
@@ -72,9 +76,9 @@ The canonical ontology itself — the actual Rule IDs, the actual chosen English
 
 ---
 
-## 6. Financial Concepts are interpretations, not canonical stored facts
+## 6. Classification Principle: a familiar term is not a Canonical Fact by default
 
-The following are named Financial Concepts currently in active use in this codebase's domain vocabulary:
+The following named financial concepts are currently in active use in this codebase's domain vocabulary:
 
 - Qualifying Pension (קצבה מזכה)
 - Recognized Pension (קצבה מוכרת)
@@ -83,16 +87,26 @@ The following are named Financial Concepts currently in active use in this codeb
 - Pension Sequence (רצף קצבה)
 - Severance Sequence (רצף פיצויים)
 
-None of these are Canonical Facts. Each is produced from Canonical Facts, applicable legislation, person state, and (where relevant) a requested scenario — never read off a stored field as-is.
+A familiar financial term must not be assumed to be a canonical stored fact merely because institutions, professionals, or this codebase already use it as a named concept. Each concept above must be classified individually, based on evidence, as one of:
 
-**Direct evidence, not assertion:** `docs/foundation/GOOSE_EXPEDITION_2_PROVIDENT_FUND_CAPITAL_EXEMPT.md` is the concrete case that established this for Capital Exempt specifically. Its Findings 1–4:
+- **Canonical Fact** — a Goose-held fact with its own evidence and confidence, per `GOOSE_CORE_BOUNDARY.md`'s Reality/Evidence/Knowledge.
+- **Legal or Operational Status** — a status attached to an account, product, or person by law or provider process (e.g. a container status, an elected sequence); may be closer to a Canonical Fact than to a derived Concept.
+- **Derived Interpretation** — produced by combining Canonical Facts and Legal Interpretation; not itself a first-class stored fact.
+- **Scenario Result** — meaningful only once a requested scenario is supplied.
+- **User View** — the concept rendered for a person at a chosen consumption level (§7); a presentation, not a fact.
+
+A concept may occupy more than one role depending on context — e.g. a status that is a Canonical Fact at the account level but whose payout consequence is a Derived Interpretation — but each role a concept occupies must be stated explicitly and traced to its own evidence, not assumed from the concept's familiarity or borrowed from another concept's classification.
+
+**Capital Exempt — the one concept currently classified with strong evidence:** `docs/foundation/GOOSE_EXPEDITION_2_PROVIDENT_FUND_CAPITAL_EXEMPT.md` Findings 1–4 establish Capital Exempt as a **Derived Interpretation / Scenario Result**, not a Canonical Fact and not an independent stored money bucket:
 
 1. The current Goose `capital_exempt` field is "not supported by Circular 2/2013 as a real third source-of-money bucket. No passage in the circular describes a standing fund balance matching Goose's `buckets.capital_exempt.balance_k`."
 2. The circular's own term `ההון הפטור` is "a calculation concept for the capitalized pension-exemption framework... not a current fund balance and not a contribution category."
 3. Roy's intended product concept "remains valid, but only reframed as a derived, non-additive scenario based on recognized-pension (`recognized_annuity`) balance."
-4. That derived value "is not currently liquid... must not be added to the recognized-pension balance... must not be persisted or ingested as an independent source-of-money bucket."
+4. That derived value "is not currently liquid... must not be added to the recognized-pension balance... must not be persisted or ingested as an independent source-of-money bucket." This is a specific instance of §3's persistence principle: Finding 4 forbids this derived value from silently being merged into the `recognized_annuity` Canonical Fact — it does not forbid recording the derived estimate itself, with its provenance, for audit or history.
 
-This is Evidence Level A within that document (primary circular text, read directly), not a hypothesis. It is the strongest currently available proof that at least one of these six concepts is an interpretation rather than a fact — and it is the pattern this document generalizes to the other five, pending their own individual evidence review (§10, Open Questions).
+This is Evidence Level A within that document (primary circular text, read directly), not a hypothesis. It is currently the only one of the six concepts classified to this evidence level. It illustrates what individual classification looks like; it does not establish the classification of the other five.
+
+**The other five are open, not assumed.** `docs/knowledge/provident_fund/PF_ONTOLOGY_AND_PERSISTENCE_DISCOVERY_2026-07-19.md` §A1 lists `חשבון חדש` (New Account) under its "Account" category as a container status, and lists severance/pension sequence elections under "Event record" — both closer, on that document's own account, to a Legal or Operational Status than to a Derived Interpretation. The same document classifies `קצבה מוכרת` and `קצבה מזכה` (Recognized Pension, Qualifying Pension) as "Payout-side tax result," distinct from "Stored principal bucket from day one" — suggestive of Derived Interpretation, but not yet reviewed to Capital Exempt's Evidence Level A. None of these four classifications is settled by this document; each requires its own individual evidence review (§11).
 
 **A structural echo, held at lower confidence:** `docs/knowledge/financial_assets/data_representation/UNIFORM_XML_MONEY_REPRESENTATION_DISCOVERY.md` documents (as an explicit **Hypothesis**, not a conclusion) that the underlying clearinghouse XML itself may be structured as independent classification axes rather than as directly-stored tax buckets. If that hypothesis is later confirmed, it would mean the interpretation step described in this section begins even earlier than Legal Interpretation — at the Canonical Facts layer itself, where multiple raw axis values must already be combined before any bucket-shaped fact exists to interpret. This is flagged as a structural echo, not restated as settled — that document's own confidence labels remain authoritative for its own claims.
 
@@ -153,7 +167,7 @@ Per `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8, changing `KNOWLEDGE_OBJECT_TEMPLATE
 ## 11. Open Questions
 
 - What are the actual canonical Rule IDs and canonical English/Hebrew names for the six concepts in §6 — this document names them descriptively, it does not ratify their final canonical form.
-- Does the "not a stored fact" finding, currently evidenced only for Capital Exempt (Expedition 2), also hold for Qualifying Pension, Recognized Pension, New Account, Pension Sequence, and Severance Sequence individually, or do some of them behave more like genuine stored legal statuses (e.g. `PF_ONTOLOGY_AND_PERSISTENCE_DISCOVERY_2026-07-19.md` §A1 lists `חשבון חדש` under "Account" as a container status, which may be closer to a Canonical Fact than a derived Concept)? Not yet individually reviewed.
+- Which classification (§6: Canonical Fact / Legal-or-Operational-Status / Derived Interpretation / Scenario Result / User View) applies to each of Qualifying Pension, Recognized Pension, New Account, Pension Sequence, and Severance Sequence individually? Only Capital Exempt has been reviewed to Evidence Level A (Expedition 2); the other five remain open, including the possibility that some (e.g. New Account, per `PF_ONTOLOGY_AND_PERSISTENCE_DISCOVERY_2026-07-19.md` §A1's "Account" container-status classification) turn out to be a Legal or Operational Status rather than a Derived Interpretation.
 - How should a Financial Concept object's shape (§9) be reconciled with `KNOWLEDGE_OBJECT_TEMPLATE.md`, given the two-item gap identified there — a new template, an extension of the existing one, or a documented decision that Concepts are represented differently from Rules? Not decided here; requires Chief Architect involvement per Governance §8.
 - Where should the ratified terminology-mapping tables eventually live — inline per Knowledge Object, or as a shared cross-domain reference — once more than one domain (Provident Fund, Study Fund, Pension) has its own mapping?
 
