@@ -86,7 +86,7 @@ Follows `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8 by the layer named in each entry
 
 - A Goose General decision requires Product Owner **and** Chief Architect approval before moving from Proposed Closed to Closed.
 - A Goose Financial decision requires Product Owner approval; Chief Architect approval is additionally required if the decision is architectural (data model, module boundary, cross-cutting contract).
-- A decision reached through explicit Product Owner instruction in a working session (as with the two entries in §8 below, both instructed directly by Roy) satisfies the Product Owner half of that requirement at the moment it is written. Chief Architect sign-off, where required, remains tracked as pending in the entry's own status until performed — an entry is not described as fully Closed ahead of that if Chief Architect approval is still outstanding for its layer.
+- A decision reached through explicit Product Owner instruction in a working session satisfies the Product Owner half of that requirement at the moment it is written. Chief Architect sign-off, where required, remains tracked as pending in the entry's own status until performed — an entry is not described as fully Closed ahead of that if Chief Architect approval is still outstanding for its layer.
 
 ---
 
@@ -98,37 +98,11 @@ Follows `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8 by the layer named in each entry
 
 ## 8. Current Decisions Log
 
-### DEC-001 — Goose Terminology Is Sovereign; External Vocabulary Is Mapped, Not Adopted
+*No entries yet.*
 
-**Status:** Closed
-**Date:** 2026-07-20
-**Layer:** Goose Financial
+This log starts empty by design. Establishing the mechanism — lifecycle, entry format, approval routing, Boot integration — is Foundation/Chief-Architect work; populating it with actual Closed Decisions is Product Owner ratification work (§6). Those are two different kinds of change, and seeding this section with entries at the moment the mechanism itself was built would have blurred that boundary — infrastructure and content are kept separate on purpose.
 
-**Statement:** Goose never adopts the terminology of any authority, regulator, clearinghouse, or provider as its own canonical model. Goose maintains its own canonical financial ontology; all external terminology is mapped into that ontology, never merged into or allowed to redefine it.
-
-**Scope:** How Goose Financial names and structures the financial concepts it works with, across every domain (Provident Fund, Study Fund, Pension, and future domains).
-**Non-scope:** This decision does not itself define the canonical names, Rule IDs, or final ontology — only that one sovereign ontology must exist and that institutional labels are evidence to be mapped, not schema to be inherited. Authoring the actual ontology, concept by concept, remains open (see `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §11).
-
-**Evidence / authority:** `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §4–5, resting on `docs/knowledge/provident_fund/PF_MONEY_LAYERS_DISCOVERY_2026-07-19.md` §E (Terminology Map — multiple non-interchangeable institutional terms for overlapping realities), `docs/knowledge/provident_fund/PF_ONTOLOGY_AND_PERSISTENCE_DISCOVERY_2026-07-19.md` §A1 (payout-side tax results explicitly distinguished from stored principal buckets), and `docs/foundation/GOOSE_EXPEDITION_3_PROVIDENT_FUND_CLASSIFICATION_IMPLEMENTATION.md` §A.5 (three disagreeing key-naming conventions for the same concepts already present in the live codebase — the concrete cost of not having this decision in force).
-
-**Supersedes / Superseded by:** none.
-
----
-
-### DEC-002 — Financial Concepts Are Interpretations, Not Canonical Stored Facts
-
-**Status:** Closed
-**Date:** 2026-07-20
-**Layer:** Goose Financial
-
-**Statement:** Named financial concepts (e.g. Qualifying Pension, Recognized Pension, Capital Exempt, New Account, Pension Sequence, Severance Sequence) are not canonical stored facts. Each is an interpretation produced from Canonical Facts, applicable legislation, person state, and a requested scenario — reproducible from those inputs, never a shortcut stored past them.
-
-**Scope:** How Goose Financial represents and reasons about named financial concepts, across every domain.
-**Non-scope:** This decision is directly evidenced for Capital Exempt specifically (Expedition 2, below) and generalized to the other five concepts as the current working position — it does not claim each of the other five has been individually re-verified to the same evidence level. That per-concept verification remains open (`docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §11).
-
-**Evidence / authority:** `docs/foundation/GOOSE_EXPEDITION_2_PROVIDENT_FUND_CAPITAL_EXEMPT.md` Findings 1–4 (primary-source review of Income Tax Circular 2/2013 establishing that `capital_exempt` is not a real stored fund balance, but a derived, non-additive scenario computed from the Recognized Pension balance), as generalized in `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §6.
-
-**Supersedes / Superseded by:** none.
+Two candidate decisions are currently drafted and evidenced, but not yet ratified here: terminology sovereignty and the "financial concepts are interpretations, not stored facts" principle, both stated with their supporting evidence in `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §4–6. They remain part of that document's own content — a Financial Concepts Layer architectural statement — until the Product Owner explicitly ratifies them through the normal approval workflow (§6), at which point they are added here using the §4 entry format, numbered `DEC-001`, `DEC-002`, and so on in the order they are closed.
 
 ---
 
@@ -138,7 +112,7 @@ Three existing Foundation artifacts were considered as a home for Closed Knowled
 
 - **`GOOSE_DOCUMENTATION_GOVERNANCE.md`** — rejected. That document governs *how* documents are structured, owned, and reviewed (its own §1: "It governs documentation. It does not govern architecture or code."). Recording decision *content* there would conflate process with substance, which is exactly the "one document, one clear scope of ownership" failure its own §2 warns against.
 - **`GOOSE_BOOT.md`** — rejected, and explicitly ruled out by this milestone's own instructions. Boot's job is navigation: "which documents to read, in what order, and what 'ready' means" (`GOOSE_BOOT.md` §Purpose). `GOOSE_CORE_BOUNDARY.md`'s Boot Protocol section reinforces this: Boot "does not create new principles, it enforces reading the ones that already exist." Making Boot hold Decision content directly would turn a loader into a growing, unbounded repository — the opposite of what keeps it readable in full before every other required document (per its own Validation Checklist in `GOOSE_BOOT_TEMPLATE.md`: "still short enough to be read in full before any other required document").
-- **A new Knowledge Object per decision** — rejected as the general mechanism, though not as a tool that individual decisions may still point to. A Knowledge Object is scoped to one rule with a legal/regulatory/mathematical basis (`KNOWLEDGE_OBJECT_TEMPLATE.md` §1). Many architectural decisions — like DEC-001, a naming-sovereignty principle — have no such basis and would not fit that template without distorting it.
+- **A new Knowledge Object per decision** — rejected as the general mechanism, though not as a tool that individual decisions may still point to. A Knowledge Object is scoped to one rule with a legal/regulatory/mathematical basis (`KNOWLEDGE_OBJECT_TEMPLATE.md` §1). Many architectural decisions — a naming-sovereignty principle, for instance — have no such basis and would not fit that template without distorting it.
 
 **`DECISIONS.md` was preferred because it did not need to be invented as a new concept** — `GOOSE_DOCUMENTATION_GOVERNANCE.md` §10 had already named it as an approved, deferred future milestone ("a future decision log recording architectural and product decisions over time"), the same way `GOOSE_BOOT.md` itself was once named and deferred before being built out as Artifact 004. Activating an already-approved, already-scoped component is a smaller, more traceable change than introducing a new mechanism the governance system had not already anticipated — consistent with this milestone's "no rewrites, small focused amendments" instruction.
 

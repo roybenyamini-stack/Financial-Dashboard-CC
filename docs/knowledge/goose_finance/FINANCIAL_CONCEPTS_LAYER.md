@@ -159,4 +159,4 @@ Per `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8, changing `KNOWLEDGE_OBJECT_TEMPLATE
 
 ---
 
-*This document should be read alongside `docs/foundation/GOOSE_KNOWLEDGE_ARCHITECTURE.md` (the Goose General flow this document instantiates for Goose Financial) and `docs/foundation/DECISIONS.md` (where the two architectural conclusions this document formalizes — terminology sovereignty and concepts-as-interpretations — are logged as Closed Knowledge; see `DECISIONS.md` DEC-001 and DEC-002).*
+*This document should be read alongside `docs/foundation/GOOSE_KNOWLEDGE_ARCHITECTURE.md` (the Goose General flow this document instantiates for Goose Financial) and `docs/foundation/DECISIONS.md` (the Closed Knowledge mechanism). §4–6 above state two candidate architectural conclusions — terminology sovereignty and concepts-as-interpretations — that remain this document's own content, not yet ratified as Closed Decisions; `DECISIONS.md` §8 explains the ratification step still required before they would be logged there as `DEC-001`, `DEC-002`, etc.*
