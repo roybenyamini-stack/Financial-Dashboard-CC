@@ -44,15 +44,16 @@ Read in this order before making any change:
 2. `GOOSE_CORE_BOUNDARY.md` — what belongs in Goose Core, what belongs in a module, and the Boot Protocol section.
 3. `GOOSE_KNOWLEDGE_ARCHITECTURE.md` — what Canonical Knowledge, Knowledge Objects, and Knowledge Models are, and why documentation is treated as a generated view rather than a source.
 4. `GOOSE_DOCUMENTATION_GOVERNANCE.md` — how Goose documentation itself is owned, reviewed, and kept coherent.
-5. `CLAUDE.md` (or the equivalent builder entry point for the acting agent) — project-specific coding rules and module-doc pointers.
-6. `STATUS.md` — current application version and most recent changes.
-7. Any module doc named in `CLAUDE.md` relevant to the task at hand (e.g. `docs/pension_logic.md`, `docs/sliders_module.md`).
+5. `DECISIONS.md` — the Closed Knowledge log: architectural and product decisions already ratified by the Product Owner. Read before any project-specific document, so a session builds on settled conclusions instead of re-investigating them.
+6. `CLAUDE.md` (or the equivalent builder entry point for the acting agent) — project-specific coding rules and module-doc pointers.
+7. `STATUS.md` — current application version and most recent changes.
+8. Any module doc named in `CLAUDE.md` relevant to the task at hand (e.g. `docs/pension_logic.md`, `docs/sliders_module.md`).
 
 ---
 
 ## 4. Current Milestone
 
-**Goose Boot Protocol v1** — establishing this document and a concise Boot Protocol section in `GOOSE_CORE_BOUNDARY.md`. Documentation only; no application code changed.
+**Closed Knowledge Mechanism v1** — activating `DECISIONS.md` (Artifact 006), the deferred decision log named in `GOOSE_DOCUMENTATION_GOVERNANCE.md` §10, and adding it to Required Documents (§3) so ratified architectural decisions are read before project-specific documentation instead of being rediscovered. Documentation only; no application code changed.
 
 *(Update this section, and only this section plus §5, when a new milestone begins or completes — see `templates/GOOSE_BOOT_TEMPLATE.md`.)*
 
@@ -60,7 +61,7 @@ Read in this order before making any change:
 
 ## 5. Current Project Status
 
-Application version: **v177.68** (per `STATUS.md`). No application code has changed as part of any Goose Foundation milestone to date (Expedition 1, Documentation Governance, Boot Protocol) — each is a documentation-only effort running parallel to the ordinary development cycle.
+Application version: **v177.68** (per `STATUS.md`). No application code has changed as part of any Goose Foundation milestone to date (Expedition 1, Documentation Governance, Boot Protocol, Closed Knowledge Mechanism) — each is a documentation-only effort running parallel to the ordinary development cycle.
 
 ---
 
@@ -89,4 +90,4 @@ A session that cannot state all four has not completed Boot and must not proceed
 
 ---
 
-*This document is intentionally short. It is a loader, not an explanation. For what Goose is, see `GOOSE_CONSTITUTION.md`. For what belongs in Goose Core and for the Boot Protocol's rationale, see `GOOSE_CORE_BOUNDARY.md`. For how this and every other Goose document is owned and reviewed, see `GOOSE_DOCUMENTATION_GOVERNANCE.md`.*
+*This document is intentionally short. It is a loader, not an explanation. For what Goose is, see `GOOSE_CONSTITUTION.md`. For what belongs in Goose Core and for the Boot Protocol's rationale, see `GOOSE_CORE_BOUNDARY.md`. For how this and every other Goose document is owned and reviewed, see `GOOSE_DOCUMENTATION_GOVERNANCE.md`. For already-ratified architectural and product decisions, see `DECISIONS.md` — this document points to it; it does not restate it.*
