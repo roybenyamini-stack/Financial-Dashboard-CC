@@ -18610,9 +18610,10 @@ function _parseT190BucketsFromXML(rawXml) {
       var balanceType = parseInt((_salkahXmlEl(node, 'SUG-ITRA-LETKUFA')               || {textContent: ''}).textContent,  10);
       var amount      = parseFloat((_salkahXmlEl(node, 'SACH-ITRA-LESHICHVA-BESHACH') || {textContent: '0'}).textContent) || 0;
 
-      if (layerCode >= 1 && layerCode <= 4)  exK   += amount;
-      if (layerCode >= 5 && layerCode <= 8)  qualK += amount;
-      if (layerCode >= 9 && layerCode <= 10) {
+      var bucket = _t190KodRangeToBucket(layerCode);
+      if (bucket === 'capital_exempt')     exK   += amount;
+      if (bucket === 'qualifying_annuity') qualK += amount;
+      if (bucket === 'recognized_annuity') {
         recK += amount;
         if (balanceType === 1) recPrinK += amount;
       }
@@ -18626,6 +18627,65 @@ function _parseT190BucketsFromXML(rawXml) {
       capital_exempt:     { balance_k: exK   / 1000 }
     };
   } catch(e) { return null; }
+}
+
+// ── Roy Reality retirement-bucket division: XML/DOM adapter (app.js side) ─────────────────
+// Pure classification/aggregation logic lives in t190_bucket_view.js (loaded before this
+// file — see index.html). This adapter only does mechanical DOM-text extraction and
+// orchestration, using the existing _salkahXmlEl/_salkahXmlEls/_isProvidentCategory helpers
+// unmodified — no new XML helpers, no duplicated KOD mapping.
+
+// Reads each PerutYitraLeTkufa segment's five raw fields into a plain object, matching the
+// shape _t190AggregateOccurrencesIntoBuckets (t190_bucket_view.js) expects. Returns [] if
+// rawXml is absent or unparseable — never throws.
+function _t190ExtractOccurrences(item) {
+  if (!item || !item.rawXml) return [];
+  try {
+    var doc = new DOMParser().parseFromString(item.rawXml, 'text/xml');
+    var nodes = _salkahXmlEls(doc, 'PerutYitraLeTkufa');
+    return nodes.map(function(node) {
+      var rekivEl  = _salkahXmlEl(node, 'REKIV-ITRA-LETKUFA');
+      var sugEl    = _salkahXmlEl(node, 'SUG-ITRA-LETKUFA');
+      var kodEl    = _salkahXmlEl(node, 'KOD-TECHULAT-SHICHVA');
+      var tikratEl = _salkahXmlEl(node, 'TIKRAT-HAFKADA-MUTEVET');
+      var sachEl   = _salkahXmlEl(node, 'SACH-ITRA-LESHICHVA-BESHACH');
+      return {
+        rekiv_itra_letkufa:   rekivEl ? rekivEl.textContent.trim() : null,
+        sug_itra_letkufa:     sugEl   ? sugEl.textContent.trim()   : null,
+        kod_techulat_shichva: kodEl   ? kodEl.textContent.trim()   : null,
+        tikrat_raw: {
+          present: !!tikratEl,
+          nil: tikratEl ? (tikratEl.getAttribute('xsi:nil') === 'true') : false,
+          text: tikratEl ? tikratEl.textContent.trim() : null
+        },
+        amount_raw: sachEl ? sachEl.textContent.trim() : null
+      };
+    });
+  } catch (e) { return []; }
+}
+
+// Canonical account identity resolver: assetNum || accountNum || id, reporting which source
+// was used. Note: accountNum was not present in the real investment schema inspected during
+// this feature's discovery work — only assetNum was observed — but is checked here per the
+// established Goose identity decision and degrades gracefully via the || chain if absent.
+function _t190ResolveAccountIdentity(item) {
+  if (item.assetNum) return { identity: item.assetNum, source: 'assetNum' };
+  if (item.accountNum) return { identity: item.accountNum, source: 'accountNum' };
+  return { identity: item.id, source: 'fallback_id' };
+}
+
+// Orchestration: extracts occurrences + resolves identity (both app.js-side, DOM-touching),
+// then hands plain data to the pure module (t190_bucket_view.js) — never mutates `item`.
+function _t190BuildAccountBucketViewForItem(item) {
+  var occurrences = _t190ExtractOccurrences(item);
+  var idInfo = _t190ResolveAccountIdentity(item);
+  return _t190BuildAccountBucketView(occurrences, idInfo.identity, idInfo.source);
+}
+
+function _t190BuildAccountBucketViewsForAllProvidentItems(investments) {
+  return (investments || [])
+    .filter(function(inv) { return _isProvidentCategory(inv.category); })
+    .map(_t190BuildAccountBucketViewForItem);
 }
 
 function _t190SimGetBuckets(item) {
