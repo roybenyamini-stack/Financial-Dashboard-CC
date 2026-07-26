@@ -8205,6 +8205,11 @@ function ffsLoadProfile() {
           if (inv.manual_override == null)          inv.manual_override = false;
           if (inv.last_manual_update_date == null)  inv.last_manual_update_date = null;
           if (inv.dec_31_anchor_k == null)          inv.dec_31_anchor_k = null;
+          // PF_ROY_REALITY_V1: balance provenance — legacy items get null/null, never a
+          // derived guess (recovering a date from stored rawXml would assume no manual edit
+          // happened since that import, which is unproven — see implementation plan §3).
+          if (inv.balance_source == null)           inv.balance_source = null;
+          if (inv.balance_as_of == null)             inv.balance_as_of = null;
         }
       });
       ffsFixationInit(); // v178.3: sync UI — no save triggered
@@ -16750,6 +16755,7 @@ function ffsSaveInvFromModal() {
         if (x.id === ffsCurrentInvId) _editIdx = i;
       });
       if (_editIdx >= 0) {
+        var _prevBalanceForProvenance = FFS_PROFILE.investments[_editIdx].balance;
         FFS_PROFILE.investments[_editIdx].name        = nameVal;
         FFS_PROFILE.investments[_editIdx].assetNum   = assetVal;
         FFS_PROFILE.investments[_editIdx].balance    = balVal;
@@ -16764,6 +16770,13 @@ function ffsSaveInvFromModal() {
           var _editedInv = FFS_PROFILE.investments[_editIdx];
           if (!_editedInv.buckets) _editedInv.buckets = _t190InitBuckets();
           if (!_editedInv.buckets.capital_exempt) _editedInv.buckets.capital_exempt = { balance_k: 0 };
+          // PF_ROY_REALITY_V1: balance provenance — stamped only when the balance actually
+          // changed on this save, per implementation plan §3. Separate from, and unrelated
+          // to, the bucket/anchor manual_override tracking below.
+          if (_prevBalanceForProvenance !== balVal) {
+            _editedInv.balance_source = 'manual_current_balance';
+            _editedInv.balance_as_of  = _t190LocalDateYmd();
+          }
           // Snapshot existing T190 values before any write
           var _oldQual   = (_editedInv.buckets.qualifying_annuity && _editedInv.buckets.qualifying_annuity.balance_k) || 0;
           var _oldRecog  = (_editedInv.buckets.recognized_annuity && _editedInv.buckets.recognized_annuity.balance_k) || 0;
@@ -16847,6 +16860,10 @@ function ffsSaveInvFromModal() {
         _newInv.last_manual_update_date  = new Date().toISOString().slice(0, 10);
         _newInv.override_source          = 'manual';
         _newInv.dec_31_anchor_k          = null;
+        // PF_ROY_REALITY_V1: balance provenance — a brand-new manually-created item's
+        // balance is, by definition, manually entered (see implementation plan §3).
+        _newInv.balance_source           = 'manual_current_balance';
+        _newInv.balance_as_of            = _t190LocalDateYmd();
       }
       FFS_PROFILE.investments.push(_newInv);
       ffsCurrentInvId = _newInv.id; // switch to edit mode so subsequent saves update this item
@@ -17238,6 +17255,12 @@ function processMultipleSalkahFiles(files, statusEl) {
             && new Date(_ex.last_manual_update_date) > _xmlDateObj;
           if (!_protected) {
             _ex.balance = balanceK;
+            if (p.xmlDataDate && _isProvidentCategory(_ex.category)) {
+              // PF_ROY_REALITY_V1: balance provenance, stamped alongside the balance it
+              // describes — see implementation plan §3.
+              _ex.balance_source = 'clearinghouse_xml';
+              _ex.balance_as_of  = p.xmlDataDate;
+            }
             if (p.rawXml) _ex.rawXml = p.rawXml;
             if (p.t190Buckets && _isProvidentCategory(_ex.category)) {
               var _priorPrincipal = (_ex.buckets && _ex.buckets.recognized_annuity)
@@ -17292,6 +17315,12 @@ function processMultipleSalkahFiles(files, statusEl) {
             _newInvObj.manual_override       = false;
             _newInvObj.last_manual_update_date = null;
             _newInvObj.dec_31_anchor_k       = p.xmlDec31K != null ? p.xmlDec31K : null;
+            // PF_ROY_REALITY_V1: balance provenance. Only claimed when the parsed XML
+            // actually carried a TAARICH-NECHONUT date (p.xmlDataDate) — AI-fallback-created
+            // products have no such date, so they get null/null rather than an invented
+            // provenance (see implementation plan §3).
+            _newInvObj.balance_source        = p.xmlDataDate ? 'clearinghouse_xml' : null;
+            _newInvObj.balance_as_of         = p.xmlDataDate || null;
           }
           arr.push(_newInvObj);
         }
@@ -17458,7 +17487,19 @@ function masterGridUpdateAccum(section, id, val) {
   if (!item) return;
   var numVal = parseFloat(val);
   if (isNaN(numVal) || numVal < 0) return;
-  if (section === 'investments') { item.balance = numVal; } else { item.accumulation = numVal; }
+  if (section === 'investments') {
+    item.balance = numVal;
+    if (_isProvidentCategory(item.category)) {
+      // PF_ROY_REALITY_V1: balance provenance for the quick-balance-update path — see
+      // implementation plan §3. Uses local-calendar _t190LocalDateYmd(), not the UTC-based
+      // toISOString() pattern used elsewhere in this file, to avoid a wrong local date near
+      // midnight.
+      item.balance_source = 'manual_current_balance';
+      item.balance_as_of  = _t190LocalDateYmd();
+    }
+  } else {
+    item.accumulation = numVal;
+  }
   ffsSaveProfile();
   ffsUpdateLiveSidebar();
 }
@@ -18686,6 +18727,80 @@ function _t190BuildAccountBucketViewsForAllProvidentItems(investments) {
   return (investments || [])
     .filter(function(inv) { return _isProvidentCategory(inv.category); })
     .map(_t190BuildAccountBucketViewForItem);
+}
+
+// ── PF_ROY_REALITY_V1: balance provenance + reality view (first commit) ────────────────────
+// Wraps the classification adapter above WITHOUT modifying it — see implementation plan §2
+// for why: _t190BuildAccountBucketViewForItem only returns the finished view, not the raw
+// occurrences _t190VerifyConservation needs, so this re-extracts occurrences a second,
+// independent time rather than reaching into that function's internals. Never wired into any
+// UI, render, or simulator path in this commit — see implementation plan §12.
+
+// Local-calendar-correct YYYY-MM-DD, deliberately NOT the UTC-based
+// new Date().toISOString().slice(0,10) pattern used elsewhere in this file (e.g.
+// last_manual_update_date) — that pattern can produce the wrong local date near midnight in
+// Israel. Wall-clock-dependent (non-deterministic), so it lives here, not in the pure
+// t190_bucket_view.js module.
+function _t190LocalDateYmd(d) {
+  d = d || new Date();
+  var y   = d.getFullYear();
+  var m   = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+// Re-parses item.rawXml for TAARICH-NECHONUT (the evidence's own data-currency date), the
+// same normalization _salkahParseOneXML already applies at import time. Not persisted
+// anywhere on the item — re-derived fresh each time a reality view is built, since it
+// describes the evidence being classified right now, not item.balance's own provenance
+// (see implementation plan §5 for why these are two different dates).
+function _t190ExtractEvidenceDate(item) {
+  if (!item || !item.rawXml) return null;
+  try {
+    var doc = new DOMParser().parseFromString(item.rawXml, 'text/xml');
+    var el  = _salkahXmlEl(doc, 'TAARICH-NECHONUT');
+    var raw = el ? el.textContent.trim() : null;
+    if (raw && /^\d{8}$/.test(raw)) {
+      var normalized = raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8);
+      // Format-shape alone (8 digits) does not rule out an impossible calendar date (e.g.
+      // 2026-02-31, 2026-13-01) — reuse the shared calendar-aware validator rather than
+      // trusting shape only.
+      return _t190IsValidYmd(normalized) ? normalized : null;
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
+// Orchestrator for the read-only PF_ROY_REALITY_V1 reality view. Never reads or writes
+// item.buckets; never proportionally rescales anything; wires the existing classification
+// adapter, the existing conservation check, and the new balance-reconciliation logic
+// (t190_bucket_view.js) together. See implementation plan §4 for the exact returned shape.
+function _t190BuildAccountRealityView(item) {
+  var classificationView = _t190BuildAccountBucketViewForItem(item);
+  var occurrences        = _t190ExtractOccurrences(item);
+  var conservationResult = _t190VerifyConservation(occurrences, classificationView);
+  var balanceAgorot       = _t190BalanceKToAgorotExact(item.balance);
+  var evidenceAsOf        = _t190ExtractEvidenceDate(item);
+  var balanceAsOf         = item.balance_as_of != null ? item.balance_as_of : null;
+
+  var reconciled = _t190ReconcileEvidenceWithBalance(
+    classificationView, conservationResult, balanceAgorot, balanceAsOf, evidenceAsOf
+  );
+
+  return {
+    account_identity:        classificationView.account_identity,
+    account_identity_source: classificationView.account_identity_source,
+    classification:          classificationView,
+    conservation:            conservationResult,
+    totals:                  reconciled.totals,
+    current_balance: {
+      balance_k:      item.balance,
+      balance_agorot: balanceAgorot,
+      source:         item.balance_source != null ? item.balance_source : null,
+      as_of:          balanceAsOf
+    },
+    reconciliation: reconciled.reconciliation
+  };
 }
 
 function _t190SimGetBuckets(item) {

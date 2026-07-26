@@ -288,6 +288,139 @@ function _t190VerifyConservation(rawOccurrences, view) {
   };
 }
 
+// ── Balance provenance reconciliation (PF_ROY_REALITY_V1, first commit) ─────────────────────
+// This section never rescales, redistributes, or reshapes classification data — it only
+// compares an already-computed evidence total against item.balance's own provenance-dated
+// value, and reports the arithmetic relationship honestly, including when it cannot be
+// established at all. It explicitly does NOT claim that the PerutYitraLeTkufa occurrence set
+// covers item.balance's full monetary scope — that equivalence is unproven in this repository
+// (item.balance is sourced from a different, fund-level summary field), so no branch below
+// uses language implying money was added, removed, or moved. See the implementation plan for
+// the full rationale.
+
+// Converts item.balance (K₪, a float) into an exact integer count of agorot, with the same
+// "return null rather than a guess" discipline as _t190ParseAgorotExact. Every intermediate is
+// validated via Number.isSafeInteger so a non-finite or absurdly large balance never silently
+// produces a wrong number.
+function _t190BalanceKToAgorotExact(balanceK) {
+  if (balanceK == null || typeof balanceK !== 'number' || !isFinite(balanceK)) return null;
+  var agorot = Math.round(balanceK * 1000 * 100);
+  return Number.isSafeInteger(agorot) ? agorot : null;
+}
+
+// Deterministic, timezone-free, calendar-aware YYYY-MM-DD validator. Rejects nonexistent
+// calendar dates (e.g. 2026-02-31, 2026-04-31) via direct Gregorian day-count arithmetic —
+// never via `new Date(...)`, which would silently roll an invalid date into the next month
+// instead of rejecting it.
+function _t190IsValidYmd(s) {
+  if (typeof s !== 'string') return false;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  var year = parseInt(m[1], 10), month = parseInt(m[2], 10), day = parseInt(m[3], 10);
+  if (month < 1 || month > 12 || day < 1) return false;
+  var isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  var daysInMonth = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= daysInMonth[month - 1];
+}
+
+// Reconciles a classification view's evidence total against item.balance's provenance-dated
+// value. Returns { totals, reconciliation } — see the implementation plan §4 for the exact
+// shape and §5/§6 for the exact state/reason vocabulary and decision order. Pure: no DOM, no
+// wall-clock reads, no mutation of `view`.
+function _t190ReconcileEvidenceWithBalance(view, conservationResult, balanceAgorot, balanceAsOf, evidenceAsOf) {
+  var buckets = view.buckets;
+  var classifiedTotalAgorot = _t190SafeSumAgorot([
+    buckets.capital_exempt.amount_agorot,
+    buckets.qualifying_annuity.amount_agorot,
+    buckets.recognized_annuity.amount_agorot
+  ]);
+  var evidenceUnresolvedTotalAgorot = buckets.unresolved.amount_agorot;
+  var evidenceTotalAgorot = view.total_amount_agorot; // already = all 4 buckets summed safely
+
+  var totals = {
+    classified_total_agorot: classifiedTotalAgorot,
+    evidence_unresolved_total_agorot: evidenceUnresolvedTotalAgorot,
+    evidence_total_agorot: evidenceTotalAgorot
+  };
+
+  var occurrenceCount = buckets.capital_exempt.source_occurrences.length
+    + buckets.qualifying_annuity.source_occurrences.length
+    + buckets.recognized_annuity.source_occurrences.length
+    + buckets.unresolved.source_occurrences.length;
+
+  function unresolvedResult(state, reason) {
+    return {
+      totals: totals,
+      reconciliation: {
+        state: state,
+        reason: reason,
+        temporal_relation: null,
+        balance_evidence_gap_agorot: null,
+        gap_status: null,
+        scope_relation: null,
+        evidence_as_of: evidenceAsOf != null ? evidenceAsOf : null,
+        balance_as_of: balanceAsOf != null ? balanceAsOf : null
+      }
+    };
+  }
+
+  if (occurrenceCount === 0) return unresolvedResult('no_evidence', 'no_occurrences');
+
+  if (!conservationResult || conservationResult.status !== 'ok') {
+    var conservationReason = (conservationResult && conservationResult.status === 'unsafe_aggregate')
+      ? 'conservation_unsafe_aggregate'
+      : 'conservation_mismatch';
+    return unresolvedResult('conservation_failure', conservationReason);
+  }
+
+  if (balanceAgorot === null || balanceAgorot === undefined) {
+    return unresolvedResult('unreconciled', 'unsafe_balance_value');
+  }
+  if (balanceAsOf == null) return unresolvedResult('unreconciled', 'missing_balance_date');
+  if (evidenceAsOf == null) return unresolvedResult('unreconciled', 'missing_evidence_date');
+  if (!_t190IsValidYmd(balanceAsOf)) return unresolvedResult('unreconciled', 'malformed_balance_date');
+  if (!_t190IsValidYmd(evidenceAsOf)) return unresolvedResult('unreconciled', 'malformed_evidence_date');
+  if (balanceAsOf < evidenceAsOf) return unresolvedResult('unreconciled', 'balance_predates_evidence');
+  if (!(balanceAsOf === evidenceAsOf || balanceAsOf > evidenceAsOf)) {
+    // Defensive fallback — unreachable given the checks above, kept so a future date source
+    // can never silently fall through into an unproven comparison.
+    return unresolvedResult('unreconciled', 'unsupported_temporal_relationship');
+  }
+  if (evidenceTotalAgorot === null) {
+    // Conservation reported 'ok' but the view's own total is unsafe — should not occur given
+    // conservation's own contract, but never trusted blindly here either.
+    return unresolvedResult('conservation_failure', 'conservation_unsafe_aggregate');
+  }
+
+  // Subtraction goes through the module's own safe-arithmetic path, not raw '-'. Two
+  // individually safe integers can still produce a difference outside Number.isSafeInteger's
+  // range; _t190SafeAddAgorot (via negation) reports that explicitly as null rather than
+  // silently returning an imprecise Number. Negating a safe integer is always itself safe
+  // (the safe-integer range is symmetric), so only the addition needs checking.
+  var gap = _t190SafeAddAgorot(balanceAgorot, -evidenceTotalAgorot);
+  if (gap === null) return unresolvedResult('unreconciled', 'unsafe_gap_arithmetic');
+
+  var gapStatus = gap === 0
+    ? 'exact_match'
+    : (gap > 0 ? 'balance_above_evidence_total' : 'balance_below_evidence_total');
+
+  return {
+    totals: totals,
+    reconciliation: {
+      state: 'arithmetic_gap_available',
+      reason: null,
+      temporal_relation: (balanceAsOf === evidenceAsOf) ? 'same_date' : 'balance_later',
+      balance_evidence_gap_agorot: gap,
+      gap_status: gapStatus,
+      // Fixed 'unproven' in this commit — no repository or domain evidence yet establishes
+      // that PerutYitraLeTkufa occurrences cover item.balance's full monetary scope. See plan §8.
+      scope_relation: 'unproven',
+      evidence_as_of: evidenceAsOf,
+      balance_as_of: balanceAsOf
+    }
+  };
+}
+
 // ── Dual-environment export (no-op in the browser; index.html never defines `module`) ──
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -301,6 +434,9 @@ if (typeof module !== 'undefined' && module.exports) {
     _t190DeriveDisplayAmountK: _t190DeriveDisplayAmountK,
     _t190AggregateOccurrencesIntoBuckets: _t190AggregateOccurrencesIntoBuckets,
     _t190BuildAccountBucketView: _t190BuildAccountBucketView,
-    _t190VerifyConservation: _t190VerifyConservation
+    _t190VerifyConservation: _t190VerifyConservation,
+    _t190BalanceKToAgorotExact: _t190BalanceKToAgorotExact,
+    _t190IsValidYmd: _t190IsValidYmd,
+    _t190ReconcileEvidenceWithBalance: _t190ReconcileEvidenceWithBalance
   };
 }

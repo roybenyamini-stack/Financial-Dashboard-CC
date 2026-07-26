@@ -262,5 +262,196 @@ var PF_B = [
 //     crypto.subtle unconditionally, unrelated and out of scope to modify).
 // (b) git diff scope check: run separately as `git diff` after this script passes.
 
+// ── PF_ROY_REALITY_V1: balance provenance reconciliation (first commit) ─────────────────────
+// _t190ReconcileEvidenceWithBalance is pure and takes a classification view + a conservation
+// result directly, so tests mirror exactly what app.js's _t190BuildAccountRealityView does —
+// no logic is copied or reimplemented here, only orchestrated the same way.
+function reconcile(occurrences, balanceAgorot, balanceAsOf, evidenceAsOf) {
+  var view = t190._t190BuildAccountBucketView(occurrences, 'test-acct', 'fallback_id');
+  var cons = t190._t190VerifyConservation(occurrences, view);
+  return t190._t190ReconcileEvidenceWithBalance(view, cons, balanceAgorot, balanceAsOf, evidenceAsOf);
+}
+
+// ── 13. evidence_total_agorot === classified_total_agorot + evidence_unresolved_total_agorot ─
+(function () {
+  var mixed = [
+    occ('1', '1', '3',  nilTikrat(), '100.00'), // capital_exempt, classified
+    occ('1', '1', null, nilTikrat(), '25.00')   // kod_absent, unresolved
+  ];
+  var r = reconcile(mixed, null, null, null); // dates irrelevant to this check — totals are
+                                                // always computed before any date logic runs
+  assert(r.totals.classified_total_agorot === 10000, '13. classified_total_agorot excludes unresolved (10000)');
+  assert(r.totals.evidence_unresolved_total_agorot === 2500, '13. evidence_unresolved_total_agorot === 2500');
+  assert(r.totals.evidence_total_agorot === r.totals.classified_total_agorot + r.totals.evidence_unresolved_total_agorot,
+    '13. evidence_total_agorot === classified_total_agorot + evidence_unresolved_total_agorot (12500)');
+})();
+
+// ── 14. Unresolved evidence is counted exactly once, in evidence_total — never folded into a
+//        known bucket, never relabeled as the gap; the gap is computed against the FULL
+//        evidence total, not the classified-only total ─────────────────────────────────────
+(function () {
+  var mixed = [
+    occ('1', '1', '3',  nilTikrat(), '100.00'), // capital_exempt, classified -> 10000 agorot
+    occ('1', '1', null, nilTikrat(), '25.00')   // kod_absent, unresolved -> 2500 agorot
+  ];
+  var r = reconcile(mixed, 10000 /* == classified_total, NOT evidence_total */, '2026-01-01', '2026-01-01');
+  assert(r.totals.evidence_unresolved_total_agorot === 2500, '14. unresolved money remains separately visible (2500)');
+  assert(r.totals.classified_total_agorot === 10000 && r.totals.evidence_total_agorot === 12500,
+    '14. unresolved counted exactly once in evidence_total_agorot, never in classified_total_agorot');
+  assert(r.reconciliation.state === 'arithmetic_gap_available', '14. dates valid and comparable -> arithmetic_gap_available');
+  assert(r.reconciliation.gap_status !== 'exact_match',
+    '14. balance == classified_total but != evidence_total -> NOT exact_match (unresolved money is not silently ignored)');
+  assert(r.reconciliation.gap_status === 'balance_below_evidence_total' && r.reconciliation.balance_evidence_gap_agorot === -2500,
+    '14. gap is computed against the FULL evidence total (classified + unresolved), exactly -2500, not against classified-only');
+})();
+
+// ── 15. Same date, exact match -> arithmetic_gap_available / same_date / exact_match / unproven ─
+(function () {
+  var r = reconcile(PF_D, 17592383 + 5703395, '2026-03-15', '2026-03-15');
+  assert(r.reconciliation.state === 'arithmetic_gap_available', '15. state is arithmetic_gap_available');
+  assert(r.reconciliation.temporal_relation === 'same_date', '15. temporal_relation is same_date');
+  assert(r.reconciliation.gap_status === 'exact_match' && r.reconciliation.balance_evidence_gap_agorot === 0,
+    '15. gap_status is exact_match with a zero gap');
+  assert(r.reconciliation.scope_relation === 'unproven', '15. scope_relation is unproven (not "confirmed", not "fully_reconciled")');
+  assert(r.reconciliation.reason === null, '15. reason is null when a gap was successfully computed');
+})();
+
+// ── 16. Later balance date, non-zero gap -> arithmetic_gap_available / balance_later, no causal claim ─
+(function () {
+  var r = reconcile(PF_D, 17592383 + 5703395 + 30000, '2026-04-01', '2026-03-15');
+  assert(r.reconciliation.state === 'arithmetic_gap_available', '16. state is arithmetic_gap_available');
+  assert(r.reconciliation.temporal_relation === 'balance_later', '16. temporal_relation is balance_later');
+  assert(r.reconciliation.gap_status === 'balance_above_evidence_total' && r.reconciliation.balance_evidence_gap_agorot === 30000,
+    '16. gap_status/gap reflect the exact difference');
+  assert(r.reconciliation.scope_relation === 'unproven',
+    '16. scope_relation stays unproven even for a later, gap-carrying balance — no "reconciled" or causal label is used');
+})();
+
+// ── 17. No proportional classification anywhere in the reconciliation result ─────────────────
+// Calls _t190ReconcileEvidenceWithBalance directly (not via the reconcile() helper) so the
+// SAME view instance that goes into it can be checked afterwards: unmutated, and still
+// byte-identical to a fresh direct aggregation — proving a deliberately mismatched balance
+// never rescales, redistributes, or otherwise reshapes classification output.
+(function () {
+  var mixed = PF_D.concat([occ('1', '1', null, nilTikrat(), '50.00')]);
+  var view = t190._t190BuildAccountBucketView(mixed, 'test-acct', 'fallback_id');
+  var viewSnapshotBefore = JSON.parse(JSON.stringify(view));
+  var cons = t190._t190VerifyConservation(mixed, view);
+  t190._t190ReconcileEvidenceWithBalance(view, cons, 999999999, '2026-01-01', '2026-01-01'); // deliberately mismatched balance
+  var directBuckets = t190._t190AggregateOccurrencesIntoBuckets(mixed);
+  assert(deepEqual(view, viewSnapshotBefore),
+    '17a. _t190ReconcileEvidenceWithBalance never mutates the classification view it was given');
+  assert(deepEqual(view.buckets, directBuckets),
+    '17b. classification.buckets remain byte-identical to a fresh direct _t190AggregateOccurrencesIntoBuckets call — ' +
+    'a mismatched balance never rescales, redistributes, or otherwise changes classification output');
+})();
+
+// ── 18. balance_as_of < evidence_as_of -> unreconciled / balance_predates_evidence, no gap ────
+(function () {
+  var r = reconcile(PF_D, 23295778, '2026-01-01', '2026-06-01');
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'balance_predates_evidence',
+    '18. balance predating evidence is unreconciled, never a temporal roll-forward');
+  assert(r.reconciliation.temporal_relation === null && r.reconciliation.balance_evidence_gap_agorot === null
+      && r.reconciliation.gap_status === null && r.reconciliation.scope_relation === null,
+    '18. no gap/temporal/scope fields are populated');
+})();
+
+// ── 19. Missing balance_as_of -> unreconciled / missing_balance_date ──────────────────────────
+(function () {
+  var r = reconcile(PF_D, 23295778, null, '2026-06-01');
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'missing_balance_date',
+    '19. missing balance_as_of -> unreconciled / missing_balance_date');
+  assert(r.reconciliation.balance_evidence_gap_agorot === null, '19. no gap computed');
+})();
+
+// ── 20. Missing evidence date -> unreconciled / missing_evidence_date ─────────────────────────
+(function () {
+  var r = reconcile(PF_D, 23295778, '2026-06-01', null);
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'missing_evidence_date',
+    '20. missing evidence date -> unreconciled / missing_evidence_date');
+  assert(r.reconciliation.balance_evidence_gap_agorot === null, '20. no gap computed');
+})();
+
+// ── 21. Malformed balance_as_of never reaches the < / > comparison ────────────────────────────
+(function () {
+  var r = reconcile(PF_D, 23295778, '2026/06/01', '2026-01-01');
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'malformed_balance_date',
+    '21. malformed balance_as_of -> unreconciled / malformed_balance_date, never compared as a string');
+})();
+
+// ── 22. Malformed evidence date never reaches the < / > comparison ───────────────────────────
+(function () {
+  var r = reconcile(PF_D, 23295778, '2026-06-01', '01-06-2026');
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'malformed_evidence_date',
+    '22. malformed evidence date -> unreconciled / malformed_evidence_date, never compared as a string');
+})();
+
+// ── 23. Conservation failure (unsafe_aggregate) -> conservation_failure, regardless of dates ──
+(function () {
+  var BIG = '60000000000000.00'; // individually safe; two of these sum to an unsafe aggregate
+  var unsafeOccs = [
+    occ('2', '1', '3', nilTikrat(), BIG),
+    occ('3', '1', '3', nilTikrat(), BIG)
+  ];
+  var rWithValidDates = reconcile(unsafeOccs, 1, '2026-01-01', '2026-01-01');
+  assert(rWithValidDates.reconciliation.state === 'conservation_failure'
+      && rWithValidDates.reconciliation.reason === 'conservation_unsafe_aggregate',
+    '23. conservation_failure takes priority even when both dates are present and valid');
+  assert(rWithValidDates.reconciliation.balance_evidence_gap_agorot === null,
+    '23. no gap computed when the evidence total itself cannot be trusted');
+})();
+
+// ── 24. Zero occurrences -> no_evidence / no_occurrences ──────────────────────────────────────
+(function () {
+  var r = reconcile([], 12345, '2026-01-01', '2026-01-01');
+  assert(r.reconciliation.state === 'no_evidence' && r.reconciliation.reason === 'no_occurrences',
+    '24. zero occurrences -> no_evidence / no_occurrences');
+})();
+
+// ── 25. Unsafe balance_agorot -> unreconciled / unsafe_balance_value ──────────────────────────
+(function () {
+  var r = reconcile(PF_D, null, '2026-01-01', '2026-01-01'); // null == _t190BalanceKToAgorotExact's
+                                                               // own result for a non-finite balance
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'unsafe_balance_value',
+    '25. null balance_agorot -> unreconciled / unsafe_balance_value');
+})();
+
+// ── 26. Unsafe gap arithmetic -> unreconciled / unsafe_gap_arithmetic ─────────────────────────
+// Two individually-safe integers (balance_agorot and evidence_total_agorot) whose DIFFERENCE
+// falls outside Number.isSafeInteger's range — the exact bug class the safe-arithmetic
+// correction targets: raw subtraction would silently return an imprecise Number here.
+(function () {
+  var NEAR_MAX = '90000000000000.00'; // 9,000,000,000,000,000 agorot — safe on its own
+  var negativeOcc = [occ('1', '1', '3', nilTikrat(), '-' + NEAR_MAX.replace(/^-?/, ''))];
+  var evidenceAgorot = t190._t190ParseAgorotExact('-' + NEAR_MAX);
+  assert(evidenceAgorot !== null && Number.isSafeInteger(evidenceAgorot), '26. evidence amount itself parses safely (sanity check)');
+  var balanceAgorot = 9000000000000000; // safe on its own; balance - evidence = 1.8e16, unsafe
+  var r = reconcile(negativeOcc, balanceAgorot, '2026-01-01', '2026-01-01');
+  assert(r.reconciliation.state === 'unreconciled' && r.reconciliation.reason === 'unsafe_gap_arithmetic',
+    '26. two individually-safe integers whose difference is unsafe -> unreconciled / unsafe_gap_arithmetic, never an imprecise Number');
+  assert(r.reconciliation.balance_evidence_gap_agorot === null, '26. no gap value is exposed when the subtraction itself is unsafe');
+})();
+
+// ── 27. _t190IsValidYmd — calendar-aware, not merely format/range-aware ───────────────────────
+(function () {
+  assert(t190._t190IsValidYmd('2024-02-29') === true,  '27. 2024-02-29 is valid (2024 is a leap year)');
+  assert(t190._t190IsValidYmd('2025-02-29') === false, '27. 2025-02-29 is invalid (2025 is not a leap year)');
+  assert(t190._t190IsValidYmd('2026-02-30') === false, '27. 2026-02-30 is invalid (February never has 30 days)');
+  assert(t190._t190IsValidYmd('2026-02-31') === false, '27. 2026-02-31 is invalid (February never has 31 days)');
+  assert(t190._t190IsValidYmd('2026-04-31') === false, '27. 2026-04-31 is invalid (April has 30 days)');
+  assert(t190._t190IsValidYmd('2026-12-31') === true,  '27. 2026-12-31 is valid (last day of a 31-day month)');
+  assert(t190._t190IsValidYmd('2026-13-01') === false, '27. 2026-13-01 is invalid (month 13 does not exist)');
+  assert(t190._t190IsValidYmd('2026-00-15') === false, '27. 2026-00-15 is invalid (month 0 does not exist)');
+  assert(t190._t190IsValidYmd(20260101) === false,     '27. non-string input is rejected outright');
+})();
+
+// ── 28. New PF_ROY_REALITY_V1 functions imported, not copied ─────────────────────────────────
+(function () {
+  assert(typeof t190._t190BalanceKToAgorotExact === 'function'
+      && typeof t190._t190IsValidYmd === 'function'
+      && typeof t190._t190ReconcileEvidenceWithBalance === 'function',
+    '28. all three new functions ran above via require(\'./t190_bucket_view.js\'), never reimplemented in this test file');
+})();
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);
