@@ -32,29 +32,41 @@ Each entry states: the current evidence, the current conclusion (what can safely
 **Current evidence:**
 - Roy-supplied real annual-report observation (2026-07-25): the Retirement View presents Capital and Pension; `SUG-1` is observed alongside Capital, `SUG-2` alongside Pension.
 - `PF_STAGE1_STAGE2_DISCOVERIES.md` §B.3: Altshuler's short annual report foregrounds "יתרת הכספים המיועדים למשיכה כקצבה" (balance designated for pension withdrawal) and "יתרת הכספים המיועדים למשיכה חד פעמית" (balance designated for lump-sum withdrawal) — the same Capital/Pension framing, from an independently-observed real report.
+- Real-account evidence (Altshuler account 6899425, examined against its own Annual Report, 2026-07-26): SUG-1 balances matched the Annual Report's Capital/lump-sum classification, and SUG-2 balances matched the Annual Report's Pension classification — demonstrated numerically and structurally. The same classification dimensions and amounts remained identifiable after the account's transfer from Altshuler to Mor; the mapping survived the transfer in this examined case.
 
-**Current conclusion:** A strong correlation between XML `SUG` values and the Annual Report Retirement View's Capital/Pension classification is observed. This is stated explicitly as a **correlation**, not a canonical or universal mapping — `PF_ROY_REALITY_DEFINITION.md` §6.1 does not assert "`SUG-1` = Capital" as a rule, and this register does not either.
+**Current conclusion:** For the examined real account (Altshuler 6899425), SUG-1 and SUG-2 were shown to match the Annual Report's Capital and Pension classifications numerically and structurally, including continuity across the transfer to Mor. This is Operationally Supported for the examined case, but it is not yet a confirmed universal or legal rule — `PF_ROY_REALITY_DEFINITION.md` §6.1 does not assert "`SUG-1` = Capital" as a canonical rule, and this register does not either.
 
-**Exact unresolved boundary:** No statute, regulation, or CMA circular establishing *why* a Contribution Event or balance is classified `SUG-1` versus `SUG-2` has been found. This is explicitly not speculated on, per the instruction that governed this document's creation.
+**Exact unresolved boundary:**
+- Why a Contribution Event or balance is classified `SUG-1` versus `SUG-2` in the first place — no statute, regulation, or CMA circular establishing this has been found. This is explicitly not speculated on, per the instruction that governed this document's creation.
+- Whether the mapping is universal across account types, providers, and scenarios. One account (Altshuler 6899425) has been fully validated to this evidentiary level; additional examined accounts do not contradict the observed mapping but have not yet been analyzed to the same level.
+- The absence of an authoritative legal or CMA value dictionary defining the field and its classification rule — the same category of primary source missing per Q3.
 
 **What would close it:** A primary legal/regulatory source (the statutory or regulatory text governing the `SUG` classification), or an authoritative CMA circular defining the field's value dictionary and classification rule — the same category of primary source still missing per Q3.
 
 ---
 
-## Q3 — Relationship Between KOD and Legal Regime
+## Q3 — Relationship Between KOD-TECHULAT-SHICHVA and Legal Regime
 
-**Question:** What do the observed KOD-prefixed classification fields (`KOD-TECHULAT-SHICHVA`, and the account-level `TIKUN-190` flag) mean in terms of the underlying legal regime?
+**Question:** What do the observed KOD-TECHULAT-SHICHVA values mean in terms of historical contribution periods and the underlying legal regime?
 
 **Current evidence:**
-- `PF_HESHBON_OPOLISA_STRUCTURE_DISCOVERY.md` §4, §6: `KOD-TECHULAT-SHICHVA` is a confirmed per-segment classification field inside `PerutYitraLeTkufa` (observed values 3, 4, 5, 6, 7, 9, 13); `TIKUN-190` is a confirmed account-level (`HeshbonOPolisa`) flag, observed values `1`/`2`.
-- `PF_TIKUN_190_XML_FIELD_DISCOVERY.md`: `TIKUN-190`'s placement is Verified; its semantic meaning is explicitly UNKNOWN — the official CMA Holdings Excel/XSD row was not obtained, and no official source confirms what "yes"/"no" refers to.
+- `PF_HESHBON_OPOLISA_STRUCTURE_DISCOVERY.md` §4, §6: `KOD-TECHULAT-SHICHVA` is a confirmed per-segment classification field inside `PerutYitraLeTkufa` (observed values 3, 4, 5, 6, 7, 9, 13).
 - `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`: Status B — the official Holdings data dictionary (`MivneAchid_Holdings_Excel.xlsx` and the corresponding provident-fund XSD) was positively identified but could not be recovered from any public source or archive checked.
+- Real-account evidence (Altshuler account 6899425, examined against its own Annual Report, 2026-07-26): comparison demonstrated numerically and structurally that KOD 3 → first historical period, through 2004; KOD 5 → second historical period, 2005–2007; KOD 7 → third historical period, from 2008 onward. Evidence level: Operationally Supported, not Verified.
+- The same three classification dimensions remained identifiable after the transfer to Mor.
+- Other observed values include 4, 6, 9, and 13, whose meanings have not yet been established.
 
-**Current conclusion:** `KOD-TECHULAT-SHICHVA` and `TIKUN-190` are confirmed, structurally placed classification fields. Neither has a confirmed legal-regime meaning. No code-value-to-legal-rule mapping is established for either field.
+**Current conclusion:** `KOD-TECHULAT-SHICHVA` is a confirmed, structurally placed classification field. For account 6899425, the mappings — 3 → through 2004, 5 → 2005–2007, 7 → from 2008 onward — are Operationally Supported. The complete code-value mapping is not established. This evidence is sufficient to inform Roy Reality modeling for the examined case; it is not sufficient to claim recovery of the complete official KOD code-book.
 
-**Exact unresolved boundary:** The official CMA data dictionary or XSD has not been recovered by any documented search (gov.il, Wayback Machine, Common Crawl, GitHub/GitLab, industry mirrors — all checked per `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`). Closing this requires one of: a recovered copy of the official workbook/XSD, or a CMA/clearinghouse implementation package that reproduces the data-dictionary rows with declared source and version.
+**Exact unresolved boundary:**
+- The official CMA data dictionary or XSD has not been recovered by any documented search (gov.il, Wayback Machine, Common Crawl, GitHub/GitLab, industry mirrors — all checked per `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`).
+- Whether these mappings are universal across all Provident Fund account types and providers.
+- The meanings of the remaining observed values, including 4, 6, 9, and 13.
+- The exact statutory or regulatory rule represented by each value.
 
-**What would close it:** Any of the three primary artifacts named in `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`'s "What would close the evidence gap" section: the official workbook, the official XSD, or an authoritative implementation package.
+**What would close it:** Any of the three primary artifacts named in `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`'s "What would close the evidence gap" section: the official workbook, the official XSD, or an authoritative implementation package. Additional independent real-account evidence that confirms the remaining values and the universality of the established mappings would also help close it.
+
+*Note: TIKUN-190 value decoding is no longer open — 1 = Yes, 2 = No. It is an account-level flag and is not part of this question. The semantic meaning of what the flag affirms or denies remains outside the scope of this question and is not inferred here.*
 
 ---
 
