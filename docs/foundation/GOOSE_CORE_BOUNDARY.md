@@ -2,7 +2,7 @@
 
 *Goose Foundation — Artifact 002*
 
-*Version 1.1 — July 2026*
+*Version 1.2 — July 2026*
 
 ---
 
@@ -95,6 +95,14 @@ The Core is deliberately narrow. What is excluded is as important as what is inc
 **Domain-specific regulatory logic** does not belong in the Core. Israeli pension law, Amendment 190 (תיקון 190) tax rules, capital gains tax tiers, insurance licensing requirements — these change when governments change their minds. The Core must remain valid across regulatory environments. The rules that govern a specific domain live in the module responsible for that domain.
 
 The general principle: anything that would need to change if the regulatory environment changed, the country changed, or a new financial domain was added — belongs outside the Core.
+
+---
+
+## Interpretation, Not Redefinition
+
+Every future Use Case — Retirement, Taxation, Inheritance, Divorce, Financial Planning, and Simulation among them, with more to come — interprets the reality the Core holds. None of them redefine it. This is true for every financial product Goose Financial models today or will model later: Study Funds, Provident Funds, Pension Funds, Manager's Insurance, Investment Provident Funds, Savings Policies, and any product added after this document is written. Both lists are illustrative, not exhaustive — the rule binds every Use Case and every product, named here or not.
+
+A module that calculates a retirement projection, computes a tax liability, or simulates a life event is doing exactly the work already assigned to modules above ("What Does NOT Belong Inside Goose Core"): domain calculation on top of Core reality. Calculations adapt to reality; reality never adapts to calculations. A module may produce an explicitly labeled estimate or approximation when the evidence does not support a stronger result — the Core already distinguishes what is known from what is estimated from what is projected ("Maintains truth," above), and modules inherit that same honesty. What a module may never do is silently replace, overwrite, or reshape the Core's canonical reality with that approximation merely to make its own calculation, simulation, or presentation easier. A simulation built on an unestablished or silently reshaped reality is not a shortcut — it is a different, unauthorized kind of reality, and the Core forbids exactly that ("Reality... is shared, singular, and authoritative," above).
 
 ---
 
