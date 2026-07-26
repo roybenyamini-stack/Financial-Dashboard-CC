@@ -74,6 +74,7 @@ Application version: **v177.68** (per `STATUS.md`). No application code has chan
 5. Confirm the current milestone (§4) and current project status (§5) against the repository's actual state — not against this document alone, since it can lag between updates.
 6. Report readiness to the human: which documents were read, current milestone, current application version.
 7. Wait for the human's objective. Do not infer a task from repository state alone.
+8. Before continuing an active Roy Reality Lab expedition, re-affirm the North Star (`GOOSE_CONSTITUTION.md`): the objective is improving the fidelity of the existing Roy Reality model and representing uncertainty honestly — not designing a future retirement/tax/simulation engine, and never reshaping reality to make a calculation, simulation, or presentation easier. Evolve existing implementations; do not rewrite working systems.
 
 ---
 

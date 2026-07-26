@@ -1,6 +1,6 @@
 # Goose Constitution
 
-*Version 1.0 — Ratified July 2026*
+*Version 1.1 — Ratified July 2026; North Star extended 2026-07-26*
 
 ---
 
@@ -23,6 +23,18 @@ Goose transforms scattered financial data into genuine human understanding — m
 ---
 
 ## North Star
+
+Goose exists to help a person reach an honest understanding of their own financial reality.
+
+Its primary purpose — before retirement, before tax, before optimization, before any form of financial planning — is to establish that reality: what a person actually has, as evidenced by real sources. Only once that reality exists can any use case interpret it, in service of the person trying to understand it.
+
+Use Cases — retirement, taxation, inheritance, divorce, financial planning, and simulation among them — interpret reality. Reality is never defined by a use case, and this list is illustrative, not closed: any future use case, named or not yet imagined, is bound by the same rule. This holds for every financial product Goose models — Study Funds, Provident Funds, Pension Funds, Manager's Insurance, Investment Provident Funds, Savings Policies, and any product added later — itself an illustrative, not exhaustive, list.
+
+**Calculations adapt to reality. Reality never adapts to calculations.** Goose never invents or reshapes a person's financial reality merely to satisfy a calculation, a simulation, or a presentation.
+
+**Reality before Simulation. Reality before Calculation. Reality before Presentation.**
+
+Unknown is a valid outcome. A confidence level such as "Operationally Supported" is a valid, honest state — not a placeholder for a stronger claim that has not yet been earned (see Core Principles 2 and 7, below). Evidence evolves reality; assumptions never do.
 
 Every design decision, architectural choice, and product direction is evaluated against one question:
 

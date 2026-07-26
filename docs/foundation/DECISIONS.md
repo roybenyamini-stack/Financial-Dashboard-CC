@@ -98,11 +98,22 @@ Follows `GOOSE_DOCUMENTATION_GOVERNANCE.md` §8 by the layer named in each entry
 
 ## 8. Current Decisions Log
 
-*No entries yet.*
+### DEC-001 — Financial Reality First (Goose North Star)
 
-This log starts empty by design. Establishing the mechanism — lifecycle, entry format, approval routing, Boot integration — is Foundation/Chief-Architect work; populating it with actual Closed Decisions is Product Owner ratification work (§6). Those are two different kinds of change, and seeding this section with entries at the moment the mechanism itself was built would have blurred that boundary — infrastructure and content are kept separate on purpose.
+**Status:** Closed
+**Date:** 2026-07-26
+**Layer:** Goose General
 
-Two candidate decisions are currently drafted and evidenced, but not yet ratified here: terminology sovereignty and the "financial concepts are interpretations, not stored facts" principle, both stated with their supporting evidence in `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §4–6. They remain part of that document's own content — a Financial Concepts Layer architectural statement — until the Product Owner explicitly ratifies them through the normal approval workflow (§6), at which point they are added here using the §4 entry format, numbered `DEC-001`, `DEC-002`, and so on in the order they are closed.
+**Statement:** Goose exists to help a person reach an honest understanding of their own financial reality. Establishing that reality is Goose's primary purpose — every Use Case (retirement, taxation, inheritance, divorce, financial planning, simulation, and any future one) interprets that reality; none of them redefine it, and calculations adapt to reality, never the reverse. This governs every current and future Goose domain and module, and every financial product Goose Financial models.
+
+**Scope:** Product philosophy and module/domain sequencing, Goose General layer (inherited by every domain instantiation, including Goose Financial).
+**Non-scope:** Does not itself define how any specific domain performs its calculations, and does not establish a canonical evidence-confidence vocabulary beyond what Roy Reality Lab already uses.
+
+**Evidence / authority:** `GOOSE_CONSTITUTION.md` "North Star" section (extended 2026-07-26); `GOOSE_CORE_BOUNDARY.md` "Interpretation, Not Redefinition" section (added 2026-07-26); approved by the Product Owner and Chief Architect in working session 2026-07-26, following the Expedition 3 (Provident Fund Roy Reality modeling) lesson that current work improves fidelity of the existing model rather than designing future engines.
+
+**Supersedes / Superseded by:** none.
+
+Two further candidate decisions are drafted and evidenced, but not yet ratified here: terminology sovereignty and the "financial concepts are interpretations, not stored facts" principle, both stated with their supporting evidence in `docs/knowledge/goose_finance/FINANCIAL_CONCEPTS_LAYER.md` §4–6. They remain part of that document's own content — a Financial Concepts Layer architectural statement — until the Product Owner explicitly ratifies them through the normal approval workflow (§6), at which point they are added here using the §4 entry format, numbered `DEC-002`, `DEC-003`, and so on in the order they are closed.
 
 ---
 
