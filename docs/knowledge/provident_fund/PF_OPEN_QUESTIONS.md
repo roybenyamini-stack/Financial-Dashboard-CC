@@ -43,6 +43,8 @@ Each entry states: the current evidence, the current conclusion (what can safely
 
 **What would close it:** A primary legal/regulatory source (the statutory or regulatory text governing the `SUG` classification), or an authoritative CMA circular defining the field's value dictionary and classification rule — the same category of primary source still missing per Q3.
 
+**Update 2026-09-21 — working interpretation added (question narrowed, not closed):** Severance evidence in Mor case MOR-1 (identifier masked) carries both `REKIV1 / SUG1` and `REKIV1 / SUG2`. Together with external institutional reporting — the Israel Aerospace Industries Employees Provident Fund report, which distinguishes severance-component money deposited through 31.12.2007 and states that money deposited from 1.1.2008 onward is designated for pension — this supports the following **working interpretation, supported by the examined Provident Fund evidence** (not an official XML field-dictionary decoding): `SUG-1` = money attributable to deposits through 31.12.2007 (historical capital regime); `SUG-2` = money attributable to deposits from 01.01.2008 (pension regime). Status: Evidence Supported — not an official XML-dictionary decoding, and not a legal rule. What remains unresolved is unchanged in kind: no statute, regulation or CMA dictionary defining the field has been recovered (the external report is not an official decoding of `SUG-ITRA-LETKUFA`, and statutory / regulatory text for the boundary has not yet been attached), and universality is not established. Whether the interpretation extends beyond severance is not established. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §3; registry `PF-KR-006`.
+
 ---
 
 ## Q3 — Relationship Between KOD-TECHULAT-SHICHVA and Legal Regime
@@ -66,7 +68,52 @@ Each entry states: the current evidence, the current conclusion (what can safely
 
 **What would close it:** Any of the three primary artifacts named in `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`'s "What would close the evidence gap" section: the official workbook, the official XSD, or an authoritative implementation package. Additional independent real-account evidence that confirms the remaining values and the universality of the established mappings would also help close it.
 
+**Update 2026-09-21 — `KOD9` observation (qualifies the period mapping; does not extend it):** In severance evidence the same `KOD-TECHULAT-SHICHVA` = 9 (research notation `KOD9`; field and value confirmed by Roy) always appears with `REKIV1`. In case MOR-1 (identifier masked) that one `KOD9 / REKIV1` spans **both** `SUG1` and `SUG2`; in active case MOR-2 `KOD9 / REKIV1 / SUG2` is current post-2008 severance. `KOD9` is therefore **not** simply the pre/post-2008 distinction, and `KOD-TECHULAT-SHICHVA` is not a pure date-period code in general. The period mappings above (3 / 5 / 7, one examined Altshuler account) must not be extended to `KOD9`. `KOD9` is recorded as **Observed, semantics unresolved**: the field and value are confirmed, the official meaning of value 9 is not, and no meaning is to be inferred or assigned. It must not be recorded as `KOD9 = severance`. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §9; registry `PF-KR-011`.
+
 *Note: TIKUN-190 value decoding is no longer open — 1 = Yes, 2 = No. It is an account-level flag and is not part of this question. The semantic meaning of what the flag affirms or denies remains outside the scope of this question and is not inferred here.*
+
+---
+
+## Q4 — Severance Rights Matrix
+
+**Question:** What exact rights, conditions and tax consequences result from the severance Money-Layer regimes (through 31.12.2007 / capital regime; from 01.01.2008 / pension regime) and from the choices available at an employment-termination / retirement event?
+
+**Current evidence:**
+- The existence of a meaningful pre/post-2008 distinction for severance money is supported (`PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §3; registry `PF-KR-006`).
+- Capital regime character is not tax-free, and pension regime character is not monthly-pension-only (`PF-KR-007`).
+- Exempt grants enter the Fixation of Rights calculation and reduce the exempt capital, per the Tax Authority's Form 161ד (`PF-KR-010`); the exact mechanism for exempt severance grants remains unresolved.
+- Lump-sum severance grant, annuity sequence (רצף קצבה) and severance sequence (רצף פיצויים) are distinct mechanisms; pension capitalization (היוון קצבה) is a different mechanism again (`PF-KR-009`).
+- `PF_MONEY_LAYERS_DISCOVERY_2026-07-19.md` §C.5 and `PF_ONTOLOGY_AND_PERSISTENCE_DISCOVERY_2026-07-19.md` §A2, §D2 record severance-disposition statuses as event-created, and employer rights as depending on labor-law conditions.
+
+**Current conclusion:** The distinction exists; the rights matrix it produces is **not** established. No cell of the matrix is asserted.
+
+**Exact unresolved boundary:**
+1. Is every pre-2008 severance `SUG1` amount (working interpretation) in Roy's current funds presently eligible for capital withdrawal?
+2. What exact conditions allow post-2008 severance `SUG2` to be received as a lump-sum grant?
+3. How is the exempt portion determined in each case?
+4. What happens to the taxable portion?
+5. How do the alternatives affect future qualifying-pension exemption and Fixation of Rights (קיבוע זכויות)?
+6. What exact rights / conditions distinguish lump-sum severance withdrawal, annuity sequence and severance sequence? (Including the rules for withdrawing from a previous annuity-sequence decision.)
+7. What employer rights or possible employer claims apply to each severance layer / state?
+8. Which rights belong intrinsically to the Money Layer, and which depend on a future retirement / termination event or user choice?
+
+**What would close it:** Current Tax Authority form instructions for 161 / 161ג / 161ד in full (not service-page summaries), the controlling statutory text, and, for the XML side, the official Holdings data dictionary (see Q3). Roy's own Form 161 rights and choices are inputs to the future scenario, not evidence of the Money Layer.
+
+---
+
+## Q5 — Form 161 Choice Model versus Existing Retirement-Simulation Inputs
+
+**Question:** Does the actual Form 161 decision structure, and its related tax rules, provide the correct domain basis for the user's severance choices in a future Provident Fund retirement scenario — and how does it compare with the inputs the current retirement simulation already has?
+
+**Current evidence:** `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §6.4. Form 161 is a decision point for future termination / retirement, not current XML evidence. The current simulation's fields may predate the Money Layer / Rights understanding; they are **not** assumed to represent the Form 161 / severance choice model.
+
+**Current conclusion:** Not studied. Recorded as a future design requirement: Reality → Rights → Form-161-related scenario inputs → Simulation. Legal / domain reality must not be forced into the existing UI or data structure.
+
+**Exact unresolved boundary:** The Form 161 decision structure itself has not been studied in full, and has not been compared with the existing simulation inputs. Depends on Q4.
+
+**Known implementation conflict recorded with this question (future correction required):** `docs/provident_funds_logic.md` ("Pre-2008 Legacy Funds — Critical Routing Rule") routes the entire balance of a pre-2008 provident fund to `capital_exempt`. Pre-2008 capital character must **not** automatically imply `capital_exempt` (capital ≠ tax-free — registry `PF-KR-007`). That document is implementation-facing and was not modified; the correction belongs with this question's future work. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §11.1.
+
+**What would close it:** A dedicated study of the Form 161 decision structure, followed by an explicit comparison with existing simulation inputs. This register records the question only; no implementation is implied.
 
 ---
 
