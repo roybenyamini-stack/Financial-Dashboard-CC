@@ -104,6 +104,8 @@ Retirement View is classified as a Canonical Projection, not a Canonical Object,
 
 **On the XML SUG correlation:** current evidence shows a strong correlation between the XML's `SUG` values and the Annual Report's Retirement View classification — observationally, `SUG-1` co-occurs with Capital and `SUG-2` co-occurs with Pension. This is stated here strictly as an **observed correlation**, not as a canonical or universal mapping, and not as a derivation rule. Roy Reality does not assert "`SUG-1` = Capital" as a rule, and the correlation does not by itself establish how to reconstruct the Retirement View from Money Layers. The rules determining *why* a given Contribution Event or balance becomes one classification or the other are not understood from current evidence and are not speculated on here — see `PF_OPEN_QUESTIONS.md` Q2.
 
+**Note (2026-09-21):** A stronger *working interpretation* of `SUG` — `SUG-1` as money attributable to deposits through 31.12.2007 (historical capital regime) and `SUG-2` as money attributable to deposits from 01.01.2008 (pension regime) — is recorded at Evidence Supported in `PF_KNOWLEDGE_REGISTRY.md` PF-KR-006, with detail in `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §3. It is not an official XML-dictionary decoding and is not a canonical rule; the canonical statement above is unchanged. Whether and how to promote it into this document is a decision for Roy.
+
 ---
 
 ## 7. Canonical Relationships
