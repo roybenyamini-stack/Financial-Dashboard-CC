@@ -9,6 +9,7 @@ backend/.env
 # docs/foundation/GIT_PRIVACY_REMEDIATION_INCIDENT.md
 *.xml
 XML Files/
+# Mislaka export directories, shape <id>_<id>_KGM_<timestamp>_<n>/ — generic; requires the KGM type token so date-prefixed folders are not caught
 [0-9]*_[0-9]*_KGM_*/
 
 # Real AI-extraction outputs / raw PDF text dumps (may contain real personal data)

@@ -4,6 +4,8 @@
 
 *Version 1.0 — 2026-07-15*
 
+*Redaction note 2026-09-22: literal Private Evidence in this record — an export-directory name, a local OS user path, and one real runtime-family identifier — was replaced with semantic labels. Historical facts, procedure and lessons are unchanged. "Runtime Identifier D" is used so it is not confused with the "Identifier A" and "Identifiers B/C" labels defined below; it denotes a second real runtime-family identifier. Private values are not part of the canonical content of this record. Earlier repository revisions may contain superseded private evidence and are subject to the repository privacy-remediation process.*
+
 **Author:** Claude Code (session-driven investigation and remediation)
 **Product Owner:** Roy
 

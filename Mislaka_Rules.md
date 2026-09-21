@@ -98,6 +98,8 @@ This section defines universal business logic for Study Funds. The rules apply t
 ### 12a. Data Nodes
 Target the `BlockItrot` and `NesilutTag` blocks for each product where the product name indicates a Study Fund (i.e., contains "השתלמות" or its RTL-reversed form "תומלתשה").
 
+> **Scope note:** `NesilutTag` is not Study-Fund-specific; it was directly observed in the examined KGM Holdings evidence in both Provident Fund and Study Fund product types (see `docs/knowledge/provident_fund/PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13.6). This rule states which blocks the Study Fund extraction reads; it does not imply that they occur only in Study Fund products. Universality across every product type or provider is not established.
+
 ### 12b. Liquidity Status
 Extract `<MOED-NEZILUT-TAGMULIM>` (the liquidity date):
 * If the date has **passed** relative to today → mark as **נזיל** (Liquid).

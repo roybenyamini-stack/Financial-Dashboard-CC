@@ -34,11 +34,11 @@ Each entry states: the current evidence, the current conclusion (what can safely
 - `PF_STAGE1_STAGE2_DISCOVERIES.md` §B.3: Altshuler's short annual report foregrounds "יתרת הכספים המיועדים למשיכה כקצבה" (balance designated for pension withdrawal) and "יתרת הכספים המיועדים למשיכה חד פעמית" (balance designated for lump-sum withdrawal) — the same Capital/Pension framing, from an independently-observed real report.
 - Real-account evidence (Altshuler account ALT-EX-2, examined against its own Annual Report, 2026-07-26): SUG-1 balances matched the Annual Report's Capital/lump-sum classification, and SUG-2 balances matched the Annual Report's Pension classification — demonstrated numerically and structurally. The same classification dimensions and amounts remained identifiable after the account's transfer from Altshuler to Mor; the mapping survived the transfer in this examined case.
 
-**Current conclusion:** For the examined real account (Altshuler ALT-EX-2), SUG-1 and SUG-2 were shown to match the Annual Report's Capital and Pension classifications numerically and structurally, including continuity across the transfer to Mor. This is Operationally Supported for the examined case, but it is not yet a confirmed universal or legal rule — `PF_ROY_REALITY_DEFINITION.md` §6.1 does not assert "`SUG-1` = Capital" as a canonical rule, and this register does not either.
+**Current conclusion:** For the examined real account (Altshuler account ALT-EX-2), SUG-1 and SUG-2 were shown to match the Annual Report's Capital and Pension classifications numerically and structurally, including continuity across the transfer to Mor. This is Operationally Supported for the examined case, but it is not yet a confirmed universal or legal rule — `PF_ROY_REALITY_DEFINITION.md` §6.1 does not assert "`SUG-1` = Capital" as a canonical rule, and this register does not either.
 
 **Exact unresolved boundary:**
 - Why a Contribution Event or balance is classified `SUG-1` versus `SUG-2` in the first place — no statute, regulation, or CMA circular establishing this has been found. This is explicitly not speculated on, per the instruction that governed this document's creation.
-- Whether the mapping is universal across account types, providers, and scenarios. One account (Altshuler ALT-EX-2) has been fully validated to this evidentiary level; additional examined accounts do not contradict the observed mapping but have not yet been analyzed to the same level.
+- Whether the mapping is universal across account types, providers, and scenarios. One account (ALT-EX-2) has been fully validated to this evidentiary level; additional examined accounts do not contradict the observed mapping but have not yet been analyzed to the same level.
 - The absence of an authoritative legal or CMA value dictionary defining the field and its classification rule — the same category of primary source missing per Q3.
 
 **What would close it:** A primary legal/regulatory source (the statutory or regulatory text governing the `SUG` classification), or an authoritative CMA circular defining the field's value dictionary and classification rule — the same category of primary source still missing per Q3.
@@ -58,7 +58,7 @@ Each entry states: the current evidence, the current conclusion (what can safely
 - The same three classification dimensions remained identifiable after the transfer to Mor.
 - Other observed values include 4, 6, 9, and 13, whose meanings have not yet been established.
 
-**Current conclusion:** `KOD-TECHULAT-SHICHVA` is a confirmed, structurally placed classification field. For account ALT-EX-2, the mappings — 3 → through 2004, 5 → 2005–2007, 7 → from 2008 onward — are Operationally Supported. The complete code-value mapping is not established. This evidence is sufficient to inform Roy Reality modeling for the examined case; it is not sufficient to claim recovery of the complete official KOD code-book.
+**Current conclusion:** `KOD-TECHULAT-SHICHVA` is a confirmed, structurally placed classification field. For ALT-EX-2, the mappings — 3 → through 2004, 5 → 2005–2007, 7 → from 2008 onward — are Operationally Supported. The complete code-value mapping is not established. This evidence is sufficient to inform Roy Reality modeling for the examined case; it is not sufficient to claim recovery of the complete official KOD code-book.
 
 **Exact unresolved boundary:**
 - The official CMA data dictionary or XSD has not been recovered by any documented search (gov.il, Wayback Machine, Common Crawl, GitHub/GitLab, industry mirrors — all checked per `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`).
@@ -69,6 +69,8 @@ Each entry states: the current evidence, the current conclusion (what can safely
 **What would close it:** Any of the three primary artifacts named in `PF_HOLDINGS_DATA_DICTIONARY_RECOVERY_PHASE_2.md`'s "What would close the evidence gap" section: the official workbook, the official XSD, or an authoritative implementation package. Additional independent real-account evidence that confirms the remaining values and the universality of the established mappings would also help close it.
 
 **Update 2026-09-21 — `KOD9` observation (qualifies the period mapping; does not extend it):** In severance evidence the same `KOD-TECHULAT-SHICHVA` = 9 (research notation `KOD9`; field and value confirmed by Roy) always appears with `REKIV1`. In case MOR-1 (identifier masked) that one `KOD9 / REKIV1` spans **both** `SUG1` and `SUG2`; in active case MOR-2 `KOD9 / REKIV1 / SUG2` is current post-2008 severance. `KOD9` is therefore **not** simply the pre/post-2008 distinction, and `KOD-TECHULAT-SHICHVA` is not a pure date-period code in general. The period mappings above (3 / 5 / 7, one examined Altshuler account) must not be extended to `KOD9`. `KOD9` is recorded as **Observed, semantics unresolved**: the field and value are confirmed, the official meaning of value 9 is not, and no meaning is to be inferred or assigned. It must not be recorded as `KOD9 = severance`. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §9; registry `PF-KR-011`.
+
+**Update 2026-09-22 — the same missing dictionary also gates the `YitrotShonot` fields (no change to this question's scope):** The Holdings XML also contains a separate severance-related family, `YitrotShonot`, including the account-level field `YITRAT-PITZUIM-LELO-HITCHASHBENOT` and the sequence-existence flags `KAYAM-RETZEF-PITZUIM-KITZBA` / `KAYAM-RETZEF-ZECHUYOT-PITZUIM`. Their authoritative semantics and enum mappings are unrecovered and are tracked under Q4 (boundary items 1–2), because the missing artifact is the same one named here. Registry `PF-KR-012`; detail `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13.6–§13.9.
 
 *Note: TIKUN-190 value decoding is no longer open — 1 = Yes, 2 = No. It is an account-level flag and is not part of this question. The semantic meaning of what the flag affirms or denies remains outside the scope of this question and is not inferred here.*
 
@@ -99,6 +101,31 @@ Each entry states: the current evidence, the current conclusion (what can safely
 
 **What would close it:** Current Tax Authority form instructions for 161 / 161ג / 161ד in full (not service-page summaries), the controlling statutory text, and, for the XML side, the official Holdings data dictionary (see Q3). Roy's own Form 161 rights and choices are inputs to the future scenario, not evidence of the Money Layer.
 
+**Update 2026-09-22 — evidence added and boundary refined (Q4 remains OPEN; not closed, no matrix cell asserted):**
+
+*Evidence added* (detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13; registry `PF-KR-012`, `PF-KR-008` refinement):
+- The severance domain needs an explicit intermediate State / Event structure between Money and Rights: Money Layer → Statutory Regime → Current Tax / Disposition State → Employment / Termination / Retirement Event Context → Current Rights → Available Choice → Immediate Consequence → New State → Future Consequence. A Choice at an event can create a later Rights / Disposition State. Working structure — not a verified state machine.
+- The examined Holdings XML contains a separate `YitrotShonot` severance family; in both examined severance cases the account-level `YITRAT-PITZUIM-LELO-HITCHASHBENOT` amount reconciles exactly to the total `REKIV1` severance Money-Layer balance. Money Layer identity and the separate account-level severance information in `YitrotShonot` are therefore distinct dimensions in the examined evidence. Whether that information constitutes a tax / disposition / rights state remains under investigation (open hypothesis, not weakened; not established). Legal meaning not established.
+- Clearinghouse severance ≠ necessarily total severance reality: institutional severance reality must be distinguished from employer / non-institutional severance reality.
+- Employer rights are not a property of `SUG1` / `SUG2`; they belong to the Event / Rights model.
+
+*Exact remaining research boundary* (supersedes the working scope of the eight items above where they overlap; those items are retained for history — original 1–2 → 4; 3 → 5; 4 → 6; 5 → 7; 6 → 4 and 8; 7 → 9; 8 → 11):
+1. Authoritative legal / interface semantics of `YITRAT-PITZUIM-LELO-HITCHASHBENOT`. (Working hypothesis only: a severance tax / disposition-state field for which the relevant settlement has not yet been completed. **Not verified.**)
+2. Authoritative enum mapping for `KAYAM-RETZEF-PITZUIM-KITZBA` and `KAYAM-RETZEF-ZECHUYOT-PITZUIM`. Observed numeric values are not mapped; presence of a populated flag does not prove an active sequence.
+3. Whether Holdings XML contains sufficient **Current State** to derive current institutional severance rights without reconstructing the provider's full historical severance ledger. (Open research hypothesis.)
+4. Exact eligibility conditions for: lump-sum severance grant; annuity sequence; severance sequence — including how the pre/post-2008 regime affects eligibility, if at all.
+5. Exact exempt-amount calculation.
+6. Treatment of the taxable amount.
+7. Exact Fixation-of-Rights consequence under current law (Section 9A mechanism, coefficient, which grants count, exclusions, interaction with the qualifying-pension exemption).
+8. Exact reversal / transition rules for prior sequence choices.
+9. Employer rights and claims.
+10. Integration of employer / non-institutional severance into Total Severance Reality (initially potentially via explicit / manual event input; later possibly employer / Form-161-derived data). Future requirement — nothing is implemented.
+11. Which properties belong intrinsically to Money Layer versus State versus Event versus Rights.
+
+*Additional closing sources:* an authoritative XML / interface dictionary for the `YitrotShonot` fields (same artifact as Q3); primary citations for the Tax Authority and Capital Market material on termination as a tax event and on sequence choices (not attached in the 2026-09-22 checkpoint).
+
+*Status:* OPEN. `KOD9` remains unresolved (Q3). Q5 is a separate question and is not merged into Q4.
+
 ---
 
 ## Q5 — Form 161 Choice Model versus Existing Retirement-Simulation Inputs
@@ -114,6 +141,8 @@ Each entry states: the current evidence, the current conclusion (what can safely
 **Known implementation conflict recorded with this question (future correction required):** `docs/provident_funds_logic.md` ("Pre-2008 Legacy Funds — Critical Routing Rule") routes the entire balance of a pre-2008 provident fund to `capital_exempt`. Pre-2008 capital character must **not** automatically imply `capital_exempt` (capital ≠ tax-free — registry `PF-KR-007`). That document is implementation-facing and was not modified; the correction belongs with this question's future work. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §11.1.
 
 **What would close it:** A dedicated study of the Form 161 decision structure, followed by an explicit comparison with existing simulation inputs. This register records the question only; no implementation is implied.
+
+**Update 2026-09-22 — status unchanged; kept separate from Q4:** The Q4 checkpoint refined how Form 161 is understood as a domain concept (an event-reconciliation / decision document connecting employer reality, institutional money, event-created rights, choices and tax treatment — `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13.4). This is domain-modeling input only. The Form 161 decision structure has still not been studied in full or compared with the existing simulation, and Q5 remains a future-facing question that depends on Q4.
 
 ---
 

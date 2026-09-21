@@ -187,6 +187,8 @@ On each product's page in the 22-page concentration report (דוח ריכוז), 
 | הראל עדיף | DF-3 |
 | הפניקס | DF-4 |
 
+*(Deduction-file numbers are masked as DF-1 to DF-4; exact values remain in Private Evidence.)*
+
 The same numbers appear in the תגמולים tax report's own `מספר תיק ניכויים` column — strong evidence that this
 column identifies the **Container**, not the taxpayer:
 
@@ -220,25 +222,24 @@ one.
 
 ### B.2 The Altshuler → Mor transfer — Account is not Money Rights History
 
-Roy supplied real annual reports for the same accounts, transferred (נויד) between Altshuler (2024) and Mor
-(2025). Both show 4 provident-fund accounts, the same status split (1 self-employed, 3 salaried) preserved
-across the transfer, even though account numbers changed completely.
+Roy supplied real annual reports for the same accounts, transferred (נויד) from Altshuler to Mor. Both show the same
+account-level status attributes preserved across the transfer, even though account numbers changed completely.
 
 The key finding — two different things survive a transfer, and they are not the same thing:
 
 > "הוותק המשפטי נשמר, בעוד מועד ההצטרפות למוצר החדש התחיל מחדש."
 > *(Legal seniority is preserved, while the joining date to the new product started over.)*
 
-For Mor account [REDACTED_ACCT]: joining date at Mor = [REDACTED_DATE]; tax seniority of the money = [REDACTED_DATE] — kept as
-two separate fields in the same report.
+In the receiving-provider report, the joining date at the new provider and the tax seniority of the money are kept as two
+separate fields, and they differ: the joining date restarted at the transfer while the money's seniority was preserved.
+(Exact dates and account numbers are Private Evidence and are not recorded here.)
 
 > "זו ראיה ישירה וחזקה לכך ש-Account ו-Money Rights History אינן אותה ישות."
 > *(This is direct, strong evidence that Account and Money Rights History are not the same entity.)*
 
-A near-certain first mapping (Altshuler [REDACTED_ACCT] → Mor [REDACTED_ACCT]) was identified on matching status, tax
-seniority, and the fact that the money in both was composed almost entirely of severance, split between
-lump-sum and annuity portions in both reports — the *shape* of the right survived the transfer even as the
-amounts grew.
+A near-certain first mapping (one masked source account → one masked receiving account) was identified on matching status, tax
+seniority, and the severance composition (lump-sum vs. annuity split) in both reports — the *shape* of the right
+survived the transfer.
 
 Comparing the two snapshots directly is not valid — real events occurred between them (returns at Altshuler
 before the transfer, the transfer itself, returns and fees at Mor afterward, in some accounts new deposits).
@@ -257,9 +258,9 @@ amount transferred
 ```
 
 Mor's report exposes an explicit field, "כספים שהעברת לחשבון" (funds you transferred into the account), as the
-primary reconciliation anchor. A further caution: Altshuler's four accounts summed to ₪[REDACTED_AMOUNT]; Mor's
-summed to only ₪[REDACTED_AMOUNT] a year later — not evidence of lost money, but also not license to assume a naive
-1-to-1 account mapping just because the counts matched. **Matching account counts is not evidence of account
+primary reconciliation anchor. A further caution: aggregate balance comparisons across snapshots cannot by themselves establish
+transfer semantics — a difference in totals is not evidence of lost money, but also not license to assume a naive
+1-to-1 account mapping just because account counts match. **Matching account counts is not evidence of account
 identity.**
 
 ### B.3 Detailed report versus short report — different products, not different verbosity

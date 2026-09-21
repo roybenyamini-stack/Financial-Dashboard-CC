@@ -1,6 +1,6 @@
 # Goose Workflow
 
-*Version 1.0*
+*Version 1.1 — Repository Recovery Rule, Solved Questions Guard and Private Evidence review added 2026-09-22*
 
 ---
 
@@ -42,6 +42,40 @@ GOOSE BOOT automatically performs:
 - Review today's objective
 
 After BOOT, the first Goose Session begins.
+
+### Repository Recovery Rule
+
+When a new ChatGPT conversation begins and the canonical project state is not available in the conversation context, the acting Chief Architect must **first** actively attempt to recover that state from the repository / project sources available to it. The correct flow is:
+
+```
+New conversation
+    ↓
+Canonical state missing
+    ↓
+Attempt repository / project recovery
+    ↓
+Read canonical documents
+    ↓
+Reconstruct current state from the repository
+    ↓
+Continue
+```
+
+Only if repository / project access genuinely fails may the human be asked to paste or reconstruct the missing canonical material. Conversation memory must not substitute for repository recovery.
+
+---
+
+## Solved Questions Guard
+
+Before starting a new research expedition, or reopening a field / code / domain question:
+
+1. Inspect the relevant Knowledge Registry / canonical Knowledge.
+2. Inspect the relevant Discovery evidence.
+3. Inspect Open Questions.
+4. Inspect Closed Decisions (`DECISIONS.md`) where applicable.
+5. Identify the **exact unresolved boundary**.
+
+Research may begin only after confirming the question is genuinely open. If a broad family of questions has already been resolved and only one narrow remainder is open, investigate only that remainder. Do not restart a prior expedition merely because the current conversation lacks its history.
 
 ---
 
@@ -107,6 +141,8 @@ Knowledge Review is mandatory.
 □ Should GOOSE_CONSTITUTION.md be updated?
 
 □ Is the current knowledge sufficiently stable for implementation?
+
+□ If Private Evidence was used during the session, has every proposed committed derivation been reviewed against the Private Evidence boundary (`EVIDENCE_HANDLING.md` §5.1) before documentation / commit?
 
 ---
 

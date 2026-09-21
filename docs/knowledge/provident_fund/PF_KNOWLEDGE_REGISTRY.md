@@ -1,6 +1,6 @@
 # Provident Fund Knowledge Registry
 
-*Version 0.2 — PF-KR-005 to PF-KR-011 added 2026-09-21 (severance component, regime split, Rights/Scenario separation). PF-KR-001 to PF-KR-004 unchanged.*
+*Version 0.3 — PF-KR-012 added and PF-KR-008 refined 2026-09-22 (severance-related `YitrotShonot` fields; Money Layer vs Right vs Choice vs State). PF-KR-005 to PF-KR-011 added 2026-09-21 (severance component, regime split, Rights/Scenario separation). PF-KR-001 to PF-KR-004 unchanged.*
 
 ---
 
@@ -194,7 +194,7 @@ Contribution activity is independent of account existence. An account may contin
 **What we know:**
 `REKIV-ITRA-LETKUFA` = 1 identifies severance (פיצויים) in the examined cases. The other observed `REKIV` values (2, 3, 4, 8, 9) remain unexplained.
 
-**Evidence:** Exact reconciliation, to the agora, of the Mor `REKIV1` amounts (cases MOR-1 and MOR-2, 30.04.2026) against the clearinghouse Severance Balance Report for Income Tax Purposes (שווי פיצויים למעסיק); independent confirmation from the fully-severance case MOR-2. Case identifiers are masked; the mapping to real accounts is held in Private Evidence. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §2.
+**Evidence:** Exact reconciliation of the Mor `REKIV1` amounts (cases MOR-1 and MOR-2, 30.04.2026) against the clearinghouse Severance Balance Report for Income Tax Purposes (שווי פיצויים למעסיק); independent confirmation from the fully-severance case MOR-2. Case identifiers are masked; the mapping to real accounts is held in Private Evidence. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §2.
 
 **Scope:** Examined evidence cases only; not established as universal across providers and product types.
 
@@ -271,6 +271,8 @@ A Money Layer describes what the money is; it is not an XML row (an XML row is a
 
 **Roy Reality Usage:** Governs how Reality, Rights and Scenario are kept apart in any future design.
 
+**Refinement 2026-09-22:** A Money Layer is not a Right and not a Choice. A legal / tax / disposition State is not necessarily intrinsic Money-Layer identity, and Rights may depend on Money Layer identity, statutory regime, current state, employment / event context, previous choices and employer / legal conditions. A Choice made at a termination / retirement event can create a new future Rights / Disposition State (choice today can create rights state tomorrow). Confidence unchanged (Evidence Supported, modeling principle). The fuller State → Event → Rights → Choice chain is a working structure recorded in `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13.1 and is **not** promoted here; its transitions are Q4 research.
+
 ---
 
 ### PF-KR-009
@@ -333,3 +335,24 @@ Exempt severance grants may enter the Fixation of Rights (קיבוע זכויו�
 **Unknowns:** The official semantics of value 9 (`PF_OPEN_QUESTIONS.md` Q3). No meaning is inferred or assigned.
 
 **Roy Reality Usage:** None. Must not be used to derive any regime, component or right.
+
+---
+
+### PF-KR-012
+
+**Title:** Examined Holdings XML carries a severance-related field family (`YitrotShonot`) separate from Money-Layer evidence
+
+**What we know:**
+The examined KGM Holdings XML (including provident-fund-type products) contains, structurally, a family of severance-related balance and status fields (`YitrotShonot`) that is separate from the Money-Layer evidence (`PerutYitraLeTkufa`) and from the liquidity-related evidence (`NesilutTag`). In both examined cases containing severance, the account-level field `YITRAT-PITZUIM-LELO-HITCHASHBENOT` reconciled exactly to the total `REKIV1` (severance) Money-Layer balance of that account; in one case that total is the aggregate of two `REKIV1` layers of different `SUG` regimes. Money Layer identity and the separate account-level severance information represented by `YitrotShonot` are distinct dimensions in the examined evidence; whether the latter constitutes a tax / disposition / rights state remains under investigation.
+
+**Evidence:** Exact structural reconciliation in two masked cases (MOR-1, MOR-2); values and account mapping are held in Private Evidence and are not recorded. Structural placement was re-checked on 2026-09-22 against the original private KGM exports: `PerutYitraLeTkufa`, `NesilutTag` and `YitrotShonot` are sibling children of the same `Yitrot` block, present in provident-fund-type as well as Study-Fund-type products; earlier Study-Fund-context references to `NesilutTag` (`Mislaka_Rules.md` §12a; the `PF_HESHBON_OPOLISA_STRUCTURE_DISCOVERY.md` scope note) now carry a note that `NesilutTag` is not Study-Fund-specific. Detail: `PF_SEVERANCE_LAYERS_AND_RIGHTS_DISCOVERY_2026-09-21.md` §13.6–§13.7.
+
+**Scope:** The two examined severance cases only; not established as universal across providers, products or sequence / settlement states. The structural placement (`PerutYitraLeTkufa` / `NesilutTag` / `YitrotShonot` as siblings under one `Yitrot` block) was observed in the examined KGM Holdings evidence in both provident-fund-type and Study-Fund-type products; one further product type was observed but not classified; universality across every product or provider is not established.
+
+**Confidence:** Observed (the reconciliation, two cases). Evidence Supported (that Money Layer identity and the `YitrotShonot` information are distinct dimensions in the examined cases). Whether `YitrotShonot` represents a tax / disposition / rights state, and whether it may serve as Current State for Rights derivation, is **not established** — it remains an open hypothesis under investigation. The legal / interface meaning of every field in the family is **not** classified — in particular it is **not** established that the "without settlement" amount means no tax event, withdrawable, tax-free, or an unconditional right.
+
+**XML Completeness:** Not Yet Identified — for whether the XML holds sufficient Current State to derive current institutional severance rights (with or without a full historical ledger). The physical presence of the fields is an observation, not an XML Completeness finding.
+
+**Unknowns:** Authoritative semantics of `YITRAT-PITZUIM-LELO-HITCHASHBENOT`; the authoritative numeric-enum mapping of `KAYAM-RETZEF-PITZUIM-KITZBA` and `KAYAM-RETZEF-ZECHUYOT-PITZUIM` (observed populated even where severance balances are zero, so presence does not prove an active sequence; no value is mapped); whether Current State suffices without reconstructing the provider ledger; whether the reconciliation holds in other states (`PF_OPEN_QUESTIONS.md` Q3, Q4).
+
+**Roy Reality Usage:** Evidence that an information dimension distinct from Money Layers exists in the examined XML; whether it is Current State is an open hypothesis. Must not be used to derive tax status, withdrawability, sequence existence or any right until the field semantics are recovered.

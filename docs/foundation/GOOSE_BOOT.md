@@ -24,7 +24,7 @@ This repository is **Goose Financial** — the first domain instantiation of Goo
 
 ## 2. Repository Authority
 
-This repository — its committed files, not a session's memory or a prior conversation — is the single source of truth. A session re-derives its understanding of current state from the repository on every boot; it never relies on what it, or another agent, recalls having done previously.
+This repository — its committed files, not a session's memory or a prior conversation — is the single source of truth. A session re-derives its understanding of current state from the repository on every boot; it never relies on what it, or another agent, recalls having done previously. When canonical state is missing from a session's context, it is recovered from the repository as specified by the Repository Recovery Rule in `GOOSE_WORKFLOW.md` (the rule is owned there and is not restated here).
 
 Authority flows in one direction:
 

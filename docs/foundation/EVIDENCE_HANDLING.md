@@ -78,6 +78,32 @@ No env-var indirection layer exists yet (e.g. a `GOOSE_EVIDENCE_VAULT` variable)
 
 When a research session writes derived facts from Private Evidence into a committed document (a Knowledge Object, an evidence-index entry, or any other tracked file), it must preserve the precision needed for verification and calculation. **Redaction or rounding is applied only where specifically justified in that instance** (e.g. to remove an account number or a name) — never as a blanket default transformation. Every case that does mask or round a figure should state why, in place, rather than following an assumed convention. (This corrects an earlier draft of this plan, which proposed a universal "round to nearest 10" rule — rejected as too broad by the Product Owner.)
 
+### 5.1 Precision vs. the Private Evidence boundary (clarification, 2026-09-22)
+
+§5 governs *how precisely* a derived fact is written. It does not override §1: **verification precision does not override the Private Evidence boundary.** The two tiers of §1 hold different things:
+
+- **Private Evidence** — exact evidence, retained in the external Vault (§3) wherever needed for audit or verification.
+- **Canonical / Public Knowledge** — the sanitized, reusable conclusion, with enough structural precision to be auditable but without unnecessary identifying evidence.
+
+A committed document therefore carries only the **minimum non-identifying detail** needed to preserve the reusable finding. Unless there is an explicit, case-specific need **and Product Owner approval**, do not commit:
+
+- real personal account or policy numbers
+- personal identifiers (names, identity numbers)
+- identifying account / provider combinations
+- exact personal financial values
+- identifying employer or employment facts (including employment dates)
+- combinations of facts that materially enable re-identification
+- identifying evidence filenames
+
+Rules of practice:
+
+1. **Prefer masked case identifiers** (e.g. MOR-1, MOR-2) whenever a reproducible evidence reference is needed; the case-to-evidence mapping stays in the Vault.
+2. **Preserve auditable structure.** Record the structural relationship the evidence showed (e.g. "field A reconciles exactly to the sum of the layers of type B in every examined case") rather than the values that showed it. Removing identifying values must not remove the ability to reason about the finding.
+3. **No arbitrary rounding as a default privacy mechanism.** §5's rule stands: masking or rounding is applied only where specifically justified in that instance, and the reason is stated in place. Where a structural statement can carry the finding, prefer it to a rounded number.
+4. **Review before commit.** When Private Evidence was used in a session, each proposed committed derivation is reviewed against this section before documentation or commit (`GOOSE_WORKFLOW.md`, End-of-Session Checklist).
+
+This clarification refines §5; it does not replace it. It applies from the date above. Earlier repository revisions may contain superseded private evidence and are subject to the repository privacy-remediation process.
+
 ---
 
 ## 6. What this document deliberately does not do (Phase 1 scope)
